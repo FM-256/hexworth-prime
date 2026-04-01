@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NE-07 NAT Scenario Lab | Network+</title>
+    <style>
+        :root {
+            --cyan: #06b6d4;
+            --cyan-dim: #0891b2;
+            --cyan-glow: rgba(6, 182, 212, 0.25);
+            --cyan-glow-strong: rgba(6, 182, 212, 0.45);
+            --bg-primary: #090910;
+            --bg-secondary: #0f0f1a;
+            --bg-tertiary: #161625;
+            --bg-terminal: #0a0e14;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-dim: #64748b;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --border: rgba(6, 182, 212, 0.15);
+            --border-active: rgba(6, 182, 212, 0.4);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .lab-container { max-width: 1060px; margin: 0 auto; padding: 2rem; }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .back-link {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            color: var(--cyan); text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+        .back-link:hover { color: #67e8f9; transform: translateX(-5px); }
+
+        .lab-header {
+            text-align: center; margin-bottom: 2rem; padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+            border-radius: 16px; border: 1px solid var(--cyan);
+            box-shadow: 0 0 30px var(--cyan-glow);
+        }
+        .lab-header h1 {
+            font-size: 1.8rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--cyan), #67e8f9);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .lab-header .meta {
+            display: flex; gap: 1rem; justify-content: center;
+            flex-wrap: wrap; font-size: 0.82rem; color: var(--text-secondary);
+        }
+        .lab-header .meta span {
+            background: var(--bg-primary);
+            padding: 4px 12px;
+            border-radius: 6px;
+            border: 1px solid #1e293b;
+        }
+
+        .scenario-brief {
+            background: linear-gradient(135deg, rgba(6,182,212,0.08), rgba(6,182,212,0.03));
+            border: 1px solid var(--border-active);
+            border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;
+        }
+        .scenario-brief h3 { color: var(--cyan); margin-bottom: 0.5rem; font-size: 1rem; }
+        .scenario-brief p { color: var(--text-secondary); font-size: 0.9rem; }
+        .scenario-brief ul { margin-top: 0.5rem; padding-left: 1.25rem; color: var(--text-secondary); font-size: 0.88rem; }
+        .scenario-brief li { margin-bottom: 0.3rem; }
+        .scenario-brief .ticket-id { color: var(--danger); font-weight: 600; }
+
+        .progress-section {
+            background: var(--bg-secondary); border-radius: 12px; padding: 1.25rem 1.5rem;
+            margin-bottom: 2rem; border: 1px solid var(--border);
+        }
+        .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; font-size: 0.9rem; }
+        .progress-bar { height: 10px; background: var(--bg-tertiary); border-radius: 5px; overflow: hidden; }
+        .progress-fill {
+            height: 100%; width: 0%;
+            background: linear-gradient(90deg, var(--cyan), var(--success));
+            border-radius: 5px; transition: width 0.5s ease;
+        }
+
+        .step-card {
+            background: var(--bg-secondary);
+            border-radius: 14px; padding: 1.75rem;
+            margin-bottom: 1.75rem;
+            border: 1px solid var(--border);
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .step-card:hover { border-color: var(--border-active); }
+        .step-card.solved { border-color: var(--success); background: linear-gradient(135deg, var(--bg-secondary), rgba(34,197,94,0.06)); }
+        .step-card.locked { opacity: 0.45; pointer-events: none; }
+
+        .step-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
+        .step-num {
+            width: 44px; height: 44px; flex-shrink: 0;
+            background: linear-gradient(135deg, var(--cyan-dim), var(--cyan));
+            border-radius: 10px; display: flex; align-items: center; justify-content: center;
+            font-size: 1.25rem; font-weight: 700; color: #fff;
+        }
+        .step-card.solved .step-num { background: linear-gradient(135deg, #16a34a, var(--success)); }
+        .step-title { font-size: 1.15rem; font-weight: 600; }
+        .step-subtitle { font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px; }
+
+        .evidence-label {
+            display: inline-block; font-size: 0.75rem; text-transform: uppercase;
+            letter-spacing: 0.06em; color: var(--cyan); font-weight: 600; margin-bottom: 0.5rem;
+        }
+
+        .terminal {
+            background: var(--bg-terminal); padding: 1.25rem 1.5rem;
+            border-radius: 8px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; line-height: 1.55; border: 1px solid #1e293b;
+            margin-bottom: 1.25rem; overflow-x: auto; white-space: pre;
+        }
+        .terminal .prompt { color: var(--success); }
+        .terminal .cmd { color: #f0f6fc; font-weight: 600; }
+        .terminal .out { color: #8b949e; }
+        .terminal .hl { color: var(--warning); }
+        .terminal .err { color: var(--danger); }
+        .terminal .info { color: var(--cyan); }
+
+        .question-area { margin-top: 1rem; }
+        .question-area label {
+            display: block; color: var(--cyan); font-weight: 600;
+            margin-bottom: 0.5rem; font-size: 0.92rem;
+        }
+        .question-area select {
+            width: 100%; padding: 10px 14px;
+            background: rgba(0,0,0,0.4); border: 1px solid rgba(6,182,212,0.3);
+            border-radius: 8px; color: var(--text-primary); font-size: 0.9rem;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            appearance: auto; cursor: pointer;
+        }
+        .question-area select:focus {
+            outline: none; border-color: var(--cyan);
+            box-shadow: 0 0 12px var(--cyan-glow);
+        }
+
+        .btn-row { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
+
+        .verify-btn {
+            padding: 9px 22px;
+            background: linear-gradient(135deg, var(--cyan-dim), var(--cyan));
+            color: #fff; border: none; border-radius: 8px;
+            font-size: 0.88rem; font-weight: 600; cursor: pointer;
+            transition: all 0.3s;
+        }
+        .verify-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 18px var(--cyan-glow-strong); }
+        .verify-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .hint-btn {
+            padding: 9px 22px;
+            background: transparent; border: 1px solid var(--warning);
+            color: var(--warning); border-radius: 8px;
+            font-size: 0.88rem; font-weight: 600; cursor: pointer;
+            transition: all 0.3s;
+        }
+        .hint-btn:hover { background: rgba(245,158,11,0.1); }
+
+        .feedback {
+            padding: 10px 16px; border-radius: 8px; margin-top: 0.75rem;
+            font-size: 0.88rem; display: none;
+        }
+        .feedback.correct {
+            display: block; background: rgba(34,197,94,0.12);
+            border: 1px solid var(--success); color: var(--success);
+        }
+        .feedback.incorrect {
+            display: block; background: rgba(239,68,68,0.12);
+            border: 1px solid var(--danger); color: var(--danger);
+        }
+
+        .hint-box {
+            margin-top: 0.75rem; padding: 0.85rem 1rem;
+            background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.3);
+            border-radius: 8px; color: var(--warning); font-size: 0.85rem;
+            display: none;
+        }
+        .hint-box.visible { display: block; }
+
+        .completion-banner {
+            display: none; text-align: center; padding: 2rem;
+            background: linear-gradient(135deg, rgba(34,197,94,0.1), rgba(6,182,212,0.08));
+            border: 1px solid var(--success); border-radius: 14px; margin-top: 1rem;
+        }
+        .completion-banner.visible { display: block; }
+        .completion-banner h2 {
+            font-size: 1.5rem; color: var(--success); margin-bottom: 0.5rem;
+        }
+        .completion-banner p { color: var(--text-secondary); font-size: 0.92rem; }
+
+        .topology-info {
+            background: var(--bg-tertiary); border-radius: 10px;
+            padding: 1rem 1.25rem; margin-bottom: 2rem;
+            border: 1px solid #1e293b; font-size: 0.82rem;
+            font-family: 'Courier New', monospace; color: var(--text-secondary);
+            line-height: 1.7; overflow-x: auto; white-space: pre;
+        }
+
+        @media (max-width: 768px) {
+            .lab-container { padding: 1rem; }
+            .lab-header h1 { font-size: 1.4rem; }
+            .terminal { font-size: 0.72rem; padding: 1rem; }
+            .step-card { padding: 1.25rem; }
+            .topology-info { font-size: 0.72rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <div class="nav-links">
+            <a href="../index.html" class="back-link">&#x2190; Network+ Hub</a>
+        </div>
+
+        <header class="lab-header">
+            <h1>NE-07: NAT Troubleshooting Scenario</h1>
+            <p class="subtitle">Edge Router NAT Failure -- Post-Firmware Upgrade Recovery</p>
+            <div class="meta">
+                <span>8 Steps</span>
+                <span>35-45 min</span>
+                <span>Scenario Lab</span>
+            </div>
+        </header>
+
+        <div class="scenario-brief">
+            <h3>Incident Brief</h3>
+            <p>Three critical tickets came in after last night's firmware upgrade on the Meridian Corp edge router (RTR-EDGE-01). The upgrade scrambled the NAT configuration and the network is in bad shape.</p>
+            <ul>
+                <li><span class="ticket-id">TICK-4401</span> -- Internal users (10.10.0.0/16) cannot reach the internet</li>
+                <li><span class="ticket-id">TICK-4402</span> -- DMZ web server (172.16.50.10) unreachable from outside</li>
+                <li><span class="ticket-id">TICK-4403</span> -- Site-to-site VPN tunnels to branch offices are failing</li>
+            </ul>
+            <p style="margin-top:0.75rem;">Your job: inspect the router output at each step, diagnose the NAT issue, and select the correct fix. Steps unlock sequentially -- each fix builds on the last.</p>
+        </div>
+
+        <div class="topology-info">TOPOLOGY -- Meridian Corp Edge Router (RTR-EDGE-01)
+ ===================================================================
+  INTERNET
+     |
+  [Gi0/0 -- 203.0.113.1/24]  &lt;-- WAN (NAT Outside)
+     |
+  RTR-EDGE-01  (IOS 15.9)
+     |            |             |
+  [Gi0/1]     [Gi0/2]       [Gi0/3]
+  10.10.0.1   172.16.50.1   10.20.0.1
+  /16 LAN     /24 DMZ       /24 VPN
+     |            |             |
+  Internal    DMZ Web Srv   VPN Tunnel
+  Users       172.16.50.10  Endpoint
+ ===================================================================
+  NAT Pool "MERIDIAN": 203.0.113.10 - 203.0.113.11 (2 IPs)
+  Engineering VLAN: 10.10.20.0/24 (85 users)
+  Accounting VLAN:  10.10.10.0/24 (30 users)</div>
+
+        <div class="progress-section">
+            <div class="progress-header">
+                <span>Investigation Progress</span>
+                <span id="progressText">0 / 8 steps</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <!-- STEP 1 -->
+        <div class="step-card" id="step1">
+            <div class="step-header">
+                <div class="step-num">1</div>
+                <div>
+                    <div class="step-title">Empty Translation Table</div>
+                    <div class="step-subtitle">First look: why is nothing being translated?</div>
+                </div>
+            </div>
+            <div class="evidence-label">Evidence -- show ip nat translations</div>
+            <div class="terminal"><span class="prompt">RTR-EDGE-01#</span> <span class="cmd">show ip nat translations</span>
+<span class="out">% No NAT translations currently active</span>
+
+<span class="prompt">RTR-EDGE-01#</span> <span class="cmd">show ip nat statistics</span>
+<span class="out">Total active translations: 0 (0 static, 0 dynamic; 0 extended)
+Outside interfaces: Gi0/0
+Inside interfaces:
+Hits: 0  Misses: 0
+Expired translations: 0
+Dynamic mappings:
+  -- Inside Source
+    access-list 10 pool MERIDIAN refcount 0</span></div>
+            <div class="question-area">
+                <label>Q: The translation table is empty. What is the most likely root cause?</label>
+                <select id="q1">
+                    <option value="">-- Select your diagnosis --</option>
+                    <option value="a">The NAT pool is exhausted and all IPs are in use</option>
+                    <option value="b">PAT (overload) rule is missing for the internal subnet</option>
+                    <option value="c">The WAN interface is administratively down</option>
+                    <option value="d">DNS resolution is failing so no traffic is generated</option>
+                </select>
+                <div class="btn-row">
+                    <button class="verify-btn" onclick="verifyStep(1)">Verify Diagnosis</button>
+                    <button class="hint-btn" onclick="showHint(1)">Show Hint</button>
+                </div>
+                <div class="feedback" id="fb1"></div>
+                <div class="hint-box" id="hint1">Look at the statistics: inside interfaces shows no interface designated. Also, with only 2 pool IPs and no overload keyword, PAT is not enabled -- the pool would exhaust instantly with any real traffic. But the deeper issue here is the missing PAT overload rule that was wiped by the firmware upgrade.</div>
+            </div>
+        </div>
+
+        <!-- STEP 2 -->
+        <div class="step-card locked" id="step2">
+            <div class="step-header">
+                <div class="step-num">2</div>
+                <div>
+                    <div class="step-title">Missing Interface Designations</div>
+                    <div class="step-subtitle">NAT needs to know which side is inside and which is outside</div>
+                </div>
+            </div>
+            <div class="evidence-label">Evidence -- show running-config | section interface</div>
+            <div class="terminal"><span class="prompt">RTR-EDGE-01#</span> <span class="cmd">show running-config | section interface</span>
+<span class="out">interface GigabitEthernet0/0
+ description WAN-UPLINK
+ ip address 203.0.113.1 255.255.255.0
+ ip nat outside
+ no shutdown
+!
+interface GigabitEthernet0/1
+ description LAN-INTERNAL
+ ip address 10.10.0.1 255.255.0.0</span>
+ <span class="err">! NOTE: no ip nat inside/outside designation</span>
+<span class="out"> no shutdown
+!
+interface GigabitEthernet0/2
+ description DMZ-SEGMENT
+ ip address 172.16.50.1 255.255.255.0
+ no shutdown
+!
+interface GigabitEthernet0/3
+ description VPN-ENDPOINT
+ ip address 10.20.0.1 255.255.255.0
+ ip nat inside
+ no shutdown</span></div>
+            <div class="question-area">
+                <label>Q: Internal users on Gi0/1 still can't reach the internet. What's missing?</label>
+                <select id="q2">
+                    <option value="">-- Select your diagnosis --</option>
+                    <option value="a">Gi0/1 needs a default route added to the routing table</option>
+                    <option value="b">Gi0/1 is missing the <code>ip nat inside</code> designation</option>
+                    <option value="c">Gi0/1 needs the <code>ip nat outside</code> designation</option>
+                    <option value="d">Gi0/1's IP address is in the wrong subnet</option>
+                </select>
+                <div class="btn-row">
+                    <button class="verify-btn" onclick="verifyStep(2)">Verify Diagnosis</button>
+                    <button class="hint-btn" onclick="showHint(2)">Show Hint</button>
+                </div>
+                <div class="feedback" id="fb2"></div>
+                <div class="hint-box" id="hint2">NAT requires every participating interface to be designated as either <code>ip nat inside</code> or <code>ip nat outside</code>. Gi0/1 connects to the LAN (internal users) so it must be designated <code>ip nat inside</code>. Without this, the router does not know to translate packets arriving on that interface.</div>
+            </div>
+        </div>
+
+        <!-- STEP 3 -->
+        <div class="step-card locked" id="step3">
+            <div class="step-header">
+                <div class="step-num">3</div>
+                <div>
+                    <div class="step-title">Incorrect Static NAT Entry</div>
+                    <div class="step-subtitle">The DMZ web server's static NAT rule has the wrong address</div>
+                </div>
+            </div>
+            <div class="evidence-label">Evidence -- show running-config | include ip nat</div>
+            <div class="terminal"><span class="prompt">RTR-EDGE-01#</span> <span class="cmd">show running-config | include ip nat</span>
+<span class="out">ip nat inside source static </span><span class="err">172.16.50.20</span><span class="out"> 203.0.113.50</span>
+<span class="out">ip nat inside source list 10 pool MERIDIAN overload
+ip nat pool MERIDIAN 203.0.113.10 203.0.113.11 netmask 255.255.255.0</span>
+
+<span class="prompt">RTR-EDGE-01#</span> <span class="cmd">show ip nat translations</span>
+<span class="out">Pro  Inside global      Inside local       Outside local      Outside global
+---  203.0.113.50       </span><span class="err">172.16.50.20</span><span class="out">       ---                ---</span>
+
+<span class="info">! DMZ web server actual IP: 172.16.50.10</span></div>
+            <div class="question-area">
+                <label>Q: Outside users still can't reach the DMZ web server. What needs to change?</label>
+                <select id="q3">
+                    <option value="">-- Select your diagnosis --</option>
+                    <option value="a">The outside global address 203.0.113.50 is wrong</option>
+                    <option value="b">The inside local address must be corrected from 172.16.50.20 to 172.16.50.10</option>
+                    <option value="c">Static NAT should be replaced with dynamic NAT for DMZ servers</option>
+                    <option value="d">The web server needs a CNAME DNS record, not a NAT rule</option>
+                </select>
+                <div class="btn-row">
+                    <button class="verify-btn" onclick="verifyStep(3)">Verify Diagnosis</button>
+                    <button class="hint-btn" onclick="showHint(3)">Show Hint</button>
+                </div>
+                <div class="feedback" id="fb3"></div>
+                <div class="hint-box" id="hint3">The static NAT maps 172.16.50.<strong>20</strong> to the public IP, but the actual DMZ web server lives at 172.16.50.<strong>10</strong>. The firmware upgrade corrupted the inside local address. The fix: remove the incorrect static entry and recreate it with the correct inside local IP 172.16.50.10.</div>
+            </div>
+        </div>
+
+        <!-- STEP 4 -->
+        <div class="step-card locked" id="step4">
+            <div class="step-header">
+                <div class="step-num">4</div>
+                <div>
+                    <div class="step-title">NAT Pool Exhaustion</div>
+                    <div class="step-subtitle">Engineering VLAN (85 users) vs a 2-IP pool</div>
+                </div>
+            </div>
+            <div class="evidence-label">Evidence -- show ip nat pool &amp; ACL</div>
+            <div class="terminal"><span class="prompt">RTR-EDGE-01#</span> <span class="cmd">show ip nat pool name MERIDIAN</span>
+<span class="out">pool MERIDIAN: netmask 255.255.255.0
+        start 203.0.113.10  end </span><span class="err">203.0.113.11</span>
+<span class="out">type generic, total addresses </span><span class="err">2</span><span class="out">, allocated 2, misses </span><span class="err">147</span>
+
+<span class="prompt">RTR-EDGE-01#</span> <span class="cmd">show access-list 10</span>
+<span class="out">Standard IP access list 10
+    10 permit 10.10.0.0, wildcard bits 0.0.255.255 (328 matches)</span>
+
+<span class="prompt">RTR-EDGE-01#</span> <span class="cmd">show ip nat statistics | include Misses</span>
+<span class="out">Hits: 412  Misses: </span><span class="err">147</span></div>
+            <div class="question-area">
+                <label>Q: Engineering users (10.10.20.0/24, 85 hosts) report intermittent internet access. Accounting (30 users) works fine. Why are Engineering users failing?</label>
+                <select id="q4">
+                    <option value="">-- Select your diagnosis --</option>
+                    <option value="a">Engineering's subnet is not in ACL 10</option>
+                    <option value="b">The NAT pool is exhausted -- only 2 addresses for the entire 10.10.0.0/16 network without PAT overload</option>
+                    <option value="c">Engineering users have incorrect default gateway settings</option>
+                    <option value="d">The ISP is rate-limiting connections from 203.0.113.10-11</option>
+                </select>
+                <div class="btn-row">
+                    <button class="verify-btn" onclick="verifyStep(4)">Verify Diagnosis</button>
+                    <button class="hint-btn" onclick="showHint(4)">Show Hint</button>
+                </div>
+                <div class="feedback" id="fb4"></div>
+                <div class="hint-box" id="hint4">The pool has only 2 addresses and 147 misses indicate frequent exhaustion. Even though the config now has "overload," the pool is too small. Without PAT working correctly (which was fixed in Step 1), the 2 IPs map 1:1 to the first 2 hosts that request. The fix: expand the pool range (e.g., 203.0.113.10 - 203.0.113.30) or confirm the overload keyword is applied so all hosts share the pool via PAT.</div>
+            </div>
+        </div>
+
+        <!-- STEP 5 -->
+        <div class="step-card locked" id="step5">
+            <div class="step-header">
+                <div class="step-num">5</div>
+                <div>
+                    <div class="step-title">VPN Traffic Being NATted</div>
+                    <div class="step-subtitle">Site-to-site tunnels fail because NAT changes the source</div>
+                </div>
+            </div>
+            <div class="evidence-label">Evidence -- VPN config &amp; NAT ACL</div>
+            <div class="terminal"><span class="prompt">RTR-EDGE-01#</span> <span class="cmd">show crypto isakmp sa</span>
+<span class="out">IPv4 Crypto ISAKMP SA
+dst             src             state          conn-id status
+203.0.113.200   203.0.113.1     </span><span class="err">MM_NO_STATE</span><span class="out">       1001 </span><span class="err">ACTIVE (no response)</span>
+
+<span class="prompt">RTR-EDGE-01#</span> <span class="cmd">show running-config | section crypto map</span>
+<span class="out">crypto map BRANCH-VPN 10 ipsec-isakmp
+ set peer 203.0.113.200
+ set transform-set AES256-SHA
+ match address 150</span>
+
+<span class="prompt">RTR-EDGE-01#</span> <span class="cmd">show access-list 150</span>
+<span class="out">Extended IP access list 150
+    10 permit ip 10.20.0.0 0.0.0.255 192.168.100.0 0.0.0.255</span>
+
+<span class="prompt">RTR-EDGE-01#</span> <span class="cmd">show access-list 10</span>
+<span class="out">Standard IP access list 10
+    10 permit 10.10.0.0, wildcard bits 0.0.255.255
+    </span><span class="err">20 permit 10.20.0.0, wildcard bits 0.0.0.255</span></div>
+            <div class="question-area">
+                <label>Q: VPN tunnels to the branch office (192.168.100.0/24) won't establish. The crypto peer shows MM_NO_STATE. What's the problem?</label>
+                <select id="q5">
+                    <option value="">-- Select your diagnosis --</option>
+                    <option value="a">The transform set AES256-SHA is not supported by the peer</option>
+                    <option value="b">ACL 150 has the wrong source/destination subnets</option>
+                    <option value="c">The VPN subnet 10.20.0.0/24 is included in NAT ACL 10 -- traffic is being NATted before encryption, breaking the tunnel</option>
+                    <option value="d">The crypto map is not applied to any interface</option>
+                </select>
+                <div class="btn-row">
+                    <button class="verify-btn" onclick="verifyStep(5)">Verify Diagnosis</button>
+                    <button class="hint-btn" onclick="showHint(5)">Show Hint</button>
+                </div>
+                <div class="feedback" id="fb5"></div>
+                <div class="hint-box" id="hint5">ACL 10 line 20 permits 10.20.0.0/24 -- the VPN subnet. This means VPN traffic gets NATted to the pool address <em>before</em> it hits the crypto map. The remote peer expects source 10.20.0.x but receives 203.0.113.x, so the IPsec SA never matches. Fix: add a <code>deny 10.20.0.0 0.0.0.255</code> line BEFORE the permit in ACL 10 (NAT exemption), or use a route-map to exclude VPN-bound traffic.</div>
+            </div>
+        </div>
+
+        <!-- STEP 6 -->
+        <div class="step-card locked" id="step6">
+            <div class="step-header">
+                <div class="step-num">6</div>
+                <div>
+                    <div class="step-title">DMZ Interface Missing NAT Designation</div>
+                    <div class="step-subtitle">The DMZ segment has no NAT role assigned</div>
+                </div>
+            </div>
+            <div class="evidence-label">Evidence -- interface Gi0/2 config &amp; NAT stats</div>
+            <div class="terminal"><span class="prompt">RTR-EDGE-01#</span> <span class="cmd">show running-config interface Gi0/2</span>
+<span class="out">interface GigabitEthernet0/2
+ description DMZ-SEGMENT
+ ip address 172.16.50.1 255.255.255.0</span>
+ <span class="err">! No ip nat inside or outside configured</span>
+<span class="out"> no shutdown</span>
+
+<span class="prompt">RTR-EDGE-01#</span> <span class="cmd">show ip nat statistics</span>
+<span class="out">Total active translations: 14 (1 static, 13 dynamic; 13 extended)
+Outside interfaces: GigabitEthernet0/0
+Inside interfaces:  GigabitEthernet0/1, GigabitEthernet0/3</span>
+<span class="err">! Gi0/2 not listed in either direction</span></div>
+            <div class="question-area">
+                <label>Q: The static NAT entry for the web server exists (fixed in Step 3), but external users still can't reach 172.16.50.10. What's missing on Gi0/2?</label>
+                <select id="q6">
+                    <option value="">-- Select your diagnosis --</option>
+                    <option value="a">Gi0/2 needs <code>ip nat outside</code> since it faces the DMZ</option>
+                    <option value="b">Gi0/2 needs <code>ip nat inside</code> since the DMZ server is an inside local address</option>
+                    <option value="c">Gi0/2 needs a static route to the WAN gateway</option>
+                    <option value="d">Gi0/2 needs to be in the same VLAN as Gi0/0</option>
+                </select>
+                <div class="btn-row">
+                    <button class="verify-btn" onclick="verifyStep(6)">Verify Diagnosis</button>
+                    <button class="hint-btn" onclick="showHint(6)">Show Hint</button>
+                </div>
+                <div class="feedback" id="fb6"></div>
+                <div class="hint-box" id="hint6">The static NAT maps an <em>inside local</em> address (172.16.50.10) to an <em>inside global</em> address (203.0.113.50). For this to work, the router must see 172.16.50.10 arriving on an <code>ip nat inside</code> interface. Even though we call it the "DMZ," from NAT's perspective the web server is an inside host being published outward. Gi0/2 needs <code>ip nat inside</code>.</div>
+            </div>
+        </div>
+
+        <!-- STEP 7 -->
+        <div class="step-card locked" id="step7">
+            <div class="step-header">
+                <div class="step-num">7</div>
+                <div>
+                    <div class="step-title">Missing HTTPS Port Forward</div>
+                    <div class="step-subtitle">HTTP works but HTTPS traffic is dropped</div>
+                </div>
+            </div>
+            <div class="evidence-label">Evidence -- port forwarding rules</div>
+            <div class="terminal"><span class="prompt">RTR-EDGE-01#</span> <span class="cmd">show running-config | include ip nat inside source static</span>
+<span class="out">ip nat inside source static tcp 172.16.50.10 80 203.0.113.50 80
+</span><span class="err">! No entry for port 443</span>
+
+<span class="prompt">RTR-EDGE-01#</span> <span class="cmd">show ip nat translations</span>
+<span class="out">Pro  Inside global       Inside local        Outside local      Outside global
+tcp  203.0.113.50:80     172.16.50.10:80     ---                ---
+---  203.0.113.50        172.16.50.10        ---                ---</span>
+
+<span class="prompt">RTR-EDGE-01#</span> <span class="cmd">show ip nat translations | count tcp.*443</span>
+<span class="out">Number of lines which match regexp = </span><span class="err">0</span></div>
+            <div class="question-area">
+                <label>Q: Customers report they can access http://meridian.com but https://meridian.com times out. Why can't HTTPS work?</label>
+                <select id="q7">
+                    <option value="">-- Select your diagnosis --</option>
+                    <option value="a">The SSL certificate on the web server has expired</option>
+                    <option value="b">Port 443 static NAT/port forward is missing -- only port 80 is forwarded</option>
+                    <option value="c">The firewall ACL is blocking all outbound traffic on port 443</option>
+                    <option value="d">HTTPS requires a separate public IP address, not port forwarding</option>
+                </select>
+                <div class="btn-row">
+                    <button class="verify-btn" onclick="verifyStep(7)">Verify Diagnosis</button>
+                    <button class="hint-btn" onclick="showHint(7)">Show Hint</button>
+                </div>
+                <div class="feedback" id="fb7"></div>
+                <div class="hint-box" id="hint7">The config shows a static port forward for TCP 80 only. HTTPS uses TCP 443 and requires its own static NAT entry: <code>ip nat inside source static tcp 172.16.50.10 443 203.0.113.50 443</code>. The firmware upgrade likely dropped this rule. HTTP and HTTPS are separate port mappings in NAT; one does not imply the other.</div>
+            </div>
+        </div>
+
+        <!-- STEP 8 -->
+        <div class="step-card locked" id="step8">
+            <div class="step-header">
+                <div class="step-num">8</div>
+                <div>
+                    <div class="step-title">Aggressive NAT Timeout</div>
+                    <div class="step-subtitle">Connections drop mid-session due to premature translation expiry</div>
+                </div>
+            </div>
+            <div class="evidence-label">Evidence -- NAT timer config</div>
+            <div class="terminal"><span class="prompt">RTR-EDGE-01#</span> <span class="cmd">show ip nat translations verbose</span>
+<span class="out">Pro  Inside global       Inside local        Outside local      Outside global
+tcp  203.0.113.10:44821  10.10.10.5:44821    151.101.1.69:443   151.101.1.69:443
+     create 00:00:03, use 00:00:01, </span><span class="err">timeout: 10</span><span class="out">, timing-out,
+     Map-Id(In): 1, flags: extended, use_count: 0
+
+tcp  203.0.113.10:50112  10.10.10.22:50112   172.217.14.99:80   172.217.14.99:80
+     create 00:00:08, use 00:00:02, </span><span class="err">timeout: 10</span><span class="out">, </span><span class="err">timing-out</span><span class="out">,
+     Map-Id(In): 1, flags: extended, use_count: 0</span>
+
+<span class="prompt">RTR-EDGE-01#</span> <span class="cmd">show running-config | include nat.*timeout</span>
+<span class="out">ip nat translation timeout </span><span class="err">10</span>
+<span class="out">ip nat translation tcp-timeout </span><span class="err">10</span>
+<span class="out">ip nat translation udp-timeout </span><span class="err">10</span></div>
+            <div class="question-area">
+                <label>Q: Users report that web pages load partially then stall, file downloads abort after a few seconds, and SSH sessions freeze. All three NAT timeouts are set to 10 seconds. What's needed?</label>
+                <select id="q8">
+                    <option value="">-- Select your diagnosis --</option>
+                    <option value="a">Disable NAT timeouts entirely so translations never expire</option>
+                    <option value="b">Increase timeouts to reasonable values (e.g., TCP 3600s, UDP 300s, general 86400s)</option>
+                    <option value="c">The timeouts are fine -- the real problem is packet fragmentation on the WAN</option>
+                    <option value="d">Set all timeouts to 1 second for better pool recycling</option>
+                </select>
+                <div class="btn-row">
+                    <button class="verify-btn" onclick="verifyStep(8)">Verify Diagnosis</button>
+                    <button class="hint-btn" onclick="showHint(8)">Show Hint</button>
+                </div>
+                <div class="feedback" id="fb8"></div>
+                <div class="hint-box" id="hint8">A 10-second NAT timeout means the router tears down the translation entry after only 10 seconds of inactivity. Normal TCP sessions (web browsing, downloads, SSH) pause longer than that routinely. Cisco defaults are: TCP timeout 86400 (24h), UDP timeout 300 (5m), general timeout 86400. Setting TCP to at least 3600 (1h) and UDP to 300 restores normal operation.</div>
+            </div>
+        </div>
+
+        <div class="completion-banner" id="completionBanner">
+            <h2>All NAT Issues Resolved</h2>
+            <p>You successfully diagnosed and fixed 8 NAT misconfigurations on RTR-EDGE-01. All three tickets -- internal internet access, DMZ reachability, and VPN tunnels -- are now resolved. The Meridian Corp network is back to full operation.</p>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        var TOTAL_STEPS = 8;
+        var solved = {};
+        var ANSWERS = {
+            1: 'b', 2: 'b', 3: 'b', 4: 'b',
+            5: 'c', 6: 'b', 7: 'b', 8: 'b'
+        };
+        var EXPLANATIONS = {
+            1: ['Correct. The PAT (overload) rule was wiped by the firmware upgrade. Without it, dynamic NAT has no mechanism to share pool addresses across multiple hosts, and the pool (only 2 IPs) exhausts immediately.', 'Not quite. Look at the statistics -- there are zero hits, zero misses. No translation is being attempted at all. The issue is that the dynamic NAT rule with overload was removed by the upgrade.'],
+            2: ['Correct. Gi0/1 needs "ip nat inside" so the router knows to perform NAT on traffic arriving from that interface. Without the designation, NAT ignores all traffic from the LAN subnet.', 'Not quite. The interface is up and has a valid IP. The issue is NAT-specific: the router must know which interfaces are "inside" and which are "outside" to perform translations.'],
+            3: ['Correct. The static NAT entry maps 172.16.50.20 but the actual server is at 172.16.50.10. The firmware scrambled the inside local address. Correcting it restores the mapping.', 'Not quite. The outside global address (203.0.113.50) is the public-facing IP -- that\'s what DNS resolves to and it\'s correct. The problem is the inside local address doesn\'t match the real server IP.'],
+            4: ['Correct. With only 2 pool addresses available, even with PAT overload, a heavy user base can exhaust the port space. The 147 misses confirm that translations are being denied. Expanding the pool gives more addresses for PAT to distribute across.', 'Not quite. ACL 10 permits the entire 10.10.0.0/16, which includes Engineering. The symptom is intermittent -- some users work, others fail -- which is classic pool exhaustion behavior.'],
+            5: ['Correct. ACL 10 line 20 includes the VPN subnet 10.20.0.0/24 in the NAT rule. VPN traffic from 10.20.0.x gets translated to a pool address before the crypto map can match it. The remote peer expects source 10.20.0.x, not 203.0.113.x, so the IPsec SA never forms. Adding a deny statement for VPN traffic before the permit in ACL 10 creates a NAT exemption.', 'Not quite. The crypto configuration (transform set, ACL 150) is valid. The issue is that NAT processes traffic before crypto -- the VPN subnet is being NATted because it\'s included in ACL 10.'],
+            6: ['Correct. The DMZ web server at 172.16.50.10 is an "inside local" address in NAT terminology. For the static NAT to translate between inside local and inside global, the interface where 172.16.50.10 resides must be designated "ip nat inside." Gi0/2 faces the DMZ hosts, so it is the inside interface for those addresses.', 'Not quite. Think about what "inside" and "outside" mean in NAT. The DMZ server is the inside local host being translated. The interface connecting to it must be marked as the inside boundary.'],
+            7: ['Correct. Only TCP port 80 has a static NAT port forward. HTTPS (TCP 443) needs its own entry. NAT port forwarding is per-port; forwarding port 80 does not automatically forward 443.', 'Not quite. SSL certificates are a web server concern, not a NAT issue. The NAT translation table shows no entries for port 443 -- the traffic is being dropped at the router because there is no forwarding rule for it.'],
+            8: ['Correct. A 10-second timeout tears down translations almost immediately. Normal web browsing, downloads, and SSH sessions all have idle periods longer than 10 seconds. Cisco default TCP timeout is 86400s (24h). Setting TCP to 3600s, UDP to 300s, and the general timeout to 86400s restores standard behavior.', 'Not quite. Disabling timeouts would cause the translation table to grow indefinitely and eventually exhaust memory. The correct approach is to set reasonable values -- Cisco\'s defaults work well for most environments.']
+        };
+
+        function getSolvedCount() {
+            var count = 0;
+            for (var k in solved) { if (solved[k]) count++; }
+            return count;
+        }
+
+        function updateProgress() {
+            var count = getSolvedCount();
+            var pct = Math.round((count / TOTAL_STEPS) * 100);
+            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('progressText').textContent = count + ' / ' + TOTAL_STEPS + ' steps';
+        }
+
+        function unlockStep(n) {
+            var el = document.getElementById('step' + n);
+            if (el) el.classList.remove('locked');
+        }
+
+        function markSolved(n) {
+            var el = document.getElementById('step' + n);
+            if (el) el.classList.add('solved');
+            var sel = document.getElementById('q' + n);
+            if (sel) sel.disabled = true;
+        }
+
+        window.showHint = function(n) {
+            var el = document.getElementById('hint' + n);
+            if (el) el.classList.add('visible');
+        };
+
+        window.verifyStep = function(n) {
+            var sel = document.getElementById('q' + n);
+            var fb = document.getElementById('fb' + n);
+            if (!sel || !fb) return;
+            var val = sel.value;
+            if (!val) {
+                fb.className = 'feedback incorrect';
+                fb.textContent = 'Please select an answer before verifying.';
+                return;
+            }
+            var correct = (val === ANSWERS[n]);
+            var msgs = EXPLANATIONS[n];
+            if (correct) {
+                fb.className = 'feedback correct';
+                fb.textContent = msgs[0];
+                solved[n] = true;
+                markSolved(n);
+                updateProgress();
+                if (n < TOTAL_STEPS) {
+                    unlockStep(n + 1);
+                    setTimeout(function() {
+                        var next = document.getElementById('step' + (n + 1));
+                        if (next) next.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 400);
+                }
+                if (getSolvedCount() === TOTAL_STEPS) {
+                    document.getElementById('completionBanner').classList.add('visible');
+                    if (typeof ModuleProgress !== 'undefined') {
+                        ModuleProgress.complete('web', 'web-ne07-nat-scenario', { returnToDashboard: false, returnUrl: '../index.html' });
+                    }
+                }
+            } else {
+                fb.className = 'feedback incorrect';
+                fb.textContent = msgs[1];
+            }
+        };
+
+        updateProgress();
+    })();
+    </script>
+</body>
+</html>

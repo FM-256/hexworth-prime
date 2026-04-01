@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>High Availability &amp; Disaster Recovery | Network+ N10-009</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3ab577; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(58, 181, 119, 0.15); color: #3ab577; border-color: #3ab577;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta {
+            font-size: 0.78rem; color: #3ab577; letter-spacing: 0.08em;
+            text-transform: uppercase; text-align: center;
+        }
+        .slide-title {
+            font-size: 1.75rem; font-weight: 700; color: #f1f5f9;
+            text-align: center; line-height: 1.25;
+        }
+        .slide-title .accent { color: #3ab577; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(58, 181, 119, 0.08); border-left: 3px solid #3ab577;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #a7f3d0; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold { background: rgba(251, 191, 36, 0.08); border: 1px solid rgba(251, 191, 36, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #3ab577; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3ab577;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #fbbf24; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px; padding: 10px 12px;
+            text-align: center; border-top: 3px solid #3ab577;
+        }
+        .metric-card .metric-name {
+            font-family: 'Courier New', monospace; font-size: 1.1rem;
+            font-weight: 700; color: #3ab577; margin-bottom: 4px;
+        }
+        .metric-card .metric-def { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+        .metric-card.m-gold { border-top-color: #fbbf24; }
+        .metric-card.m-gold .metric-name { color: #fbbf24; }
+        .metric-card.m-red { border-top-color: #ef4444; }
+        .metric-card.m-red .metric-name { color: #ef4444; }
+        .metric-card.m-cyan { border-top-color: #06b6d4; }
+        .metric-card.m-cyan .metric-name { color: #06b6d4; }
+
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #3ab577; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #3ab577; background: rgba(58, 181, 119, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+
+        @media (max-height: 700px) {
+            .slide-inner { gap: 9px; }
+            .slide-title { font-size: 1.4rem; }
+            .title-hero .big-title { font-size: 1.9rem; }
+            .card-grid-4 { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .card-grid { grid-template-columns: 1fr; }
+            .card-grid-2 { grid-template-columns: 1fr; }
+            .card-grid-4 { grid-template-columns: 1fr; }
+            .slide-title { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="progress-bar" style="width:12.5%"></div>
+
+<!-- SLIDE 1 - TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 8 &nbsp;|&nbsp; N10-009 Obj 3.3 &nbsp;|&nbsp; HA/DR</div>
+        <div class="title-hero">
+            <div class="big-title">
+                High Availability &amp;<br>
+                <span class="accent">Disaster Recovery</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                How long can you afford to be down? The answer drives every decision here.
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Friday at 2 AM, the primary database server fails. The CEO calls Monday morning:
+            "How much data did we lose? How long were we down?" Your answers depend on whether you planned for this moment or just hoped it would not happen.
+        </div>
+        <div class="title-meta-row">
+            <span>8 Slides</span>
+            <span>N10-009 Obj 3.3</span>
+            <span>Availability + Recovery</span>
+            <span>Concepts + Context</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 - DR METRICS -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 8</div>
+        <div class="slide-title">The Four <span class="accent">DR Metrics</span></div>
+        <div class="slide-subtitle">These numbers define your recovery strategy. Know them for the exam and for real life.</div>
+
+        <div class="card-grid-4">
+            <div class="metric-card">
+                <div class="metric-name">RPO</div>
+                <div class="metric-def">Recovery Point Objective -- maximum acceptable data loss measured in time. "We can lose up to 4 hours of data."</div>
+            </div>
+            <div class="metric-card m-gold">
+                <div class="metric-name">RTO</div>
+                <div class="metric-def">Recovery Time Objective -- maximum acceptable downtime. "We must be back online within 2 hours."</div>
+            </div>
+            <div class="metric-card m-cyan">
+                <div class="metric-name">MTTR</div>
+                <div class="metric-def">Mean Time To Repair -- average time to fix a failed component and restore service.</div>
+            </div>
+            <div class="metric-card m-red">
+                <div class="metric-name">MTBF</div>
+                <div class="metric-def">Mean Time Between Failures -- average time a system runs before failing. Higher = more reliable.</div>
+            </div>
+        </div>
+
+        <div class="box box-green">
+            <div class="box-label">How They Relate</div>
+            RPO answers "how much data can we lose?" RTO answers "how long can we be down?" MTTR measures how fast your team actually fixes things. MTBF predicts when the next failure will occur. Lower RPO/RTO costs more money -- hot sites, continuous replication, redundant everything.
+        </div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            The CEO asks: "How much did we lose?" If your last backup was 4 hours ago and your RPO is 1 hour, you failed your RPO target by 3 hours. That is a process failure, not a technology failure.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 3 - DR SITES -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 8</div>
+        <div class="slide-title">DR Sites: <span class="accent">Hot, Warm, Cold</span></div>
+        <div class="slide-subtitle">Three tiers of disaster recovery readiness. Cost increases with readiness.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Hot Site</div>
+                <div class="card-desc">Fully operational mirror of production. Real-time data replication. Failover in minutes. Highest cost. Used when RTO must be near-zero (financial services, healthcare).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Warm Site</div>
+                <div class="card-desc">Hardware is installed and partially configured. Data is replicated periodically (not real-time). Failover in hours to a day. Moderate cost. Good balance for most organizations.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Cold Site</div>
+                <div class="card-desc">Empty facility with power, cooling, and connectivity. No hardware pre-installed. Failover takes days to weeks. Lowest cost. Acceptable only when extended downtime is tolerable.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            <div class="box-label">Cloud DR</div>
+            Cloud providers have made hot-site DR far more accessible. Instead of leasing a second data center, you can replicate to another region. The infrastructure exists on-demand -- you only pay for storage until you need compute.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 4 - ACTIVE-ACTIVE vs ACTIVE-PASSIVE -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 8</div>
+        <div class="slide-title">Active-Active vs <span class="accent">Active-Passive</span></div>
+        <div class="slide-subtitle">Two architectures for keeping services running when hardware fails.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Active-Active</div>
+                <div class="card-desc">
+                    Both nodes handle traffic simultaneously. A load balancer distributes requests across all active members.
+                    If one fails, the other absorbs the full load -- no failover delay. Better resource utilization.
+                    Requires that both nodes stay synchronized (session state, data).
+                </div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Active-Passive</div>
+                <div class="card-desc">
+                    One node handles all traffic. The standby monitors and waits. When the primary fails, the passive node takes over (failover).
+                    Simpler to implement. The standby is idle until needed -- wasted capacity during normal operations.
+                    Failover may take seconds to minutes depending on detection and promotion time.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Exam Tip</div>
+            If the question mentions "both nodes handling traffic" or "load distribution" -- active-active. If it mentions "standby" or "failover" -- active-passive. Active-active provides higher availability but requires more complex state synchronization.
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            <strong>First Hop Redundancy:</strong> FHRP protocols (HSRP, VRRP, GLBP) provide gateway failover at Layer 3. HSRP/VRRP are active-passive. GLBP is active-active -- it load-balances across multiple gateways.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 - TESTING DR -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 8</div>
+        <div class="slide-title">Testing Your <span class="accent">DR Plan</span></div>
+        <div class="slide-subtitle">A plan that has never been tested is just a document.</div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Tabletop Exercise</div>
+                <div class="card-desc">Discussion-based walkthrough. Team members talk through their roles in a disaster scenario without touching any systems. Identifies gaps in procedures and communication chains. Low risk, low cost.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Simulation / Walkthrough</div>
+                <div class="card-desc">More detailed than tabletop. Team follows the actual runbook step-by-step, verifying that documentation matches reality. May identify missing credentials, outdated contacts, or unclear escalation paths.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Full Validation / Failover Test</div>
+                <div class="card-desc">Actually fail over to the DR site. Production traffic runs on the backup infrastructure. Proves the plan works under real conditions. Highest risk -- if the DR site fails too, you are exposed.</div>
+            </div>
+        </div>
+
+        <div class="box box-green" style="font-size:0.83rem;">
+            <div class="box-label">Best Practice</div>
+            Run tabletop exercises quarterly. Run simulation tests semi-annually. Run full failover tests annually. Document every finding and update the DR plan immediately after each test.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 6 - BACKUP TYPES -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 8</div>
+        <div class="slide-title">Backup Types: <span class="accent">Full, Differential, Incremental</span></div>
+        <div class="slide-subtitle">Different strategies trade off storage space, backup speed, and restore complexity.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Full Backup</div>
+                <div class="card-desc">Copies all data every time. Slowest to perform, uses the most storage. Fastest to restore -- just load the single backup. Clears the archive bit on all files.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Differential Backup</div>
+                <div class="card-desc">Copies all data changed since the last full backup. Grows larger each day. To restore: last full + latest differential (2 sets). Does NOT clear the archive bit.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Incremental Backup</div>
+                <div class="card-desc">Copies only data changed since the last backup of any type. Smallest, fastest backup. To restore: last full + every incremental since (multiple sets). Clears the archive bit.</div>
+            </div>
+        </div>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            <div class="box-label">Exam Scenario</div>
+            Full backup on Sunday. Differential daily. Failure on Thursday. Restore = Sunday full + Wednesday differential (2 sets).
+            Same scenario with incremental: Restore = Sunday full + Monday incremental + Tuesday incremental + Wednesday incremental (4 sets).
+            Differential is faster to restore. Incremental is faster to back up.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 7 - NIC TEAMING, CLUSTERING, POWER -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 8</div>
+        <div class="slide-title">Redundancy: <span class="accent">NICs, Clusters, Power</span></div>
+        <div class="slide-subtitle">Eliminate single points of failure at every layer of the infrastructure.</div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">NIC Teaming (Link Aggregation)</div>
+                <div class="card-desc">Combine multiple NICs into one logical interface. Provides bandwidth aggregation and failover. If one NIC fails, traffic continues on the remaining NICs. Uses LACP (802.3ad) for negotiation.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Clustering</div>
+                <div class="card-desc">Multiple servers act as a single system. If one node fails, the cluster redistributes workloads. Common for databases, application servers, and hypervisors. Requires shared storage or data replication.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Multipathing</div>
+                <div class="card-desc">Multiple physical paths to storage (SAN). If one path fails, I/O continues on an alternate path. Prevents storage connectivity from becoming a single point of failure.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">UPS (Uninterruptible Power Supply)</div>
+                <div class="card-desc">Battery backup that provides immediate power during an outage. Bridges the gap until the generator starts (typically 10-30 seconds). Also conditions power to protect against surges and sags.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Generator</div>
+                <div class="card-desc">Provides long-term power during extended outages. Runs on diesel or natural gas. Takes seconds to start -- the UPS covers the gap. Regular testing and fuel management are critical.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 8 - SUMMARY -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 8 &nbsp;|&nbsp; N10-009 Obj 3.3</div>
+        <div class="slide-title">HA/DR -- <span class="accent">Key Takeaways</span></div>
+
+        <div class="scenario-strip">
+            Monday morning, the CEO calls. You answer: "We lost 45 minutes of data -- within our 1-hour RPO target. The warm site was online in 3 hours -- within our 4-hour RTO. Full backup from Sunday plus Wednesday's differential restored the database. NIC teaming and LACP kept the network path alive during the failover."
+        </div>
+
+        <div class="section-label">5 Facts to Carry Out of This Presentation</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><code>RPO</code> = max data loss. <code>RTO</code> = max downtime. <code>MTTR</code> = avg repair time. <code>MTBF</code> = avg time between failures.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>Hot site</strong> = minutes (real-time replication). <strong>Warm site</strong> = hours (periodic sync). <strong>Cold site</strong> = days (empty facility).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>Active-active</strong> = both nodes serve traffic. <strong>Active-passive</strong> = standby waits for failover.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>Full</strong> = everything. <strong>Differential</strong> = since last full. <strong>Incremental</strong> = since last backup of any type.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>NIC teaming</strong> (LACP) aggregates links. <strong>UPS</strong> bridges to generator. Test DR plans regularly -- tabletop, simulation, full failover.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Network+ Hub</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 8</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 8;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'web-high-availability', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

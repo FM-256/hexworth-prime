@@ -1,0 +1,2839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TCP/IP — The Backbone of Reliable Communication</title>
+    <style>
+        /* ============================================================
+           RESET & BASE
+        ============================================================ */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --green:     #3ab577;
+            --green-dim: rgba(58, 181, 119, 0.15);
+            --green-glow:rgba(58, 181, 119, 0.35);
+            --cyan:      #06b6d4;
+            --cyan-dim:  rgba(6, 182, 212, 0.15);
+            --gold:      #f59e0b;
+            --red:       #ef4444;
+            --bg-body:   linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            --bg-slide:  rgba(11, 11, 22, 0.92);
+            --bg-card:   rgba(255, 255, 255, 0.04);
+            --bg-code:   #0a0a14;
+            --border:    rgba(6, 182, 212, 0.18);
+            --border-green: rgba(58, 181, 119, 0.3);
+            --text:      #e2e8f0;
+            --text-muted:#8892a8;
+            --radius:    12px;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-body);
+            color: var(--text);
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* ============================================================
+           SLIDE SYSTEM — viewport-locked, no overflow
+        ============================================================ */
+        .slide {
+            display: none;
+            position: fixed;
+            inset: 0;
+            padding: 20px 28px 72px;
+            overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide-inner {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* ============================================================
+           PROGRESS BAR
+        ============================================================ */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: #06b6d4;
+            transition: width 0.4s ease;
+            z-index: 200;
+        }
+
+        /* ============================================================
+           NAVIGATION BAR — fixed bottom
+        ============================================================ */
+        #nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            z-index: 200;
+            padding: 0 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(6, 182, 212, 0.15);
+            color: #06b6d4;
+            border-color: #06b6d4;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.back-btn {
+            font-size: 0.82rem;
+            padding: 8px 16px;
+        }
+
+        #slide-counter {
+            color: #64748b;
+            font-size: 0.82rem;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        #complete-btn {
+            display: none;
+            background: #3ab577;
+            color: #000;
+            border: none;
+            padding: 9px 26px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+
+        #complete-btn:hover {
+            background: #4fcf8a;
+            transform: translateY(-1px);
+        }
+
+        /* ============================================================
+           SLIDE META (top-right corner)
+        ============================================================ */
+        .slide-meta {
+            position: absolute;
+            top: 18px;
+            right: 24px;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-align: right;
+            line-height: 1.6;
+        }
+
+        .slide-meta .branding {
+            color: var(--green);
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        /* ============================================================
+           TYPOGRAPHY
+        ============================================================ */
+        .slide h1 {
+            font-size: clamp(1.7rem, 3vw, 2.5rem);
+            font-weight: 700;
+            color: var(--green);
+            line-height: 1.2;
+            margin-bottom: 10px;
+        }
+
+        .slide h2 {
+            font-size: clamp(1.3rem, 2.2vw, 1.85rem);
+            font-weight: 700;
+            color: var(--green);
+            margin-bottom: 20px;
+        }
+
+        .slide h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--cyan);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+        }
+
+        .slide p {
+            color: var(--text);
+            line-height: 1.7;
+            margin-bottom: 14px;
+        }
+
+        .slide ul {
+            padding-left: 1.4em;
+            line-height: 1.8;
+        }
+
+        .slide ul li {
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+
+        .slide strong {
+            color: var(--green);
+            font-weight: 600;
+        }
+
+        /* ============================================================
+           SCENARIO BAR — the running story thread
+        ============================================================ */
+        .scenario-bar {
+            background: rgba(58, 181, 119, 0.08);
+            border-left: 3px solid var(--green);
+            border-radius: 0 8px 8px 0;
+            padding: 12px 18px;
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+            color: var(--text);
+            line-height: 1.65;
+        }
+
+        .scenario-bar .label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--green);
+            margin-bottom: 4px;
+        }
+
+        /* ============================================================
+           CALLOUT / INFO BOX
+        ============================================================ */
+        .callout {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+            border-radius: var(--radius);
+            padding: 14px 20px;
+            margin: 16px 0;
+            font-size: 0.9rem;
+            line-height: 1.65;
+        }
+
+        .callout .callout-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--cyan);
+            margin-bottom: 5px;
+        }
+
+        .callout.warn {
+            background: rgba(245, 158, 11, 0.08);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .callout.warn .callout-label { color: var(--gold); }
+
+        .callout.exam {
+            background: rgba(245, 158, 11, 0.06);
+            border-color: rgba(245, 158, 11, 0.25);
+        }
+
+        .callout.exam .callout-label { color: var(--gold); }
+
+        /* ============================================================
+           TWO-COLUMN LAYOUT
+        ============================================================ */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin: 16px 0;
+        }
+
+        @media (max-width: 700px) {
+            .two-col { grid-template-columns: 1fr; }
+        }
+
+        /* ============================================================
+           COMPARISON CARDS
+        ============================================================ */
+        .compare-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+        }
+
+        .compare-card.left-accent { border-left: 3px solid var(--red); }
+        .compare-card.right-accent { border-left: 3px solid var(--green); }
+
+        .compare-card h3 {
+            margin-bottom: 12px;
+        }
+
+        .compare-card ul {
+            font-size: 0.88rem;
+        }
+
+        /* ============================================================
+           TCP HEADER GRID (Slide 3)
+        ============================================================ */
+        .tcp-header-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3px;
+            background: rgba(58,181,119,0.2);
+            border: 1px solid var(--green);
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 14px 0;
+            font-size: 0.82rem;
+        }
+
+        .tcp-header-grid .hfield {
+            background: rgba(10, 10, 22, 0.95);
+            border: 1px solid rgba(58,181,119,0.18);
+            padding: 10px 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+            text-align: center;
+            font-family: 'Consolas', 'Courier New', monospace;
+            color: var(--text-muted);
+        }
+
+        .tcp-header-grid .hfield.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .tcp-header-grid .hfield:hover {
+            background: rgba(58,181,119,0.12);
+            color: var(--text);
+        }
+
+        .tcp-header-grid .hfield.selected {
+            background: rgba(58,181,119,0.18);
+            border-color: var(--green);
+            color: var(--green);
+        }
+
+        .hfield .field-name { font-weight: 600; font-size: 0.85rem; }
+        .hfield .field-bits { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+
+        .header-detail {
+            background: rgba(58,181,119,0.06);
+            border: 1px solid var(--border-green);
+            border-radius: var(--radius);
+            padding: 14px 18px;
+            min-height: 70px;
+            margin-top: 6px;
+            font-size: 0.88rem;
+            line-height: 1.65;
+        }
+
+        .header-detail .detail-name {
+            font-weight: 700;
+            color: var(--green);
+            margin-bottom: 4px;
+            font-size: 0.9rem;
+        }
+
+        .header-detail .detail-scenario {
+            color: var(--green);
+            font-style: italic;
+            margin-top: 6px;
+            font-size: 0.84rem;
+        }
+
+        /* ============================================================
+           TCP FLAGS (Slide 4)
+        ============================================================ */
+        .flags-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 18px 0;
+        }
+
+        .flag-card {
+            flex: 1;
+            min-width: 90px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.22s;
+        }
+
+        .flag-card:hover {
+            border-color: var(--cyan);
+            background: var(--cyan-dim);
+        }
+
+        .flag-card.active {
+            border-color: var(--green);
+            background: var(--green-dim);
+        }
+
+        /* SYN and ACK glow since they're used in the handshake */
+        .flag-card.glow-flag {
+            box-shadow: 0 0 12px rgba(58,181,119,0.25);
+            border-color: rgba(58,181,119,0.5);
+        }
+
+        .flag-card .flag-letter {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--cyan);
+            font-family: 'Consolas', monospace;
+            letter-spacing: 0.05em;
+        }
+
+        .flag-card.active .flag-letter {
+            color: var(--green);
+        }
+
+        .flag-card .flag-name {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .flag-detail-box {
+            background: rgba(6,182,212,0.06);
+            border: 1px solid rgba(6,182,212,0.2);
+            border-radius: var(--radius);
+            padding: 14px 18px;
+            min-height: 68px;
+            font-size: 0.88rem;
+            line-height: 1.65;
+            transition: opacity 0.25s;
+        }
+
+        .flag-detail-box .flag-detail-name {
+            font-weight: 700;
+            color: var(--cyan);
+            margin-bottom: 4px;
+        }
+
+        /* ============================================================
+           THREE-WAY HANDSHAKE ANIMATION (Slide 5)
+        ============================================================ */
+        .handshake-stage {
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 20px;
+            min-height: 300px;
+            padding: 10px 0;
+        }
+
+        .hs-endpoint {
+            width: 130px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .hs-box {
+            background: rgba(10,10,22,0.9);
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 10px;
+            text-align: center;
+            width: 100%;
+        }
+
+        .hs-box .hs-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .hs-box .hs-name {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--text);
+        }
+
+        .hs-box .hs-ip {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-family: monospace;
+            margin-top: 3px;
+        }
+
+        .hs-box .hs-state {
+            margin-top: 10px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            padding: 3px 8px;
+            border-radius: 99px;
+            background: rgba(255,255,255,0.05);
+            color: var(--text-muted);
+            transition: all 0.4s;
+        }
+
+        .hs-state.syn-sent    { background: rgba(245,158,11,0.15); color: var(--gold); }
+        .hs-state.syn-rcvd    { background: rgba(6,182,212,0.15);  color: var(--cyan); }
+        .hs-state.established { background: rgba(58,181,119,0.15); color: var(--green); }
+
+        .hs-middle {
+            flex: 1;
+            position: relative;
+            min-height: 280px;
+        }
+
+        /* Arrow container rows */
+        .hs-arrow-row {
+            position: absolute;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .hs-arrow-row.visible { opacity: 1; }
+
+        /* Animated packet line */
+        .hs-packet {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            position: relative;
+            height: 38px;
+        }
+
+        .hs-packet .packet-line {
+            position: absolute;
+            top: 50%;
+            height: 2px;
+            background: var(--green);
+            transform: translateY(-50%);
+            width: 0;
+            transition: width 0.6s ease;
+        }
+
+        .hs-packet.rtl .packet-line {
+            right: 0;
+            background: var(--cyan);
+        }
+
+        .hs-packet.ltr .packet-line {
+            left: 0;
+        }
+
+        .hs-packet.ack-line .packet-line {
+            background: var(--gold);
+        }
+
+        /* Arrowhead */
+        .hs-packet .packet-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            opacity: 0;
+            transition: opacity 0.2s 0.55s;
+        }
+
+        .hs-packet.ltr .packet-arrow {
+            right: 0;
+            border-top: 7px solid transparent;
+            border-bottom: 7px solid transparent;
+            border-left: 11px solid var(--green);
+        }
+
+        .hs-packet.ack-line .packet-arrow {
+            border-left-color: var(--gold);
+        }
+
+        .hs-packet.rtl .packet-arrow {
+            left: 0;
+            border-top: 7px solid transparent;
+            border-bottom: 7px solid transparent;
+            border-right: 11px solid var(--cyan);
+        }
+
+        .hs-packet.visible .packet-line { width: calc(100% - 14px); }
+        .hs-packet.visible .packet-arrow { opacity: 1; }
+
+        /* Packet label */
+        .hs-packet-label {
+            position: absolute;
+            top: -20px;
+            font-size: 0.78rem;
+            font-family: 'Consolas', monospace;
+            font-weight: 700;
+            color: var(--green);
+            white-space: nowrap;
+        }
+
+        .hs-packet.rtl .hs-packet-label { color: var(--cyan); }
+        .hs-packet.ack-line .hs-packet-label { color: var(--gold); }
+
+        .hs-packet-seq {
+            position: absolute;
+            bottom: -18px;
+            font-size: 0.7rem;
+            font-family: 'Consolas', monospace;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        /* Explanation text under arrows */
+        .hs-explain {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
+        /* Established banner */
+        .established-banner {
+            display: none;
+            background: rgba(58,181,119,0.12);
+            border: 1px solid var(--green);
+            border-radius: 10px;
+            padding: 12px 20px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--green);
+            letter-spacing: 0.05em;
+            margin-top: 10px;
+            animation: pulse-green 1.5s ease-in-out infinite;
+        }
+
+        .established-banner.show { display: block; }
+
+        @keyframes pulse-green {
+            0%, 100% { box-shadow: 0 0 8px rgba(58,181,119,0.3); }
+            50%       { box-shadow: 0 0 22px rgba(58,181,119,0.6); }
+        }
+
+        .hs-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        /* ============================================================
+           SEQUENCE NUMBER TIMELINE (Slide 6)
+        ============================================================ */
+        .seq-timeline {
+            display: grid;
+            grid-template-columns: 1fr 60px 1fr;
+            gap: 0;
+            align-items: center;
+            margin: 16px 0;
+            font-size: 0.8rem;
+        }
+
+        .seq-timeline .st-client { text-align: right; color: var(--text); }
+        .seq-timeline .st-arrow  { text-align: center; font-size: 1.1rem; }
+        .seq-timeline .st-server { text-align: left;  color: var(--text); }
+
+        .seq-timeline .st-arrow.right { color: var(--green); }
+        .seq-timeline .st-arrow.left  { color: var(--cyan);  }
+
+        .seq-label {
+            font-family: 'Consolas', monospace;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            display: block;
+            margin-top: 2px;
+        }
+
+        .seq-timeline .st-divider {
+            grid-column: 1 / -1;
+            height: 1px;
+            background: rgba(255,255,255,0.06);
+            margin: 6px 0;
+        }
+
+        /* ============================================================
+           WINDOW SIZE VISUALIZATION (Slide 7)
+        ============================================================ */
+        .window-pipe {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 14px 0;
+        }
+
+        .pipe-label {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            width: 80px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .pipe-bar-wrap {
+            flex: 1;
+            height: 28px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        .pipe-bar-fill {
+            height: 100%;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            padding-left: 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: width 0.8s ease;
+        }
+
+        .pipe-bar-fill.full    { background: linear-gradient(90deg, var(--green), rgba(58,181,119,0.5)); width: 100%; color: #0a1a10; }
+        .pipe-bar-fill.half    { background: linear-gradient(90deg, var(--gold), rgba(245,158,11,0.5));  width: 50%;  color: #1a1000; }
+        .pipe-bar-fill.quarter { background: linear-gradient(90deg, var(--red), rgba(239,68,68,0.5));   width: 25%;  color: #1a0000; }
+
+        .pipe-val {
+            font-family: 'Consolas', monospace;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            width: 55px;
+            flex-shrink: 0;
+        }
+
+        /* ============================================================
+           TCP vs UDP TABLE (Slide 8)
+        ============================================================ */
+        .compare-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.86rem;
+            margin: 14px 0;
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .compare-table th {
+            background: rgba(255,255,255,0.06);
+            padding: 10px 16px;
+            text-align: left;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: var(--text-muted);
+        }
+
+        .compare-table th:nth-child(2) { color: var(--green); }
+        .compare-table th:nth-child(3) { color: var(--cyan);  }
+
+        .compare-table td {
+            padding: 9px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            vertical-align: top;
+        }
+
+        .compare-table td:first-child {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .compare-table td:nth-child(2) { color: var(--text); }
+        .compare-table td:nth-child(3) { color: var(--text); }
+        .compare-table tr:last-child td { border-bottom: none; }
+
+        /* ============================================================
+           PORT CARDS (Slide 9)
+        ============================================================ */
+        .port-range-bar {
+            display: flex;
+            gap: 0;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 0 0 18px 0;
+            font-size: 0.74rem;
+        }
+
+        .port-range-bar .prb-seg {
+            padding: 8px 14px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+        }
+
+        .prb-seg.well-known {
+            background: rgba(58,181,119,0.18);
+            color: var(--green);
+            flex: 1;
+        }
+
+        .prb-seg.registered {
+            background: rgba(6,182,212,0.12);
+            color: var(--cyan);
+            flex: 2;
+        }
+
+        .prb-seg.dynamic {
+            background: rgba(245,158,11,0.10);
+            color: var(--gold);
+            flex: 2;
+        }
+
+        .ports-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 9px;
+            margin-top: 6px;
+        }
+
+        .port-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            padding: 12px 14px;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .port-card:hover {
+            border-color: var(--green);
+            background: var(--green-dim);
+        }
+
+        .port-card .port-num {
+            font-family: 'Consolas', monospace;
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--green);
+            line-height: 1;
+        }
+
+        .port-card .port-svc {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--text);
+            margin: 4px 0 2px;
+        }
+
+        .port-card .port-desc {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* ============================================================
+           STATE MACHINE (Slide 10)
+        ============================================================ */
+        .state-machine {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 14px 0;
+        }
+
+        .state-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .state-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 0.78rem;
+            font-family: 'Consolas', monospace;
+            font-weight: 700;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .state-box.closed       { border-color: rgba(239,68,68,0.4); color: var(--red); }
+        .state-box.listen       { border-color: rgba(245,158,11,0.4); color: var(--gold); }
+        .state-box.syn          { border-color: rgba(6,182,212,0.4); color: var(--cyan); }
+        .state-box.established  { border-color: rgba(58,181,119,0.5); color: var(--green); background: rgba(58,181,119,0.08); }
+        .state-box.wait         { border-color: rgba(148,163,184,0.3); color: #94a3b8; }
+
+        .state-arrow {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            white-space: nowrap;
+        }
+
+        .state-arrow .sa-label {
+            font-size: 0.62rem;
+            color: var(--text-muted);
+            font-family: monospace;
+        }
+
+        /* ============================================================
+           WIRESHARK DISPLAY (Slide 14)
+        ============================================================ */
+        .wireshark-wrap {
+            background: var(--bg-code);
+            border: 1px solid rgba(6,182,212,0.2);
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin: 12px 0;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.78rem;
+        }
+
+        .ws-header-row {
+            display: grid;
+            grid-template-columns: 36px 60px 1fr 1fr 55px 1fr;
+            gap: 0;
+            background: rgba(255,255,255,0.06);
+            padding: 7px 12px;
+            color: var(--text-muted);
+            font-weight: 700;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .ws-row {
+            display: grid;
+            grid-template-columns: 36px 60px 1fr 1fr 55px 1fr;
+            gap: 0;
+            padding: 6px 12px;
+            border-top: 1px solid rgba(255,255,255,0.04);
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .ws-row:hover { background: rgba(255,255,255,0.03); }
+        .ws-row.syn-row   { color: var(--green); }
+        .ws-row.synack-row{ color: var(--cyan); }
+        .ws-row.ack-row   { color: #94a3b8; }
+        .ws-row.data-row  { color: var(--text-muted); }
+
+        /* ============================================================
+           RETRANSMISSION TIMELINE (Slide 12)
+        ============================================================ */
+        .retrans-timeline {
+            margin: 16px 0;
+            font-size: 0.84rem;
+        }
+
+        .rt-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .rt-time {
+            font-family: 'Consolas', monospace;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            width: 55px;
+            flex-shrink: 0;
+        }
+
+        .rt-dir {
+            width: 24px;
+            flex-shrink: 0;
+            text-align: center;
+        }
+
+        .rt-desc { color: var(--text); }
+        .rt-lost { color: var(--red); font-weight: 600; }
+        .rt-retrans { color: var(--gold); font-weight: 600; }
+        .rt-ack { color: var(--green); }
+
+        /* ============================================================
+           CONGESTION WINDOW CHART (Slide 13)
+        ============================================================ */
+        .cwnd-chart {
+            display: flex;
+            align-items: flex-end;
+            gap: 5px;
+            height: 110px;
+            padding: 0 6px;
+            margin: 16px 0;
+            position: relative;
+        }
+
+        .cwnd-chart::before {
+            content: '';
+            position: absolute;
+            left: 0; right: 0; top: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                to top,
+                rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px,
+                transparent 1px, transparent 22px
+            );
+        }
+
+        .cwnd-bar {
+            flex: 1;
+            border-radius: 3px 3px 0 0;
+            position: relative;
+            transition: height 0.4s;
+            min-width: 18px;
+        }
+
+        .cwnd-bar .cw-label {
+            position: absolute;
+            top: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.62rem;
+            color: var(--text-muted);
+            font-family: monospace;
+            white-space: nowrap;
+        }
+
+        .cwnd-bar.slow-start { background: linear-gradient(to top, var(--green), rgba(58,181,119,0.5)); }
+        .cwnd-bar.cong-avoid { background: linear-gradient(to top, var(--cyan), rgba(6,182,212,0.5)); }
+        .cwnd-bar.drop       { background: linear-gradient(to top, var(--red), rgba(239,68,68,0.5)); }
+        .cwnd-bar.recovery   { background: linear-gradient(to top, var(--gold), rgba(245,158,11,0.5)); }
+
+        .cwnd-phase-labels {
+            display: flex;
+            gap: 5px;
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+            padding: 0 6px;
+        }
+
+        .cwnd-phase-labels .cpl { flex: 1; text-align: center; }
+        .cpl.green { color: var(--green); }
+        .cpl.cyan  { color: var(--cyan);  }
+        .cpl.red   { color: var(--red);   }
+        .cpl.gold  { color: var(--gold);  }
+
+        /* ============================================================
+           TROUBLESHOOT CARDS (Slide 15)
+        ============================================================ */
+        .trouble-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 14px 0;
+        }
+
+        @media (max-width: 700px) { .trouble-grid { grid-template-columns: 1fr; } }
+
+        .trouble-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+        }
+
+        .trouble-card .tc-symptom {
+            font-family: 'Consolas', monospace;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--red);
+            margin-bottom: 6px;
+            border-bottom: 1px solid rgba(239,68,68,0.15);
+            padding-bottom: 6px;
+        }
+
+        .trouble-card .tc-cause {
+            font-size: 0.8rem;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        .trouble-card .tc-tool {
+            font-size: 0.73rem;
+            color: var(--cyan);
+            font-family: 'Consolas', monospace;
+        }
+
+        /* ============================================================
+           EXAM SUMMARY CARDS (Slide 16)
+        ============================================================ */
+        .exam-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+            gap: 10px;
+            margin: 14px 0;
+        }
+
+        .exam-card {
+            background: rgba(58,181,119,0.06);
+            border: 1px solid rgba(58,181,119,0.22);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+        }
+
+        .exam-card .ec-num {
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: var(--green);
+            font-family: 'Consolas', monospace;
+            margin-bottom: 4px;
+        }
+
+        .exam-card p {
+            font-size: 0.82rem;
+            color: var(--text);
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        /* ============================================================
+           SUMMARY FLOW (Slide 17)
+        ============================================================ */
+        .summary-flow {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 18px 0;
+        }
+
+        .sf-step {
+            background: rgba(58,181,119,0.08);
+            border: 1px solid rgba(58,181,119,0.25);
+            border-radius: 8px;
+            padding: 6px 14px;
+            font-size: 0.8rem;
+            font-family: 'Consolas', monospace;
+            color: var(--text);
+        }
+
+        .sf-arrow {
+            color: var(--green);
+            font-size: 1rem;
+        }
+
+        /* ============================================================
+           COMPLETE BUTTON
+        ============================================================ */
+        .complete-btn-wrap {
+            margin-top: 24px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .complete-btn {
+            background: linear-gradient(135deg, rgba(58,181,119,0.25), rgba(58,181,119,0.1));
+            border: 1px solid var(--green);
+            color: var(--green);
+            padding: 14px 40px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            letter-spacing: 0.05em;
+            transition: all 0.25s;
+        }
+
+        .complete-btn:hover {
+            background: linear-gradient(135deg, rgba(58,181,119,0.4), rgba(58,181,119,0.2));
+            box-shadow: 0 0 20px rgba(58,181,119,0.35);
+        }
+
+        /* (old nav controls CSS removed — using #nav-bar above) */
+
+        /* ============================================================
+           HANDSHAKE BUTTON STYLES
+        ============================================================ */
+        .btn-green {
+            background: rgba(58,181,119,0.12);
+            border: 1px solid rgba(58,181,119,0.4);
+            color: var(--green);
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-green:hover {
+            background: rgba(58,181,119,0.22);
+        }
+
+        .btn-muted {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-muted:hover {
+            border-color: var(--cyan);
+            color: var(--cyan);
+        }
+
+        /* ============================================================
+           TITLE SLIDE SPECIAL
+        ============================================================ */
+        .title-slide {
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .title-slide h1 {
+            font-size: clamp(2rem, 4vw, 3rem);
+            margin-bottom: 16px;
+        }
+
+        .title-slide .subtitle {
+            font-size: 1.05rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            line-height: 1.7;
+            margin: 0 auto 28px;
+        }
+
+        .title-meta {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .title-meta-chip {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 99px;
+            padding: 6px 16px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        .title-meta-chip span {
+            color: var(--cyan);
+            font-weight: 600;
+        }
+
+        .title-accent-bar {
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--green), var(--cyan));
+            border-radius: 99px;
+            margin: 24px auto 28px;
+        }
+
+        /* ============================================================
+           SECTION DIVIDER HEADING
+        ============================================================ */
+        .section-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--text-muted);
+            margin-bottom: 18px;
+        }
+
+        /* ============================================================
+           FOUR-WAY TEARDOWN (Slide 11) — reuse handshake styles
+        ============================================================ */
+        .teardown-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 14px 0;
+        }
+
+        .td-step {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-size: 0.86rem;
+        }
+
+        .td-step .td-num {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--text-muted);
+            font-family: 'Consolas', monospace;
+            flex-shrink: 0;
+            width: 28px;
+        }
+
+        .td-step .td-flag {
+            font-family: 'Consolas', monospace;
+            font-weight: 800;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+            width: 80px;
+        }
+
+        .td-step .td-flag.fin { color: var(--gold); }
+        .td-step .td-flag.ack { color: var(--cyan); }
+
+        .td-step .td-text { color: var(--text); line-height: 1.5; }
+
+        /* ============================================================
+           MOBILE TWEAKS
+        ============================================================ */
+        @media (max-width: 640px) {
+            .slide {
+                padding: 28px 20px 24px;
+            }
+
+            .tcp-header-grid {
+                font-size: 0.72rem;
+            }
+
+            .flags-row {
+                gap: 7px;
+            }
+
+            .flag-card {
+                min-width: 70px;
+            }
+
+            .handshake-stage {
+                flex-direction: column;
+            }
+
+            .hs-endpoint { width: 100%; }
+            .hs-middle { min-height: 150px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Progress bar across very top -->
+<div id="progress-bar" style="width:5.88%"></div>
+
+        <!-- ============================================================
+             SLIDE 1: TITLE
+        ============================================================ -->
+        <section class="slide title-slide active" id="slide-1">
+        <div class="slide-inner">
+            <div class="slide-meta">
+                <div class="branding">N10-009</div>
+                <div>Obj 1.4 | Ch. 2</div>
+                <div>17 slides</div>
+            </div>
+
+            <h1>TCP/IP</h1>
+            <p class="subtitle">The Backbone of Reliable Communication<br>How a single keystroke triggers a symphony of protocols</p>
+            <div class="title-accent-bar"></div>
+
+            <div class="title-meta">
+                <div class="title-meta-chip"><span>17</span> Slides</div>
+                <div class="title-meta-chip">Obj <span>1.4</span></div>
+                <div class="title-meta-chip">Chapter <span>2</span></div>
+                <div class="title-meta-chip">Network+ <span>N10-009</span></div>
+            </div>
+
+            <div class="scenario-bar" style="max-width:600px; margin:28px auto 0; text-align:left;">
+                <div class="label">The Scenario</div>
+                You type <strong>https://www.hexworth.com</strong> into your browser and press Enter.
+                Let's trace exactly what TCP does to make that page load.
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 2: THE PROBLEM TCP SOLVES
+        ============================================================ -->
+        <section class="slide" id="slide-2">
+        <div class="slide-inner">
+            <div class="slide-meta">
+                <div class="branding">N10-009</div>
+                <div>Slide 2 of 17</div>
+            </div>
+
+            <div class="section-label">Foundation</div>
+            <h2>The Problem TCP Solves</h2>
+
+            <div class="scenario-bar">
+                <div class="label">Scenario</div>
+                You pressed Enter. Your browser needs to talk to a server 3,000 miles away.
+                But IP is unreliable — packets can be lost, duplicated, arrive out of order, or get corrupted.
+            </div>
+
+            <div class="two-col">
+                <div class="compare-card left-accent">
+                    <h3 style="color:var(--red);">IP Alone</h3>
+                    <ul>
+                        <li>Best-effort delivery only</li>
+                        <li>No confirmation of receipt</li>
+                        <li>Packets lost silently</li>
+                        <li>No guaranteed ordering</li>
+                        <li>No duplicate detection</li>
+                        <li>"Fire and forget"</li>
+                    </ul>
+                </div>
+                <div class="compare-card right-accent">
+                    <h3 style="color:var(--green);">TCP + IP</h3>
+                    <ul>
+                        <li>Guaranteed delivery</li>
+                        <li>Acknowledgment for every segment</li>
+                        <li>Automatic retransmission on loss</li>
+                        <li>In-order reassembly</li>
+                        <li>Duplicate detection</li>
+                        <li>Full error recovery</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout">
+                <div class="callout-label">Key Insight</div>
+                TCP doesn't replace IP. It rides <em>on top</em> of it, operating at Layer 4 (Transport)
+                while IP operates at Layer 3 (Network). TCP adds reliability to IP's raw delivery.
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 3: TCP HEADER
+        ============================================================ -->
+        <section class="slide" id="slide-3">
+        <div class="slide-inner">
+            <div class="slide-meta">
+                <div class="branding">N10-009</div>
+                <div>Slide 3 of 17</div>
+            </div>
+
+            <div class="section-label">Header Anatomy</div>
+            <h2>TCP Header — The Control Center</h2>
+
+            <p style="font-size:0.88rem; margin-bottom:10px;">Every TCP segment begins with a 20-byte minimum header. Click any field to learn what it does in our scenario.</p>
+
+            <!-- Interactive TCP header grid modeled on RFC 793 -->
+            <div class="tcp-header-grid" id="tcpHeaderGrid">
+                <div class="hfield" data-field="src-port" onclick="selectHeaderField(this)">
+                    <div class="field-name">Source Port</div>
+                    <div class="field-bits">16 bits</div>
+                </div>
+                <div class="hfield" data-field="dst-port" onclick="selectHeaderField(this)">
+                    <div class="field-name">Destination Port</div>
+                    <div class="field-bits">16 bits</div>
+                </div>
+                <div class="hfield full-width" data-field="seq" onclick="selectHeaderField(this)">
+                    <div class="field-name">Sequence Number</div>
+                    <div class="field-bits">32 bits</div>
+                </div>
+                <div class="hfield full-width" data-field="ack" onclick="selectHeaderField(this)">
+                    <div class="field-name">Acknowledgment Number</div>
+                    <div class="field-bits">32 bits</div>
+                </div>
+                <div class="hfield" data-field="offset" onclick="selectHeaderField(this)">
+                    <div class="field-name">Offset / Reserved / Flags</div>
+                    <div class="field-bits">16 bits</div>
+                </div>
+                <div class="hfield" data-field="window" onclick="selectHeaderField(this)">
+                    <div class="field-name">Window Size</div>
+                    <div class="field-bits">16 bits</div>
+                </div>
+                <div class="hfield" data-field="checksum" onclick="selectHeaderField(this)">
+                    <div class="field-name">Checksum</div>
+                    <div class="field-bits">16 bits</div>
+                </div>
+                <div class="hfield" data-field="urgent" onclick="selectHeaderField(this)">
+                    <div class="field-name">Urgent Pointer</div>
+                    <div class="field-bits">16 bits</div>
+                </div>
+            </div>
+
+            <div class="header-detail" id="headerDetail">
+                <div style="color:var(--text-muted); font-size:0.85rem;">Select a field above to see its details.</div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 4: TCP FLAGS
+        ============================================================ -->
+        <section class="slide" id="slide-4">
+        <div class="slide-inner">
+            <div class="slide-meta">
+                <div class="branding">N10-009</div>
+                <div>Slide 4 of 17</div>
+            </div>
+
+            <div class="section-label">Control Bits</div>
+            <h2>TCP Flags — The Signal System</h2>
+
+            <p style="font-size:0.88rem; margin-bottom:6px;">Six 1-bit flags control the lifecycle of a TCP connection. Click any flag to see its role.</p>
+            <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:14px;">SYN and ACK are highlighted — they appear in the three-way handshake you're about to see.</p>
+
+            <div class="flags-row" id="flagsRow">
+                <div class="flag-card glow-flag" data-flag="SYN" onclick="selectFlag(this)">
+                    <div class="flag-letter">SYN</div>
+                    <div class="flag-name">Synchronize</div>
+                </div>
+                <div class="flag-card glow-flag" data-flag="ACK" onclick="selectFlag(this)">
+                    <div class="flag-letter">ACK</div>
+                    <div class="flag-name">Acknowledge</div>
+                </div>
+                <div class="flag-card" data-flag="FIN" onclick="selectFlag(this)">
+                    <div class="flag-letter">FIN</div>
+                    <div class="flag-name">Finish</div>
+                </div>
+                <div class="flag-card" data-flag="RST" onclick="selectFlag(this)">
+                    <div class="flag-letter">RST</div>
+                    <div class="flag-name">Reset</div>
+                </div>
+                <div class="flag-card" data-flag="PSH" onclick="selectFlag(this)">
+                    <div class="flag-letter">PSH</div>
+                    <div class="flag-name">Push</div>
+                </div>
+                <div class="flag-card" data-flag="URG" onclick="selectFlag(this)">
+                    <div class="flag-letter">URG</div>
+                    <div class="flag-name">Urgent</div>
+                </div>
+            </div>
+
+            <div class="flag-detail-box" id="flagDetailBox">
+                <div style="color:var(--text-muted); font-size:0.85rem;">Click a flag above to learn what it does.</div>
+            </div>
+
+            <div class="callout" style="margin-top:14px;">
+                <div class="callout-label">Exam Note</div>
+                Flags are set as individual bits in the TCP header. A packet can have multiple flags set simultaneously — SYN-ACK is the most common example, used in the second step of the handshake.
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 5: THREE-WAY HANDSHAKE — ANIMATED
+        ============================================================ -->
+        <section class="slide" id="slide-5">
+        <div class="slide-inner">
+            <div class="slide-meta">
+                <div class="branding">N10-009</div>
+                <div>Slide 5 of 17</div>
+            </div>
+
+            <div class="section-label">Connection Establishment</div>
+            <h2>The Three-Way Handshake</h2>
+
+            <div class="hs-controls">
+                <button class="btn-green" id="hsStartBtn" onclick="startHandshake()">Start Handshake</button>
+                <button class="btn-muted" onclick="resetHandshake()">Reset</button>
+            </div>
+
+            <div class="handshake-stage" id="hsStage">
+                <!-- CLIENT -->
+                <div class="hs-endpoint">
+                    <div class="hs-box">
+                        <div class="hs-label">Client</div>
+                        <div class="hs-name">Your Browser</div>
+                        <div class="hs-ip">192.168.1.10</div>
+                        <div class="hs-state" id="clientState">CLOSED</div>
+                    </div>
+                </div>
+
+                <!-- ARROWS MIDDLE -->
+                <div class="hs-middle">
+                    <!-- Step 1: SYN (left to right) -->
+                    <div class="hs-arrow-row" id="hsRow1" style="top:10px;">
+                        <div class="hs-packet ltr" id="hsPkt1">
+                            <span class="hs-packet-label">SYN</span>
+                            <div class="packet-line"></div>
+                            <div class="packet-arrow"></div>
+                            <span class="hs-packet-seq">Seq=0, SYN flag set</span>
+                        </div>
+                        <div class="hs-explain" id="hsEx1"></div>
+                    </div>
+
+                    <!-- Step 2: SYN-ACK (right to left) -->
+                    <div class="hs-arrow-row" id="hsRow2" style="top:90px;">
+                        <div class="hs-packet rtl" id="hsPkt2">
+                            <span class="hs-packet-label" style="right:0; left:auto;">SYN-ACK</span>
+                            <div class="packet-line"></div>
+                            <div class="packet-arrow"></div>
+                            <span class="hs-packet-seq" style="right:0; left:auto;">Seq=0, Ack=1, SYN+ACK flags</span>
+                        </div>
+                        <div class="hs-explain" id="hsEx2"></div>
+                    </div>
+
+                    <!-- Step 3: ACK (left to right) -->
+                    <div class="hs-arrow-row" id="hsRow3" style="top:170px;">
+                        <div class="hs-packet ltr ack-line" id="hsPkt3">
+                            <span class="hs-packet-label">ACK</span>
+                            <div class="packet-line"></div>
+                            <div class="packet-arrow"></div>
+                            <span class="hs-packet-seq">Seq=1, Ack=1, ACK flag</span>
+                        </div>
+                        <div class="hs-explain" id="hsEx3"></div>
+                    </div>
+                </div>
+
+                <!-- SERVER -->
+                <div class="hs-endpoint">
+                    <div class="hs-box">
+                        <div class="hs-label">Server</div>
+                        <div class="hs-name">www.hexworth.com</div>
+                        <div class="hs-ip">93.184.216.34</div>
+                        <div class="hs-state" id="serverState">LISTEN</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Established banner, hidden until step 3 completes -->
+            <div class="established-banner" id="establishedBanner">
+                CONNECTION ESTABLISHED — TCP is ready to transfer data
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 6: SEQUENCE NUMBERS
+        ============================================================ -->
+        <section class="slide" id="slide-6">
+        <div class="slide-inner">
+            <div class="slide-meta">
+                <div class="branding">N10-009</div>
+                <div>Slide 6 of 17</div>
+            </div>
+
+            <div class="section-label">Data Transfer</div>
+            <h2>Sequence Numbers and Acknowledgments</h2>
+
+            <div class="scenario-bar">
+                <div class="label">Scenario — Now</div>
+                Connection is established. Your browser sends the HTTP GET request for hexworth.com.
+                TCP assigns every byte a unique sequence number so the server can reassemble them perfectly.
+            </div>
+
+            <!-- Vertical exchange timeline -->
+            <div class="seq-timeline">
+                <div class="st-client">
+                    <strong>Client sends</strong><br>
+                    <span class="seq-label">Seq=1, 500 bytes</span>
+                </div>
+                <div class="st-arrow right">→</div>
+                <div class="st-server">Server receives 500 bytes</div>
+
+                <div class="st-divider"></div>
+
+                <div class="st-client">Client waits for ACK</div>
+                <div class="st-arrow left">←</div>
+                <div class="st-server">
+                    <strong>Server ACKs</strong><br>
+                    <span class="seq-label">Ack=501</span>
+                </div>
+
+                <div class="st-divider"></div>
+
+                <div class="st-client">
+                    <strong>Client sends</strong><br>
+                    <span class="seq-label">Seq=501, 500 bytes</span>
+                </div>
+                <div class="st-arrow right">→</div>
+                <div class="st-server">Server receives next 500 bytes</div>
+
+                <div class="st-divider"></div>
+
+                <div class="st-client">Client waits for ACK</div>
+                <div class="st-arrow left">←</div>
+                <div class="st-server">
+                    <strong>Server ACKs</strong><br>
+                    <span class="seq-label">Ack=1001</span>
+                </div>
+            </div>
+
+            <div class="callout">
+                <div class="callout-label">Core Rule</div>
+                The ACK number always tells the sender: "I received everything up to this byte.
+                Send me the next one." Ack=501 means bytes 1-500 were received — now send byte 501.
+            </div>
+
+            <div class="callout exam">
+                <div class="callout-label">Exam Note</div>
+                Sequence numbers track <strong>bytes</strong>, not packets. This is a common exam trap.
+                A 500-byte segment advances the sequence number by 500, not by 1.
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 7: FLOW CONTROL — WINDOW SIZE
+        ============================================================ -->
+        <section class="slide" id="slide-7">
+        <div class="slide-inner">
+            <div class="slide-meta">
+                <div class="branding">N10-009</div>
+                <div>Slide 7 of 17</div>
+            </div>
+
+            <div class="section-label">Flow Control</div>
+            <h2>Flow Control — Window Size</h2>
+
+            <div class="scenario-bar">
+                <div class="label">Scenario — Now</div>
+                The server is responding with hexworth.com's content. But the server's application
+                is slower than your gigabit connection. TCP prevents your browser from overwhelming it.
+            </div>
+
+            <p style="font-size:0.88rem; margin-bottom:14px;">
+                The <strong>Window Size</strong> field in the TCP header tells the sender how much data
+                the receiver can accept at once. It acts as a flow valve — the receiver controls the rate.
+            </p>
+
+            <!-- Pipe visualization -->
+            <div class="window-pipe">
+                <div class="pipe-label">Normal<br><small style="font-size:0.65rem;">(64 KB)</small></div>
+                <div class="pipe-bar-wrap">
+                    <div class="pipe-bar-fill full">64 KB window — send freely</div>
+                </div>
+                <div class="pipe-val">64,000</div>
+            </div>
+
+            <div class="window-pipe">
+                <div class="pipe-label">Busy<br><small style="font-size:0.65rem;">(32 KB)</small></div>
+                <div class="pipe-bar-wrap">
+                    <div class="pipe-bar-fill half">Receiver getting full — slow down</div>
+                </div>
+                <div class="pipe-val">32,000</div>
+            </div>
+
+            <div class="window-pipe">
+                <div class="pipe-label">Overloaded<br><small style="font-size:0.65rem;">(8 KB)</small></div>
+                <div class="pipe-bar-wrap">
+                    <div class="pipe-bar-fill quarter">Almost full — nearly stop</div>
+                </div>
+                <div class="pipe-val">8,000</div>
+            </div>
+
+            <div class="callout" style="margin-top:16px;">
+                <div class="callout-label">Sliding Window</div>
+                TCP uses a <strong>sliding window</strong> — the sender doesn't wait for each ACK before
+                sending more. It can have up to one window's worth of unacknowledged data "in flight"
+                at any time. As ACKs arrive, the window slides forward.
+            </div>
+
+            <div class="callout warn">
+                <div class="callout-label">Window Size = 0</div>
+                If the receiver sends a window size of 0, the sender must stop completely and wait
+                for a window update. This means the receiver's buffer is full.
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 8: TCP vs UDP
+        ============================================================ -->
+        <section class="slide" id="slide-8">
+        <div class="slide-inner">
+            <div class="slide-meta">
+                <div class="branding">N10-009</div>
+                <div>Slide 8 of 17</div>
+            </div>
+
+            <div class="section-label">Protocol Comparison</div>
+            <h2>TCP vs UDP</h2>
+
+            <table class="compare-table">
+                <thead>
+                    <tr>
+                        <th>Property</th>
+                        <th>TCP</th>
+                        <th>UDP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Connection</td>
+                        <td>Connection-oriented (handshake required)</td>
+                        <td>Connectionless (no handshake)</td>
+                    </tr>
+                    <tr>
+                        <td>Reliability</td>
+                        <td>Guaranteed delivery with ACKs</td>
+                        <td>Best effort, no guarantees</td>
+                    </tr>
+                    <tr>
+                        <td>Ordering</td>
+                        <td>In-order delivery</td>
+                        <td>May arrive out of order</td>
+                    </tr>
+                    <tr>
+                        <td>Speed</td>
+                        <td>Slower (overhead from headers and ACKs)</td>
+                        <td>Faster (minimal header, no ACKs)</td>
+                    </tr>
+                    <tr>
+                        <td>Error Recovery</td>
+                        <td>Retransmission on loss</td>
+                        <td>None — application must handle</td>
+                    </tr>
+                    <tr>
+                        <td>Use Cases</td>
+                        <td>HTTP, HTTPS, FTP, SSH, SMTP, IMAP</td>
+                        <td>DNS, DHCP, VoIP, video streaming, TFTP</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="two-col" style="margin-top:14px;">
+                <div class="compare-card right-accent">
+                    <h3>TCP = Certified Mail</h3>
+                    <p style="font-size:0.84rem; margin:0;">Requires signature on delivery. Slower. You know it arrived. Used when every byte matters.</p>
+                </div>
+                <div class="compare-card" style="border-left:3px solid var(--cyan);">
+                    <h3 style="color:var(--cyan);">UDP = Postcard</h3>
+                    <p style="font-size:0.84rem; margin:0;">Fast, no confirmation. You don't know if it arrived. Used when speed matters more than perfection.</p>
+                </div>
+            </div>
+
+            <div class="callout exam" style="margin-top:12px;">
+                <div class="callout-label">Exam Trap</div>
+                DNS normally uses <strong>UDP port 53</strong> for speed (small queries fit in one packet).
+                But DNS zone transfers use <strong>TCP port 53</strong> because zone data is large and must be complete.
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 9: COMMON TCP PORTS
+        ============================================================ -->
+        <section class="slide" id="slide-9">
+        <div class="slide-inner">
+            <div class="slide-meta">
+                <div class="branding">N10-009</div>
+                <div>Slide 9 of 17</div>
+            </div>
+
+            <div class="section-label">Port Numbers</div>
+            <h2>Common TCP Ports</h2>
+
+            <!-- Port range bar -->
+            <div class="port-range-bar">
+                <div class="prb-seg well-known">Well-Known: 0 – 1023</div>
+                <div class="prb-seg registered">Registered: 1024 – 49151</div>
+                <div class="prb-seg dynamic">Dynamic / Ephemeral: 49152 – 65535</div>
+            </div>
+
+            <div class="ports-grid">
+                <div class="port-card">
+                    <div class="port-num">20/21</div>
+                    <div class="port-svc">FTP</div>
+                    <div class="port-desc">File Transfer Protocol. 20=data, 21=control</div>
+                </div>
+                <div class="port-card">
+                    <div class="port-num">22</div>
+                    <div class="port-svc">SSH</div>
+                    <div class="port-desc">Secure Shell. Encrypted remote access</div>
+                </div>
+                <div class="port-card">
+                    <div class="port-num">23</div>
+                    <div class="port-svc">Telnet</div>
+                    <div class="port-desc">Legacy remote shell. Cleartext — never use</div>
+                </div>
+                <div class="port-card">
+                    <div class="port-num">25</div>
+                    <div class="port-svc">SMTP</div>
+                    <div class="port-desc">Simple Mail Transfer. Server-to-server email</div>
+                </div>
+                <div class="port-card">
+                    <div class="port-num">53</div>
+                    <div class="port-svc">DNS</div>
+                    <div class="port-desc">TCP for zone transfers (UDP for queries)</div>
+                </div>
+                <div class="port-card">
+                    <div class="port-num">80</div>
+                    <div class="port-svc">HTTP</div>
+                    <div class="port-desc">Hypertext Transfer Protocol. Unencrypted</div>
+                </div>
+                <div class="port-card">
+                    <div class="port-num">110</div>
+                    <div class="port-svc">POP3</div>
+                    <div class="port-desc">Post Office Protocol. Download and delete</div>
+                </div>
+                <div class="port-card">
+                    <div class="port-num">143</div>
+                    <div class="port-svc">IMAP</div>
+                    <div class="port-desc">Internet Message Access. Sync mail</div>
+                </div>
+                <div class="port-card">
+                    <div class="port-num">443</div>
+                    <div class="port-svc">HTTPS</div>
+                    <div class="port-desc">HTTP over TLS. Used for hexworth.com</div>
+                </div>
+                <div class="port-card">
+                    <div class="port-num">587</div>
+                    <div class="port-svc">SMTPS</div>
+                    <div class="port-desc">SMTP Submission with STARTTLS</div>
+                </div>
+                <div class="port-card">
+                    <div class="port-num">993</div>
+                    <div class="port-svc">IMAPS</div>
+                    <div class="port-desc">IMAP over TLS</div>
+                </div>
+                <div class="port-card">
+                    <div class="port-num">3389</div>
+                    <div class="port-svc">RDP</div>
+                    <div class="port-desc">Remote Desktop Protocol. Windows GUI remote</div>
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 10: TCP CONNECTION STATES
+        ============================================================ -->
+        <section class="slide" id="slide-10">
+        <div class="slide-inner">
+            <div class="slide-meta">
+                <div class="branding">N10-009</div>
+                <div>Slide 10 of 17</div>
+            </div>
+
+            <div class="section-label">State Machine</div>
+            <h2>TCP Connection States</h2>
+
+            <p style="font-size:0.86rem; margin-bottom:14px;">TCP tracks the current status of every connection. These states appear in <code style="font-family:monospace; color:var(--cyan);">netstat</code> output.</p>
+
+            <div class="state-machine">
+
+                <!-- Client-side connect path -->
+                <div class="state-row">
+                    <div class="state-box closed">CLOSED</div>
+                    <div class="state-arrow">
+                        <div>→</div>
+                        <div class="sa-label">SYN sent</div>
+                    </div>
+                    <div class="state-box syn">SYN-SENT</div>
+                    <div class="state-arrow">
+                        <div>→</div>
+                        <div class="sa-label">SYN-ACK rcvd</div>
+                    </div>
+                    <div class="state-box established">ESTABLISHED</div>
+                </div>
+
+                <!-- Server-side accept path -->
+                <div class="state-row">
+                    <div class="state-box listen">LISTEN</div>
+                    <div class="state-arrow">
+                        <div>→</div>
+                        <div class="sa-label">SYN rcvd</div>
+                    </div>
+                    <div class="state-box syn">SYN-RECEIVED</div>
+                    <div class="state-arrow">
+                        <div>→</div>
+                        <div class="sa-label">ACK rcvd</div>
+                    </div>
+                    <div class="state-box established">ESTABLISHED</div>
+                </div>
+
+                <!-- Active close (client FINs first) -->
+                <div class="state-row">
+                    <div class="state-box established">ESTABLISHED</div>
+                    <div class="state-arrow">
+                        <div>→</div>
+                        <div class="sa-label">FIN sent</div>
+                    </div>
+                    <div class="state-box wait">FIN-WAIT-1</div>
+                    <div class="state-arrow">
+                        <div>→</div>
+                        <div class="sa-label">ACK rcvd</div>
+                    </div>
+                    <div class="state-box wait">FIN-WAIT-2</div>
+                    <div class="state-arrow">
+                        <div>→</div>
+                        <div class="sa-label">FIN rcvd</div>
+                    </div>
+                    <div class="state-box wait">TIME-WAIT</div>
+                    <div class="state-arrow">
+                        <div>→</div>
+                        <div class="sa-label">2xMSL timer</div>
+                    </div>
+                    <div class="state-box closed">CLOSED</div>
+                </div>
+
+                <!-- Passive close (server FINs first) -->
+                <div class="state-row">
+                    <div class="state-box established">ESTABLISHED</div>
+                    <div class="state-arrow">
+                        <div>→</div>
+                        <div class="sa-label">FIN rcvd</div>
+                    </div>
+                    <div class="state-box wait">CLOSE-WAIT</div>
+                    <div class="state-arrow">
+                        <div>→</div>
+                        <div class="sa-label">FIN sent</div>
+                    </div>
+                    <div class="state-box wait">LAST-ACK</div>
+                    <div class="state-arrow">
+                        <div>→</div>
+                        <div class="sa-label">ACK rcvd</div>
+                    </div>
+                    <div class="state-box closed">CLOSED</div>
+                </div>
+
+            </div>
+
+            <div class="callout exam">
+                <div class="callout-label">Exam Note</div>
+                <strong>TIME-WAIT</strong> lasts 2x MSL (Maximum Segment Lifetime, typically 60 seconds each = 2 minutes total).
+                This ensures all delayed packets from the old connection expire before a new one starts.
+                Large numbers of TIME-WAIT sockets in <code style="font-family:monospace;">netstat</code> indicate high connection churn — normal for busy web servers.
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 11: FOUR-WAY TEARDOWN
+        ============================================================ -->
+        <section class="slide" id="slide-11">
+        <div class="slide-inner">
+            <div class="slide-meta">
+                <div class="branding">N10-009</div>
+                <div>Slide 11 of 17</div>
+            </div>
+
+            <div class="section-label">Connection Termination</div>
+            <h2>The Four-Way Teardown</h2>
+
+            <div class="scenario-bar">
+                <div class="label">Scenario — Closing</div>
+                hexworth.com loaded successfully. You close the browser tab. TCP gracefully shuts down
+                the connection using a four-step process, ensuring both sides finish sending.
+            </div>
+
+            <div class="teardown-list">
+                <div class="td-step">
+                    <div class="td-num">1</div>
+                    <div class="td-flag fin">FIN</div>
+                    <div class="td-text">
+                        <strong>Client → Server.</strong> "I'm done sending data. Sending my FIN."
+                        Client enters FIN-WAIT-1 state.
+                    </div>
+                </div>
+                <div class="td-step">
+                    <div class="td-num">2</div>
+                    <div class="td-flag ack">ACK</div>
+                    <div class="td-text">
+                        <strong>Server → Client.</strong> "I got your FIN. But I might still have data to send."
+                        Server enters CLOSE-WAIT. Client enters FIN-WAIT-2.
+                    </div>
+                </div>
+                <div class="td-step">
+                    <div class="td-num">3</div>
+                    <div class="td-flag fin">FIN</div>
+                    <div class="td-text">
+                        <strong>Server → Client.</strong> "I'm also done. Sending my FIN."
+                        Server enters LAST-ACK state.
+                    </div>
+                </div>
+                <div class="td-step">
+                    <div class="td-num">4</div>
+                    <div class="td-flag ack">ACK</div>
+                    <div class="td-text">
+                        <strong>Client → Server.</strong> "Got it. Entering TIME-WAIT."
+                        After 2x MSL (~2 min), client moves to CLOSED.
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout warn">
+                <div class="callout-label">Why Four Steps?</div>
+                Unlike the handshake where SYN and ACK are combined, the teardown is split because
+                both sides must independently finish sending. Steps 2 and 3 can be combined if the
+                server has no remaining data — this produces a three-step teardown in practice.
+            </div>
+
+            <div class="callout">
+                <div class="callout-label">TIME-WAIT Purpose</div>
+                The client waits 2x MSL before releasing the port. This ensures any stray packets
+                from the old connection expire before a new connection reuses the same port pair.
+                MSL is typically 30-60 seconds, so TIME-WAIT is 1-2 minutes.
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 12: TCP RETRANSMISSION
+        ============================================================ -->
+        <section class="slide" id="slide-12">
+        <div class="slide-inner">
+            <div class="slide-meta">
+                <div class="branding">N10-009</div>
+                <div>Slide 12 of 17</div>
+            </div>
+
+            <div class="section-label">Reliability Mechanism</div>
+            <h2>TCP Retransmission</h2>
+
+            <div class="scenario-bar">
+                <div class="label">Scenario — Packet Loss</div>
+                While hexworth.com was loading, a router somewhere on the path dropped one of your packets.
+                TCP detects this silently and retransmits without you ever noticing.
+            </div>
+
+            <div class="retrans-timeline">
+                <div class="rt-row">
+                    <div class="rt-time">t=0.000s</div>
+                    <div class="rt-dir" style="color:var(--green);">→</div>
+                    <div class="rt-desc">Client sends Seq=1001, 500 bytes of data</div>
+                </div>
+                <div class="rt-row">
+                    <div class="rt-time">t=0.005s</div>
+                    <div class="rt-dir" style="color:var(--red);">✗</div>
+                    <div class="rt-lost">LOST — Router drops packet (congestion, faulty link)</div>
+                </div>
+                <div class="rt-row">
+                    <div class="rt-time">t=0.005s</div>
+                    <div class="rt-dir" style="color:var(--text-muted);">...</div>
+                    <div class="rt-desc" style="color:var(--text-muted);">No ACK arrives. RTO timer counting down...</div>
+                </div>
+                <div class="rt-row">
+                    <div class="rt-time">t=0.210s</div>
+                    <div class="rt-dir" style="color:var(--text-muted);">!</div>
+                    <div class="rt-retrans">RTO EXPIRED — Retransmission timer fires</div>
+                </div>
+                <div class="rt-row">
+                    <div class="rt-time">t=0.210s</div>
+                    <div class="rt-dir" style="color:var(--gold);">→</div>
+                    <div class="rt-desc rt-retrans">Client RETRANSMITS Seq=1001 (identical segment)</div>
+                </div>
+                <div class="rt-row">
+                    <div class="rt-time">t=0.240s</div>
+                    <div class="rt-dir" style="color:var(--cyan);">←</div>
+                    <div class="rt-ack">Server ACKs: Ack=1501 — "Got all 500 bytes, send 1501 next"</div>
+                </div>
+                <div class="rt-row">
+                    <div class="rt-time">t=0.240s</div>
+                    <div class="rt-dir" style="color:var(--green);">✓</div>
+                    <div class="rt-desc" style="color:var(--green);">Recovery complete. Transfer continues normally.</div>
+                </div>
+            </div>
+
+            <div class="callout">
+                <div class="callout-label">RTO — Retransmission Timeout</div>
+                TCP calculates the RTO dynamically based on measured round-trip time (RTT).
+                The formula uses SRTT (smoothed RTT) plus a variance factor. Initial RTO is typically
+                1 second. After each retransmission, RTO is doubled (exponential backoff) up to a maximum.
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 13: CONGESTION CONTROL
+        ============================================================ -->
+        <section class="slide" id="slide-13">
+        <div class="slide-inner">
+            <div class="slide-meta">
+                <div class="branding">N10-009</div>
+                <div>Slide 13 of 17</div>
+            </div>
+
+            <div class="section-label">Congestion Management</div>
+            <h2>Congestion Control</h2>
+
+            <div class="scenario-bar">
+                <div class="label">Scenario — High Traffic</div>
+                The Internet is busy. Multiple routers are dropping packets. TCP detects this through
+                missing ACKs and backs off to avoid making congestion worse.
+            </div>
+
+            <!-- Bar chart approximating cwnd growth -->
+            <div class="cwnd-chart">
+                <!-- Slow start bars: exponential growth 1,2,4,8 -->
+                <div class="cwnd-bar slow-start" style="height:9%"><div class="cw-label">1</div></div>
+                <div class="cwnd-bar slow-start" style="height:18%"><div class="cw-label">2</div></div>
+                <div class="cwnd-bar slow-start" style="height:36%"><div class="cw-label">4</div></div>
+                <div class="cwnd-bar slow-start" style="height:65%"><div class="cw-label">8</div></div>
+                <!-- ssthresh hit — congestion avoidance: linear -->
+                <div class="cwnd-bar cong-avoid" style="height:70%"><div class="cw-label">9</div></div>
+                <div class="cwnd-bar cong-avoid" style="height:75%"><div class="cw-label">10</div></div>
+                <div class="cwnd-bar cong-avoid" style="height:80%"><div class="cw-label">11</div></div>
+                <div class="cwnd-bar cong-avoid" style="height:88%"><div class="cw-label">12</div></div>
+                <div class="cwnd-bar cong-avoid" style="height:95%"><div class="cw-label">13</div></div>
+                <!-- Loss event — drop -->
+                <div class="cwnd-bar drop" style="height:100%; opacity:0.5"><!-- packet loss --></div>
+                <div class="cwnd-bar drop" style="height:9%"><div class="cw-label">1</div></div>
+                <!-- Fast recovery / new slow start -->
+                <div class="cwnd-bar recovery" style="height:18%"><div class="cw-label">2</div></div>
+                <div class="cwnd-bar recovery" style="height:36%"><div class="cw-label">4</div></div>
+                <div class="cwnd-bar recovery" style="height:50%"><div class="cw-label">6</div></div>
+                <div class="cwnd-bar recovery" style="height:56%"><div class="cw-label">7</div></div>
+            </div>
+            <div class="cwnd-phase-labels">
+                <div class="cpl green" style="flex:4">Slow Start (exponential)</div>
+                <div class="cpl cyan" style="flex:5">Congestion Avoidance (linear)</div>
+                <div class="cpl red" style="flex:2">Loss</div>
+                <div class="cpl gold" style="flex:4">Recovery</div>
+            </div>
+
+            <div class="two-col" style="margin-top:16px;">
+                <div class="compare-card">
+                    <h3>Slow Start</h3>
+                    <p style="font-size:0.82rem; margin:0;">Starts cwnd at 1 MSS. Doubles every RTT until ssthresh is reached. Despite the name, growth is exponential — it's only "slow" compared to sending at full speed immediately.</p>
+                </div>
+                <div class="compare-card">
+                    <h3>Congestion Avoidance</h3>
+                    <p style="font-size:0.82rem; margin:0;">After ssthresh, increases by 1 MSS per RTT (linear). On packet loss: ssthresh = cwnd/2, then restart. This is TCP's main self-throttling mechanism on the Internet.</p>
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 14: WIRESHARK VIEW
+        ============================================================ -->
+        <section class="slide" id="slide-14">
+        <div class="slide-inner">
+            <div class="slide-meta">
+                <div class="branding">N10-009</div>
+                <div>Slide 14 of 17</div>
+            </div>
+
+            <div class="section-label">Packet Analysis</div>
+            <h2>TCP in Wireshark</h2>
+
+            <p style="font-size:0.86rem; margin-bottom:10px;">
+                This is what Wireshark captures when your browser connects to hexworth.com on port 443.
+                You can see the complete handshake before TLS negotiation begins.
+            </p>
+
+            <div class="wireshark-wrap">
+                <div class="ws-header-row">
+                    <div>No.</div>
+                    <div>Time</div>
+                    <div>Source</div>
+                    <div>Destination</div>
+                    <div>Proto</div>
+                    <div>Info</div>
+                </div>
+                <div class="ws-row syn-row">
+                    <div>1</div>
+                    <div>0.000</div>
+                    <div>192.168.1.10</div>
+                    <div>93.184.216.34</div>
+                    <div>TCP</div>
+                    <div>49201→443 [SYN] Seq=0 Win=64240</div>
+                </div>
+                <div class="ws-row synack-row">
+                    <div>2</div>
+                    <div>0.024</div>
+                    <div>93.184.216.34</div>
+                    <div>192.168.1.10</div>
+                    <div>TCP</div>
+                    <div>443→49201 [SYN, ACK] Seq=0 Ack=1 Win=65535</div>
+                </div>
+                <div class="ws-row ack-row">
+                    <div>3</div>
+                    <div>0.025</div>
+                    <div>192.168.1.10</div>
+                    <div>93.184.216.34</div>
+                    <div>TCP</div>
+                    <div>49201→443 [ACK] Seq=1 Ack=1 Win=64240</div>
+                </div>
+                <div class="ws-row data-row">
+                    <div>4</div>
+                    <div>0.026</div>
+                    <div>192.168.1.10</div>
+                    <div>93.184.216.34</div>
+                    <div>TLS</div>
+                    <div>Client Hello (SNI: www.hexworth.com)</div>
+                </div>
+                <div class="ws-row data-row">
+                    <div>5</div>
+                    <div>0.048</div>
+                    <div>93.184.216.34</div>
+                    <div>192.168.1.10</div>
+                    <div>TLS</div>
+                    <div>Server Hello, Certificate, Server Hello Done</div>
+                </div>
+                <div class="ws-row ack-row">
+                    <div>6</div>
+                    <div>0.050</div>
+                    <div>192.168.1.10</div>
+                    <div>93.184.216.34</div>
+                    <div>TCP</div>
+                    <div>49201→443 [ACK] Seq=518 Ack=2847 Win=63393</div>
+                </div>
+            </div>
+
+            <div class="two-col" style="margin-top:12px;">
+                <div style="font-size:0.8rem; line-height:1.7; color:var(--text-muted);">
+                    <span style="color:var(--green);">Green rows</span> = SYN (connection init)<br>
+                    <span style="color:var(--cyan);">Cyan rows</span> = SYN-ACK (server response)<br>
+                    <span style="color:#94a3b8;">Gray rows</span> = ACK (acknowledgments)<br>
+                    White rows = application data (TLS here)
+                </div>
+                <div class="callout exam" style="margin:0;">
+                    <div class="callout-label">Exam Tip</div>
+                    On the exam, you may need to identify which step of the handshake a captured packet belongs to. Look at the flags: SYN only = step 1, SYN+ACK = step 2, ACK only = step 3.
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 15: TROUBLESHOOTING
+        ============================================================ -->
+        <section class="slide" id="slide-15">
+        <div class="slide-inner">
+            <div class="slide-meta">
+                <div class="branding">N10-009</div>
+                <div>Slide 15 of 17</div>
+            </div>
+
+            <div class="section-label">Diagnostics</div>
+            <h2>TCP Troubleshooting</h2>
+
+            <div class="scenario-bar">
+                <div class="label">Scenario — Something Broke</div>
+                hexworth.com stops loading. You need to diagnose why. TCP behavior tells you exactly
+                what went wrong — if you know what to look for.
+            </div>
+
+            <div class="trouble-grid">
+                <div class="trouble-card">
+                    <div class="tc-symptom">SYN sent — no SYN-ACK received</div>
+                    <div class="tc-cause">Firewall blocking the port, service not running, wrong IP/port, host unreachable</div>
+                    <div class="tc-tool">Diagnose: telnet &lt;host&gt; &lt;port&gt; — Wireshark filter: tcp.flags.syn==1</div>
+                </div>
+                <div class="trouble-card">
+                    <div class="tc-symptom">RST received after SYN</div>
+                    <div class="tc-cause">Port is closed — service is not listening. A process previously ran there but was stopped.</div>
+                    <div class="tc-tool">Diagnose: netstat -an | grep &lt;port&gt; — ss -tlnp</div>
+                </div>
+                <div class="trouble-card">
+                    <div class="tc-symptom">High retransmissions visible</div>
+                    <div class="tc-cause">Packet loss in the path — congested router, faulty cable or NIC, wireless interference</div>
+                    <div class="tc-tool">Diagnose: Wireshark filter: tcp.analysis.retransmission — ping for loss</div>
+                </div>
+                <div class="trouble-card">
+                    <div class="tc-symptom">Window size drops to zero</div>
+                    <div class="tc-cause">Receiver's buffer is full — application not reading fast enough, resource exhaustion</div>
+                    <div class="tc-tool">Diagnose: Wireshark: tcp.window_size==0 — check receiver app health</div>
+                </div>
+                <div class="trouble-card">
+                    <div class="tc-symptom">FIN sent without all data</div>
+                    <div class="tc-cause">Application terminated prematurely, timeout, crash, or intentional forced close</div>
+                    <div class="tc-tool">Diagnose: Application logs — check for abrupt process termination</div>
+                </div>
+                <div class="trouble-card">
+                    <div class="tc-symptom">Many TIME-WAIT sockets</div>
+                    <div class="tc-cause">High connection churn — normal for busy web servers. Can exhaust ports under extreme load.</div>
+                    <div class="tc-tool">Diagnose: netstat -an | grep TIME_WAIT | wc -l</div>
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 16: KEY EXAM POINTS
+        ============================================================ -->
+        <section class="slide" id="slide-16">
+        <div class="slide-inner">
+            <div class="slide-meta">
+                <div class="branding">N10-009</div>
+                <div>Slide 16 of 17</div>
+            </div>
+
+            <div class="section-label">Exam Preparation</div>
+            <h2>Key Exam Points — N10-009 Obj 1.4</h2>
+
+            <div class="exam-grid">
+                <div class="exam-card">
+                    <div class="ec-num">01</div>
+                    <p>TCP = Connection-oriented, reliable, ordered delivery. Operates at Layer 4 (Transport).</p>
+                </div>
+                <div class="exam-card">
+                    <div class="ec-num">02</div>
+                    <p>Three-way handshake: SYN → SYN-ACK → ACK. Required before any data transfer.</p>
+                </div>
+                <div class="exam-card">
+                    <div class="ec-num">03</div>
+                    <p>Four-way teardown: FIN → ACK → FIN → ACK. Both sides must independently close.</p>
+                </div>
+                <div class="exam-card">
+                    <div class="ec-num">04</div>
+                    <p>Know your ports: 20/21 FTP, 22 SSH, 23 Telnet, 25 SMTP, 53 DNS, 80 HTTP, 110 POP3, 143 IMAP, 443 HTTPS.</p>
+                </div>
+                <div class="exam-card">
+                    <div class="ec-num">05</div>
+                    <p>Six flags: SYN, ACK, FIN, RST, PSH, URG. Know when each is used.</p>
+                </div>
+                <div class="exam-card">
+                    <div class="ec-num">06</div>
+                    <p>Sequence numbers track bytes, not packets. ACK = "next byte I expect."</p>
+                </div>
+                <div class="exam-card">
+                    <div class="ec-num">07</div>
+                    <p>Window size controls flow. Window = 0 means stop sending completely.</p>
+                </div>
+                <div class="exam-card">
+                    <div class="ec-num">08</div>
+                    <p>DNS: UDP port 53 for queries, TCP port 53 for zone transfers. Common exam trap.</p>
+                </div>
+                <div class="exam-card">
+                    <div class="ec-num">09</div>
+                    <p>RST after SYN = port closed. No response = firewall or host unreachable.</p>
+                </div>
+                <div class="exam-card">
+                    <div class="ec-num">10</div>
+                    <p>TIME-WAIT = 2x MSL (~2 min). Prevents old packets from poisoning new connections.</p>
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 17: SUMMARY + COMPLETE
+        ============================================================ -->
+        <section class="slide" id="slide-17">
+        <div class="slide-inner">
+            <div class="slide-meta">
+                <div class="branding">N10-009</div>
+                <div>Slide 17 of 17</div>
+            </div>
+
+            <div class="section-label">Module Complete</div>
+            <h2>From Keystroke to Loaded Page</h2>
+
+            <p style="margin-bottom:16px;">
+                Every time you type a URL and press Enter, TCP silently orchestrates hundreds of
+                coordinated steps. It establishes trust, tracks every byte, recovers from loss,
+                and gracefully closes when done. This entire process took under one second.
+            </p>
+
+            <!-- Summary flow diagram -->
+            <div class="summary-flow">
+                <div class="sf-step">Browser</div>
+                <div class="sf-arrow">→</div>
+                <div class="sf-step">DNS Lookup</div>
+                <div class="sf-arrow">→</div>
+                <div class="sf-step">SYN</div>
+                <div class="sf-arrow">→</div>
+                <div class="sf-step">SYN-ACK</div>
+                <div class="sf-arrow">→</div>
+                <div class="sf-step">ACK</div>
+                <div class="sf-arrow">→</div>
+                <div class="sf-step">TLS Handshake</div>
+                <div class="sf-arrow">→</div>
+                <div class="sf-step">HTTP GET</div>
+                <div class="sf-arrow">→</div>
+                <div class="sf-step">200 OK</div>
+                <div class="sf-arrow">→</div>
+                <div class="sf-step">FIN / ACK</div>
+                <div class="sf-arrow">→</div>
+                <div class="sf-step">CLOSED</div>
+            </div>
+
+            <div class="two-col" style="margin-top:10px;">
+                <div class="compare-card">
+                    <h3>Objectives Covered</h3>
+                    <ul style="font-size:0.84rem;">
+                        <li>N10-009 Objective 1.4</li>
+                        <li>TCP header structure and flags</li>
+                        <li>Three-way handshake and teardown</li>
+                        <li>Flow control and congestion control</li>
+                        <li>Common TCP ports</li>
+                        <li>TCP troubleshooting techniques</li>
+                    </ul>
+                </div>
+                <div class="compare-card">
+                    <h3>Key Takeaways</h3>
+                    <ul style="font-size:0.84rem;">
+                        <li>TCP rides on top of IP at Layer 4</li>
+                        <li>Reliability comes from ACKs + retransmission</li>
+                        <li>Handshake = 3 steps, teardown = 4 steps</li>
+                        <li>Window size = receiver-controlled flow</li>
+                        <li>Know your ports — they appear on every exam</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div style="text-align:center; margin-top:6px;">
+                <button id="complete-btn" onclick="completeModule()">Complete Module</button>
+            </div>
+        </div>
+</section>
+
+<!-- =====================================================================
+     NAVIGATION BAR
+     ===================================================================== -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Network+ Hub</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 17</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<!-- =====================================================================
+     PRESENTATION LOGIC
+     ===================================================================== -->
+    <script>
+        /* State */
+        let currentSlide = 1;
+        const TOTAL_SLIDES = 17;
+
+        /* Navigate to a specific slide number (1-indexed) */
+        function goToSlide(n) {
+            if (n < 1 || n > TOTAL_SLIDES) return;
+
+            const prev = document.getElementById('slide-' + currentSlide);
+            if (prev) prev.classList.remove('active');
+
+            currentSlide = n;
+
+            const next = document.getElementById('slide-' + currentSlide);
+            if (next) next.classList.add('active');
+
+            const pct = (currentSlide / TOTAL_SLIDES) * 100;
+            document.getElementById('progress-bar').style.width = pct + '%';
+
+            document.getElementById('slide-counter').textContent =
+                'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+            document.getElementById('prev-btn').disabled = (currentSlide === 1);
+            document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+            const completeBtn = document.getElementById('complete-btn');
+            if (completeBtn) {
+                completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+            }
+
+            /* Reset handshake when navigating to slide 5 */
+            if (currentSlide === 5) {
+                resetHandshake();
+            }
+        }
+
+        /* Keyboard navigation — arrows only */
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                goToSlide(currentSlide + 1);
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                goToSlide(currentSlide - 1);
+            }
+        });
+
+        goToSlide(1);
+
+        /* -----------------------------------------------------------------
+           TCP HEADER FIELD DATA
+        ----------------------------------------------------------------- */
+        const headerFields = {
+            'src-port': {
+                name: 'Source Port (16 bits)',
+                purpose: 'Identifies the sending application on the client. Randomly assigned from the dynamic range (49152–65535) by the OS.',
+                scenario: 'In our scenario: Source Port = 49201 — your browser\'s randomly assigned port for this HTTPS connection.'
+            },
+            'dst-port': {
+                name: 'Destination Port (16 bits)',
+                purpose: 'Identifies the target service on the server. Well-known ports are standardized — 80 for HTTP, 443 for HTTPS.',
+                scenario: 'In our scenario: Destination Port = 443 — telling the server this is an HTTPS request.'
+            },
+            'seq': {
+                name: 'Sequence Number (32 bits)',
+                purpose: 'The byte position of the first byte in this segment. Allows the receiver to reassemble data in order and detect gaps.',
+                scenario: 'In our SYN: Seq=0 (initial, randomly selected). After the handshake, every byte sent increments this number.'
+            },
+            'ack': {
+                name: 'Acknowledgment Number (32 bits)',
+                purpose: 'Only meaningful when the ACK flag is set. Tells the sender the next byte the receiver expects. Implicitly ACKs everything before it.',
+                scenario: 'After the SYN-ACK: Ack=1, meaning "I received byte 0, now send byte 1." Every ACK from the server tells your browser exactly where it left off.'
+            },
+            'offset': {
+                name: 'Data Offset / Reserved / Flags (16 bits combined)',
+                purpose: 'Data Offset (4 bits): how many 32-bit words in the header (where data starts). Reserved (3 bits): must be zero. Flags (9 bits): SYN, ACK, FIN, RST, PSH, URG, and 3 newer bits.',
+                scenario: 'In our SYN packet: Data Offset=5 (20 bytes, minimum header), SYN flag=1, all others=0.'
+            },
+            'window': {
+                name: 'Window Size (16 bits)',
+                purpose: 'The number of bytes the sender of this segment is willing to receive without an ACK. Controls flow — the receiver throttles the sender by shrinking this value.',
+                scenario: 'Your browser advertises Win=64240 in the SYN. The server responds with Win=65535. These values adapt during the connection based on buffer availability.'
+            },
+            'checksum': {
+                name: 'Checksum (16 bits)',
+                purpose: 'Covers the TCP header, data, and a pseudo-header from IP. Detects corruption in transit. The receiver discards segments with a bad checksum and waits for retransmission.',
+                scenario: 'Every segment your browser sends is checksummed. If a router corrupts a byte in transit, the server\'s TCP layer silently drops it and waits for a retransmit.'
+            },
+            'urgent': {
+                name: 'Urgent Pointer (16 bits)',
+                purpose: 'Only meaningful when the URG flag is set. Points to the last byte of urgent data within the segment. Rarely used in modern protocols — considered a legacy mechanism.',
+                scenario: 'Not used in our HTTPS connection. You would only see URG in certain legacy applications like old Telnet interrupt sequences.'
+            }
+        };
+
+        /* Select and display a header field's detail */
+        function selectHeaderField(el) {
+            document.querySelectorAll('#tcpHeaderGrid .hfield').forEach(function(f) {
+                f.classList.remove('selected');
+            });
+            el.classList.add('selected');
+
+            var key = el.getAttribute('data-field');
+            var data = headerFields[key];
+            var detail = document.getElementById('headerDetail');
+
+            detail.innerHTML =
+                '<div class="detail-name">' + data.name + '</div>' +
+                '<div>' + data.purpose + '</div>' +
+                '<div class="detail-scenario">' + data.scenario + '</div>';
+        }
+
+        /* -----------------------------------------------------------------
+           TCP FLAG DATA
+        ----------------------------------------------------------------- */
+        const flagData = {
+            'SYN': {
+                title: 'SYN — Synchronize',
+                desc: 'Initiates a connection. Used in steps 1 and 2 of the three-way handshake. When SYN is set, the sequence number field contains the initial sequence number (ISN). Both sides must synchronize sequence numbers before data can flow.',
+                scenario: 'Your browser sends SYN first. "Hey server — I want to connect. My starting sequence number is 0."'
+            },
+            'ACK': {
+                title: 'ACK — Acknowledge',
+                desc: 'Acknowledges received data. Present in nearly every packet after the initial SYN. When ACK is set, the acknowledgment number field is valid. Used continuously throughout the lifetime of a connection.',
+                scenario: 'Both sides use ACK constantly. Every time the server sends data, your browser sends back an ACK: "Got it, send more."'
+            },
+            'FIN': {
+                title: 'FIN — Finish',
+                desc: 'Signals that the sender is done sending data and wants to close its half of the connection. TCP is full-duplex — each direction must be independently closed with a FIN. The four-way teardown uses two FINs.',
+                scenario: 'When you close the hexworth.com tab, your browser sends a FIN. "I\'m done sending. Goodbye."'
+            },
+            'RST': {
+                title: 'RST — Reset',
+                desc: 'Immediately terminates the connection. No graceful shutdown — both sides drop all state instantly. Sent when a port is closed (responding to an unexpected SYN), when an error makes the connection unrecoverable, or when a firewall blocks traffic.',
+                scenario: 'If you tried connecting to a closed port on hexworth.com, the server would respond with RST. "ABORT. There\'s nothing listening on that port."'
+            },
+            'PSH': {
+                title: 'PSH — Push',
+                desc: 'Tells the receiver to deliver buffered data to the application immediately, without waiting for the buffer to fill. Commonly set on the last segment of a request or interactive command where latency matters.',
+                scenario: 'Not prominent in our HTTPS download, but used heavily in SSH — every keystroke you type is sent with PSH set so the remote shell sees it instantly rather than waiting for a full buffer.'
+            },
+            'URG': {
+                title: 'URG — Urgent',
+                desc: 'Marks data as urgent — the receiver should process it immediately, bypassing normal buffering. Works with the Urgent Pointer field. Rarely used in modern protocols and considered a legacy feature of the original TCP design.',
+                scenario: 'Not used in our HTTPS connection. Historically used in Telnet to interrupt a running remote process — effectively CTRL+C over the wire.'
+            }
+        };
+
+        /* Select and display a flag's detail */
+        function selectFlag(el) {
+            document.querySelectorAll('#flagsRow .flag-card').forEach(function(f) {
+                f.classList.remove('active');
+            });
+            el.classList.add('active');
+
+            var flag = el.getAttribute('data-flag');
+            var data = flagData[flag];
+            var box = document.getElementById('flagDetailBox');
+
+            box.innerHTML =
+                '<div class="flag-detail-name">' + data.title + '</div>' +
+                '<div style="font-size:0.85rem; color:var(--text); margin-bottom:6px;">' + data.desc + '</div>' +
+                '<div style="font-size:0.82rem; color:var(--green); font-style:italic;">' + data.scenario + '</div>';
+        }
+
+        /* -----------------------------------------------------------------
+           THREE-WAY HANDSHAKE ANIMATION
+        ----------------------------------------------------------------- */
+        var hsRunning = false;
+
+        function resetHandshake() {
+            hsRunning = false;
+
+            /* Hide all arrow rows */
+            ['hsRow1','hsRow2','hsRow3'].forEach(function(id) {
+                var row = document.getElementById(id);
+                if (row) row.classList.remove('visible');
+            });
+
+            /* Reset packet animations */
+            ['hsPkt1','hsPkt2','hsPkt3'].forEach(function(id) {
+                var pkt = document.getElementById(id);
+                if (pkt) pkt.classList.remove('visible');
+            });
+
+            /* Clear explanation text */
+            ['hsEx1','hsEx2','hsEx3'].forEach(function(id) {
+                var ex = document.getElementById(id);
+                if (ex) ex.textContent = '';
+            });
+
+            /* Reset state labels */
+            var cs = document.getElementById('clientState');
+            var ss = document.getElementById('serverState');
+            if (cs) { cs.textContent = 'CLOSED'; cs.className = 'hs-state'; }
+            if (ss) { ss.textContent = 'LISTEN'; ss.className = 'hs-state'; }
+
+            /* Hide established banner */
+            var banner = document.getElementById('establishedBanner');
+            if (banner) banner.classList.remove('show');
+
+            /* Re-enable start button */
+            var btn = document.getElementById('hsStartBtn');
+            if (btn) btn.disabled = false;
+        }
+
+        function startHandshake() {
+            if (hsRunning) return;
+            hsRunning = true;
+
+            var btn = document.getElementById('hsStartBtn');
+            if (btn) btn.disabled = true;
+
+            /* ---- STEP 1: SYN (client → server) ---- */
+            setTimeout(function() {
+                var row1 = document.getElementById('hsRow1');
+                if (row1) row1.classList.add('visible');
+
+                var cs = document.getElementById('clientState');
+                if (cs) { cs.textContent = 'SYN-SENT'; cs.className = 'hs-state syn-sent'; }
+
+                setTimeout(function() {
+                    var pkt1 = document.getElementById('hsPkt1');
+                    if (pkt1) pkt1.classList.add('visible');
+
+                    var ex1 = document.getElementById('hsEx1');
+                    if (ex1) ex1.textContent = 'Your browser: "I want to connect. My sequence starts at 0."';
+                }, 100);
+            }, 300);
+
+            /* ---- STEP 2: SYN-ACK (server → client) ---- */
+            setTimeout(function() {
+                var row2 = document.getElementById('hsRow2');
+                if (row2) row2.classList.add('visible');
+
+                var ss = document.getElementById('serverState');
+                if (ss) { ss.textContent = 'SYN-RECEIVED'; ss.className = 'hs-state syn-rcvd'; }
+
+                setTimeout(function() {
+                    var pkt2 = document.getElementById('hsPkt2');
+                    if (pkt2) pkt2.classList.add('visible');
+
+                    var ex2 = document.getElementById('hsEx2');
+                    if (ex2) ex2.textContent = 'Server: "Heard you. My sequence is 0. I acknowledge your 0 — expecting byte 1."';
+                }, 100);
+            }, 1600);
+
+            /* ---- STEP 3: ACK (client → server) ---- */
+            setTimeout(function() {
+                var row3 = document.getElementById('hsRow3');
+                if (row3) row3.classList.add('visible');
+
+                var cs = document.getElementById('clientState');
+                if (cs) { cs.textContent = 'ESTABLISHED'; cs.className = 'hs-state established'; }
+
+                var ss = document.getElementById('serverState');
+                if (ss) { ss.textContent = 'ESTABLISHED'; ss.className = 'hs-state established'; }
+
+                setTimeout(function() {
+                    var pkt3 = document.getElementById('hsPkt3');
+                    if (pkt3) pkt3.classList.add('visible');
+
+                    var ex3 = document.getElementById('hsEx3');
+                    if (ex3) ex3.textContent = 'Browser confirms: "Got your SYN-ACK. Connection established. Ready for data."';
+
+                    /* Show established banner after ACK arrow completes */
+                    setTimeout(function() {
+                        var banner = document.getElementById('establishedBanner');
+                        if (banner) banner.classList.add('show');
+                    }, 750);
+                }, 100);
+            }, 2900);
+        }
+    </script>
+
+    <!-- Complete module — isolated script block as required -->
+    <script>
+        function completeModule() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('web', 'web-tcp', {
+                    returnUrl: '../index.html'
+                });
+            }
+        }
+    </script>
+
+    <script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

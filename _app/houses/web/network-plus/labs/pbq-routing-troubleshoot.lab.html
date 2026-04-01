@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PBQ: Routing Troubleshoot | Network+</title>
+    <style>
+        /* ============================================================
+           ROOT VARIABLES
+           ============================================================ */
+        :root {
+            --bg:          #090910;
+            --bg-card:     #0f0f1a;
+            --bg-panel:    #14141f;
+            --bg-input:    #0a0a14;
+            --border:      rgba(6, 182, 212, 0.18);
+            --border-hi:   rgba(6, 182, 212, 0.55);
+            --cyan:        #06b6d4;
+            --cyan-dim:    rgba(6, 182, 212, 0.12);
+            --cyan-glow:   rgba(6, 182, 212, 0.25);
+            --text:        #e2e8f0;
+            --text-dim:    #64748b;
+            --text-mid:    #94a3b8;
+            --success:     #22c55e;
+            --success-bg:  rgba(34, 197, 94, 0.12);
+            --danger:      #ef4444;
+            --danger-bg:   rgba(239, 68, 68, 0.12);
+            --warn:        #f59e0b;
+            --warn-bg:     rgba(245, 158, 11, 0.1);
+            --mono:        'Courier New', 'Consolas', monospace;
+        }
+
+        /* ============================================================
+           RESET & BASE
+           ============================================================ */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* ============================================================
+           NAV BAR
+           ============================================================ */
+        .lab-nav {
+            padding: 11px 20px;
+            background: #0d0d17;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .lab-nav a {
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 0.84rem;
+            transition: color 0.2s;
+        }
+        .lab-nav a:hover { color: var(--cyan); }
+        .lab-nav .sep {
+            color: var(--text-dim);
+            font-size: 0.84rem;
+        }
+        .lab-nav .badge {
+            background: rgba(6, 182, 212, 0.14);
+            color: var(--cyan);
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.6px;
+            padding: 3px 9px;
+            border-radius: 4px;
+        }
+
+        /* ============================================================
+           LAYOUT
+           ============================================================ */
+        .lab-wrap {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 5rem;
+        }
+
+        /* ============================================================
+           HEADER / SCENARIO
+           ============================================================ */
+        .lab-header {
+            background: var(--bg-card);
+            border: 1px solid var(--border-hi);
+            border-radius: 14px;
+            padding: 1.75rem 2rem;
+            margin-bottom: 1.75rem;
+            box-shadow: 0 0 28px var(--cyan-glow);
+        }
+        .lab-header h1 {
+            font-size: 1.7rem;
+            font-weight: 700;
+            color: var(--cyan);
+            margin-bottom: 0.35rem;
+            letter-spacing: -0.3px;
+        }
+        .pbq-tag {
+            display: inline-block;
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            margin-bottom: 0.9rem;
+        }
+        .scenario-box {
+            background: var(--bg-panel);
+            border-left: 3px solid var(--cyan);
+            border-radius: 0 8px 8px 0;
+            padding: 0.9rem 1.2rem;
+            font-size: 0.93rem;
+            color: var(--text-mid);
+            margin-top: 0.75rem;
+        }
+        .scenario-box strong { color: var(--text); }
+        .lab-meta {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+        .lab-meta span { color: var(--text-mid); }
+
+        /* ============================================================
+           SECTION LABEL
+           ============================================================ */
+        .section-label {
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.9px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+
+        /* ============================================================
+           TOPOLOGY DIAGRAM (SVG-based)
+           ============================================================ */
+        .topology-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 1.5rem 1.5rem 1.25rem;
+            margin-bottom: 1.75rem;
+        }
+        .topo-svg-wrap {
+            width: 100%;
+            overflow-x: auto;
+        }
+        .topo-svg-wrap svg {
+            display: block;
+            margin: 0 auto;
+            min-width: 560px;
+        }
+
+        /* ============================================================
+           ROUTER PANELS
+           ============================================================ */
+        .routers-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.25rem;
+            margin-bottom: 1.75rem;
+        }
+        @media (max-width: 720px) {
+            .routers-grid { grid-template-columns: 1fr; }
+        }
+
+        .router-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: border-color 0.25s;
+        }
+        .router-card.graded-pass { border-color: var(--success); }
+        .router-card.graded-fail { border-color: var(--danger); }
+
+        /* Router card header — clickable to select */
+        .router-card-head {
+            padding: 0.9rem 1.1rem 0.75rem;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            cursor: default;
+        }
+        .router-card-head h3 {
+            font-size: 0.96rem;
+            font-weight: 700;
+            color: var(--cyan);
+            margin-bottom: 0.15rem;
+        }
+        .router-card-head .ifaces {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            font-family: var(--mono);
+            line-height: 1.55;
+        }
+
+        /* Tab bar */
+        .tab-bar {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-panel);
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 0.55rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            color: var(--text-dim);
+            background: none;
+            border: none;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active {
+            color: var(--cyan);
+            border-bottom-color: var(--cyan);
+        }
+
+        /* Tab panes */
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        /* Routing table CLI output */
+        .cli-output {
+            background: #060610;
+            border-radius: 0;
+            padding: 1rem 1.1rem;
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            line-height: 1.65;
+            color: #a8c0c8;
+            white-space: pre;
+            overflow-x: auto;
+        }
+        .cli-output .cli-prompt { color: #7dd3fc; font-weight: 700; }
+        .cli-output .cli-connected { color: #4ade80; }
+        .cli-output .cli-local { color: #94a3b8; }
+        .cli-output .cli-static { color: #fbbf24; }
+        .cli-output .cli-default { color: #f87171; }
+        .cli-output .cli-header { color: var(--text-mid); }
+
+        /* Config tab */
+        .config-pane {
+            padding: 1rem 1.1rem;
+        }
+
+        .radio-group {
+            margin-bottom: 0.9rem;
+        }
+        .radio-group label {
+            font-size: 0.8rem;
+            color: var(--text-mid);
+            display: block;
+            margin-bottom: 0.45rem;
+        }
+        .radio-row {
+            display: flex;
+            gap: 1rem;
+        }
+        .radio-row label {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.82rem;
+            color: var(--text);
+            margin-bottom: 0;
+            cursor: pointer;
+        }
+        .radio-row input[type="radio"] {
+            accent-color: var(--cyan);
+            cursor: pointer;
+        }
+
+        /* Static route form (shown when problem=Yes) */
+        .route-form {
+            border-top: 1px solid var(--border);
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            display: none; /* toggled by JS */
+        }
+        .route-form.visible { display: block; }
+
+        .form-row {
+            margin-bottom: 0.65rem;
+        }
+        .form-row label {
+            display: block;
+            font-size: 0.74rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 0.3rem;
+        }
+        .form-row input[type="text"],
+        .form-row select {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            padding: 0.42rem 0.65rem;
+            font-size: 0.82rem;
+            color: var(--text);
+            font-family: var(--mono);
+            transition: border-color 0.2s;
+            outline: none;
+        }
+        .form-row input[type="text"]:focus,
+        .form-row select:focus {
+            border-color: var(--cyan);
+        }
+        .form-row select {
+            appearance: none;
+            cursor: pointer;
+        }
+        .form-row input.field-error {
+            border-color: var(--danger);
+        }
+
+        /* Save / Reset buttons within each router */
+        .card-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.85rem;
+        }
+        .btn-save {
+            flex: 1;
+            padding: 0.45rem 0;
+            background: var(--cyan-dim);
+            border: 1px solid var(--border-hi);
+            border-radius: 6px;
+            color: var(--cyan);
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .btn-save:hover {
+            background: rgba(6, 182, 212, 0.22);
+        }
+        .btn-reset {
+            padding: 0.45rem 0.85rem;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .btn-reset:hover {
+            color: var(--danger);
+            border-color: var(--danger);
+        }
+
+        /* Saved badge (small confirmation after save) */
+        .saved-badge {
+            font-size: 0.72rem;
+            color: var(--success);
+            opacity: 0;
+            transition: opacity 0.3s;
+            align-self: center;
+        }
+        .saved-badge.show { opacity: 1; }
+
+        /* ============================================================
+           SUBMIT SECTION
+           ============================================================ */
+        .submit-section {
+            text-align: center;
+            margin-bottom: 1.75rem;
+        }
+        .btn-submit {
+            padding: 0.8rem 2.8rem;
+            background: linear-gradient(135deg, rgba(6,182,212,0.22), rgba(6,182,212,0.1));
+            border: 1.5px solid var(--cyan);
+            border-radius: 8px;
+            color: var(--cyan);
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .btn-submit:hover {
+            background: linear-gradient(135deg, rgba(6,182,212,0.32), rgba(6,182,212,0.18));
+            box-shadow: 0 0 18px var(--cyan-glow);
+        }
+
+        /* ============================================================
+           RESULTS PANEL
+           ============================================================ */
+        .results-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 1.5rem 1.75rem;
+            margin-bottom: 1.75rem;
+            display: none;
+        }
+        .results-panel.visible { display: block; }
+
+        .results-panel h2 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 1.1rem;
+        }
+
+        /* Per-router result row */
+        .result-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.85rem;
+            padding: 0.85rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 0.6rem;
+            border: 1px solid transparent;
+        }
+        .result-row.pass {
+            background: var(--success-bg);
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+        .result-row.fail {
+            background: var(--danger-bg);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+        .result-icon {
+            font-size: 1.1rem;
+            line-height: 1.4;
+            flex-shrink: 0;
+            font-style: normal;
+        }
+        .result-row.pass .result-icon { color: var(--success); }
+        .result-row.fail .result-icon { color: var(--danger); }
+        .result-body {}
+        .result-router-name {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 0.2rem;
+        }
+        .result-msg {
+            font-size: 0.82rem;
+            color: var(--text-mid);
+            line-height: 1.5;
+        }
+        .result-msg code {
+            font-family: var(--mono);
+            font-size: 0.78rem;
+            background: rgba(255,255,255,0.07);
+            padding: 0 4px;
+            border-radius: 3px;
+            color: var(--text);
+        }
+
+        /* ============================================================
+           PASS BANNER
+           ============================================================ */
+        .pass-banner {
+            background: linear-gradient(135deg, rgba(34,197,94,0.14), rgba(34,197,94,0.07));
+            border: 1.5px solid rgba(34, 197, 94, 0.5);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            text-align: center;
+            margin-bottom: 1.75rem;
+            display: none;
+        }
+        .pass-banner.visible { display: block; }
+        .pass-banner h2 {
+            font-size: 1.35rem;
+            color: var(--success);
+            font-weight: 700;
+            margin-bottom: 0.4rem;
+        }
+        .pass-banner p {
+            font-size: 0.9rem;
+            color: var(--text-mid);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NAV -->
+    <nav class="lab-nav">
+        <a href="../index.html">Network+</a>
+        <span class="sep">/</span>
+        <a href="../index.html">Labs</a>
+        <span class="sep">/</span>
+        <span style="color: var(--text-mid); font-size: 0.84rem;">PBQ: Routing Troubleshoot</span>
+        <div style="margin-left: auto;">
+            <span class="badge">PBQ LAB</span>
+        </div>
+    </nav>
+
+    <div class="lab-wrap">
+
+        <!-- HEADER -->
+        <div class="lab-header">
+            <div class="pbq-tag">PERFORMANCE-BASED QUESTION</div>
+            <h1>Static Routing Troubleshoot</h1>
+            <div class="scenario-box">
+                <strong>Scenario:</strong> Users at Site B are unable to access files on the server at Site A.
+                The network administrator has been tasked with validating routing between the two sites and
+                configuring the appropriate solution.
+            </div>
+            <div class="lab-meta">
+                <div>Exam Domain: <span>2.0 Network Implementations</span></div>
+                <div>Objective: <span>2.4 — Given a scenario, troubleshoot common routing issues</span></div>
+                <div>Difficulty: <span>Intermediate</span></div>
+            </div>
+        </div>
+
+        <!-- TOPOLOGY -->
+        <div class="topology-card">
+            <div class="section-label">Network Topology</div>
+            <div class="topo-svg-wrap">
+                <!--
+                    Layout (left to right):
+                    [Site A block]  [Router A] -- [Router C] -- [Router B]  [Site B block]
+                    Rendered with inline SVG for pixel-accurate control.
+                -->
+                <svg viewBox="0 0 820 220" width="820" height="220" xmlns="http://www.w3.org/2000/svg"
+                     aria-label="Network topology diagram showing Site A, Router A, Router C, Router B, and Site B">
+
+                    <!-- ─── Link lines ─── -->
+                    <!-- Router A <-> Router C -->
+                    <line x1="280" y1="110" x2="410" y2="110" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="5,3"/>
+                    <!-- Router C <-> Router B -->
+                    <line x1="540" y1="110" x2="670" y2="110" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="5,3"/>
+                    <!-- Router A <-> Site A server -->
+                    <line x1="170" y1="110" x2="230" y2="110" stroke="#475569" stroke-width="1.2"/>
+                    <!-- Router B <-> Site B workstation -->
+                    <line x1="720" y1="110" x2="780" y2="110" stroke="#475569" stroke-width="1.2"/>
+                    <!-- Vertical legs from routers to subnet labels -->
+                    <line x1="255" y1="110" x2="255" y2="150" stroke="#475569" stroke-width="1" stroke-dasharray="3,2"/>
+                    <line x1="695" y1="110" x2="695" y2="150" stroke="#475569" stroke-width="1" stroke-dasharray="3,2"/>
+
+                    <!-- ─── Link address labels on WAN links ─── -->
+                    <text x="344" y="103" text-anchor="middle" font-family="Courier New,monospace" font-size="9" fill="#64748b">172.16.27.0/30</text>
+                    <text x="476" y="103" text-anchor="middle" font-family="Courier New,monospace" font-size="9" fill="#64748b">172.16.27.4/30</text>
+
+                    <!-- Interface labels on WAN links -->
+                    <text x="290" y="122" font-family="Courier New,monospace" font-size="9" fill="#94a3b8">Gi2:.1</text>
+                    <text x="398" y="122" font-family="Courier New,monospace" font-size="9" fill="#94a3b8">Gi2:.2</text>
+                    <text x="548" y="122" font-family="Courier New,monospace" font-size="9" fill="#94a3b8">Gi3:.5</text>
+                    <text x="638" y="122" font-family="Courier New,monospace" font-size="9" fill="#94a3b8">Gi3:.6</text>
+
+                    <!-- ─── Site A block ─── -->
+                    <rect x="10" y="72" width="160" height="76" rx="8"
+                          fill="#0f0f1a" stroke="#334155" stroke-width="1"/>
+                    <text x="90" y="91" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10.5"
+                          font-weight="700" fill="#94a3b8" letter-spacing="0.5">SITE A</text>
+                    <text x="90" y="106" text-anchor="middle" font-family="Courier New,monospace" font-size="9"
+                          fill="#22c55e">10.0.4.0/22</text>
+                    <!-- Server icon (simplified rect) -->
+                    <rect x="55" y="114" width="70" height="18" rx="3" fill="#0a0a20" stroke="#334155" stroke-width="1"/>
+                    <rect x="57" y="116" width="8" height="14" rx="1" fill="#1e293b"/>
+                    <text x="93" y="127" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9"
+                          fill="#94a3b8">Server</text>
+                    <text x="90" y="143" text-anchor="middle" font-family="Courier New,monospace" font-size="8.5"
+                          fill="#64748b">10.0.4.10</text>
+
+                    <!-- ─── Router A ─── -->
+                    <rect x="205" y="82" width="100" height="56" rx="8"
+                          fill="#0f0f1a" stroke="#06b6d4" stroke-width="1.5"
+                          filter="url(#glow-cyan)"/>
+                    <text x="255" y="100" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11"
+                          font-weight="700" fill="#06b6d4">Router A</text>
+                    <text x="255" y="114" text-anchor="middle" font-family="Courier New,monospace" font-size="8.5"
+                          fill="#64748b">Gi1: 10.0.4.1/22</text>
+                    <text x="255" y="126" text-anchor="middle" font-family="Courier New,monospace" font-size="8.5"
+                          fill="#64748b">Gi2: 172.16.27.1/30</text>
+
+                    <!-- Subnet label below Router A -->
+                    <text x="255" y="165" text-anchor="middle" font-family="Courier New,monospace" font-size="8.5"
+                          fill="#22c55e">10.0.4.0/22</text>
+
+                    <!-- ─── Router C ─── -->
+                    <rect x="397" y="82" width="106" height="56" rx="8"
+                          fill="#0f0f1a" stroke="#475569" stroke-width="1.5"/>
+                    <text x="450" y="100" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11"
+                          font-weight="700" fill="#94a3b8">Router C</text>
+                    <text x="450" y="114" text-anchor="middle" font-family="Courier New,monospace" font-size="8"
+                          fill="#64748b">Gi2: 172.16.27.2</text>
+                    <text x="450" y="126" text-anchor="middle" font-family="Courier New,monospace" font-size="8"
+                          fill="#64748b">Gi3: 172.16.27.5</text>
+
+                    <!-- ─── Router B ─── -->
+                    <rect x="571" y="82" width="100" height="56" rx="8"
+                          fill="#0f0f1a" stroke="#06b6d4" stroke-width="1.5"
+                          filter="url(#glow-cyan)"/>
+                    <text x="621" y="100" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="11"
+                          font-weight="700" fill="#06b6d4">Router B</text>
+                    <text x="621" y="114" text-anchor="middle" font-family="Courier New,monospace" font-size="8.5"
+                          fill="#64748b">Gi1: 10.0.1.1/24</text>
+                    <text x="621" y="126" text-anchor="middle" font-family="Courier New,monospace" font-size="8.5"
+                          fill="#64748b">Gi3: 172.16.27.6/30</text>
+
+                    <!-- Subnet label below Router B -->
+                    <text x="695" y="165" text-anchor="middle" font-family="Courier New,monospace" font-size="8.5"
+                          fill="#22c55e">10.0.1.0/24</text>
+
+                    <!-- ─── Site B block ─── -->
+                    <rect x="650" y="72" width="160" height="76" rx="8"
+                          fill="#0f0f1a" stroke="#334155" stroke-width="1"/>
+                    <text x="730" y="91" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="10.5"
+                          font-weight="700" fill="#94a3b8" letter-spacing="0.5">SITE B</text>
+                    <text x="730" y="106" text-anchor="middle" font-family="Courier New,monospace" font-size="9"
+                          fill="#22c55e">10.0.1.0/24</text>
+                    <!-- Workstation icon -->
+                    <rect x="689" y="114" width="82" height="18" rx="3" fill="#0a0a20" stroke="#334155" stroke-width="1"/>
+                    <rect x="691" y="116" width="12" height="14" rx="1" fill="#1e293b"/>
+                    <text x="730" y="127" text-anchor="middle" font-family="Segoe UI,sans-serif" font-size="9"
+                          fill="#94a3b8">Workstation B</text>
+                    <text x="730" y="143" text-anchor="middle" font-family="Courier New,monospace" font-size="8.5"
+                          fill="#64748b">10.0.1.50</text>
+
+                    <!-- ─── SVG filter for cyan glow ─── -->
+                    <defs>
+                        <filter id="glow-cyan" x="-30%" y="-30%" width="160%" height="160%">
+                            <feGaussianBlur stdDeviation="3" result="blur"/>
+                            <feMerge>
+                                <feMergeNode in="blur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                        </filter>
+                    </defs>
+                </svg>
+            </div>
+        </div>
+
+        <!-- ROUTER PANELS -->
+        <div class="section-label" style="margin-bottom: 0.65rem;">Router Configuration</div>
+        <div class="routers-grid" id="routersGrid">
+
+            <!-- ─── ROUTER A ─── -->
+            <div class="router-card" id="card-a">
+                <div class="router-card-head">
+                    <h3>Router A</h3>
+                    <div class="ifaces">
+                        Gi1: 10.0.4.1/22<br>
+                        Gi2: 172.16.27.1/30<br>
+                        Gi3: (uplink/ISP)
+                    </div>
+                </div>
+                <div class="tab-bar">
+                    <button class="tab-btn active" onclick="showTab('a','table')" id="tab-a-table">Routing Table</button>
+                    <button class="tab-btn" onclick="showTab('a','config')" id="tab-a-config">Configuration</button>
+                </div>
+
+                <!-- Routing Table tab -->
+                <div class="tab-pane active" id="pane-a-table">
+                    <div class="cli-output"><span class="cli-prompt">Router-A# show ip route</span>
+<span class="cli-default">S*   0.0.0.0/0 is directly connected, GigabitEthernet3</span>
+<span class="cli-header">     10.0.0.0/8 is variably subnetted, 4 subnets, 2 masks</span>
+<span class="cli-connected">C      10.0.4.0/22 is directly connected, GigabitEthernet1</span>
+<span class="cli-local">L      10.0.4.1/32 is directly connected, GigabitEthernet1</span>
+<span class="cli-header">     172.16.0.0/16 is variably subnetted, 2 subnets, 2 masks</span>
+<span class="cli-connected">C      172.16.27.0/30 is directly connected, GigabitEthernet2</span>
+<span class="cli-local">L      172.16.27.1/32 is directly connected, GigabitEthernet2</span></div>
+                </div>
+
+                <!-- Configuration tab -->
+                <div class="tab-pane" id="pane-a-config">
+                    <div class="config-pane">
+                        <div class="radio-group">
+                            <label>Was a routing problem found?</label>
+                            <div class="radio-row">
+                                <label>
+                                    <input type="radio" name="problem-a" value="yes" onchange="onProblemChange('a')"> Yes
+                                </label>
+                                <label>
+                                    <input type="radio" name="problem-a" value="no" onchange="onProblemChange('a')"> No
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="route-form" id="form-a">
+                            <div class="form-row">
+                                <label>Destination Prefix</label>
+                                <input type="text" id="dest-a" placeholder="e.g. 10.0.1.0" autocomplete="off" spellcheck="false">
+                            </div>
+                            <div class="form-row">
+                                <label>Destination Prefix Mask</label>
+                                <input type="text" id="mask-a" placeholder="e.g. 255.255.255.0" autocomplete="off" spellcheck="false">
+                            </div>
+                            <div class="form-row">
+                                <label>Exit Interface</label>
+                                <select id="iface-a">
+                                    <option value="">-- Select Interface --</option>
+                                    <option value="Gi1">GigabitEthernet1 (Gi1)</option>
+                                    <option value="Gi2">GigabitEthernet2 (Gi2)</option>
+                                    <option value="Gi3">GigabitEthernet3 (Gi3)</option>
+                                </select>
+                            </div>
+                            <div class="card-actions">
+                                <button class="btn-save" onclick="saveRoute('a')">Save Route</button>
+                                <button class="btn-reset" onclick="resetRouter('a')">Reset</button>
+                                <span class="saved-badge" id="saved-a">Saved</span>
+                            </div>
+                        </div>
+
+                        <!-- When no problem: just show Reset -->
+                        <div id="no-problem-actions-a" style="display:none; margin-top: 0.5rem;">
+                            <button class="btn-reset" onclick="resetRouter('a')">Reset</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── ROUTER B ─── -->
+            <div class="router-card" id="card-b">
+                <div class="router-card-head">
+                    <h3>Router B</h3>
+                    <div class="ifaces">
+                        Gi1: 10.0.1.1/24<br>
+                        Gi3: 172.16.27.6/30<br>
+                        Gi2: (uplink/ISP)
+                    </div>
+                </div>
+                <div class="tab-bar">
+                    <button class="tab-btn active" onclick="showTab('b','table')" id="tab-b-table">Routing Table</button>
+                    <button class="tab-btn" onclick="showTab('b','config')" id="tab-b-config">Configuration</button>
+                </div>
+
+                <!-- Routing Table tab -->
+                <div class="tab-pane active" id="pane-b-table">
+                    <div class="cli-output"><span class="cli-prompt">Router-B# show ip route</span>
+<span class="cli-default">S*   0.0.0.0/0 is directly connected, GigabitEthernet1</span>
+<span class="cli-header">     10.0.0.0/8 is variably subnetted, 4 subnets, 2 masks</span>
+<span class="cli-connected">C      10.0.1.0/24 is directly connected, GigabitEthernet1</span>
+<span class="cli-local">L      10.0.1.1/32 is directly connected, GigabitEthernet1</span>
+<span class="cli-header">     172.16.0.0/16 is variably subnetted, 2 subnets, 2 masks</span>
+<span class="cli-connected">C      172.16.27.4/30 is directly connected, GigabitEthernet3</span>
+<span class="cli-local">L      172.16.27.6/32 is directly connected, GigabitEthernet3</span></div>
+                </div>
+
+                <!-- Configuration tab -->
+                <div class="tab-pane" id="pane-b-config">
+                    <div class="config-pane">
+                        <div class="radio-group">
+                            <label>Was a routing problem found?</label>
+                            <div class="radio-row">
+                                <label>
+                                    <input type="radio" name="problem-b" value="yes" onchange="onProblemChange('b')"> Yes
+                                </label>
+                                <label>
+                                    <input type="radio" name="problem-b" value="no" onchange="onProblemChange('b')"> No
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="route-form" id="form-b">
+                            <div class="form-row">
+                                <label>Destination Prefix</label>
+                                <input type="text" id="dest-b" placeholder="e.g. 10.0.4.0" autocomplete="off" spellcheck="false">
+                            </div>
+                            <div class="form-row">
+                                <label>Destination Prefix Mask</label>
+                                <input type="text" id="mask-b" placeholder="e.g. 255.255.252.0" autocomplete="off" spellcheck="false">
+                            </div>
+                            <div class="form-row">
+                                <label>Exit Interface</label>
+                                <select id="iface-b">
+                                    <option value="">-- Select Interface --</option>
+                                    <option value="Gi1">GigabitEthernet1 (Gi1)</option>
+                                    <option value="Gi2">GigabitEthernet2 (Gi2)</option>
+                                    <option value="Gi3">GigabitEthernet3 (Gi3)</option>
+                                </select>
+                            </div>
+                            <div class="card-actions">
+                                <button class="btn-save" onclick="saveRoute('b')">Save Route</button>
+                                <button class="btn-reset" onclick="resetRouter('b')">Reset</button>
+                                <span class="saved-badge" id="saved-b">Saved</span>
+                            </div>
+                        </div>
+
+                        <div id="no-problem-actions-b" style="display:none; margin-top: 0.5rem;">
+                            <button class="btn-reset" onclick="resetRouter('b')">Reset</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── ROUTER C ─── -->
+            <div class="router-card" id="card-c">
+                <div class="router-card-head">
+                    <h3>Router C</h3>
+                    <div class="ifaces">
+                        Gi2: 172.16.27.2/30<br>
+                        Gi3: 172.16.27.5/30
+                    </div>
+                </div>
+                <div class="tab-bar">
+                    <button class="tab-btn active" onclick="showTab('c','table')" id="tab-c-table">Routing Table</button>
+                    <button class="tab-btn" onclick="showTab('c','config')" id="tab-c-config">Configuration</button>
+                </div>
+
+                <!-- Routing Table tab -->
+                <div class="tab-pane active" id="pane-c-table">
+                    <div class="cli-output"><span class="cli-prompt">Router-C# show ip route</span>
+<span class="cli-header">     10.0.0.0/8 is variably subnetted, 4 subnets, 2 masks</span>
+<span class="cli-static">S      10.0.0.0/22 [1/0] via 172.16.27.1, GigabitEthernet2</span>
+<span class="cli-static">S      10.0.1.0/22 [1/0] via 172.16.27.6, GigabitEthernet3</span>
+<span class="cli-header">     172.16.0.0/16 is variably subnetted, 4 subnets, 2 masks</span>
+<span class="cli-connected">C      172.16.27.0/30 is directly connected, GigabitEthernet2</span>
+<span class="cli-local">L      172.16.27.2/32 is directly connected, GigabitEthernet2</span>
+<span class="cli-connected">C      172.16.27.4/30 is directly connected, GigabitEthernet3</span>
+<span class="cli-local">L      172.16.27.5/32 is directly connected, GigabitEthernet3</span></div>
+                </div>
+
+                <!-- Configuration tab -->
+                <div class="tab-pane" id="pane-c-config">
+                    <div class="config-pane">
+                        <div class="radio-group">
+                            <label>Was a routing problem found?</label>
+                            <div class="radio-row">
+                                <label>
+                                    <input type="radio" name="problem-c" value="yes" onchange="onProblemChange('c')"> Yes
+                                </label>
+                                <label>
+                                    <input type="radio" name="problem-c" value="no" onchange="onProblemChange('c')"> No
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="route-form" id="form-c">
+                            <div class="form-row">
+                                <label>Destination Prefix</label>
+                                <input type="text" id="dest-c" placeholder="e.g. 0.0.0.0" autocomplete="off" spellcheck="false">
+                            </div>
+                            <div class="form-row">
+                                <label>Destination Prefix Mask</label>
+                                <input type="text" id="mask-c" placeholder="e.g. 0.0.0.0" autocomplete="off" spellcheck="false">
+                            </div>
+                            <div class="form-row">
+                                <label>Exit Interface</label>
+                                <select id="iface-c">
+                                    <option value="">-- Select Interface --</option>
+                                    <option value="Gi1">GigabitEthernet1 (Gi1)</option>
+                                    <option value="Gi2">GigabitEthernet2 (Gi2)</option>
+                                    <option value="Gi3">GigabitEthernet3 (Gi3)</option>
+                                </select>
+                            </div>
+                            <div class="card-actions">
+                                <button class="btn-save" onclick="saveRoute('c')">Save Route</button>
+                                <button class="btn-reset" onclick="resetRouter('c')">Reset</button>
+                                <span class="saved-badge" id="saved-c">Saved</span>
+                            </div>
+                        </div>
+
+                        <div id="no-problem-actions-c" style="display:none; margin-top: 0.5rem;">
+                            <button class="btn-reset" onclick="resetRouter('c')">Reset</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- end .routers-grid -->
+
+        <!-- SUBMIT -->
+        <div class="submit-section">
+            <button class="btn-submit" onclick="submitAll()">Verify All Routers</button>
+        </div>
+
+        <!-- PASS BANNER -->
+        <div class="pass-banner" id="passBanner">
+            <h2>Configuration Validated</h2>
+            <p>All three routers are correctly evaluated. Site A and Site B can now communicate through Router C.</p>
+        </div>
+
+        <!-- RESULTS PANEL -->
+        <div class="results-panel" id="resultsPanel">
+            <h2>Verification Results</h2>
+            <div id="resultsBody"></div>
+        </div>
+
+    </div><!-- end .lab-wrap -->
+
+    <script>
+        /* ================================================================
+           STATE
+           Each router tracks:
+             problem:  'yes' | 'no' | null (unanswered)
+             dest:     string (IP entered)
+             mask:     string (subnet mask entered)
+             iface:    string (selected interface)
+             saved:    boolean (whether student clicked Save)
+           ================================================================ */
+        var state = {
+            a: { problem: null, dest: '', mask: '', iface: '', saved: false },
+            b: { problem: null, dest: '', mask: '', iface: '', saved: false },
+            c: { problem: null, dest: '', mask: '', iface: '', saved: false }
+        };
+
+        /* ================================================================
+           CORRECT ANSWERS
+           Router A: problem=yes, 10.0.1.0 / 255.255.255.0 / Gi2
+           Router B: problem=yes, 10.0.4.0 / 255.255.252.0 / Gi3
+           Router C: problem=no
+           ================================================================ */
+        var CORRECT = {
+            a: { problem: 'yes', dest: '10.0.1.0', mask: '255.255.255.0', iface: 'Gi2' },
+            b: { problem: 'yes', dest: '10.0.4.0', mask: '255.255.252.0', iface: 'Gi3' },
+            c: { problem: 'no' }
+        };
+
+        /* ================================================================
+           TAB SWITCHING
+           Switches between Routing Table and Configuration tabs for a given
+           router panel. Each router has independent tab state.
+           ================================================================ */
+        function showTab(router, tab) {
+            /* Deactivate all panes for this router */
+            var tablePane  = document.getElementById('pane-' + router + '-table');
+            var configPane = document.getElementById('pane-' + router + '-config');
+            var tableBtn   = document.getElementById('tab-' + router + '-table');
+            var configBtn  = document.getElementById('tab-' + router + '-config');
+
+            tablePane.classList.remove('active');
+            configPane.classList.remove('active');
+            tableBtn.classList.remove('active');
+            configBtn.classList.remove('active');
+
+            /* Activate the requested tab */
+            document.getElementById('pane-' + router + '-' + tab).classList.add('active');
+            document.getElementById('tab-' + router + '-' + tab).classList.add('active');
+        }
+
+        /* ================================================================
+           PROBLEM RADIO CHANGE
+           Shows or hides the static route form based on Yes/No selection.
+           ================================================================ */
+        function onProblemChange(router) {
+            var radios = document.getElementsByName('problem-' + router);
+            var val = null;
+            for (var i = 0; i < radios.length; i++) {
+                if (radios[i].checked) { val = radios[i].value; break; }
+            }
+
+            state[router].problem = val;
+
+            var form        = document.getElementById('form-' + router);
+            var noActions   = document.getElementById('no-problem-actions-' + router);
+
+            if (val === 'yes') {
+                form.classList.add('visible');
+                noActions.style.display = 'none';
+            } else {
+                form.classList.remove('visible');
+                noActions.style.display = 'block';
+                /* Clear any saved route state when toggling back to No */
+                state[router].saved  = false;
+                state[router].dest   = '';
+                state[router].mask   = '';
+                state[router].iface  = '';
+            }
+
+            /* Remove prior grading on this card when student changes answer */
+            var card = document.getElementById('card-' + router);
+            card.classList.remove('graded-pass', 'graded-fail');
+        }
+
+        /* ================================================================
+           SAVE ROUTE
+           Reads the form fields for a given router and stores them in state.
+           Shows a brief "Saved" confirmation badge.
+           ================================================================ */
+        function saveRoute(router) {
+            var dest  = document.getElementById('dest-' + router).value.trim();
+            var mask  = document.getElementById('mask-' + router).value.trim();
+            var iface = document.getElementById('iface-' + router).value;
+
+            /* Basic validation — all fields required */
+            var destEl  = document.getElementById('dest-' + router);
+            var maskEl  = document.getElementById('mask-' + router);
+            var ifaceEl = document.getElementById('iface-' + router);
+            var hasError = false;
+
+            destEl.classList.remove('field-error');
+            maskEl.classList.remove('field-error');
+            ifaceEl.classList.remove('field-error');
+
+            if (!dest) { destEl.classList.add('field-error'); hasError = true; }
+            if (!mask) { maskEl.classList.add('field-error'); hasError = true; }
+            if (!iface) { ifaceEl.classList.add('field-error'); hasError = true; }
+            if (hasError) { return; }
+
+            state[router].dest  = dest;
+            state[router].mask  = mask;
+            state[router].iface = iface;
+            state[router].saved = true;
+
+            /* Brief "Saved" flash */
+            var badge = document.getElementById('saved-' + router);
+            badge.classList.add('show');
+            setTimeout(function() { badge.classList.remove('show'); }, 1800);
+        }
+
+        /* ================================================================
+           RESET ROUTER
+           Clears all state and UI for a given router panel.
+           ================================================================ */
+        function resetRouter(router) {
+            state[router] = { problem: null, dest: '', mask: '', iface: '', saved: false };
+
+            /* Uncheck radios */
+            var radios = document.getElementsByName('problem-' + router);
+            for (var i = 0; i < radios.length; i++) { radios[i].checked = false; }
+
+            /* Clear inputs */
+            var destEl  = document.getElementById('dest-' + router);
+            var maskEl  = document.getElementById('mask-' + router);
+            var ifaceEl = document.getElementById('iface-' + router);
+            if (destEl)  { destEl.value = '';  destEl.classList.remove('field-error'); }
+            if (maskEl)  { maskEl.value = '';  maskEl.classList.remove('field-error'); }
+            if (ifaceEl) { ifaceEl.value = ''; ifaceEl.classList.remove('field-error'); }
+
+            /* Hide form and no-problem actions */
+            var form = document.getElementById('form-' + router);
+            if (form) { form.classList.remove('visible'); }
+            var npa = document.getElementById('no-problem-actions-' + router);
+            if (npa) { npa.style.display = 'none'; }
+
+            /* Remove grading border */
+            var card = document.getElementById('card-' + router);
+            card.classList.remove('graded-pass', 'graded-fail');
+        }
+
+        /* ================================================================
+           NORMALIZE IP
+           Strips extra whitespace, lowercases nothing (IPs are numeric).
+           Returns trimmed string.
+           ================================================================ */
+        function normIP(s) {
+            return (s || '').trim();
+        }
+
+        /* ================================================================
+           CHECK ROUTER
+           Compares student state against correct answers for one router.
+           Returns { pass: bool, message: string }
+           ================================================================ */
+        function checkRouter(router) {
+            var s = state[router];
+            var c = CORRECT[router];
+
+            /* Must have answered the problem question */
+            if (s.problem === null) {
+                return { pass: false, message: 'No answer selected for "Was a problem found?"' };
+            }
+
+            /* If student says no problem but answer is yes */
+            if (s.problem === 'no' && c.problem === 'yes') {
+                return {
+                    pass: false,
+                    message: 'Incorrect — this router is missing a static route. '
+                           + 'Router ' + router.toUpperCase() + ' has no path to the remote site subnet.'
+                };
+            }
+
+            /* If student says problem but answer is no */
+            if (s.problem === 'yes' && c.problem === 'no') {
+                return {
+                    pass: false,
+                    message: 'Incorrect — this router already has static routes to both site networks. '
+                           + 'No additional configuration is needed.'
+                };
+            }
+
+            /* Both agree: no problem — pass */
+            if (s.problem === 'no' && c.problem === 'no') {
+                return {
+                    pass: true,
+                    message: 'Correct — Router C already has static routes to both 10.0.4.0/22 and 10.0.1.0/24. '
+                           + 'No changes required.'
+                };
+            }
+
+            /* Both agree: yes problem — now validate the route */
+            if (!s.saved) {
+                return {
+                    pass: false,
+                    message: 'Static route not saved. Fill in the route fields and click Save Route.'
+                };
+            }
+
+            var destOk  = normIP(s.dest)  === c.dest;
+            var maskOk  = normIP(s.mask)  === c.mask;
+            var ifaceOk = s.iface         === c.iface;
+
+            if (destOk && maskOk && ifaceOk) {
+                return {
+                    pass: true,
+                    message: 'Correct — ip route ' + c.dest + ' ' + c.mask + ' ' + c.iface + ' installed successfully.'
+                };
+            }
+
+            /* Build a targeted explanation of what is wrong */
+            var hints = [];
+            if (!destOk)  { hints.push('destination prefix should be <code>' + c.dest + '</code>'); }
+            if (!maskOk)  { hints.push('subnet mask should be <code>' + c.mask + '</code>'); }
+            if (!ifaceOk) { hints.push('exit interface should be <code>' + c.iface + '</code>'); }
+
+            return {
+                pass: false,
+                message: 'Incorrect static route — ' + hints.join(', ') + '.'
+            };
+        }
+
+        /* ================================================================
+           SUBMIT ALL
+           Grades all three routers, renders the results panel, and marks
+           the module complete if every router passes.
+           ================================================================ */
+        function submitAll() {
+            var routers = ['a', 'b', 'c'];
+            var routerLabels = { a: 'Router A', b: 'Router B', c: 'Router C' };
+            var allPass = true;
+            var resultsHTML = '';
+
+            for (var i = 0; i < routers.length; i++) {
+                var r = routers[i];
+                var result = checkRouter(r);
+                var card = document.getElementById('card-' + r);
+
+                /* Apply border colour to router card */
+                card.classList.remove('graded-pass', 'graded-fail');
+                card.classList.add(result.pass ? 'graded-pass' : 'graded-fail');
+
+                /* Switch to config tab so the student sees their input highlighted */
+                showTab(r, 'config');
+
+                if (!result.pass) { allPass = false; }
+
+                /* Build result row HTML */
+                var iconChar = result.pass ? '[PASS]' : '[FAIL]';
+                resultsHTML += '<div class="result-row ' + (result.pass ? 'pass' : 'fail') + '">'
+                    + '<span class="result-icon">' + iconChar + '</span>'
+                    + '<div class="result-body">'
+                    + '<div class="result-router-name">' + routerLabels[r] + '</div>'
+                    + '<div class="result-msg">' + result.message + '</div>'
+                    + '</div>'
+                    + '</div>';
+            }
+
+            /* Render results */
+            var body = document.getElementById('resultsBody');
+            body.innerHTML = resultsHTML;
+
+            /* Show/hide pass banner */
+            var banner = document.getElementById('passBanner');
+            if (allPass) {
+                banner.classList.add('visible');
+                /* Mark module complete */
+                if (typeof ModuleProgress !== 'undefined') {
+                    ModuleProgress.complete('web', 'web-pbq-routing-troubleshoot', { returnUrl: '../index.html' });
+                }
+            } else {
+                banner.classList.remove('visible');
+            }
+
+            /* Show results panel and scroll to it */
+            var panel = document.getElementById('resultsPanel');
+            panel.classList.add('visible');
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    </script>
+
+</body>
+</html>

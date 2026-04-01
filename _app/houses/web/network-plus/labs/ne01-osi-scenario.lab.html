@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NE-01 OSI Scenario Diagnostics | Network+</title>
+    <style>
+        :root {
+            --cyan: #06b6d4;
+            --cyan-dim: rgba(6, 182, 212, 0.25);
+            --cyan-glow: rgba(6, 182, 212, 0.35);
+            --bg-primary: #090910;
+            --bg-secondary: #0f0f1a;
+            --bg-tertiary: #161625;
+            --bg-code: #0a0a12;
+            --text-primary: #e2e8f0;
+            --text-secondary: #8892a8;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --border: #1e293b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.7;
+        }
+
+        .lab-container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+
+        .nav-links {
+            display: flex; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+        }
+        .back-link {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            color: var(--cyan); text-decoration: none;
+            transition: all 0.3s ease; font-size: 0.9rem;
+        }
+        .back-link:hover { color: #67e8f9; transform: translateX(-5px); }
+
+        .lab-header {
+            text-align: center; margin-bottom: 2.5rem; padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+            border-radius: 16px; border: 1px solid var(--cyan);
+            box-shadow: 0 0 30px var(--cyan-glow);
+        }
+        .lab-header h1 {
+            font-size: 1.8rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--cyan), #67e8f9);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .lab-header .meta {
+            display: flex; gap: 1.5rem; justify-content: center;
+            flex-wrap: wrap; font-size: 0.85rem; color: var(--text-secondary);
+        }
+        .lab-header .meta span {
+            background: var(--bg-primary); padding: 4px 12px;
+            border-radius: 6px; border: 1px solid var(--border);
+        }
+
+        .scenario-brief {
+            background: var(--bg-secondary); border-left: 4px solid var(--cyan);
+            border-radius: 0 10px 10px 0; padding: 1.25rem 1.5rem;
+            margin-bottom: 2rem; font-size: 0.92rem;
+        }
+        .scenario-brief strong { color: var(--cyan); }
+
+        .progress-section {
+            background: var(--bg-secondary); border-radius: 12px; padding: 1.25rem;
+            margin-bottom: 2rem; border: 1px solid var(--cyan-dim);
+        }
+        .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+        .progress-header h3 { color: var(--cyan); font-size: 1rem; }
+        .progress-bar { height: 10px; background: var(--bg-tertiary); border-radius: 5px; overflow: hidden; }
+        .progress-fill {
+            height: 100%; width: 0%;
+            background: linear-gradient(90deg, var(--cyan), var(--success));
+            border-radius: 5px; transition: width 0.6s ease;
+        }
+
+        .step {
+            background: var(--bg-secondary); border-radius: 14px; padding: 1.75rem;
+            margin-bottom: 1.75rem; border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+        .step:hover { border-color: rgba(6, 182, 212, 0.4); }
+        .step.completed {
+            border-color: var(--success);
+            background: linear-gradient(135deg, var(--bg-secondary), rgba(34, 197, 94, 0.06));
+        }
+
+        .step-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
+        .step-num {
+            width: 44px; height: 44px; flex-shrink: 0;
+            background: linear-gradient(135deg, var(--cyan), #0891b2);
+            border-radius: 10px; display: flex; align-items: center; justify-content: center;
+            font-size: 1.3rem; font-weight: 700; color: #fff;
+        }
+        .step.completed .step-num { background: linear-gradient(135deg, var(--success), #16a34a); }
+        .step-title h2 { font-size: 1.15rem; line-height: 1.3; }
+        .step-title .layer-tag {
+            font-size: 0.78rem; color: var(--text-secondary);
+            background: var(--bg-primary); padding: 2px 8px; border-radius: 4px;
+            border: 1px solid var(--border); display: inline-block; margin-top: 4px;
+        }
+
+        .evidence-block {
+            background: var(--bg-code); border: 1px solid var(--border);
+            border-radius: 8px; margin: 1rem 0; overflow: hidden;
+        }
+        .evidence-bar {
+            background: #12121e; padding: 6px 12px;
+            display: flex; align-items: center; gap: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .ev-dot { width: 9px; height: 9px; border-radius: 50%; }
+        .ev-dot.r { background: #ef4444; } .ev-dot.y { background: #f59e0b; } .ev-dot.g { background: #22c55e; }
+        .evidence-label {
+            color: var(--text-secondary); font-size: 0.72rem;
+            margin-left: auto; font-family: 'Courier New', monospace;
+        }
+        .evidence-body {
+            padding: 1rem; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; line-height: 1.6; white-space: pre-wrap;
+            color: #a0aec0; overflow-x: auto; max-height: 320px; overflow-y: auto;
+        }
+        .evidence-body .hl { color: var(--cyan); }
+        .evidence-body .err { color: var(--danger); }
+        .evidence-body .warn { color: var(--warning); }
+        .evidence-body .ok { color: var(--success); }
+
+        .question-group { margin-top: 1.25rem; }
+        .q-block {
+            background: var(--bg-tertiary); border: 1px solid var(--border);
+            border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 0.75rem;
+        }
+        .q-block label { display: block; color: var(--cyan); font-weight: 600; margin-bottom: 0.5rem; font-size: 0.9rem; }
+        .q-block select {
+            width: 100%; padding: 9px 12px;
+            background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 6px; color: var(--text-primary);
+            font-size: 0.88rem; font-family: 'Segoe UI', system-ui, sans-serif;
+            cursor: pointer; appearance: auto;
+        }
+        .q-block select:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 8px var(--cyan-dim); }
+        .q-block select option { background: #12121e; color: var(--text-primary); }
+
+        .verify-btn {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 9px 22px; margin-top: 0.5rem;
+            background: linear-gradient(135deg, var(--cyan), #0891b2);
+            color: #fff; border: none; border-radius: 7px;
+            font-size: 0.88rem; font-weight: 600; cursor: pointer;
+            transition: all 0.3s;
+        }
+        .verify-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 18px var(--cyan-dim); }
+        .verify-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .feedback {
+            padding: 10px 14px; border-radius: 7px; margin-top: 10px;
+            font-size: 0.88rem; display: none; line-height: 1.6;
+        }
+        .feedback.correct {
+            display: block; background: rgba(34, 197, 94, 0.12);
+            border: 1px solid var(--success); color: #86efac;
+        }
+        .feedback.incorrect {
+            display: block; background: rgba(239, 68, 68, 0.12);
+            border: 1px solid var(--danger); color: #fca5a5;
+        }
+
+        .hint-toggle {
+            background: none; border: 1px solid rgba(245, 158, 11, 0.3);
+            color: var(--warning); padding: 6px 14px; border-radius: 6px;
+            font-size: 0.82rem; cursor: pointer; margin-top: 0.75rem;
+            transition: all 0.2s;
+        }
+        .hint-toggle:hover { background: rgba(245, 158, 11, 0.1); }
+        .hint-content {
+            display: none; background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 7px;
+            padding: 0.85rem 1rem; margin-top: 0.5rem;
+            font-size: 0.85rem; color: #fcd34d; line-height: 1.6;
+        }
+        .hint-content.visible { display: block; }
+
+        .completion-banner {
+            display: none; text-align: center; padding: 2rem;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(34, 197, 94, 0.1));
+            border: 1px solid var(--success); border-radius: 14px; margin-top: 2rem;
+        }
+        .completion-banner h2 {
+            color: var(--success); font-size: 1.4rem; margin-bottom: 0.5rem;
+        }
+        .completion-banner p { color: var(--text-secondary); font-size: 0.92rem; }
+
+        @media (max-width: 640px) {
+            .lab-container { padding: 1rem; }
+            .step { padding: 1.25rem; }
+            .lab-header h1 { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <div class="nav-links">
+            <a href="../index.html" class="back-link">&#8592; Network+ Hub</a>
+        </div>
+
+        <div class="lab-header">
+            <h1>OSI Model: Scenario-Based Diagnostics</h1>
+            <p class="subtitle">Trace real-world failures to their OSI layer using logs, captures, and configs</p>
+            <div class="meta">
+                <span>NE-01 Lab</span>
+                <span>8 Scenarios</span>
+                <span>~30 min</span>
+                <span>Intermediate</span>
+            </div>
+        </div>
+
+        <div class="scenario-brief">
+            <strong>Situation:</strong> You are a network engineer at Meridian Financial Services. Three urgent tickets landed simultaneously: intranet images refuse to load, VoIP calls produce garbled audio, and email attachments fail mid-transfer. As you work through these, five more tickets arrive. Each failure maps to a different OSI layer. Your job: read the evidence, identify the layer, choose the right diagnostic tool, and determine the fix.
+        </div>
+
+        <div class="progress-section">
+            <div class="progress-header">
+                <h3>Diagnostic Progress</h3>
+                <span id="progress-text" style="color: var(--text-secondary); font-size: 0.88rem;">0 / 8</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+        </div>
+
+        <!-- ===================== STEP 1 ===================== -->
+        <div class="step" id="step1">
+            <div class="step-header">
+                <div class="step-num">1</div>
+                <div class="step-title">
+                    <h2>Intranet Images Won't Load</h2>
+                    <span class="layer-tag">Ticket #4471 - Priority: High</span>
+                </div>
+            </div>
+
+            <div class="evidence-block">
+                <div class="evidence-bar">
+                    <div class="ev-dot r"></div><div class="ev-dot y"></div><div class="ev-dot g"></div>
+                    <span class="evidence-label">apache2 error.log + curl output</span>
+                </div>
+                <div class="evidence-body">[2026-03-27 08:14:33] <span class="err">[error]</span> [client 10.10.5.42] mod_deflate: content-encoding mismatch
+  Request: GET /intranet/assets/hero-banner.png HTTP/1.1
+  Accept-Encoding: identity
+  Server Response: Content-Encoding: gzip
+  <span class="err">Status: 415 Unsupported Media Type</span>
+
+$ curl -v http://intranet.meridian.local/assets/hero-banner.png
+> GET /assets/hero-banner.png HTTP/1.1
+> Host: intranet.meridian.local
+> Accept-Encoding: identity
+>
+< HTTP/1.1 200 OK
+< <span class="warn">Content-Encoding: gzip</span>
+< Content-Type: image/png
+< Content-Length: 284301
+<
+<span class="err">curl: (61) Error while processing content unencoding: invalid block type</span>
+
+$ cat /etc/apache2/mods-enabled/deflate.conf
+<span class="hl">DeflateCompressionLevel 6</span>
+<span class="hl">SetOutputFilter DEFLATE</span>
+# No exclusions for image types
+# <span class="warn">AddOutputFilterByType DEFLATE text/html text/plain text/css</span>  (commented out)</div>
+            </div>
+
+            <div class="question-group">
+                <div class="q-block">
+                    <label>1. Which OSI layer is failing?</label>
+                    <select id="s1-layer">
+                        <option value="">-- Select Layer --</option>
+                        <option value="7">Layer 7 - Application</option>
+                        <option value="6">Layer 6 - Presentation</option>
+                        <option value="5">Layer 5 - Session</option>
+                        <option value="4">Layer 4 - Transport</option>
+                        <option value="3">Layer 3 - Network</option>
+                    </select>
+                </div>
+                <div class="q-block">
+                    <label>2. What diagnostic tool confirms this?</label>
+                    <select id="s1-tool">
+                        <option value="">-- Select Tool --</option>
+                        <option value="curl">curl with verbose headers</option>
+                        <option value="wireshark">Wireshark packet capture</option>
+                        <option value="ping">ping / traceroute</option>
+                        <option value="netstat">netstat -an</option>
+                        <option value="nslookup">nslookup / dig</option>
+                    </select>
+                </div>
+                <div class="q-block">
+                    <label>3. What is the fix?</label>
+                    <select id="s1-fix">
+                        <option value="">-- Select Fix --</option>
+                        <option value="correct">Uncomment AddOutputFilterByType to restrict DEFLATE to text types only</option>
+                        <option value="wrong1">Restart the Apache service to flush the encoding cache</option>
+                        <option value="wrong2">Update the client browser to support gzip encoding</option>
+                        <option value="wrong3">Change Content-Type header to application/octet-stream</option>
+                    </select>
+                </div>
+                <button class="verify-btn" onclick="verifyStep(1)">Verify Diagnosis</button>
+                <div class="feedback" id="fb1"></div>
+                <button class="hint-toggle" onclick="toggleHint(1)">Show Hint</button>
+                <div class="hint-content" id="hint1">The server is compressing content (gzip) but the client only accepts uncompressed data (identity). This is a data format/encoding mismatch -- which OSI layer handles data translation and encoding? The fix requires limiting which content types get compressed.</div>
+            </div>
+        </div>
+
+        <!-- ===================== STEP 2 ===================== -->
+        <div class="step" id="step2">
+            <div class="step-header">
+                <div class="step-num">2</div>
+                <div class="step-title">
+                    <h2>VoIP Calls Have Garbled Audio</h2>
+                    <span class="layer-tag">Ticket #4472 - Priority: Critical</span>
+                </div>
+            </div>
+
+            <div class="evidence-block">
+                <div class="evidence-bar">
+                    <div class="ev-dot r"></div><div class="ev-dot y"></div><div class="ev-dot g"></div>
+                    <span class="evidence-label">switch port config + interface stats</span>
+                </div>
+                <div class="evidence-body">MeridianSW01# <span class="hl">show interfaces FastEthernet 0/12</span>
+FastEthernet0/12 is up, line protocol is up
+  Hardware is Fast Ethernet, address is aa14.7c3e.0012
+  MTU 1500 bytes, BW 100000 Kbit/sec, DLY 100 usec
+  <span class="warn">Full-duplex, 100Mb/s</span>
+  Input queue: 0/75/0/0 (size/max/drops/flushes)
+  <span class="err">5 minute input rate 48221000 bits/sec, 4102 packets/sec</span>
+  <span class="err">     Late collisions: 1403</span>
+  <span class="err">     Input errors: 0, CRC: 0, frame: 0, overrun: 0</span>
+  <span class="err">     Output errors: 847, collisions: 1203, late collisions: 847</span>
+
+MeridianSW01# <span class="hl">show interfaces FastEthernet 0/12 status</span>
+Port      Name       Status   Vlan   Duplex  Speed  Type
+Fa0/12    VoIP-Ph12  connect  100    <span class="err">a-full</span>  a-100  10/100BaseTX
+
+-- VoIP Phone NIC Settings (pulled from phone admin page) --
+  Speed:  100 Mbps
+  Duplex: <span class="err">Half-Duplex (manual)</span>
+  Status: Link Up
+
+-- Wireshark RTP Analysis (10-second capture on mirror port) --
+  Jitter (avg):  <span class="err">142ms</span>    (acceptable: &lt;30ms)
+  Packet Loss:   <span class="err">12.4%</span>    (acceptable: &lt;1%)
+  Late Packets:  <span class="err">847</span>
+  Max Delta:     <span class="err">384ms</span></div>
+            </div>
+
+            <div class="question-group">
+                <div class="q-block">
+                    <label>1. Which OSI layer is failing?</label>
+                    <select id="s2-layer">
+                        <option value="">-- Select Layer --</option>
+                        <option value="7">Layer 7 - Application</option>
+                        <option value="4">Layer 4 - Transport</option>
+                        <option value="3">Layer 3 - Network</option>
+                        <option value="2">Layer 2 - Data Link</option>
+                        <option value="1">Layer 1 - Physical</option>
+                    </select>
+                </div>
+                <div class="q-block">
+                    <label>2. What diagnostic tool confirms this?</label>
+                    <select id="s2-tool">
+                        <option value="">-- Select Tool --</option>
+                        <option value="correct">show interfaces (check duplex/collision counters)</option>
+                        <option value="wrong1">Wireshark SIP filter</option>
+                        <option value="wrong2">ping -t to test latency</option>
+                        <option value="wrong3">nslookup to verify SIP server DNS</option>
+                    </select>
+                </div>
+                <div class="q-block">
+                    <label>3. What is the fix?</label>
+                    <select id="s2-fix">
+                        <option value="">-- Select Fix --</option>
+                        <option value="wrong1">Replace the Ethernet cable with a Cat6 cable</option>
+                        <option value="correct">Set the VoIP phone NIC to full-duplex to match the switch port</option>
+                        <option value="wrong2">Enable QoS marking on the switch to prioritize VoIP traffic</option>
+                        <option value="wrong3">Increase the jitter buffer on the VoIP phone settings</option>
+                    </select>
+                </div>
+                <button class="verify-btn" onclick="verifyStep(2)">Verify Diagnosis</button>
+                <div class="feedback" id="fb2"></div>
+                <button class="hint-toggle" onclick="toggleHint(2)">Show Hint</button>
+                <div class="hint-content" id="hint2">The switch auto-negotiated to full-duplex, but the phone is hard-set to half-duplex. This duplex mismatch causes late collisions at the electrical signaling level -- both sides trying to transmit simultaneously. Which layer governs the physical signaling and electrical characteristics of the connection?</div>
+            </div>
+        </div>
+
+        <!-- ===================== STEP 3 ===================== -->
+        <div class="step" id="step3">
+            <div class="step-header">
+                <div class="step-num">3</div>
+                <div class="step-title">
+                    <h2>Email Attachments Fail Mid-Transfer</h2>
+                    <span class="layer-tag">Ticket #4473 - Priority: High</span>
+                </div>
+            </div>
+
+            <div class="evidence-block">
+                <div class="evidence-bar">
+                    <div class="ev-dot r"></div><div class="ev-dot y"></div><div class="ev-dot g"></div>
+                    <span class="evidence-label">mail server log + openssl session debug</span>
+                </div>
+                <div class="evidence-body">Mar 27 08:22:14 mail01 postfix/smtpd[12847]: <span class="hl">connect from client.meridian.local[10.10.5.42]</span>
+Mar 27 08:22:14 mail01 postfix/smtpd[12847]: TLS connection established: TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384
+Mar 27 08:22:15 mail01 postfix/smtpd[12847]: <span class="ok">message-id=&lt;20260327.A4471@meridian.local&gt;</span>
+Mar 27 08:22:15 mail01 postfix/smtpd[12847]: data transfer started, size=14582912
+Mar 27 08:22:38 mail01 postfix/smtpd[12847]: <span class="warn">TLS session renegotiation requested</span>
+Mar 27 08:22:38 mail01 postfix/smtpd[12847]: <span class="err">SSL_accept error: session ticket expired</span>
+Mar 27 08:22:38 mail01 postfix/smtpd[12847]: <span class="err">lost connection after DATA (23 seconds)</span>
+Mar 27 08:22:38 mail01 postfix/smtpd[12847]: disconnect from client.meridian.local[10.10.5.42]
+
+$ openssl s_client -connect mail01.meridian.local:587 -starttls smtp 2>&1 | grep -i session
+  <span class="hl">Session-ID: 3A7F...</span>
+  <span class="warn">Session Timeout  : 20 (seconds)</span>
+  Start Time: 1711526534
+  <span class="err">Session expired after 20s -- connection dropped during large transfer</span>
+
+$ cat /etc/postfix/main.cf | grep -i tls_session
+  <span class="warn">smtpd_tls_session_cache_timeout = 20s</span>
+  # Default is 3600s (1 hour)
+  # This was set low during a debug session and never reverted</div>
+            </div>
+
+            <div class="question-group">
+                <div class="q-block">
+                    <label>1. Which OSI layer is failing?</label>
+                    <select id="s3-layer">
+                        <option value="">-- Select Layer --</option>
+                        <option value="7">Layer 7 - Application</option>
+                        <option value="6">Layer 6 - Presentation</option>
+                        <option value="5">Layer 5 - Session</option>
+                        <option value="4">Layer 4 - Transport</option>
+                        <option value="3">Layer 3 - Network</option>
+                    </select>
+                </div>
+                <div class="q-block">
+                    <label>2. What diagnostic tool confirms this?</label>
+                    <select id="s3-tool">
+                        <option value="">-- Select Tool --</option>
+                        <option value="wrong1">tcpdump on port 587</option>
+                        <option value="wrong2">telnet mail01.meridian.local 587</option>
+                        <option value="correct">openssl s_client to inspect TLS session parameters</option>
+                        <option value="wrong3">postconf -n to view Postfix config</option>
+                    </select>
+                </div>
+                <div class="q-block">
+                    <label>3. What is the fix?</label>
+                    <select id="s3-fix">
+                        <option value="">-- Select Fix --</option>
+                        <option value="wrong1">Upgrade to TLSv1.3 which handles session resumption better</option>
+                        <option value="wrong2">Reduce the maximum attachment size to prevent timeout</option>
+                        <option value="correct">Increase smtpd_tls_session_cache_timeout to 3600s (the default)</option>
+                        <option value="wrong3">Disable TLS renegotiation in the Postfix config</option>
+                    </select>
+                </div>
+                <button class="verify-btn" onclick="verifyStep(3)">Verify Diagnosis</button>
+                <div class="feedback" id="fb3"></div>
+                <button class="hint-toggle" onclick="toggleHint(3)">Show Hint</button>
+                <div class="hint-content" id="hint3">The TLS session expires after only 20 seconds -- far too short for a 14MB attachment transfer. The session itself is being torn down, not the TCP connection or the application protocol. Which layer manages session establishment, maintenance, and teardown?</div>
+            </div>
+        </div>
+
+        <!-- ===================== STEP 4 ===================== -->
+        <div class="step" id="step4">
+            <div class="step-header">
+                <div class="step-num">4</div>
+                <div class="step-title">
+                    <h2>Slow Browsing on Finance VLAN</h2>
+                    <span class="layer-tag">Ticket #4474 - Priority: Medium</span>
+                </div>
+            </div>
+
+            <div class="evidence-block">
+                <div class="evidence-bar">
+                    <div class="ev-dot r"></div><div class="ev-dot y"></div><div class="ev-dot g"></div>
+                    <span class="evidence-label">workstation ipconfig + router config</span>
+                </div>
+                <div class="evidence-body">C:\> <span class="hl">ipconfig /all</span>
+Ethernet adapter Ethernet0:
+   Connection-specific DNS Suffix  . : meridian.local
+   IPv4 Address. . . . . . . . . . . : 10.10.20.147
+   Subnet Mask . . . . . . . . . . . : <span class="err">255.255.0.0</span>
+   Default Gateway . . . . . . . . . : 10.10.20.1
+   DHCP Enabled. . . . . . . . . . . : No
+   DNS Servers . . . . . . . . . . . : 10.10.1.10
+
+MeridianRT01# <span class="hl">show ip interface brief</span>
+Interface          IP-Address      OK? Method Status  Protocol
+GigabitEthernet0/1 10.10.20.1     YES manual up      up      (Finance VLAN)
+GigabitEthernet0/2 10.10.30.1     YES manual up      up      (HR VLAN)
+
+MeridianRT01# <span class="hl">show running-config | section interface Gig0/1</span>
+interface GigabitEthernet0/1
+ ip address 10.10.20.1 <span class="ok">255.255.255.0</span>
+ no shutdown
+
+C:\> <span class="hl">ping 10.10.30.50</span>
+Reply from 10.10.30.50: bytes=32 time=1ms TTL=127
+<span class="warn">-- Pings succeed but traffic routes incorrectly through workstation's oversized subnet</span>
+
+C:\> <span class="hl">route print | findstr 10.10</span>
+  10.10.0.0       <span class="err">255.255.0.0</span>       On-link      10.10.20.147
+  <span class="warn">-- Workstation thinks ALL 10.10.x.x hosts are local (no gateway needed)</span>
+  <span class="warn">-- ARP broadcasts flood the network for every 10.10.x.x destination</span></div>
+            </div>
+
+            <div class="question-group">
+                <div class="q-block">
+                    <label>1. Which OSI layer is failing?</label>
+                    <select id="s4-layer">
+                        <option value="">-- Select Layer --</option>
+                        <option value="7">Layer 7 - Application</option>
+                        <option value="4">Layer 4 - Transport</option>
+                        <option value="3">Layer 3 - Network</option>
+                        <option value="2">Layer 2 - Data Link</option>
+                        <option value="1">Layer 1 - Physical</option>
+                    </select>
+                </div>
+                <div class="q-block">
+                    <label>2. What diagnostic tool confirms this?</label>
+                    <select id="s4-tool">
+                        <option value="">-- Select Tool --</option>
+                        <option value="wrong1">Wireshark to capture slow HTTP responses</option>
+                        <option value="correct">ipconfig /all and route print to compare subnet masks</option>
+                        <option value="wrong2">tracert to the default gateway</option>
+                        <option value="wrong3">speedtest to measure bandwidth</option>
+                    </select>
+                </div>
+                <div class="q-block">
+                    <label>3. What is the fix?</label>
+                    <select id="s4-fix">
+                        <option value="">-- Select Fix --</option>
+                        <option value="wrong1">Add a static route on the router for the /16 subnet</option>
+                        <option value="correct">Change the workstation subnet mask from /16 to /24 (255.255.255.0)</option>
+                        <option value="wrong2">Enable DHCP on the Finance VLAN to auto-assign addresses</option>
+                        <option value="wrong3">Increase the router interface bandwidth to reduce latency</option>
+                    </select>
+                </div>
+                <button class="verify-btn" onclick="verifyStep(4)">Verify Diagnosis</button>
+                <div class="feedback" id="fb4"></div>
+                <button class="hint-toggle" onclick="toggleHint(4)">Show Hint</button>
+                <div class="hint-content" id="hint4">The router interface uses a /24 mask (255.255.255.0) but the workstation was manually configured with /16 (255.255.0.0). The workstation believes all 10.10.x.x addresses are on its local segment and tries ARP instead of routing through the gateway. This is a subnet mask (addressing/routing) issue -- which layer handles logical addressing and routing?</div>
+            </div>
+        </div>
+
+        <!-- ===================== STEP 5 ===================== -->
+        <div class="step" id="step5">
+            <div class="step-header">
+                <div class="step-num">5</div>
+                <div class="step-title">
+                    <h2>Internal App Can't Resolve by Name</h2>
+                    <span class="layer-tag">Ticket #4475 - Priority: High</span>
+                </div>
+            </div>
+
+            <div class="evidence-block">
+                <div class="evidence-bar">
+                    <div class="ev-dot r"></div><div class="ev-dot y"></div><div class="ev-dot g"></div>
+                    <span class="evidence-label">nslookup + DNS zone file</span>
+                </div>
+                <div class="evidence-body">C:\> <span class="hl">nslookup timecard.meridian.local</span>
+Server:  dc01.meridian.local
+Address:  10.10.1.10
+
+<span class="err">*** dc01.meridian.local can't find timecard.meridian.local: Non-existent domain</span>
+
+C:\> <span class="hl">nslookup 10.10.5.88</span>
+Server:  dc01.meridian.local
+Address:  10.10.1.10
+
+Name:    <span class="ok">timecard-legacy.meridian.local</span>
+Address:  10.10.5.88
+
+C:\> <span class="hl">ping 10.10.5.88</span>
+Reply from 10.10.5.88: bytes=32 time&lt;1ms TTL=128    <span class="ok">-- Server is reachable by IP</span>
+
+-- DNS Zone File: /var/named/meridian.local.zone (relevant excerpt) --
+$TTL 86400
+@       IN      SOA     dc01.meridian.local. admin.meridian.local. (
+                        2026032601 ; serial
+                        3600       ; refresh
+                        900        ; retry
+                        604800     ; expire
+                        86400 )    ; minimum TTL
+
+dc01            IN  A       10.10.1.10
+mail01          IN  A       10.10.1.20
+intranet        IN  A       10.10.5.30
+<span class="warn">timecard-legacy IN  A       10.10.5.88</span>
+<span class="err">; timecard       IN  A       10.10.5.88    &lt;-- MISSING: was never added after app rename</span>
+hr-portal       IN  A       10.10.5.90
+payroll         IN  A       10.10.5.91</div>
+            </div>
+
+            <div class="question-group">
+                <div class="q-block">
+                    <label>1. Which OSI layer is failing?</label>
+                    <select id="s5-layer">
+                        <option value="">-- Select Layer --</option>
+                        <option value="7">Layer 7 - Application</option>
+                        <option value="6">Layer 6 - Presentation</option>
+                        <option value="5">Layer 5 - Session</option>
+                        <option value="4">Layer 4 - Transport</option>
+                        <option value="3">Layer 3 - Network</option>
+                    </select>
+                </div>
+                <div class="q-block">
+                    <label>2. What diagnostic tool confirms this?</label>
+                    <select id="s5-tool">
+                        <option value="">-- Select Tool --</option>
+                        <option value="wrong1">ping to test connectivity</option>
+                        <option value="wrong2">tracert to test routing path</option>
+                        <option value="correct">nslookup / dig to query DNS records</option>
+                        <option value="wrong3">ipconfig /flushdns to clear cache</option>
+                    </select>
+                </div>
+                <div class="q-block">
+                    <label>3. What is the fix?</label>
+                    <select id="s5-fix">
+                        <option value="">-- Select Fix --</option>
+                        <option value="wrong1">Create a CNAME record pointing timecard to dc01</option>
+                        <option value="correct">Add an A record for timecard pointing to 10.10.5.88</option>
+                        <option value="wrong2">Update the hosts file on every workstation</option>
+                        <option value="wrong3">Restart the DNS server service to reload the zone</option>
+                    </select>
+                </div>
+                <button class="verify-btn" onclick="verifyStep(5)">Verify Diagnosis</button>
+                <div class="feedback" id="fb5"></div>
+                <button class="hint-toggle" onclick="toggleHint(5)">Show Hint</button>
+                <div class="hint-content" id="hint5">DNS is an application-layer protocol. The server is reachable by IP, so all lower layers are functional. The problem is that the DNS service (an application) is missing a record. The old name "timecard-legacy" resolves, but the new name "timecard" was never added to the zone file.</div>
+            </div>
+        </div>
+
+        <!-- ===================== STEP 6 ===================== -->
+        <div class="step" id="step6">
+            <div class="step-header">
+                <div class="step-num">6</div>
+                <div class="step-title">
+                    <h2>Video Conferencing Packets Dropped</h2>
+                    <span class="layer-tag">Ticket #4476 - Priority: Critical</span>
+                </div>
+            </div>
+
+            <div class="evidence-block">
+                <div class="evidence-bar">
+                    <div class="ev-dot r"></div><div class="ev-dot y"></div><div class="ev-dot g"></div>
+                    <span class="evidence-label">firewall rule table + Wireshark capture</span>
+                </div>
+                <div class="evidence-body">MeridianFW01# <span class="hl">show access-lists</span>
+Extended IP access list VLAN20-OUTBOUND
+  <span class="ok">10 permit tcp 10.10.20.0 0.0.0.255 any eq 80       (14892 matches)</span>
+  <span class="ok">20 permit tcp 10.10.20.0 0.0.0.255 any eq 443      (28413 matches)</span>
+  <span class="ok">30 permit tcp 10.10.20.0 0.0.0.255 any eq 587      (421 matches)</span>
+  <span class="ok">40 permit tcp 10.10.20.0 0.0.0.255 any eq 53       (1205 matches)</span>
+  <span class="ok">50 permit udp 10.10.20.0 0.0.0.255 any eq 53       (8447 matches)</span>
+  <span class="err">60 deny   udp 10.10.20.0 0.0.0.255 any             (24018 matches)</span>
+  70 permit ip  10.10.20.0 0.0.0.255 10.10.0.0 0.0.255.255
+  <span class="warn">80 deny   ip  any any                               (implicit deny)</span>
+
+-- Wireshark Capture on 10.10.20.52 (Conference Room PC) --
+Frame 1: <span class="ok">10.10.20.52 -> 52.114.88.19 TCP 443 [SYN]     -- Teams login OK</span>
+Frame 2: <span class="ok">52.114.88.19 -> 10.10.20.52 TCP 443 [SYN,ACK] -- Handshake OK</span>
+...
+Frame 847: <span class="err">10.10.20.52 -> 52.114.132.46 UDP 3478 [STUN Binding] -- DROPPED</span>
+Frame 848: <span class="err">10.10.20.52 -> 52.114.132.46 UDP 3479 [TURN Alloc]  -- DROPPED</span>
+Frame 849: <span class="err">10.10.20.52 -> 52.114.132.46 UDP 3480 [RTP/SRTP]    -- DROPPED</span>
+
+<span class="warn">-- Teams signs in (TCP 443 passes rule 20) but media streams fail</span>
+<span class="warn">-- All UDP to external hosts hits rule 60 (deny udp any) before rule 70</span></div>
+            </div>
+
+            <div class="question-group">
+                <div class="q-block">
+                    <label>1. Which OSI layer is failing?</label>
+                    <select id="s6-layer">
+                        <option value="">-- Select Layer --</option>
+                        <option value="7">Layer 7 - Application</option>
+                        <option value="5">Layer 5 - Session</option>
+                        <option value="4">Layer 4 - Transport</option>
+                        <option value="3">Layer 3 - Network</option>
+                        <option value="2">Layer 2 - Data Link</option>
+                    </select>
+                </div>
+                <div class="q-block">
+                    <label>2. What diagnostic tool confirms this?</label>
+                    <select id="s6-tool">
+                        <option value="">-- Select Tool --</option>
+                        <option value="wrong1">ping to test basic connectivity</option>
+                        <option value="correct">show access-lists to review firewall rules and hit counters</option>
+                        <option value="wrong2">netstat to check open ports on the workstation</option>
+                        <option value="wrong3">nslookup to verify Teams DNS resolution</option>
+                    </select>
+                </div>
+                <div class="q-block">
+                    <label>3. What is the fix?</label>
+                    <select id="s6-fix">
+                        <option value="">-- Select Fix --</option>
+                        <option value="wrong1">Move rule 70 above rule 60 to allow internal UDP first</option>
+                        <option value="correct">Add a permit rule for UDP 3478-3481 to external Teams servers before the deny rule</option>
+                        <option value="wrong2">Switch Teams to TCP-only mode to bypass the UDP block</option>
+                        <option value="wrong3">Remove rule 60 entirely to allow all UDP traffic</option>
+                    </select>
+                </div>
+                <button class="verify-btn" onclick="verifyStep(6)">Verify Diagnosis</button>
+                <div class="feedback" id="fb6"></div>
+                <button class="hint-toggle" onclick="toggleHint(6)">Show Hint</button>
+                <div class="hint-content" id="hint6">The firewall is blocking UDP traffic by protocol type at the transport layer. Rule 60 denies ALL outbound UDP (except DNS on port 53, already permitted). Teams uses UDP ports 3478-3481 for media streams (STUN/TURN/SRTP). The ACL needs a specific permit rule for these ports inserted before the blanket UDP deny.</div>
+            </div>
+        </div>
+
+        <!-- ===================== STEP 7 ===================== -->
+        <div class="step" id="step7">
+            <div class="step-header">
+                <div class="step-num">7</div>
+                <div class="step-title">
+                    <h2>Switch Sluggish, CAM Table Overflow</h2>
+                    <span class="layer-tag">Ticket #4477 - Priority: Critical</span>
+                </div>
+            </div>
+
+            <div class="evidence-block">
+                <div class="evidence-bar">
+                    <div class="ev-dot r"></div><div class="ev-dot y"></div><div class="ev-dot g"></div>
+                    <span class="evidence-label">switch MAC table + syslog + port config</span>
+                </div>
+                <div class="evidence-body">MeridianSW02# <span class="hl">show mac address-table count</span>
+Mac Entries for Vlan 10:
+  Dynamic Address Count:  <span class="err">8189</span>
+  Static  Address Count:  3
+  Total Mac Addresses:    <span class="err">8192 (TABLE FULL)</span>
+
+MeridianSW02# <span class="hl">show mac address-table interface Fa0/24 | include DYNAMIC</span>
+  10   <span class="err">aa:bb:cc:01:00:01</span>   DYNAMIC     Fa0/24
+  10   <span class="err">aa:bb:cc:01:00:02</span>   DYNAMIC     Fa0/24
+  10   <span class="err">aa:bb:cc:01:00:03</span>   DYNAMIC     Fa0/24
+  ... <span class="err">(8147 additional entries from Fa0/24)</span>
+
+Mar 27 09:14:02 MeridianSW02 %SW_MATM-4-MACFLAP_NOTIF: Host <span class="err">aa:bb:cc:01:3F:FF</span> in vlan 10
+  is flapping between port <span class="warn">Fa0/24</span> and port Fa0/1
+Mar 27 09:14:03 MeridianSW02 <span class="err">%PM-4-ERR_DISABLE: mac-address-table full on interface Fa0/24</span>
+
+MeridianSW02# <span class="hl">show running-config interface Fa0/24</span>
+interface FastEthernet0/24
+ switchport access vlan 10
+ switchport mode access
+ <span class="err">! No port-security configured</span>
+ <span class="err">! No storm-control configured</span>
+ spanning-tree portfast</div>
+            </div>
+
+            <div class="question-group">
+                <div class="q-block">
+                    <label>1. Which OSI layer is failing?</label>
+                    <select id="s7-layer">
+                        <option value="">-- Select Layer --</option>
+                        <option value="7">Layer 7 - Application</option>
+                        <option value="4">Layer 4 - Transport</option>
+                        <option value="3">Layer 3 - Network</option>
+                        <option value="2">Layer 2 - Data Link</option>
+                        <option value="1">Layer 1 - Physical</option>
+                    </select>
+                </div>
+                <div class="q-block">
+                    <label>2. What diagnostic tool confirms this?</label>
+                    <select id="s7-tool">
+                        <option value="">-- Select Tool --</option>
+                        <option value="correct">show mac address-table to inspect CAM entries per port</option>
+                        <option value="wrong1">show arp to view the ARP cache</option>
+                        <option value="wrong2">show spanning-tree to check for loops</option>
+                        <option value="wrong3">Wireshark to capture broadcast storms</option>
+                    </select>
+                </div>
+                <div class="q-block">
+                    <label>3. What is the fix?</label>
+                    <select id="s7-fix">
+                        <option value="">-- Select Fix --</option>
+                        <option value="wrong1">Increase the MAC address table size on the switch</option>
+                        <option value="wrong2">Enable spanning-tree BPDU guard on Fa0/24</option>
+                        <option value="correct">Enable port-security with a maximum MAC limit on Fa0/24</option>
+                        <option value="wrong3">Shut down Fa0/24 and block the offending device permanently</option>
+                    </select>
+                </div>
+                <button class="verify-btn" onclick="verifyStep(7)">Verify Diagnosis</button>
+                <div class="feedback" id="fb7"></div>
+                <button class="hint-toggle" onclick="toggleHint(7)">Show Hint</button>
+                <div class="hint-content" id="hint7">Over 8,000 unique MAC addresses are flooding in from a single port (Fa0/24) -- a classic MAC flood attack. This overwhelms the switch's CAM table, forcing it to broadcast all frames like a hub. MAC addresses and switching are Layer 2 (Data Link) functions. Port security limits how many MAC addresses a port will learn.</div>
+            </div>
+        </div>
+
+        <!-- ===================== STEP 8 ===================== -->
+        <div class="step" id="step8">
+            <div class="step-header">
+                <div class="step-num">8</div>
+                <div class="step-title">
+                    <h2>VPN Large File Transfers Fail</h2>
+                    <span class="layer-tag">Ticket #4478 - Priority: Medium - Cross-Layer</span>
+                </div>
+            </div>
+
+            <div class="evidence-block">
+                <div class="evidence-bar">
+                    <div class="ev-dot r"></div><div class="ev-dot y"></div><div class="ev-dot g"></div>
+                    <span class="evidence-label">VPN diagnostics + ping tests + interface config</span>
+                </div>
+                <div class="evidence-body">-- User reports: "Small files copy fine over VPN. Large files (>1MB) stall or fail." --
+
+$ <span class="hl">ping -s 1500 -M do vpn-server.meridian.local</span>
+PING vpn-server.meridian.local (203.0.113.10) 1500(1528) bytes of data.
+<span class="err">From 198.51.100.1 icmp_seq=1 Frag needed and DF set (mtu = 1400)</span>
+<span class="err">ping: local error: message too long, mtu=1400</span>
+
+$ <span class="hl">ping -s 1372 -M do vpn-server.meridian.local</span>
+<span class="ok">1380 bytes from 203.0.113.10: icmp_seq=1 ttl=62 time=24.3 ms</span>
+
+$ <span class="hl">ip link show tun0</span>
+3: tun0: &lt;POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP&gt; mtu <span class="err">1500</span> qdisc fq state UNKNOWN
+    link/none
+
+$ <span class="hl">ip link show eth0</span>
+2: eth0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu <span class="ok">1500</span> qdisc mq state UP
+    link/ether 00:50:56:a1:2b:3c brd ff:ff:ff:ff:ff:ff
+
+-- Wireshark on VPN tunnel (10-second capture during file copy) --
+Frame 1:   1500 bytes  10.10.20.52 -> 10.200.1.5  TCP [PSH,ACK] <span class="err">-- Encapsulated = 1500+overhead = too large</span>
+Frame 2:   ICMP         198.51.100.1 -> 10.10.20.52  <span class="err">Destination Unreachable (Frag needed, DF set)</span>
+Frame 3:   1500 bytes  10.10.20.52 -> 10.200.1.5  TCP [PSH,ACK] <span class="err">-- Retransmit, same size (PMTUD not adjusting)</span>
+...
+<span class="warn">TCP retransmissions: 47 in 10 seconds</span>
+<span class="warn">Path MTU Discovery failing -- intermediate router dropping ICMP "Frag needed"</span>
+
+-- ISP Router (hop 2) config --
+<span class="err">ip access-list extended EDGE-FILTER</span>
+<span class="err"> deny icmp any any                    &lt;-- Blocks ALL ICMP including PMTUD</span>
+<span class="err"> permit ip any any</span></div>
+            </div>
+
+            <div class="question-group">
+                <div class="q-block">
+                    <label>1. This is a cross-layer problem. Which layers are involved?</label>
+                    <select id="s8-layer">
+                        <option value="">-- Select Layers --</option>
+                        <option value="correct">Layer 3 (Network - MTU/ICMP) + Layer 4 (Transport - TCP PMTUD)</option>
+                        <option value="wrong1">Layer 1 (Physical) + Layer 2 (Data Link)</option>
+                        <option value="wrong2">Layer 4 (Transport) + Layer 7 (Application)</option>
+                        <option value="wrong3">Layer 2 (Data Link) + Layer 3 (Network)</option>
+                    </select>
+                </div>
+                <div class="q-block">
+                    <label>2. What diagnostic tool confirms this?</label>
+                    <select id="s8-tool">
+                        <option value="">-- Select Tool --</option>
+                        <option value="correct">ping with DF bit set and varying sizes to discover path MTU</option>
+                        <option value="wrong1">traceroute to find the failing hop</option>
+                        <option value="wrong2">netstat -s to check TCP retransmission stats</option>
+                        <option value="wrong3">iperf3 to test throughput over the VPN</option>
+                    </select>
+                </div>
+                <div class="q-block">
+                    <label>3. What is the fix?</label>
+                    <select id="s8-fix">
+                        <option value="">-- Select Fix --</option>
+                        <option value="wrong1">Disable the Don't Fragment bit on outgoing packets</option>
+                        <option value="correct">Set the VPN tunnel MTU to 1400 and TCP MSS clamping to 1360</option>
+                        <option value="wrong2">Increase the ISP router MTU to 9000 (jumbo frames)</option>
+                        <option value="wrong3">Switch the VPN from tunnel mode to transport mode</option>
+                    </select>
+                </div>
+                <button class="verify-btn" onclick="verifyStep(8)">Verify Diagnosis</button>
+                <div class="feedback" id="fb8"></div>
+                <button class="hint-toggle" onclick="toggleHint(8)">Show Hint</button>
+                <div class="hint-content" id="hint8">The VPN tunnel interface has MTU 1500 but the actual path MTU is only 1400 (due to VPN encapsulation overhead). Normally, PMTUD would discover this, but the ISP is blocking all ICMP -- including the "Fragmentation Needed" messages that PMTUD relies on. The fix has two parts: lower the tunnel MTU and clamp TCP MSS so packets never exceed the path MTU.</div>
+            </div>
+        </div>
+
+        <div class="completion-banner" id="completion-banner">
+            <h2>All Scenarios Diagnosed</h2>
+            <p>You successfully traced 8 real-world failures across all 7 OSI layers. You can now identify which layer a problem belongs to, select the right diagnostic tool, and determine the corrective action.</p>
+        </div>
+    </div>
+
+    <script>
+        var TOTAL_STEPS = 8;
+        var completedSteps = [];
+        var STORAGE_KEY = 'web-ne01-osi-scenario-progress';
+
+        var answers = {
+            1: { layer: '6', tool: 'curl', fix: 'correct' },
+            2: { layer: '1', tool: 'correct', fix: 'correct' },
+            3: { layer: '5', tool: 'correct', fix: 'correct' },
+            4: { layer: '3', tool: 'correct', fix: 'correct' },
+            5: { layer: '7', tool: 'correct', fix: 'correct' },
+            6: { layer: '4', tool: 'correct', fix: 'correct' },
+            7: { layer: '2', tool: 'correct', fix: 'correct' },
+            8: { layer: 'correct', tool: 'correct', fix: 'correct' }
+        };
+
+        var explanations = {
+            1: {
+                correct: 'Correct. Layer 6 (Presentation) handles data encoding and compression. The server applied gzip compression to binary image files that the client cannot decode. The fix is to restrict DEFLATE to text-based content types only, not apply it blindly to all responses.',
+                incorrect: 'Not quite. Look at the evidence again: the server is sending gzip-compressed images, but the client only accepts identity (uncompressed) encoding. This is a data format/encoding mismatch -- a Presentation Layer (Layer 6) issue. The diagnostic tool is curl with verbose headers (which shows the Content-Encoding mismatch), and the fix is to uncomment AddOutputFilterByType to limit compression to text types.'
+            },
+            2: {
+                correct: 'Correct. Layer 1 (Physical) governs the electrical signaling on the wire. A duplex mismatch means one side sends while the other listens, causing late collisions. The switch auto-negotiated full-duplex, but the phone was hard-set to half-duplex. The "show interfaces" command reveals the collision counters that confirm this.',
+                incorrect: 'Not quite. The massive late collision count (847) is the key clue. Late collisions happen when both sides transmit simultaneously -- a duplex mismatch. The switch is full-duplex, the phone is half-duplex. This is a Physical Layer (Layer 1) issue about how electrical signals are managed on the wire. Fix: set the phone to full-duplex.'
+            },
+            3: {
+                correct: 'Correct. Layer 5 (Session) manages the establishment, maintenance, and teardown of sessions. The TLS session cache timeout was set to 20 seconds (instead of the default 3600s), causing the session to expire mid-transfer. openssl s_client reveals the session parameters, and the fix is restoring the timeout to its default.',
+                incorrect: 'Not quite. The logs show "TLS session renegotiation" and "session ticket expired" after 23 seconds -- the session itself is being torn down. The 20-second session cache timeout (visible via openssl s_client) is far too short for large transfers. This is a Session Layer (Layer 5) problem. Fix: increase smtpd_tls_session_cache_timeout to 3600s.'
+            },
+            4: {
+                correct: 'Correct. Layer 3 (Network) handles logical addressing and routing decisions. The workstation has a /16 subnet mask while the router uses /24. This makes the workstation think all 10.10.x.x hosts are local, bypassing the gateway and flooding the network with ARP requests. ipconfig and route print reveal the mismatch.',
+                incorrect: 'Not quite. Compare the subnet masks: the workstation has 255.255.0.0 (/16) but the router interface uses 255.255.255.0 (/24). The workstation believes all 10.10.x.x addresses are on its local segment and ARPs instead of routing. This is a Layer 3 (Network) addressing issue. Fix: change the workstation mask to /24.'
+            },
+            5: {
+                correct: 'Correct. Layer 7 (Application) is where DNS operates. The server is reachable by IP (lower layers all work), but the DNS A record for "timecard" was never created in the zone file. nslookup/dig confirms the missing record, and the fix is adding the A record.',
+                incorrect: 'Not quite. The server responds to pings by IP (10.10.5.88), so Layers 1-6 are fine. The problem is DNS -- an Application Layer (Layer 7) protocol -- which has no A record for "timecard." The old name "timecard-legacy" exists, but the new name was never added. Fix: add the A record to the zone file.'
+            },
+            6: {
+                correct: 'Correct. Layer 4 (Transport) differentiates between TCP and UDP and governs port-based filtering. The firewall\'s ACL denies all outbound UDP (rule 60) before the broader IP permit (rule 70). Teams media uses UDP 3478-3481 for STUN/TURN/SRTP. The fix is adding a specific UDP permit rule for those ports before the deny.',
+                incorrect: 'Not quite. The firewall is filtering by transport protocol (UDP) and port numbers -- Layer 4 (Transport) functions. Rule 60 denies all outbound UDP before rule 70 can permit it. Teams signs in over TCP 443 (passes rule 20) but media streams use UDP 3478-3481 (blocked by rule 60). Fix: add a permit rule for UDP 3478-3481 before the deny.'
+            },
+            7: {
+                correct: 'Correct. Layer 2 (Data Link) is where MAC addresses and switching operate. Over 8,000 spoofed MAC addresses from one port is a MAC flood attack that fills the CAM table. "show mac address-table" confirms the flooding, and port-security with a maximum MAC limit prevents it.',
+                incorrect: 'Not quite. MAC addresses and the CAM table are Layer 2 (Data Link) concepts. Port Fa0/24 has injected 8,147+ fake MAC addresses, filling the 8,192-entry table. When the CAM table is full, the switch floods all frames out every port (acting like a hub). Fix: enable port-security to limit the number of MAC addresses per port.'
+            },
+            8: {
+                correct: 'Correct. This is a cross-layer problem: Layer 3 (MTU and ICMP) and Layer 4 (TCP Path MTU Discovery). The VPN tunnel MTU is 1500 but the actual path MTU is 1400. PMTUD normally handles this, but the ISP blocks ICMP. Fix: manually set tunnel MTU to 1400 and clamp TCP MSS to 1360.',
+                incorrect: 'Not quite. Two layers are involved: Layer 3 (Network) for MTU sizing and ICMP messaging, and Layer 4 (Transport) for TCP PMTUD. The VPN adds encapsulation overhead, reducing the effective MTU to 1400, but the tunnel is set to 1500. PMTUD cannot discover this because ICMP is blocked. Fix: set tunnel MTU to 1400 and TCP MSS clamping to 1360.'
+            }
+        };
+
+        function verifyStep(step) {
+            if (completedSteps.indexOf(step) !== -1) return;
+
+            var layerSel = document.getElementById('s' + step + '-layer');
+            var toolSel = document.getElementById('s' + step + '-tool');
+            var fixSel = document.getElementById('s' + step + '-fix');
+            var fb = document.getElementById('fb' + step);
+
+            if (!layerSel.value || !toolSel.value || !fixSel.value) {
+                fb.className = 'feedback incorrect';
+                fb.textContent = 'Please select an answer for all three questions before verifying.';
+                return;
+            }
+
+            var correct = answers[step];
+            var allCorrect = (layerSel.value === correct.layer &&
+                              toolSel.value === correct.tool &&
+                              fixSel.value === correct.fix);
+
+            if (allCorrect) {
+                fb.className = 'feedback correct';
+                fb.innerHTML = explanations[step].correct;
+                markComplete(step);
+            } else {
+                fb.className = 'feedback incorrect';
+                var parts = [];
+                if (layerSel.value !== correct.layer) parts.push('layer');
+                if (toolSel.value !== correct.tool) parts.push('diagnostic tool');
+                if (fixSel.value !== correct.fix) parts.push('fix');
+                fb.innerHTML = 'Incorrect (' + parts.join(', ') + '). ' + explanations[step].incorrect;
+            }
+        }
+
+        function markComplete(step) {
+            if (completedSteps.indexOf(step) !== -1) return;
+            completedSteps.push(step);
+
+            var stepEl = document.getElementById('step' + step);
+            stepEl.classList.add('completed');
+
+            var btn = stepEl.querySelector('.verify-btn');
+            btn.textContent = 'Verified';
+            btn.disabled = true;
+
+            var selects = stepEl.querySelectorAll('select');
+            for (var i = 0; i < selects.length; i++) {
+                selects[i].disabled = true;
+            }
+
+            saveProgress();
+            updateProgress();
+
+            if (completedSteps.length === TOTAL_STEPS) {
+                document.getElementById('completion-banner').style.display = 'block';
+                if (typeof ModuleProgress !== 'undefined') {
+                    ModuleProgress.complete('web', 'web-ne01-osi-scenario', { returnToDashboard: false, returnUrl: '../index.html' });
+                }
+            }
+        }
+
+        function toggleHint(step) {
+            var hint = document.getElementById('hint' + step);
+            hint.classList.toggle('visible');
+            var btn = hint.previousElementSibling;
+            btn.textContent = hint.classList.contains('visible') ? 'Hide Hint' : 'Show Hint';
+        }
+
+        function updateProgress() {
+            var pct = Math.round((completedSteps.length / TOTAL_STEPS) * 100);
+            document.getElementById('progress-fill').style.width = pct + '%';
+            document.getElementById('progress-text').textContent = completedSteps.length + ' / ' + TOTAL_STEPS;
+        }
+
+        function saveProgress() {
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(completedSteps)); } catch(e) {}
+        }
+
+        function loadProgress() {
+            try {
+                var saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    var arr = JSON.parse(saved);
+                    for (var i = 0; i < arr.length; i++) {
+                        var step = arr[i];
+                        completedSteps.push(step);
+                        var stepEl = document.getElementById('step' + step);
+                        if (stepEl) {
+                            stepEl.classList.add('completed');
+                            var btn = stepEl.querySelector('.verify-btn');
+                            btn.textContent = 'Verified';
+                            btn.disabled = true;
+                            var selects = stepEl.querySelectorAll('select');
+                            for (var j = 0; j < selects.length; j++) selects[j].disabled = true;
+                            var fb = document.getElementById('fb' + step);
+                            fb.className = 'feedback correct';
+                            fb.innerHTML = explanations[step].correct;
+                        }
+                    }
+                    updateProgress();
+                    if (completedSteps.length === TOTAL_STEPS) {
+                        document.getElementById('completion-banner').style.display = 'block';
+                    }
+                }
+            } catch(e) {}
+        }
+
+        loadProgress();
+    </script>
+
+</body>
+</html>

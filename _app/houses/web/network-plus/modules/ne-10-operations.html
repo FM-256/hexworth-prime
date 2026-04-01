@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NE-10: Network Operations & Monitoring | Network+</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-dark: #090910; --bg-card: #111120; --accent: #06b6d4; --accent-dim: rgba(6, 182, 212, 0.12); --green: #10b981; --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255, 255, 255, 0.08); }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.7; }
+        .ne-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 14px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .ne-header-left { display: flex; align-items: center; gap: 15px; }
+        .ne-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .ne-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .ne-breadcrumb { font-size: 0.8rem; color: var(--text-secondary); }
+        .ne-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+        .ne-breadcrumb a:hover { color: var(--accent); }
+        .ne-back { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .ne-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-content { max-width: 820px; margin: 0 auto; padding: 30px 25px 60px; }
+        .ne-objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .ne-objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+        .ne-objectives ul { list-style: none; }
+        .ne-objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.92rem; }
+        .ne-objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .ne-section { margin-bottom: 35px; }
+        .ne-section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .ne-section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .ne-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .ne-code { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; color: var(--text-secondary); white-space: pre-wrap; }
+        .ne-code .prompt { color: var(--green); }
+        .ne-code .comment { color: #6a737d; }
+        .ne-code .highlight { color: var(--accent); }
+        .ne-code .value { color: #f0883e; }
+        .ne-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+        .ne-table th { background: var(--bg-card); color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--border); font-weight: 600; }
+        .ne-table td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text-secondary); }
+        .ne-table tr:hover td { background: rgba(6, 182, 212, 0.04); }
+        .ne-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+        .ne-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: border-color 0.2s; }
+        .ne-card:hover { border-color: var(--accent); }
+        .ne-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .ne-card span { color: var(--text-secondary); font-size: 0.85rem; }
+        .ne-callout { background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 16px 20px; margin: 18px 0; }
+        .ne-callout strong { color: var(--green); }
+        .ne-callout p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+        .ne-takeaways { background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(6, 182, 212, 0.04)); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .ne-takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .ne-takeaways ul { list-style: none; }
+        .ne-takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .ne-takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .ne-nav { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .ne-nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .ne-nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .ne-nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-nav-btn.primary:hover { background: #0891b2; }
+        .ne-inline-code { background: #0d1117; padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--accent); }
+        @media (max-width: 700px) { .ne-card-grid { grid-template-columns: 1fr; } .ne-content { padding: 20px 15px 40px; } }
+    </style>
+</head>
+<body>
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">NE-10</span>
+            <h1>Network Operations &amp; Monitoring</h1>
+        </div>
+        <div class="ne-breadcrumb">
+            <a href="../index.html">Network+</a> / NE-10
+        </div>
+        <a href="../index.html" class="ne-back">&lt; Network+ Hub</a>
+    </header>
+
+    <div class="ne-content">
+        <div class="ne-objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Explain the purpose of network documentation and change management</li>
+                <li>Describe network monitoring technologies (SNMP, syslog, SIEM)</li>
+                <li>Compare disaster recovery concepts (RPO, RTO, MTTR, MTBF)</li>
+                <li>Identify common performance issues and their causes</li>
+                <li>Describe high availability concepts and implementations</li>
+            </ul>
+        </div>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Network Documentation</h2>
+            <p class="ne-text">Documentation is the foundation of network operations. Without accurate documentation, troubleshooting takes longer, changes introduce risk, and knowledge walks out the door when staff leave. Every network needs both physical and logical diagrams.</p>
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>Physical Diagrams</strong>
+                    <span>Show actual cable runs, rack locations, port assignments, and hardware placement. Layer 1 and Layer 2 views -- where things physically are and how they connect.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Logical Diagrams</strong>
+                    <span>Show IP addressing, VLANs, subnets, routing topology, and traffic flow. Layer 3 view -- how traffic moves through the network regardless of physical layout.</span>
+                </div>
+            </div>
+            <p class="ne-text">Additional documentation includes rack diagrams (U-positions of equipment), cable maps and wiring diagrams, and a complete asset inventory covering hardware models, software versions, licensing, and warranty expiration dates.</p>
+            <div class="ne-code">
+<span class="comment">/* Key Documentation Types */</span>
+
+<span class="highlight">Rack Diagram</span>        Equipment placement in each rack (U1-U42)
+<span class="highlight">Cable Map</span>           Port-to-port cable connections, labels, types
+<span class="highlight">Asset Inventory</span>     Hardware, software, licenses, warranty dates
+<span class="highlight">IPAM</span>                IP Address Management -- tracks all assigned IPs
+<span class="highlight">Baseline</span>            What "normal" looks like -- CPU, bandwidth, latency
+
+<span class="comment">/* Baselines are critical -- you can't identify abnormal
+   behavior if you don't know what normal looks like */</span>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Change Management</h2>
+            <p class="ne-text">Unauthorized or undocumented changes cause the majority of network outages. Change management is a formal process that ensures every modification is reviewed, approved, tested, and documented before implementation.</p>
+            <div class="ne-code">
+<span class="comment">/* The 7-Step Change Management Process */</span>
+
+<span class="highlight">1.</span> <span class="value">Submit change request</span>
+   <span class="comment">// Describe what, why, and impact</span>
+
+<span class="highlight">2.</span> <span class="value">Review and assess risk</span>
+   <span class="comment">// Classify as Low / Medium / High risk</span>
+
+<span class="highlight">3.</span> <span class="value">Plan rollback procedure</span>
+   <span class="comment">// How to undo the change if it fails</span>
+
+<span class="highlight">4.</span> <span class="value">Get CAB approval</span>
+   <span class="comment">// Change Advisory Board reviews and approves</span>
+
+<span class="highlight">5.</span> <span class="value">Schedule maintenance window</span>
+   <span class="comment">// Minimize impact on users</span>
+
+<span class="highlight">6.</span> <span class="value">Implement the change</span>
+   <span class="comment">// Execute during approved window</span>
+
+<span class="highlight">7.</span> <span class="value">Verify and document</span>
+   <span class="comment">// Confirm success, update all documentation</span>
+            </div>
+            <p class="ne-text">Configuration management tracks device configurations over time. The running config is what the device is currently using. The golden config (or baseline config) is the approved, known-good configuration that the device should match.</p>
+            <div class="ne-callout">
+                <strong>Service Level Agreements (SLAs)</strong>
+                <p>SLAs define contractual commitments: uptime guarantees (e.g., 99.999% = 5.26 minutes downtime/year), response time (how fast support acknowledges an issue), and resolution time (how fast the issue is fixed).</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Network Monitoring -- SNMP</h2>
+            <p class="ne-text">Simple Network Management Protocol (SNMP) is the standard for monitoring and managing network devices. It allows a central management station to query devices for performance data and receive alerts when problems occur.</p>
+            <div class="ne-code">
+<span class="comment">/* SNMP Components */</span>
+
+<span class="highlight">Manager (NMS)</span>   Network Management Station -- polls devices
+<span class="highlight">Agent</span>           Software on the managed device -- responds to queries
+<span class="highlight">MIB</span>             Management Information Base -- database of objects
+
+<span class="comment">/* SNMP Operations */</span>
+
+<span class="highlight">GET</span>     Manager requests a value from the agent
+<span class="highlight">SET</span>     Manager changes a value on the agent
+<span class="highlight">TRAP</span>    Agent sends unsolicited alert to the manager
+
+<span class="comment">/* Ports */</span>
+UDP <span class="value">161</span>  -- Queries (GET/SET)
+UDP <span class="value">162</span>  -- Traps
+            </div>
+            <table class="ne-table">
+                <thead>
+                    <tr><th>Version</th><th>Authentication</th><th>Encryption</th><th>Notes</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>SNMPv1</td><td>Community string</td><td>None</td><td>Legacy, insecure</td></tr>
+                    <tr><td>SNMPv2c</td><td>Community string</td><td>None</td><td>Most common, still insecure</td></tr>
+                    <tr><td>SNMPv3</td><td>Username/password</td><td>AES/DES</td><td>Recommended, secure</td></tr>
+                </tbody>
+            </table>
+            <div class="ne-callout">
+                <strong>Traps vs Informs</strong>
+                <p>Traps are fire-and-forget -- the agent sends the alert but never knows if the manager received it. Informs require acknowledgment from the manager, providing reliable notification at the cost of more overhead.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Syslog</h2>
+            <p class="ne-text">Syslog is a centralized logging protocol that collects log messages from network devices and servers. A syslog collector (or syslog server) aggregates these messages for analysis, alerting, and compliance. Default port is UDP 514.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr><th>Level</th><th>Keyword</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>0</td><td>Emergency</td><td>System unusable</td></tr>
+                    <tr><td>1</td><td>Alert</td><td>Immediate action needed</td></tr>
+                    <tr><td>2</td><td>Critical</td><td>Critical conditions</td></tr>
+                    <tr><td>3</td><td>Error</td><td>Error conditions</td></tr>
+                    <tr><td>4</td><td>Warning</td><td>Warning conditions</td></tr>
+                    <tr><td>5</td><td>Notice</td><td>Normal but significant</td></tr>
+                    <tr><td>6</td><td>Informational</td><td>Informational messages</td></tr>
+                    <tr><td>7</td><td>Debug</td><td>Debug-level messages</td></tr>
+                </tbody>
+            </table>
+            <p class="ne-text">SIEM (Security Information and Event Management) takes log aggregation further by correlating events across multiple devices, applying rules to detect patterns, and generating security alerts. A SIEM can identify attacks that no single device log would reveal on its own.</p>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Flow Data &amp; Packet Capture</h2>
+            <p class="ne-text">Understanding network traffic requires different tools depending on the level of detail needed. Flow data shows traffic patterns and trends. Packet capture provides full content for deep analysis.</p>
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>NetFlow / sFlow / IPFIX</strong>
+                    <span>Traffic metadata -- who talked to whom, which ports, how much data. Great for identifying top talkers, bandwidth trends, and anomalies without capturing content.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Packet Capture</strong>
+                    <span>Full packet content captured with tools like Wireshark or tcpdump. Required for deep protocol analysis and troubleshooting application-layer issues.</span>
+                </div>
+            </div>
+            <div class="ne-code">
+<span class="comment">/* Traffic Capture Methods */</span>
+
+<span class="highlight">Port Mirroring (SPAN)</span>
+  Switch copies traffic from one port to another for analysis
+  Configured on the switch -- no additional hardware needed
+  Can impact switch performance under heavy load
+
+<span class="highlight">TAP (Test Access Point)</span>
+  Inline hardware device that copies traffic passively
+  No impact on network performance
+  More reliable than SPAN -- captures everything including errors
+
+<span class="comment">/* When to use each */</span>
+<span class="value">Flow data</span>   -->  Trends, capacity planning, top talkers
+<span class="value">Capture</span>     -->  Deep diagnosis, protocol analysis, forensics
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Disaster Recovery</h2>
+            <p class="ne-text">Disaster recovery (DR) planning defines how an organization recovers from catastrophic failures. Four key metrics measure recovery capability:</p>
+            <table class="ne-table">
+                <thead>
+                    <tr><th>Metric</th><th>Full Name</th><th>Meaning</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>RPO</td><td>Recovery Point Objective</td><td>Max acceptable data loss (measured in time)</td></tr>
+                    <tr><td>RTO</td><td>Recovery Time Objective</td><td>Max acceptable downtime</td></tr>
+                    <tr><td>MTTR</td><td>Mean Time To Repair</td><td>Average repair duration</td></tr>
+                    <tr><td>MTBF</td><td>Mean Time Between Failures</td><td>Average uptime between failures</td></tr>
+                </tbody>
+            </table>
+            <div class="ne-code">
+<span class="comment">/* DR Site Types (cost vs recovery speed) */</span>
+
+<span class="highlight">Hot Site</span>    Fully operational duplicate -- immediate failover
+            <span class="value">$$$$</span>  Most expensive, fastest recovery
+
+<span class="highlight">Warm Site</span>   Hardware ready, data needs restoration
+            <span class="value">$$$</span>   Moderate cost, hours to recover
+
+<span class="highlight">Cold Site</span>   Empty facility, everything needs setup
+            <span class="value">$$</span>    Cheapest, days/weeks to recover
+            </div>
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>Backup Types</strong>
+                    <span>Full: copies everything (longest backup, fastest restore). Differential: copies changes since last full. Incremental: copies changes since last backup of any type (fastest backup, slowest restore).</span>
+                </div>
+                <div class="ne-card">
+                    <strong>DR Testing</strong>
+                    <span>Tabletop exercise: discussion-based walkthrough. Simulation: test procedures without actual failover. Full failover test: actually switch to the DR site to verify everything works.</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">High Availability</h2>
+            <p class="ne-text">High availability (HA) eliminates single points of failure so that services remain operational even when components fail. The goal is to maximize uptime through redundancy at every layer.</p>
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>Active-Active</strong>
+                    <span>Both systems handle traffic simultaneously. If one fails, the other absorbs the full load. Better resource utilization but more complex configuration.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Active-Passive</strong>
+                    <span>One system handles traffic while the standby monitors. On failure, the passive system takes over. Simpler but the standby is idle during normal operations.</span>
+                </div>
+            </div>
+            <div class="ne-code">
+<span class="comment">/* High Availability Components */</span>
+
+<span class="highlight">NIC Teaming / Link Aggregation</span>
+  Combine multiple NICs into one logical link
+  Provides redundancy and increased bandwidth (LACP)
+
+<span class="highlight">Clustering</span>
+  Multiple servers act as one logical system
+  If one node fails, others continue serving requests
+
+<span class="highlight">Load Balancing</span>
+  Distributes traffic across multiple servers
+  Algorithms: round-robin, least connections, weighted
+
+<span class="highlight">Power Redundancy</span>
+  Dual power supplies (PSU) in each device
+  UPS (Uninterruptible Power Supply) for short outages
+  Generators for extended power failures
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Performance Monitoring</h2>
+            <p class="ne-text">Effective network operations require continuous monitoring of key performance metrics. Understanding these metrics helps identify issues before they impact users and validates that the network meets its SLAs.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr><th>Metric</th><th>What It Measures</th><th>Why It Matters</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Latency</td><td>Round-trip time (measured by ping)</td><td>High latency degrades user experience</td></tr>
+                    <tr><td>Jitter</td><td>Variation in latency over time</td><td>Critical for VoIP and video -- causes choppy audio</td></tr>
+                    <tr><td>Bandwidth</td><td>Maximum theoretical capacity</td><td>The pipe size -- 1 Gbps link capacity</td></tr>
+                    <tr><td>Throughput</td><td>Actual data transfer rate achieved</td><td>Always less than bandwidth due to overhead</td></tr>
+                    <tr><td>Packet Loss</td><td>Percentage of dropped packets</td><td>Even 1-2% causes noticeable degradation</td></tr>
+                </tbody>
+            </table>
+            <div class="ne-code">
+<span class="comment">/* QoS (Quality of Service) */</span>
+
+<span class="highlight">DSCP Marking</span>      Tags packets with priority levels
+<span class="highlight">Priority Queuing</span>   High-priority traffic (VoIP) sent first
+<span class="highlight">Traffic Shaping</span>    Smooths out bursty traffic to match link capacity
+<span class="highlight">Congestion Mgmt</span>   Decides which packets to drop when overloaded
+
+<span class="comment">/* Anomaly Alerting */</span>
+Set thresholds based on baseline documentation
+Alert when metrics deviate from normal ranges
+Examples: CPU > 90%, link utilization > 80%, packet loss > 1%
+            </div>
+        </section>
+
+        <div class="ne-takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>Document everything -- physical diagrams, logical diagrams, baselines</li>
+                <li>NEVER make changes without a change management process</li>
+                <li>SNMPv3 is the only secure version -- v1/v2c are insecure</li>
+                <li>Syslog severity 0 = most critical, 7 = least</li>
+                <li>RPO = how much data you can lose, RTO = how long you can be down</li>
+                <li>Hot sites cost the most but recover the fastest</li>
+                <li>Full backups take longest but restore fastest</li>
+            </ul>
+        </div>
+
+        <nav class="ne-nav">
+            <a href="../index.html" class="ne-nav-btn">&lt; Previous: Network+ Hub</a>
+            <a href="../index.html" class="ne-nav-btn primary">Next: Network+ Hub &gt;</a>
+        </nav>
+    </div>
+
+    <script>
+        (function() {
+        })();
+    </script>
+<div style="text-align:center;padding:30px 20px 40px;">
+    <button onclick="completeModule()" style="background:#22c55e;color:#fff;border:none;padding:14px 36px;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 2px 8px rgba(34,197,94,0.3);transition:all 0.2s;">Complete Module</button>
+</div>
+<script>
+function completeModule() {
+    if (window.ModuleProgress) {
+        ModuleProgress.complete('web', 'web-ne-10-operations', { returnUrl: '../index.html' });
+    } else {
+        window.location.href = '../index.html';
+    }
+}
+</script>
+</body>
+</html>

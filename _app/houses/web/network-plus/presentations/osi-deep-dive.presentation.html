@@ -1,0 +1,1736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Progress, Achievements, Accessibility -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/PresentationA11y.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSI Troubleshooting Deep Dive — Diagnose by Layer</title>
+    <style>
+        /* ============================================================
+           BASE RESET & GLOBAL
+        ============================================================ */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Web house palette */
+            --bg-base:    #090910;
+            --bg-mid:     #0f0f1a;
+            --bg-surface: #111128;
+            --bg-card:    rgba(255,255,255,0.04);
+            --bg-card-hover: rgba(255,255,255,0.07);
+            --text-primary:   #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted:     #64748b;
+            --accent:         #06b6d4;
+            --accent-dim:     rgba(6,182,212,0.15);
+            --accent-border:  rgba(6,182,212,0.35);
+
+            /* OSI layer accent colors */
+            --l7: #dc4a4a;
+            --l6: #d4783a;
+            --l5: #c9a83a;
+            --l4: #3ab577;
+            --l3: #3a8fd4;
+            --l2: #8a5cb5;
+            --l1: #5a6a7a;
+
+            /* Amber for exam tips */
+            --amber:       #f59e0b;
+            --amber-dim:   rgba(245,158,11,0.1);
+            --amber-border: rgba(245,158,11,0.3);
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: var(--text-primary);
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* ============================================================
+           SLIDE SYSTEM — viewport-locked, no overflow
+        ============================================================ */
+        .slide {
+            display: none;
+            position: fixed;
+            inset: 0;
+            padding: 20px 28px 72px;
+            overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide-inner {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* ============================================================
+           PROGRESS BAR
+        ============================================================ */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: #06b6d4;
+            transition: width 0.4s ease;
+            z-index: 200;
+        }
+
+        /* ============================================================
+           NAVIGATION BAR — fixed bottom
+        ============================================================ */
+        #nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            z-index: 200;
+            padding: 0 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(6, 182, 212, 0.15);
+            color: #06b6d4;
+            border-color: #06b6d4;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.back-btn {
+            font-size: 0.82rem;
+            padding: 8px 16px;
+        }
+
+        #slide-counter {
+            color: #64748b;
+            font-size: 0.82rem;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        #complete-btn {
+            display: none;
+            background: #3ab577;
+            color: #000;
+            border: none;
+            padding: 9px 26px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+
+        #complete-btn:hover {
+            background: #4fcf8a;
+            transform: translateY(-1px);
+        }
+
+        /* Slide header area */
+        .slide-header {
+            margin-bottom: 28px;
+            flex-shrink: 0;
+        }
+
+        .slide-label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+
+        .slide-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.2;
+        }
+
+        .slide-title .accent { color: var(--accent); }
+
+        .slide-subtitle {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin-top: 6px;
+        }
+
+        /* Slide body (content area) */
+        .slide-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* ============================================================
+           LAYER BADGE
+        ============================================================ */
+        .layer-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            border: 1px solid;
+        }
+
+        .layer-badge.l7 { color: var(--l7); border-color: rgba(220,74,74,0.35); background: rgba(220,74,74,0.08); }
+        .layer-badge.l6 { color: var(--l6); border-color: rgba(212,120,58,0.35); background: rgba(212,120,58,0.08); }
+        .layer-badge.l5 { color: var(--l5); border-color: rgba(201,168,58,0.35); background: rgba(201,168,58,0.08); }
+        .layer-badge.l4 { color: var(--l4); border-color: rgba(58,181,119,0.35); background: rgba(58,181,119,0.08); }
+        .layer-badge.l3 { color: var(--l3); border-color: rgba(58,143,212,0.35); background: rgba(58,143,212,0.08); }
+        .layer-badge.l2 { color: var(--l2); border-color: rgba(138,92,181,0.35); background: rgba(138,92,181,0.08); }
+        .layer-badge.l1 { color: var(--l1); border-color: rgba(90,106,122,0.35); background: rgba(90,106,122,0.08); }
+
+        /* ============================================================
+           INFO CARDS
+        ============================================================ */
+        .info-card {
+            background: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 8px;
+            padding: 16px 18px;
+            border-left: 3px solid var(--accent);
+        }
+
+        .info-card h3 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .info-card ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .info-card ul li {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            padding-left: 14px;
+            position: relative;
+        }
+
+        .info-card ul li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 9px;
+            width: 5px;
+            height: 1px;
+            background: var(--accent);
+        }
+
+        .info-card ul li strong {
+            color: var(--text-primary);
+        }
+
+        /* Layer-specific left border colors */
+        .info-card.l7 { border-left-color: var(--l7); }
+        .info-card.l6 { border-left-color: var(--l6); }
+        .info-card.l5 { border-left-color: var(--l5); }
+        .info-card.l4 { border-left-color: var(--l4); }
+        .info-card.l3 { border-left-color: var(--l3); }
+        .info-card.l2 { border-left-color: var(--l2); }
+        .info-card.l1 { border-left-color: var(--l1); }
+
+        /* ============================================================
+           EVIDENCE BLOCKS (CLI / terminal output)
+        ============================================================ */
+        .evidence-block {
+            background: #0a0a14;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            overflow: hidden;
+            font-size: 0.82rem;
+        }
+
+        /* Terminal title bar with traffic-light dots */
+        .evidence-block .term-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 12px;
+            background: rgba(255,255,255,0.04);
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+        }
+
+        .evidence-block .term-bar .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .evidence-block .term-bar .dot.red    { background: #ff5f56; }
+        .evidence-block .term-bar .dot.yellow { background: #ffbd2e; }
+        .evidence-block .term-bar .dot.green  { background: #27c93f; }
+
+        .evidence-block .term-bar .term-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-left: 6px;
+            font-family: monospace;
+        }
+
+        .evidence-block pre {
+            margin: 0;
+            padding: 14px 16px;
+            font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.80rem;
+            color: #a8d8a8;
+            white-space: pre-wrap;
+            word-break: break-word;
+            line-height: 1.55;
+            overflow-x: auto;
+        }
+
+        .evidence-block pre .comment {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .evidence-block pre .highlight {
+            color: #fbbf24;
+        }
+
+        .evidence-block pre .bad {
+            color: #f87171;
+        }
+
+        /* ============================================================
+           EXAM TIP CARDS
+        ============================================================ */
+        .exam-tip {
+            background: var(--amber-dim);
+            border: 1px solid var(--amber-border);
+            border-left: 3px solid var(--amber);
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .exam-tip .tip-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--amber);
+            white-space: nowrap;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .exam-tip .tip-text {
+            font-size: 0.85rem;
+            color: #fde68a;
+            line-height: 1.5;
+        }
+
+        /* ============================================================
+           TWO-COLUMN LAYOUT
+        ============================================================ */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .three-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+        }
+
+        /* ============================================================
+           FLOW CHART (decision tree)
+        ============================================================ */
+        .flow-chart {
+            background: #0a0a14;
+            border: 1px solid rgba(6,182,212,0.2);
+            border-radius: 8px;
+            padding: 20px 24px;
+            font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            white-space: pre;
+            line-height: 1.7;
+            overflow-x: auto;
+        }
+
+        .flow-chart .flow-yes  { color: #4ade80; }
+        .flow-chart .flow-no   { color: #f87171; }
+        .flow-chart .flow-layer { color: var(--accent); font-weight: 600; }
+        .flow-chart .flow-q    { color: var(--text-primary); font-weight: 600; }
+        .flow-chart .flow-end  { color: #a78bfa; }
+
+        /* ============================================================
+           SUMMARY TABLE
+        ============================================================ */
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+
+        .summary-table th {
+            text-align: left;
+            padding: 9px 12px;
+            color: var(--accent);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border-bottom: 1px solid rgba(6,182,212,0.25);
+            background: rgba(6,182,212,0.05);
+        }
+
+        .summary-table td {
+            padding: 8px 12px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            vertical-align: top;
+        }
+
+        .summary-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .summary-table tr:hover td {
+            background: rgba(255,255,255,0.02);
+        }
+
+        .summary-table td:first-child {
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+
+        .summary-table td code {
+            font-family: monospace;
+            font-size: 0.78rem;
+            color: #86efac;
+            background: rgba(134,239,172,0.08);
+            padding: 1px 5px;
+            border-radius: 3px;
+        }
+
+        /* ============================================================
+           LAYER FLOW VISUAL (slide 2)
+        ============================================================ */
+        .layer-flow {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .layer-flow-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .layer-chip {
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            border: 1px solid;
+        }
+
+        .layer-chip.l1 { color: var(--l1); border-color: rgba(90,106,122,0.5); background: rgba(90,106,122,0.1); }
+        .layer-chip.l2 { color: var(--l2); border-color: rgba(138,92,181,0.5); background: rgba(138,92,181,0.1); }
+        .layer-chip.l3 { color: var(--l3); border-color: rgba(58,143,212,0.5); background: rgba(58,143,212,0.1); }
+        .layer-chip.l4 { color: var(--l4); border-color: rgba(58,181,119,0.5); background: rgba(58,181,119,0.1); }
+        .layer-chip.l5 { color: var(--l5); border-color: rgba(201,168,58,0.5); background: rgba(201,168,58,0.1); }
+        .layer-chip.l6 { color: var(--l6); border-color: rgba(212,120,58,0.5); background: rgba(212,120,58,0.1); }
+        .layer-chip.l7 { color: var(--l7); border-color: rgba(220,74,74,0.5); background: rgba(220,74,74,0.1); }
+
+        .layer-arrow {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* ============================================================
+           TITLE SLIDE SPECIFIC
+        ============================================================ */
+        .title-slide {
+            justify-content: center;
+            align-items: flex-start;
+            gap: 0;
+        }
+
+        .title-slide .hero-label {
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 16px;
+        }
+
+        .title-slide h1 {
+            font-size: 2.6rem;
+            font-weight: 800;
+            line-height: 1.1;
+            color: var(--text-primary);
+            margin-bottom: 14px;
+        }
+
+        .title-slide h1 span {
+            color: var(--accent);
+        }
+
+        .title-slide .tagline {
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            margin-bottom: 36px;
+            max-width: 640px;
+        }
+
+        .meta-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .meta-pill {
+            padding: 5px 14px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 500;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-secondary);
+        }
+
+        .meta-pill.accent {
+            background: var(--accent-dim);
+            border-color: var(--accent-border);
+            color: var(--accent);
+        }
+
+        /* Decorative bottom rule on title slide */
+        .title-rule {
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent), transparent);
+            border-radius: 2px;
+            margin: 24px 0;
+        }
+
+        /* ============================================================
+           COMPLETE SLIDE SPECIFIC
+        ============================================================ */
+        .complete-card {
+            background: linear-gradient(135deg, rgba(6,182,212,0.08), rgba(6,182,212,0.03));
+            border: 1px solid var(--accent-border);
+            border-radius: 12px;
+            padding: 28px 32px;
+            text-align: center;
+            margin-top: 8px;
+        }
+
+        .complete-card h2 {
+            font-size: 1.4rem;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+
+        .complete-card p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+
+        .complete-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 20px;
+            padding: 12px 28px;
+            background: linear-gradient(135deg, var(--accent), #0891b2);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.15s;
+        }
+
+        .complete-btn:hover {
+            opacity: 0.88;
+            transform: translateY(-1px);
+        }
+
+        .complete-btn:active {
+            transform: translateY(0);
+        }
+
+        .objectives-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 16px;
+        }
+
+        .objective-badge {
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            background: rgba(6,182,212,0.1);
+            border: 1px solid rgba(6,182,212,0.2);
+            color: var(--accent);
+        }
+
+        /* (old nav bar CSS removed — using #nav-bar above) */
+
+        /* ============================================================
+           UTILITY
+        ============================================================ */
+        .text-accent  { color: var(--accent); }
+        .text-muted   { color: var(--text-muted); }
+        .text-dim     { color: var(--text-secondary); }
+        .mt-4  { margin-top: 4px; }
+        .mt-8  { margin-top: 8px; }
+        .mt-12 { margin-top: 12px; }
+        .mt-16 { margin-top: 16px; }
+        .mb-4  { margin-bottom: 4px; }
+        .mb-8  { margin-bottom: 8px; }
+
+        p.body-text {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        p.body-text strong {
+            color: var(--text-primary);
+        }
+
+        /* ============================================================
+           MOBILE
+        ============================================================ */
+        @media (max-width: 768px) {
+            .title-slide h1 { font-size: 1.8rem; }
+
+            .two-col {
+                grid-template-columns: 1fr;
+            }
+
+            .three-col {
+                grid-template-columns: 1fr;
+            }
+
+            .layer-flow {
+                gap: 3px;
+            }
+
+            .nav-btn { padding: 7px 14px; font-size: 12px; }
+
+            .summary-table { font-size: 0.75rem; }
+            .summary-table th, .summary-table td { padding: 6px 8px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Progress bar across very top -->
+<div id="progress-bar" style="width:5.26%"></div>
+
+        <!-- ============================================================
+             SLIDE 1: TITLE
+        ============================================================ -->
+        <section class="slide title-slide active" id="slide-1">
+        <div class="slide-inner">
+            <div class="hero-label">Network+ N10-009 &mdash; Advanced Module</div>
+            <h1>OSI Troubleshooting<br><span>Deep Dive</span></h1>
+            <p class="tagline">Systematic diagnosis at every layer &mdash; from Physical to Application</p>
+            <div class="title-rule"></div>
+            <div class="meta-pills">
+                <span class="meta-pill accent">Advanced</span>
+                <span class="meta-pill">19 Slides</span>
+                <span class="meta-pill">N10-009 Obj 5.1</span>
+                <span class="meta-pill">N10-009 Obj 5.2 &ndash; 5.5</span>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 2: THE BOTTOM-UP METHODOLOGY
+        ============================================================ -->
+        <section class="slide" id="slide-2">
+        <div class="slide-inner">
+            <div class="slide-header">
+                <div class="slide-label">Troubleshooting Approach</div>
+                <h2 class="slide-title">The <span class="accent">Bottom-Up</span> Methodology</h2>
+                <p class="slide-subtitle">Why you always start at Layer 1</p>
+            </div>
+            <div class="slide-body">
+                <div class="info-card" style="border-left-color: var(--accent);">
+                    <ul>
+                        <li><strong>Start at Layer 1, work up</strong> &mdash; the majority of network issues trace back to physical problems: bad cables, wrong connectors, duplex mismatches.</li>
+                        <li><strong>CompTIA methodology:</strong> Identify the problem &rarr; Establish a theory &rarr; Test the theory &rarr; Establish an action plan &rarr; Implement the solution &rarr; Verify functionality &rarr; Document findings.</li>
+                        <li><strong>Bottom-up is the most common approach on the exam.</strong> When a question gives you symptoms and asks where to start, think Layer 1 unless the scenario explicitly rules it out.</li>
+                    </ul>
+                </div>
+                <div class="mt-8">
+                    <p class="body-text mb-8">Systematic layer progression &mdash; each layer depends on the one below it:</p>
+                    <div class="layer-flow">
+                        <div class="layer-flow-item">
+                            <span class="layer-chip l1">L1 Physical</span>
+                            <span class="layer-arrow">&rarr;</span>
+                        </div>
+                        <div class="layer-flow-item">
+                            <span class="layer-chip l2">L2 Data Link</span>
+                            <span class="layer-arrow">&rarr;</span>
+                        </div>
+                        <div class="layer-flow-item">
+                            <span class="layer-chip l3">L3 Network</span>
+                            <span class="layer-arrow">&rarr;</span>
+                        </div>
+                        <div class="layer-flow-item">
+                            <span class="layer-chip l4">L4 Transport</span>
+                            <span class="layer-arrow">&rarr;</span>
+                        </div>
+                        <div class="layer-flow-item">
+                            <span class="layer-chip l5">L5 Session</span>
+                            <span class="layer-arrow">&rarr;</span>
+                        </div>
+                        <div class="layer-flow-item">
+                            <span class="layer-chip l6">L6 Presentation</span>
+                            <span class="layer-arrow">&rarr;</span>
+                        </div>
+                        <div class="layer-flow-item">
+                            <span class="layer-chip l7">L7 Application</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="exam-tip mt-8">
+                    <span class="tip-label">Exam Tip</span>
+                    <span class="tip-text">If a question asks which troubleshooting approach starts at the cable and works toward the user, the answer is <strong>bottom-up</strong>. If it starts at the application and works down, that is <strong>top-down</strong>. CompTIA favors bottom-up as the default.</span>
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 3: LAYER 1 — PHYSICAL: WHAT BREAKS
+        ============================================================ -->
+        <section class="slide" id="slide-3">
+        <div class="slide-inner">
+            <div class="slide-header">
+                <div class="slide-label">Layer 1 &mdash; Physical</div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                    <span class="layer-badge l1">L1</span>
+                    <h2 class="slide-title">Physical Layer &mdash; <span class="accent">What Breaks</span></h2>
+                </div>
+                <p class="slide-subtitle">Cable, connectors, power, and the environment</p>
+            </div>
+            <div class="slide-body">
+                <div class="two-col">
+                    <div class="info-card l1">
+                        <h3>Cable Faults</h3>
+                        <ul>
+                            <li><strong>Damaged or kinked cable</strong> causing intermittent signal loss</li>
+                            <li><strong>Wrong cable type</strong> &mdash; crossover vs. straight-through (less common with auto-MDIX, still tested)</li>
+                            <li><strong>Distance violation</strong> &mdash; Cat5e/Cat6 max is 100 m; fiber limits vary by standard</li>
+                            <li><strong>Wrong connector</strong> &mdash; RJ-45 vs. RJ-11, LC vs. SC fiber mismatch</li>
+                        </ul>
+                    </div>
+                    <div class="info-card l1">
+                        <h3>Signaling &amp; Electrical</h3>
+                        <ul>
+                            <li><strong>Duplex / speed mismatch</strong> &mdash; one side auto, one side manual hard-set = late collisions and performance degradation</li>
+                            <li><strong>EMI / crosstalk</strong> &mdash; unshielded cable near power lines, fluorescent lighting, motors</li>
+                            <li><strong>Attenuation</strong> &mdash; signal too weak at destination, usually distance-related</li>
+                            <li><strong>PoE issues</strong> &mdash; budget exceeded or wrong standard (802.3af 15.4 W vs. 802.3at 30 W)</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="info-card l1 mt-4">
+                    <h3>Physical Layer Indicators on a Switch</h3>
+                    <ul>
+                        <li><strong>Link light solid green</strong> &mdash; link established, correct speed and duplex</li>
+                        <li><strong>Link light amber / orange</strong> &mdash; STP blocking state, port security violation, or err-disabled</li>
+                        <li><strong>No link light</strong> &mdash; no electrical or optical connection; cable, port, or NIC failure</li>
+                        <li><strong>Flashing green</strong> &mdash; normal traffic (varies by vendor)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 4: LAYER 1 — PHYSICAL: HOW TO FIND IT
+        ============================================================ -->
+        <section class="slide" id="slide-4">
+        <div class="slide-inner">
+            <div class="slide-header">
+                <div class="slide-label">Layer 1 &mdash; Physical</div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                    <span class="layer-badge l1">L1</span>
+                    <h2 class="slide-title">Physical Layer &mdash; <span class="accent">How to Find It</span></h2>
+                </div>
+            </div>
+            <div class="slide-body">
+                <div class="evidence-block">
+                    <div class="term-bar">
+                        <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+                        <span class="term-label">Switch# show interfaces FastEthernet 0/1</span>
+                    </div>
+                    <pre>Switch# show interfaces FastEthernet 0/1
+  FastEthernet0/1 is up, line protocol is up
+  Hardware is Fast Ethernet
+  Full-duplex, 100Mb/s
+  Input errors: <span class="highlight">847</span>,  CRC: <span class="highlight">203</span>,  frame: 12,  overrun: 0
+  Output errors: 0,  collisions: <span class="highlight">1402</span>,  late collisions: <span class="bad">891</span>
+<span class="comment">
+  ^-- CRC errors  = cable or connector problem
+  ^-- Late collisions = duplex mismatch (one end full, one end half)
+  ^-- Input errors in general = Layer 1 physical problem</span></pre>
+                </div>
+                <div class="two-col mt-8">
+                    <div class="info-card l1">
+                        <h3>Key Indicators</h3>
+                        <ul>
+                            <li><strong>CRC errors</strong> &mdash; corrupted frames at receive; suspect cable, connector, or interference</li>
+                            <li><strong>Late collisions</strong> &mdash; collision after 512 bits; almost always duplex mismatch</li>
+                            <li><strong>Runts / giants</strong> &mdash; frames too small or too large; cable noise or misconfigured MTU</li>
+                            <li><strong>Input errors</strong> &mdash; general catch-all for received frame corruption</li>
+                        </ul>
+                    </div>
+                    <div class="info-card l1">
+                        <h3>Tools</h3>
+                        <ul>
+                            <li><strong>Cable tester</strong> &mdash; verifies continuity and pinout on copper</li>
+                            <li><strong>OTDR</strong> &mdash; optical time-domain reflectometer for fiber fault location</li>
+                            <li><strong>Tone generator / probe</strong> &mdash; traces cable runs through walls</li>
+                            <li><strong>Multimeter</strong> &mdash; tests voltage, continuity; not for data cabling but for power circuits</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="exam-tip">
+                    <span class="tip-label">Exam Tip</span>
+                    <span class="tip-text">Late collisions = duplex mismatch. CRC errors = cable or connector problem. These two are the most frequently tested Layer 1 indicators on Network+.</span>
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 5: LAYER 2 — DATA LINK: WHAT BREAKS
+        ============================================================ -->
+        <section class="slide" id="slide-5">
+        <div class="slide-inner">
+            <div class="slide-header">
+                <div class="slide-label">Layer 2 &mdash; Data Link</div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                    <span class="layer-badge l2">L2</span>
+                    <h2 class="slide-title">Data Link Layer &mdash; <span class="accent">What Breaks</span></h2>
+                </div>
+                <p class="slide-subtitle">VLANs, STP, MAC tables, and ARP</p>
+            </div>
+            <div class="slide-body">
+                <div class="two-col">
+                    <div class="info-card l2">
+                        <h3>VLAN Issues</h3>
+                        <ul>
+                            <li><strong>VLAN mismatch</strong> &mdash; access port assigned to wrong VLAN; host cannot reach correct segment</li>
+                            <li><strong>Trunk not allowing VLAN</strong> &mdash; VLAN pruned or not added to allowed list on trunk port</li>
+                            <li><strong>Native VLAN mismatch</strong> &mdash; trunk ports configured with different native VLANs; untagged traffic placed on wrong VLAN</li>
+                        </ul>
+                    </div>
+                    <div class="info-card l2">
+                        <h3>STP Issues</h3>
+                        <ul>
+                            <li><strong>Wrong root bridge</strong> &mdash; unintended switch elected root due to default priority</li>
+                            <li><strong>Port stuck in blocking</strong> &mdash; STP detects a loop; port never transitions to forwarding</li>
+                            <li><strong>Network loop (no STP)</strong> &mdash; broadcast storm; CPU and bandwidth spike to 100%</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="two-col mt-4">
+                    <div class="info-card l2">
+                        <h3>MAC / ARP Issues</h3>
+                        <ul>
+                            <li><strong>MAC flooding</strong> &mdash; CAM table overflow; switch falls back to hub mode (unicast flooding)</li>
+                            <li><strong>ARP poisoning</strong> &mdash; attacker responds to ARP requests with own MAC; MITM attack</li>
+                            <li><strong>Stale ARP cache</strong> &mdash; old mapping causes traffic sent to wrong or removed host</li>
+                        </ul>
+                    </div>
+                    <div class="info-card l2">
+                        <h3>Port Security / Err-Disabled</h3>
+                        <ul>
+                            <li><strong>Port security violation</strong> &mdash; unauthorized MAC address detected; port err-disabled</li>
+                            <li><strong>BPDU guard triggered</strong> &mdash; STP BPDU received on PortFast port; port err-disabled</li>
+                            <li><strong>Recovery</strong> &mdash; requires manual <code>shutdown</code> then <code>no shutdown</code> unless auto-recovery is configured</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 6: LAYER 2 — DATA LINK: HOW TO FIND IT
+        ============================================================ -->
+        <section class="slide" id="slide-6">
+        <div class="slide-inner">
+            <div class="slide-header">
+                <div class="slide-label">Layer 2 &mdash; Data Link</div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                    <span class="layer-badge l2">L2</span>
+                    <h2 class="slide-title">Data Link Layer &mdash; <span class="accent">How to Find It</span></h2>
+                </div>
+            </div>
+            <div class="slide-body">
+                <div class="evidence-block">
+                    <div class="term-bar">
+                        <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+                        <span class="term-label">show vlan brief | show spanning-tree | show mac address-table</span>
+                    </div>
+                    <pre>Switch# show vlan brief
+VLAN  Name              Status    Ports
+1     default           active    Fa0/1, Fa0/2
+10    Sales             active    Fa0/3, Fa0/4
+20    Engineering       active    Fa0/5
+<span class="comment">^-- Fa0/6 not listed -- unassigned port; host gets no VLAN access</span>
+
+Switch# show spanning-tree vlan 10
+Root ID    Priority  24586
+           Address   aabb.cc00.0100
+           This bridge is the root
+
+Port   Role  Sts  Cost  Prio  Type
+Fa0/1  Desg  FWD  19    128   P2p
+Fa0/3  Desg  <span class="bad">BLK</span>  19    128   P2p   <span class="bad">&lt;-- Port stuck in Blocking</span>
+
+Switch# show mac address-table interface Fa0/24
+  VLAN  MAC Address       Type     Ports
+  10    aa:bb:cc:00:01    DYNAMIC  Fa0/24
+  10    aa:bb:cc:00:02    DYNAMIC  Fa0/24
+  ... <span class="highlight">(8000+ entries -- MAC flood attack; CAM table exhausted)</span></pre>
+                </div>
+                <div class="exam-tip mt-8">
+                    <span class="tip-label">Exam Tip</span>
+                    <span class="tip-text">STP port states: <strong>Blocking &rarr; Listening &rarr; Learning &rarr; Forwarding</strong>. A port stuck in Blocking means STP detected a potential loop on that segment. An err-disabled port shows as a separate state and requires manual intervention to recover.</span>
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 7: LAYER 3 — NETWORK: WHAT BREAKS
+        ============================================================ -->
+        <section class="slide" id="slide-7">
+        <div class="slide-inner">
+            <div class="slide-header">
+                <div class="slide-label">Layer 3 &mdash; Network</div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                    <span class="layer-badge l3">L3</span>
+                    <h2 class="slide-title">Network Layer &mdash; <span class="accent">What Breaks</span></h2>
+                </div>
+                <p class="slide-subtitle">IP addressing, routing, ACLs, and DHCP</p>
+            </div>
+            <div class="slide-body">
+                <div class="two-col">
+                    <div class="info-card l3">
+                        <h3>IP Configuration Errors</h3>
+                        <ul>
+                            <li><strong>Wrong subnet mask</strong> &mdash; workstation uses /16 instead of /24; ARP requests flood network as host treats everything as local</li>
+                            <li><strong>Missing or wrong default gateway</strong> &mdash; host can reach local subnet but cannot communicate with remote networks</li>
+                            <li><strong>Duplicate IP addresses</strong> &mdash; both hosts experience connectivity problems; OS displays IP conflict notification</li>
+                            <li><strong>DHCP scope exhaustion</strong> &mdash; no addresses available; client gets APIPA (169.254.x.x) address</li>
+                        </ul>
+                    </div>
+                    <div class="info-card l3">
+                        <h3>Routing &amp; ACL Problems</h3>
+                        <ul>
+                            <li><strong>Missing route</strong> &mdash; no path to destination network in routing table; traffic silently dropped</li>
+                            <li><strong>ACL blocking traffic</strong> &mdash; permit/deny rules evaluated top-down; implicit deny all at end blocks unlisted traffic</li>
+                            <li><strong>ACL applied wrong direction</strong> &mdash; inbound vs. outbound on wrong interface causes unexpected behavior</li>
+                            <li><strong>TTL exceeded</strong> &mdash; routing loop or too many hops; ICMP Time Exceeded returned to sender</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="exam-tip mt-4">
+                    <span class="tip-label">Exam Tip</span>
+                    <span class="tip-text">A host with a <strong>169.254.x.x</strong> address failed to receive a DHCP response and self-assigned an APIPA address. This is a Layer 3 symptom, but the cause may be a DHCP server issue (also Layer 7) or a Layer 2 problem preventing the DHCP broadcast from reaching the server.</span>
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 8: LAYER 3 — NETWORK: HOW TO FIND IT
+        ============================================================ -->
+        <section class="slide" id="slide-8">
+        <div class="slide-inner">
+            <div class="slide-header">
+                <div class="slide-label">Layer 3 &mdash; Network</div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                    <span class="layer-badge l3">L3</span>
+                    <h2 class="slide-title">Network Layer &mdash; <span class="accent">How to Find It</span></h2>
+                </div>
+            </div>
+            <div class="slide-body">
+                <div class="evidence-block">
+                    <div class="term-bar">
+                        <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+                        <span class="term-label">ipconfig | show ip route | show access-lists</span>
+                    </div>
+                    <pre>C:\> ipconfig /all
+  IPv4 Address:    10.10.20.147
+  Subnet Mask:     <span class="bad">255.255.0.0</span>        <span class="comment">&lt;-- Wrong! Should be 255.255.255.0 (/24)</span>
+  Default Gateway: 10.10.20.1
+
+Router# show ip route
+  C   192.168.1.0/24 is directly connected, Gig0/0
+  S   10.0.0.0/8 [1/0] via 192.168.1.1
+  <span class="bad">-- No route to 172.16.0.0/16 network; traffic to that range is dropped</span>
+
+Router# show access-lists
+  10 permit tcp any any eq 80      (14892 matches)
+  20 <span class="bad">deny   ip  any any</span>              (8847 matches)
+  <span class="comment">^-- Implicit or explicit deny is blocking all non-HTTP traffic</span></pre>
+                </div>
+                <div class="info-card l3 mt-8">
+                    <h3>Key Tools</h3>
+                    <ul>
+                        <li><strong>ping</strong> &mdash; verifies basic IP reachability; ICMP Echo Request / Reply</li>
+                        <li><strong>traceroute / tracert</strong> &mdash; shows each hop; reveals where traffic stops or deviates</li>
+                        <li><strong>ipconfig / ifconfig / ip addr</strong> &mdash; shows IP, mask, gateway; look for APIPA or wrong mask</li>
+                        <li><strong>arp -a</strong> &mdash; shows ARP cache; confirms MAC resolution for local gateway</li>
+                    </ul>
+                </div>
+                <div class="exam-tip">
+                    <span class="tip-label">Exam Tip</span>
+                    <span class="tip-text">If ping reaches the gateway but fails beyond it, check routing. If ping fails to the gateway, check IP configuration and ARP. If traceroute shows the same hop repeating, there is a routing loop.</span>
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 9: LAYER 4 — TRANSPORT: WHAT BREAKS
+        ============================================================ -->
+        <section class="slide" id="slide-9">
+        <div class="slide-inner">
+            <div class="slide-header">
+                <div class="slide-label">Layer 4 &mdash; Transport</div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                    <span class="layer-badge l4">L4</span>
+                    <h2 class="slide-title">Transport Layer &mdash; <span class="accent">What Breaks</span></h2>
+                </div>
+                <p class="slide-subtitle">TCP/UDP ports, firewalls, NAT, and connection state</p>
+            </div>
+            <div class="slide-body">
+                <div class="two-col">
+                    <div class="info-card l4">
+                        <h3>Port &amp; Service Issues</h3>
+                        <ul>
+                            <li><strong>Port blocked by firewall</strong> &mdash; service is running and listening, but stateful firewall drops SYN packets before they arrive</li>
+                            <li><strong>Connection refused</strong> &mdash; port is reachable but nothing is listening; service is not started</li>
+                            <li><strong>Port exhaustion</strong> &mdash; ephemeral port range (1024&ndash;65535) fully consumed by high concurrent connection count</li>
+                        </ul>
+                    </div>
+                    <div class="info-card l4">
+                        <h3>TCP Session Issues</h3>
+                        <ul>
+                            <li><strong>TCP retransmissions</strong> &mdash; SYN sent, no SYN-ACK received; congestion, packet loss, or firewall filtering</li>
+                            <li><strong>Window size problems</strong> &mdash; receiver advertises zero window; sender stalls (flow control operating correctly but causing delay)</li>
+                            <li><strong>NAT / PAT misconfiguration</strong> &mdash; inside/outside interface reversed, or NAT pool exhausted; outbound traffic drops</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="info-card l4 mt-4">
+                    <h3>UDP Considerations</h3>
+                    <ul>
+                        <li><strong>No error recovery</strong> &mdash; UDP has no retransmission; packet loss equals data loss; application must handle it or not at all</li>
+                        <li><strong>UDP services affected:</strong> DNS (port 53), DHCP (67/68), SNMP (161/162), TFTP (69), streaming media, VoIP (RTP)</li>
+                        <li><strong>Firewall state tracking</strong> &mdash; stateful firewalls may not properly track UDP sessions; asymmetric routing can cause drops</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 10: LAYER 4 — TRANSPORT: HOW TO FIND IT
+        ============================================================ -->
+        <section class="slide" id="slide-10">
+        <div class="slide-inner">
+            <div class="slide-header">
+                <div class="slide-label">Layer 4 &mdash; Transport</div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                    <span class="layer-badge l4">L4</span>
+                    <h2 class="slide-title">Transport Layer &mdash; <span class="accent">How to Find It</span></h2>
+                </div>
+            </div>
+            <div class="slide-body">
+                <div class="evidence-block">
+                    <div class="term-bar">
+                        <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+                        <span class="term-label">netstat | ss | telnet port test</span>
+                    </div>
+                    <pre>C:\> netstat -an | findstr :443
+  TCP  0.0.0.0:443        0.0.0.0:0           LISTENING
+  TCP  10.0.1.50:49201    93.184.216.34:443    ESTABLISHED
+  TCP  10.0.1.50:49202    93.184.216.34:443    TIME_WAIT
+
+$ ss -tlnp
+State   Recv-Q  Send-Q  Local Address:Port   Process
+LISTEN  0       128     0.0.0.0:22           sshd
+LISTEN  0       128     0.0.0.0:80           nginx
+<span class="bad">                                             &lt;-- Port 443 NOT in the list; HTTPS not listening</span>
+
+<span class="comment">Quick port reachability test (no dedicated tool needed):</span>
+$ telnet 10.0.5.20 443
+<span class="highlight">Connected to 10.0.5.20</span>     <span class="comment">&lt;-- Port is open and accepting connections</span>
+$ telnet 10.0.5.20 8443
+<span class="bad">telnet: connect to address 10.0.5.20: Connection refused</span>  <span class="comment">&lt;-- RST received</span></pre>
+                </div>
+                <div class="two-col mt-8">
+                    <div class="info-card l4">
+                        <h3>Connection State Meanings</h3>
+                        <ul>
+                            <li><strong>LISTENING</strong> &mdash; service is bound and ready to accept connections</li>
+                            <li><strong>ESTABLISHED</strong> &mdash; active connection in progress</li>
+                            <li><strong>TIME_WAIT</strong> &mdash; connection closed, waiting for delayed packets; normal state</li>
+                            <li><strong>SYN_SENT</strong> &mdash; client sent SYN, no response yet; possible firewall block</li>
+                        </ul>
+                    </div>
+                    <div class="exam-tip" style="align-self:stretch;">
+                        <span class="tip-label">Exam Tip</span>
+                        <span class="tip-text"><strong>Connection refused</strong> = port closed, RST received (service not running). <strong>Connection timeout</strong> = port filtered (firewall silently dropping). Service running but still failing = look higher at L5&ndash;L7.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 11: LAYER 5 — SESSION: WHAT BREAKS
+        ============================================================ -->
+        <section class="slide" id="slide-11">
+        <div class="slide-inner">
+            <div class="slide-header">
+                <div class="slide-label">Layer 5 &mdash; Session</div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                    <span class="layer-badge l5">L5</span>
+                    <h2 class="slide-title">Session Layer &mdash; <span class="accent">What Breaks</span></h2>
+                </div>
+                <p class="slide-subtitle">Authentication, TLS sessions, and VPN tunnels</p>
+            </div>
+            <div class="slide-body">
+                <div class="two-col">
+                    <div class="info-card l5">
+                        <h3>TLS / SSL Session Failures</h3>
+                        <ul>
+                            <li><strong>Certificate expired</strong> &mdash; TLS handshake fails at certificate validation step; browser shows security warning</li>
+                            <li><strong>Session timeout too short</strong> &mdash; server terminates idle sessions prematurely; file transfers or long uploads fail mid-transfer</li>
+                            <li><strong>Session ticket mismatch</strong> &mdash; session resumption fails after server restart or key rotation; full renegotiation required</li>
+                        </ul>
+                    </div>
+                    <div class="info-card l5">
+                        <h3>Authentication Session Issues</h3>
+                        <ul>
+                            <li><strong>RADIUS / TACACS+ unreachable</strong> &mdash; authentication server down; users cannot log in to network devices or VPN</li>
+                            <li><strong>Wrong shared secret</strong> &mdash; RADIUS authentication rejected silently; logs show "Access-Reject" on server side</li>
+                            <li><strong>Session hijacking</strong> &mdash; unexpected RST packets or sequence number anomalies; attacker injecting into established session</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="two-col mt-4">
+                    <div class="info-card l5">
+                        <h3>VPN Tunnel Drops</h3>
+                        <ul>
+                            <li><strong>IKE Phase 1 failure</strong> &mdash; ISAKMP SA not established; mismatched encryption, hash, or DH group</li>
+                            <li><strong>IKE Phase 2 failure</strong> &mdash; IPsec SA not established; mismatched transform sets or lifetime</li>
+                            <li><strong>Dead Peer Detection (DPD)</strong> &mdash; tunnel drops due to keepalive timeout on idle connection</li>
+                        </ul>
+                    </div>
+                    <div class="info-card l5">
+                        <h3>NetBIOS / SMB Issues</h3>
+                        <ul>
+                            <li><strong>File share disconnects</strong> &mdash; Windows disconnects idle SMB sessions; mapped drives appear disconnected</li>
+                            <li><strong>NetBIOS name resolution</strong> &mdash; WINS server unavailable; name resolution falls back to broadcast (limited to local subnet)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 12: LAYER 5 — SESSION: HOW TO FIND IT
+        ============================================================ -->
+        <section class="slide" id="slide-12">
+        <div class="slide-inner">
+            <div class="slide-header">
+                <div class="slide-label">Layer 5 &mdash; Session</div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                    <span class="layer-badge l5">L5</span>
+                    <h2 class="slide-title">Session Layer &mdash; <span class="accent">How to Find It</span></h2>
+                </div>
+            </div>
+            <div class="slide-body">
+                <div class="evidence-block">
+                    <div class="term-bar">
+                        <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+                        <span class="term-label">openssl s_client | mail server log | show crypto isakmp sa</span>
+                    </div>
+                    <pre>$ openssl s_client -connect server:443
+  <span class="bad">Verify return code: 10 (certificate has expired)</span>
+  SSL handshake has read 0 bytes and written 0 bytes
+
+  Session-ID: 3A7F...
+  Session Timeout: <span class="highlight">20 (seconds)</span>  <span class="comment">&lt;-- Very short; uploads &gt;20s will fail</span>
+
+Mar 27 08:22:38 mail01 postfix/smtpd:
+  TLS session renegotiation requested
+  <span class="bad">SSL_accept error: session ticket expired</span>
+  lost connection after DATA (23 seconds)
+<span class="comment">
+  ^-- Session timed out during message delivery (DATA phase)</span>
+
+Router# show crypto isakmp sa
+  dst              src              state         conn-id slot
+  192.168.1.254    10.0.0.1         <span class="bad">MM_NO_STATE</span>   1001    0
+  <span class="comment">^-- IKE Phase 1 failed; Main Mode did not complete</span></pre>
+                </div>
+                <div class="two-col mt-8">
+                    <div class="info-card l5">
+                        <h3>Key Tools</h3>
+                        <ul>
+                            <li><strong>openssl s_client</strong> &mdash; tests TLS handshake, shows certificate chain and session details</li>
+                            <li><strong>show crypto isakmp sa</strong> &mdash; Cisco IKE/ISAKMP session state</li>
+                            <li><strong>Event Viewer / syslog</strong> &mdash; authentication failures, TLS errors, session terminations</li>
+                        </ul>
+                    </div>
+                    <div class="exam-tip" style="align-self:stretch;">
+                        <span class="tip-label">Exam Tip</span>
+                        <span class="tip-text">Session layer issues present as "it connects then drops" or "it works for small transfers but fails for large ones." Initial connection succeeds but the session cannot be maintained &mdash; think L5 before L7.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 13: LAYER 6 — PRESENTATION: WHAT BREAKS
+        ============================================================ -->
+        <section class="slide" id="slide-13">
+        <div class="slide-inner">
+            <div class="slide-header">
+                <div class="slide-label">Layer 6 &mdash; Presentation</div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                    <span class="layer-badge l6">L6</span>
+                    <h2 class="slide-title">Presentation Layer &mdash; <span class="accent">What Breaks</span></h2>
+                </div>
+                <p class="slide-subtitle">Encoding, encryption format, and data representation</p>
+            </div>
+            <div class="slide-body">
+                <div class="two-col">
+                    <div class="info-card l6">
+                        <h3>Encoding &amp; Compression</h3>
+                        <ul>
+                            <li><strong>Encoding mismatch</strong> &mdash; server sends gzip-compressed response; client does not advertise gzip support; decompression fails</li>
+                            <li><strong>Character encoding conflict</strong> &mdash; server returns UTF-8; client interprets as Latin-1 or ASCII; special characters rendered as garbage</li>
+                            <li><strong>Compression failure</strong> &mdash; corrupted compressed stream; partial downloads or mid-transfer corruption</li>
+                        </ul>
+                    </div>
+                    <div class="info-card l6">
+                        <h3>Certificate &amp; Encryption Format</h3>
+                        <ul>
+                            <li><strong>Certificate chain incomplete</strong> &mdash; intermediate CA certificate missing from server response; client cannot build trust chain to root CA</li>
+                            <li><strong>Cipher suite mismatch</strong> &mdash; client and server share no common cipher; TLS handshake fails with "handshake failure" alert</li>
+                            <li><strong>Data format incompatibility</strong> &mdash; application expects JSON; integration partner sends XML; parsing error at receiver</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="info-card l6 mt-4">
+                    <h3>Why Layer 6 Is Rarely Isolated</h3>
+                    <ul>
+                        <li>Modern protocols blend L5 and L6 functions &mdash; TLS handles both session establishment and encryption (format). Symptoms often appear as L5 or L7 problems.</li>
+                        <li>Garbled or visually correct but unreadable data arriving at the application is the clearest sign of a Presentation layer problem.</li>
+                        <li>Certificate chain issues are the most frequently tested L6 scenario on Network+.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 14: LAYER 6 — PRESENTATION: HOW TO FIND IT
+        ============================================================ -->
+        <section class="slide" id="slide-14">
+        <div class="slide-inner">
+            <div class="slide-header">
+                <div class="slide-label">Layer 6 &mdash; Presentation</div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                    <span class="layer-badge l6">L6</span>
+                    <h2 class="slide-title">Presentation Layer &mdash; <span class="accent">How to Find It</span></h2>
+                </div>
+            </div>
+            <div class="slide-body">
+                <div class="evidence-block">
+                    <div class="term-bar">
+                        <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+                        <span class="term-label">curl -v | openssl verify</span>
+                    </div>
+                    <pre>$ curl -v https://intranet.local/image.png
+> Accept-Encoding: identity
+< Content-Encoding: <span class="bad">gzip</span>
+< HTTP/1.1 <span class="bad">415 Unsupported Media Type</span>
+
+curl: (61) <span class="bad">Error while processing content unencoding: false</span>
+<span class="comment">^-- Client declared identity encoding; server sent gzip; decode failed</span>
+
+$ openssl verify -CAfile chain.pem server.crt
+  <span class="bad">error 20 at 0 depth lookup: unable to get local issuer certificate</span>
+  <span class="comment">^-- Intermediate CA certificate is missing from the chain file</span>
+
+<span class="comment">Re-test after adding intermediate cert to chain.pem:</span>
+$ openssl verify -CAfile chain-complete.pem server.crt
+  <span class="highlight">server.crt: OK</span></pre>
+                </div>
+                <div class="two-col mt-8">
+                    <div class="info-card l6">
+                        <h3>Key Tools</h3>
+                        <ul>
+                            <li><strong>curl -v</strong> &mdash; shows full request and response headers; reveals Content-Encoding, Content-Type, Accept headers</li>
+                            <li><strong>openssl verify</strong> &mdash; validates certificate chain; identifies missing intermediate certificates</li>
+                            <li><strong>Browser DevTools &rarr; Network tab</strong> &mdash; shows response encoding, MIME type, content headers</li>
+                            <li><strong>file command (Linux)</strong> &mdash; identifies actual encoding of a downloaded file regardless of declared type</li>
+                        </ul>
+                    </div>
+                    <div class="exam-tip" style="align-self:stretch;">
+                        <span class="tip-label">Exam Tip</span>
+                        <span class="tip-text">Layer 6 is the least-tested layer on Network+, but encoding and certificate chain issues do appear. If data arrives but looks wrong &mdash; garbled text, corrupted images, unexpected errors &mdash; think Presentation layer before blaming the application.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 15: LAYER 7 — APPLICATION: WHAT BREAKS
+        ============================================================ -->
+        <section class="slide" id="slide-15">
+        <div class="slide-inner">
+            <div class="slide-header">
+                <div class="slide-label">Layer 7 &mdash; Application</div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                    <span class="layer-badge l7">L7</span>
+                    <h2 class="slide-title">Application Layer &mdash; <span class="accent">What Breaks</span></h2>
+                </div>
+                <p class="slide-subtitle">DNS, HTTP errors, service config, DHCP, and email authentication</p>
+            </div>
+            <div class="slide-body">
+                <div class="two-col">
+                    <div class="info-card l7">
+                        <h3>DNS Issues</h3>
+                        <ul>
+                            <li><strong>Missing or wrong record</strong> &mdash; A, AAAA, CNAME, or MX record absent or pointing to wrong IP</li>
+                            <li><strong>DNS server unreachable</strong> &mdash; queries time out; all name resolution fails; users report "site not found" even though IP access works</li>
+                            <li><strong>Negative cache poisoning</strong> &mdash; incorrect NXDOMAIN response cached; correct record added but cached failure persists</li>
+                        </ul>
+                    </div>
+                    <div class="info-card l7">
+                        <h3>HTTP Errors</h3>
+                        <ul>
+                            <li><strong>403 Forbidden</strong> &mdash; server received request but authorization or filesystem permissions deny it</li>
+                            <li><strong>404 Not Found</strong> &mdash; resource does not exist at requested path; deployment issue or wrong URL</li>
+                            <li><strong>500 Internal Server Error</strong> &mdash; application-side failure; check service logs</li>
+                            <li><strong>502 Bad Gateway</strong> &mdash; proxy or load balancer cannot reach upstream application server</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="two-col mt-4">
+                    <div class="info-card l7">
+                        <h3>Email Authentication</h3>
+                        <ul>
+                            <li><strong>SPF failure</strong> &mdash; sending IP not listed in domain's SPF record; mail rejected or flagged as spam</li>
+                            <li><strong>DKIM failure</strong> &mdash; signature validation fails; message modified in transit or wrong private key used</li>
+                            <li><strong>DMARC failure</strong> &mdash; both SPF and DKIM fail; policy (p=reject or p=quarantine) applied to message</li>
+                        </ul>
+                    </div>
+                    <div class="info-card l7">
+                        <h3>Service Configuration</h3>
+                        <ul>
+                            <li><strong>Service not started</strong> &mdash; daemon not running; port not open; appears as L4 problem</li>
+                            <li><strong>Wrong config file</strong> &mdash; service running but misconfigured; errors in application log</li>
+                            <li><strong>Rogue DHCP server</strong> &mdash; unauthorized server assigning wrong gateway or DNS; users get incorrect configuration</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 16: LAYER 7 — APPLICATION: HOW TO FIND IT
+        ============================================================ -->
+        <section class="slide" id="slide-16">
+        <div class="slide-inner">
+            <div class="slide-header">
+                <div class="slide-label">Layer 7 &mdash; Application</div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                    <span class="layer-badge l7">L7</span>
+                    <h2 class="slide-title">Application Layer &mdash; <span class="accent">How to Find It</span></h2>
+                </div>
+            </div>
+            <div class="slide-body">
+                <div class="evidence-block">
+                    <div class="term-bar">
+                        <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+                        <span class="term-label">nslookup | curl -I | dig MX | nginx error.log</span>
+                    </div>
+                    <pre>C:\> nslookup app.company.local
+  <span class="bad">*** can't find app.company.local: Non-existent domain</span>
+
+C:\> nslookup 10.0.5.88
+  Name: app-legacy.company.local   <span class="comment">&lt;-- Reverse works; forward A record is missing or renamed</span>
+
+$ curl -I https://intranet.local/admin
+  <span class="bad">HTTP/1.1 403 Forbidden</span>
+  Server: nginx/1.24
+
+$ tail /var/log/nginx/error.log
+  [error] directory index of "/var/www/admin/" is forbidden
+<span class="comment">  ^-- nginx has autoindex off; no index.html present; access denied</span>
+
+$ dig company.com MX
+  company.com.  MX  10 mail.company.com.
+  <span class="bad">-- dig mail.company.com A</span>
+  <span class="bad">NXDOMAIN</span>  <span class="comment">&lt;-- MX record exists but the A record for mail.company.com is missing</span></pre>
+                </div>
+                <div class="info-card l7 mt-8">
+                    <h3>Key Tools</h3>
+                    <ul>
+                        <li><strong>nslookup</strong> &mdash; queries DNS; tests both forward (name to IP) and reverse (IP to name) lookups</li>
+                        <li><strong>dig</strong> &mdash; detailed DNS query output; shows TTL, record type, authoritative vs. cached; preferred on Linux/macOS</li>
+                        <li><strong>curl / wget</strong> &mdash; tests HTTP/HTTPS; reveals response codes, headers, redirect chains</li>
+                        <li><strong>systemctl status / journalctl -u</strong> &mdash; service status and application logs on systemd-based Linux</li>
+                    </ul>
+                </div>
+                <div class="exam-tip">
+                    <span class="tip-label">Exam Tip</span>
+                    <span class="tip-text">If all lower layers check out (ping works, port is open, session establishes), the problem is in the application itself. Check DNS first &mdash; it is the most common Layer 7 culprit and the most frequently tested on N10-009.</span>
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 17: THE TROUBLESHOOTING FLOWCHART
+        ============================================================ -->
+        <section class="slide" id="slide-17">
+        <div class="slide-inner">
+            <div class="slide-header">
+                <div class="slide-label">Decision Framework</div>
+                <h2 class="slide-title">The <span class="accent">Troubleshooting Flowchart</span></h2>
+                <p class="slide-subtitle">A systematic bottom-up decision tree &mdash; work through every question before moving up</p>
+            </div>
+            <div class="slide-body">
+                <div class="flow-chart">
+<span class="flow-q">Can you see link lights?</span>
+  <span class="flow-no">NO  </span><span class="layer-arrow">&rarr;</span>  <span class="flow-layer">[L1 Physical]</span>   Check cables, connectors, PoE budget, NIC
+  <span class="flow-yes">YES </span><span class="layer-arrow">&darr;</span>
+<span class="flow-q">Can you see MAC addresses in the ARP / CAM table?</span>
+  <span class="flow-no">NO  </span><span class="layer-arrow">&rarr;</span>  <span class="flow-layer">[L2 Data Link]</span>  Check VLAN assignment, STP state, trunk config, err-disabled ports
+  <span class="flow-yes">YES </span><span class="layer-arrow">&darr;</span>
+<span class="flow-q">Can you ping the default gateway?</span>
+  <span class="flow-no">NO  </span><span class="layer-arrow">&rarr;</span>  <span class="flow-layer">[L3 Network]</span>   Check IP address, subnet mask, gateway config, ARP resolution
+  <span class="flow-yes">YES </span><span class="layer-arrow">&darr;</span>
+<span class="flow-q">Can you ping the remote destination host?</span>
+  <span class="flow-no">NO  </span><span class="layer-arrow">&rarr;</span>  <span class="flow-layer">[L3 Network]</span>   Check routing table, ACLs, firewall rules, NAT
+  <span class="flow-yes">YES </span><span class="layer-arrow">&darr;</span>
+<span class="flow-q">Can you connect to the service port (telnet host port)?</span>
+  <span class="flow-no">NO  </span><span class="layer-arrow">&rarr;</span>  <span class="flow-layer">[L4 Transport]</span>  Check firewall port rules, service status (netstat -an), NAT mapping
+  <span class="flow-yes">YES </span><span class="layer-arrow">&darr;</span>
+<span class="flow-q">Does the session stay established over time?</span>
+  <span class="flow-no">NO  </span><span class="layer-arrow">&rarr;</span>  <span class="flow-layer">[L5 Session]</span>    Check session timeout, certificate expiry, VPN IKE phase, auth server
+  <span class="flow-yes">YES </span><span class="layer-arrow">&darr;</span>
+<span class="flow-q">Is the data arriving readable and correctly formatted?</span>
+  <span class="flow-no">NO  </span><span class="layer-arrow">&rarr;</span>  <span class="flow-layer">[L6 Presentation]</span> Check encoding, compression, certificate chain, cipher suite
+  <span class="flow-yes">YES </span><span class="layer-arrow">&darr;</span>
+<span class="flow-q">Does the application behave correctly end-to-end?</span>
+  <span class="flow-no">NO  </span><span class="layer-arrow">&rarr;</span>  <span class="flow-layer">[L7 Application]</span>  Check DNS records, HTTP error codes, service config, app logs
+  <span class="flow-yes">YES </span><span class="layer-arrow">&rarr;</span>  <span class="flow-end">Not a network problem &mdash; escalate to application / server team</span></div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 18: KEY EXAM POINTS — SUMMARY TABLE
+        ============================================================ -->
+        <section class="slide" id="slide-18">
+        <div class="slide-inner">
+            <div class="slide-header">
+                <div class="slide-label">Exam Reference</div>
+                <h2 class="slide-title">Key <span class="accent">Exam Points</span></h2>
+                <p class="slide-subtitle">Layer-by-layer quick reference for N10-009</p>
+            </div>
+            <div class="slide-body">
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th>Layer</th>
+                            <th>First Thing to Check</th>
+                            <th>Key Command(s)</th>
+                            <th>Common Exam Scenario</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="layer-badge l1" style="font-size:10px;">L1 Physical</span></td>
+                            <td>Link lights and cable condition</td>
+                            <td><code>show interfaces</code></td>
+                            <td>Late collisions = duplex mismatch; CRC errors = cable fault</td>
+                        </tr>
+                        <tr>
+                            <td><span class="layer-badge l2" style="font-size:10px;">L2 Data Link</span></td>
+                            <td>VLAN assignment on the port</td>
+                            <td><code>show vlan brief</code></td>
+                            <td>Host unreachable on same switch = wrong VLAN or STP blocking</td>
+                        </tr>
+                        <tr>
+                            <td><span class="layer-badge l3" style="font-size:10px;">L3 Network</span></td>
+                            <td>IP address, subnet mask, and gateway</td>
+                            <td><code>ping</code> + <code>traceroute</code></td>
+                            <td>Can reach local but not remote = wrong mask or missing route</td>
+                        </tr>
+                        <tr>
+                            <td><span class="layer-badge l4" style="font-size:10px;">L4 Transport</span></td>
+                            <td>Port reachability from the client</td>
+                            <td><code>netstat -an</code> + <code>telnet</code></td>
+                            <td>Service runs but unreachable = firewall blocking the port</td>
+                        </tr>
+                        <tr>
+                            <td><span class="layer-badge l5" style="font-size:10px;">L5 Session</span></td>
+                            <td>Certificate validity and session timeout</td>
+                            <td><code>openssl s_client</code></td>
+                            <td>Connects then drops = VPN IKE failure or expired certificate</td>
+                        </tr>
+                        <tr>
+                            <td><span class="layer-badge l6" style="font-size:10px;">L6 Presentation</span></td>
+                            <td>Content-Encoding and certificate chain</td>
+                            <td><code>curl -v</code></td>
+                            <td>Data arrives but is garbled = encoding or cipher mismatch</td>
+                        </tr>
+                        <tr>
+                            <td><span class="layer-badge l7" style="font-size:10px;">L7 Application</span></td>
+                            <td>DNS resolution for the target name</td>
+                            <td><code>nslookup</code> + service logs</td>
+                            <td>All lower layers pass but app fails = missing DNS record or misconfigured service</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="exam-tip mt-16">
+                    <span class="tip-label">Exam Tip</span>
+                    <span class="tip-text">When a Network+ scenario question lists multiple symptoms, map each symptom to a layer using this table. The layer that explains the most symptoms is where you start. Bottom-up eliminates lower layers before you invest time in upper-layer diagnosis.</span>
+                </div>
+            </div>
+        </div>
+</section>
+
+        <!-- ============================================================
+             SLIDE 19: SUMMARY + COMPLETE
+        ============================================================ -->
+        <section class="slide" id="slide-19">
+        <div class="slide-inner">
+            <div class="slide-header">
+                <div class="slide-label">Module Complete</div>
+                <h2 class="slide-title">Summary &amp; <span class="accent">What You Learned</span></h2>
+            </div>
+            <div class="slide-body">
+                <div class="two-col">
+                    <div class="info-card" style="border-left-color:var(--accent);">
+                        <h3>Core Takeaways</h3>
+                        <ul>
+                            <li>You now have a <strong>systematic approach</strong> to troubleshoot at every OSI layer, from Physical up to Application.</li>
+                            <li><strong>Start at the bottom.</strong> The majority of real-world and exam network problems are physical: cables, connectors, duplex mismatches, PoE issues.</li>
+                            <li>The <strong>troubleshooting flowchart</strong> is your roadmap &mdash; follow it in order, do not skip layers or assume the problem is at the top.</li>
+                            <li>Each layer has a small set of <strong>definitive commands</strong> that confirm or rule it out in under 60 seconds.</li>
+                        </ul>
+                    </div>
+                    <div class="info-card" style="border-left-color:var(--accent);">
+                        <h3>Layer Signatures to Remember</h3>
+                        <ul>
+                            <li><strong>Late collisions</strong> = duplex mismatch (L1)</li>
+                            <li><strong>Port in wrong VLAN</strong> = no same-network access (L2)</li>
+                            <li><strong>169.254.x.x address</strong> = DHCP failure, APIPA fallback (L3)</li>
+                            <li><strong>Connection timeout</strong> = firewall dropping packets (L4)</li>
+                            <li><strong>Connects then drops</strong> = session or VPN issue (L5)</li>
+                            <li><strong>Garbled data</strong> = encoding mismatch (L6)</li>
+                            <li><strong>All layers pass, app fails</strong> = DNS or service config (L7)</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="complete-card mt-16">
+                    <h2>Objectives Covered</h2>
+                    <p>This module maps directly to the following CompTIA Network+ N10-009 exam objectives:</p>
+                    <div class="objectives-list">
+                        <span class="objective-badge">5.1 Troubleshooting Methodology</span>
+                        <span class="objective-badge">5.2 Cabling &amp; Physical Plant</span>
+                        <span class="objective-badge">5.3 Network Services</span>
+                        <span class="objective-badge">5.4 Performance Issues</span>
+                        <span class="objective-badge">5.5 Tools &amp; Commands</span>
+                    </div>
+                    <div style="text-align:center; margin-top:6px;">
+                        <button id="complete-btn" onclick="completeModule()">Mark Module Complete</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+</section>
+
+<!-- =====================================================================
+     NAVIGATION BAR
+     ===================================================================== -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Network+ Hub</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 19</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<!-- =====================================================================
+     PRESENTATION LOGIC
+     ===================================================================== -->
+<script>
+    /* State */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 19;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        const pct = (currentSlide / TOTAL_SLIDES) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            goToSlide(currentSlide + 1);
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            goToSlide(currentSlide - 1);
+        }
+    });
+
+    goToSlide(1);
+</script>
+
+<!-- Module completion — own script block per spec -->
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'web-osi-deep-dive', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Switch Operations Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header h1 { font-size: 1.5em; color: #fff; }
+        .header h1 span { color: #d4a843; }
+
+        .back-btn {
+            background: rgba(212, 168, 67, 0.2);
+            color: #d4a843;
+            border: 1px solid #d4a843;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.9em;
+            transition: all 0.3s;
+        }
+        .back-btn:hover { background: #d4a843; color: #fff; }
+
+        .tab-container {
+            max-width: 1400px;
+            margin: 20px auto;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            padding: 15px 30px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .tab-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .tab-btn.active {
+            background: rgba(212, 168, 67, 0.3);
+            color: #d4a843;
+            border-color: #d4a843;
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h2 {
+            color: #0f2027;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #2c5364;
+            padding-bottom: 10px;
+        }
+
+        h3 {
+            color: #203a43;
+            margin: 20px 0 15px;
+        }
+
+        /* MAC Learning Simulator Styles */
+        .mac-simulator {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 30px;
+        }
+
+        @media (max-width: 1000px) {
+            .mac-simulator {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .network-diagram {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            position: relative;
+            min-height: 400px;
+        }
+
+        .switch-visual {
+            width: 200px;
+            height: 120px;
+            background: linear-gradient(135deg, #203a43, #2c5364);
+            border-radius: 10px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-wrap: wrap;
+            padding: 10px;
+            gap: 5px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .switch-port {
+            width: 20px;
+            height: 15px;
+            background: #1e1e1e;
+            border-radius: 3px;
+            border: 1px solid #4caf50;
+            transition: all 0.3s;
+        }
+
+        .switch-port.active {
+            background: #4caf50;
+            box-shadow: 0 0 10px #4caf50;
+        }
+
+        .switch-label {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .host-device {
+            width: 80px;
+            height: 60px;
+            background: #2196f3;
+            border-radius: 10px;
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .host-device:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .host-device.sending {
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); box-shadow: 0 0 20px #4caf50; }
+        }
+
+        .host-a { top: 50px; left: 50px; }
+        .host-b { top: 50px; right: 50px; }
+        .host-c { bottom: 50px; left: 50px; }
+        .host-d { bottom: 50px; right: 50px; }
+
+        .connection-line {
+            position: absolute;
+            height: 2px;
+            background: #666;
+            transform-origin: left center;
+        }
+
+        .frame-animation {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #ff9800;
+            border-radius: 50%;
+            display: none;
+        }
+
+        .mac-table-panel {
+            background: #1e1e1e;
+            border-radius: 15px;
+            padding: 20px;
+            color: #00ff00;
+            font-family: 'Consolas', monospace;
+        }
+
+        .mac-table-panel h3 {
+            color: #00ff00;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .mac-table {
+            width: 100%;
+        }
+
+        .mac-table th, .mac-table td {
+            text-align: left;
+            padding: 8px;
+            border-bottom: 1px solid #333;
+        }
+
+        .mac-table th {
+            color: #4caf50;
+        }
+
+        .mac-entry {
+            animation: fadeInRow 0.3s ease-out;
+        }
+
+        @keyframes fadeInRow {
+            from { opacity: 0; background: rgba(76, 175, 80, 0.3); }
+            to { opacity: 1; background: transparent; }
+        }
+
+        .sim-controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .sim-btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #203a43, #2c5364);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .sim-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .sim-btn.clear {
+            background: #dc3545;
+        }
+
+        .activity-log {
+            margin-top: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 0.9em;
+            color: #888;
+        }
+
+        .activity-log .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .activity-log .log-entry.flood { color: #ff9800; }
+        .activity-log .log-entry.forward { color: #4caf50; }
+        .activity-log .log-entry.learn { color: #2196f3; }
+
+        /* Port Security Styles */
+        .security-config {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .security-config {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .config-panel {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+        }
+
+        .config-group {
+            margin-bottom: 20px;
+        }
+
+        .config-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .config-group select, .config-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        .config-group select:focus, .config-group input:focus {
+            border-color: #2c5364;
+            outline: none;
+        }
+
+        .output-panel {
+            background: #1e1e1e;
+            border-radius: 15px;
+            padding: 25px;
+            color: #00ff00;
+            font-family: 'Consolas', monospace;
+        }
+
+        .cli-output {
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .cli-comment {
+            color: #888;
+        }
+
+        .generate-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #4caf50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+
+        .generate-btn:hover {
+            transform: scale(1.02);
+        }
+
+        /* PoE Calculator Styles */
+        .poe-calculator {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .poe-calculator {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .device-list {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+        }
+
+        .poe-device {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .poe-device-info h4 {
+            color: #203a43;
+            margin-bottom: 5px;
+        }
+
+        .poe-device-info .power {
+            color: #ff5722;
+            font-weight: bold;
+        }
+
+        .poe-device-count {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .count-btn {
+            width: 35px;
+            height: 35px;
+            background: #2c5364;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .count-btn:hover {
+            background: #203a43;
+        }
+
+        .device-count {
+            font-size: 1.3em;
+            font-weight: bold;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .budget-panel {
+            background: linear-gradient(135deg, #1e1e1e, #2d2d2d);
+            border-radius: 15px;
+            padding: 25px;
+            color: white;
+        }
+
+        .budget-display {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .budget-total {
+            font-size: 3em;
+            font-weight: bold;
+            color: #4caf50;
+        }
+
+        .budget-label {
+            color: #888;
+            margin-top: 5px;
+        }
+
+        .budget-bar {
+            height: 30px;
+            background: #333;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .budget-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4caf50, #8bc34a);
+            border-radius: 15px;
+            transition: width 0.5s ease;
+        }
+
+        .budget-fill.warning {
+            background: linear-gradient(90deg, #ff9800, #ffc107);
+        }
+
+        .budget-fill.danger {
+            background: linear-gradient(90deg, #f44336, #ff5722);
+        }
+
+        .budget-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .budget-item {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .budget-item .value {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .budget-item .label {
+            color: #888;
+            font-size: 0.9em;
+        }
+
+        .switch-selector {
+            margin-bottom: 20px;
+        }
+
+        .switch-selector select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 1em;
+        }
+
+        .switch-selector option {
+            background: #1e1e1e;
+            color: white;
+        }
+
+        /* Quiz Styles */
+        .quiz-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .quiz-progress {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .progress-dots {
+            display: flex;
+            gap: 10px;
+        }
+
+        .progress-dot {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #ddd;
+            transition: all 0.3s;
+        }
+
+        .progress-dot.current {
+            background: #2c5364;
+            transform: scale(1.2);
+        }
+
+        .progress-dot.correct {
+            background: #4caf50;
+        }
+
+        .progress-dot.incorrect {
+            background: #f44336;
+        }
+
+        .quiz-score {
+            font-weight: bold;
+            color: #203a43;
+        }
+
+        .question-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+        }
+
+        .question-text {
+            font-size: 1.3em;
+            color: #203a43;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+
+        .options-list {
+            list-style: none;
+        }
+
+        .option-item {
+            padding: 15px 20px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .option-item:hover {
+            border-color: #2c5364;
+            background: #f0f7fa;
+        }
+
+        .option-item.selected {
+            border-color: #2c5364;
+            background: #e3f2fd;
+        }
+
+        .option-item.correct {
+            border-color: #4caf50;
+            background: #e8f5e9;
+        }
+
+        .option-item.incorrect {
+            border-color: #f44336;
+            background: #ffebee;
+        }
+
+        .explanation {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .explanation.show {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .explanation.correct-exp {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+        }
+
+        .explanation.incorrect-exp {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+        }
+
+        .quiz-nav {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 25px;
+        }
+
+        .quiz-btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .quiz-btn.primary {
+            background: linear-gradient(135deg, #203a43, #2c5364);
+            color: white;
+        }
+
+        .quiz-btn.secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .quiz-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .quiz-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .quiz-results {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .results-score {
+            font-size: 4em;
+            font-weight: bold;
+            color: #2c5364;
+        }
+
+        .results-message {
+            font-size: 1.5em;
+            color: #666;
+            margin: 20px 0;
+        }
+
+        .restart-btn {
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #4caf50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .restart-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .complete-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .complete-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(34, 197, 94, 0.4);
+        }
+
+        /* Guided Tutorial Overlay */
+        .tutorial-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); z-index: 9000; display: none; }
+        .tutorial-overlay.active { display: block; }
+        .tutorial-beacon { position: absolute; width: 24px; height: 24px; border-radius: 50%; background: #d4a843; z-index: 9002; cursor: pointer; animation: beacon-pulse 1.5s ease-in-out infinite; }
+        .tutorial-beacon::after { content: ''; position: absolute; inset: -8px; border-radius: 50%; border: 2px solid #d4a843; animation: beacon-ring 1.5s ease-in-out infinite; }
+        @keyframes beacon-pulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(212, 168, 67, 0.6); } 50% { transform: scale(1.2); box-shadow: 0 0 20px 8px rgba(212, 168, 67, 0.3); } }
+        @keyframes beacon-ring { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.8); opacity: 0; } }
+        .tutorial-tooltip { position: absolute; background: #0a0a14; border: 2px solid #d4a843; border-radius: 12px; padding: 16px 20px; max-width: 320px; z-index: 9003; color: #e2e8f0; box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
+        .tutorial-tooltip .tt-step { font-size: 0.7rem; color: #d4a843; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+        .tutorial-tooltip .tt-title { font-size: 1rem; font-weight: 700; color: #f1f5f9; margin-bottom: 8px; }
+        .tutorial-tooltip .tt-body { font-size: 0.85rem; color: #94a3b8; line-height: 1.5; margin-bottom: 12px; }
+        .tutorial-tooltip .tt-actions { display: flex; gap: 8px; justify-content: flex-end; }
+        .tutorial-tooltip .tt-btn { padding: 6px 16px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+        .tutorial-tooltip .tt-btn-next { background: #d4a843; color: #fff; }
+        .tutorial-tooltip .tt-btn-next:hover { background: #c49a38; }
+        .tutorial-tooltip .tt-btn-skip { background: transparent; color: #64748b; border: 1px solid rgba(255,255,255,0.1); }
+        .tutorial-tooltip .tt-btn-skip:hover { color: #94a3b8; }
+        .tutorial-highlight { position: relative; z-index: 9001 !important; box-shadow: 0 0 0 4px rgba(212, 168, 67, 0.5), 0 0 20px rgba(212, 168, 67, 0.3) !important; border-radius: 8px; }
+        .tutorial-replay { background: rgba(212,168,67,0.15); border: 1px solid rgba(212,168,67,0.4); color: #d4a843; padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; animation: tutorial-flash 2s ease-in-out infinite; letter-spacing: 0.02em; }
+        .tutorial-replay:hover { background: rgba(212,168,67,0.3); animation: none; }
+        @keyframes tutorial-flash { 0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(212,168,67,0); } 50% { opacity: 0.7; box-shadow: 0 0 12px 4px rgba(212,168,67,0.3); } }
+    </style>
+</head>
+<body>
+<div class="tutorial-overlay" id="tutorialOverlay"></div>
+<div class="tutorial-beacon" id="tutorialBeacon" style="display:none;"></div>
+<div class="tutorial-tooltip" id="tutorialTooltip" style="display:none;"></div>
+
+    <div class="header">
+        <h1>Switch Operations <span>Visualizer</span></h1>
+        <a href="../index.html" class="back-btn">Back to Network+ Hub</a>
+    </div>
+
+    <div class="tab-container">
+        <div class="tab-buttons">
+            <button class="tab-btn active" onclick="showTab('mac-sim')">MAC Learning Simulator</button>
+            <button class="tab-btn" onclick="showTab('port-security')">Port Security Config</button>
+            <button class="tab-btn" onclick="showTab('poe-calc')">PoE Calculator</button>
+            <button class="tutorial-replay" id="tutorialReplay" onclick="startTutorial()" style="display:none;">Tutorial</button>
+        </div>
+
+        <!-- MAC Learning Simulator -->
+        <div id="mac-sim" class="tab-content active">
+            <h2>MAC Address Learning Simulator</h2>
+            <p>Click on hosts to send frames and watch the MAC address table populate. Observe how switches learn SOURCE MAC addresses and make forwarding decisions.</p>
+
+            <div class="mac-simulator">
+                <div class="network-diagram" id="networkDiagram">
+                    <div class="host-device host-a" onclick="sendFrame('A')" title="Click to send frame from Host A">
+                        <div>Host A</div>
+                        <small>AA:AA:AA:AA:AA:AA</small>
+                    </div>
+                    <div class="host-device host-b" onclick="sendFrame('B')" title="Click to send frame from Host B">
+                        <div>Host B</div>
+                        <small>BB:BB:BB:BB:BB:BB</small>
+                    </div>
+                    <div class="host-device host-c" onclick="sendFrame('C')" title="Click to send frame from Host C">
+                        <div>Host C</div>
+                        <small>CC:CC:CC:CC:CC:CC</small>
+                    </div>
+                    <div class="host-device host-d" onclick="sendFrame('D')" title="Click to send frame from Host D">
+                        <div>Host D</div>
+                        <small>DD:DD:DD:DD:DD:DD</small>
+                    </div>
+                    <div class="switch-visual" id="switchVisual">
+                        <div class="switch-port" id="port1"></div>
+                        <div class="switch-port" id="port2"></div>
+                        <div class="switch-port" id="port3"></div>
+                        <div class="switch-port" id="port4"></div>
+                        <div class="switch-port"></div>
+                        <div class="switch-port"></div>
+                        <div class="switch-port"></div>
+                        <div class="switch-port"></div>
+                        <div class="switch-label">Layer 2 Switch</div>
+                    </div>
+                </div>
+
+                <div class="mac-table-panel">
+                    <h3>MAC Address Table (CAM)</h3>
+                    <table class="mac-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Port</th>
+                                <th scope="col">MAC Address</th>
+                                <th scope="col">Type</th>
+                            </tr>
+                        </thead>
+                        <tbody id="macTableBody">
+                            <tr><td colspan="3" style="color: #888; text-align: center;">Table empty - click hosts to generate traffic</td></tr>
+                        </tbody>
+                    </table>
+
+                    <div class="sim-controls">
+                        <button class="sim-btn" onclick="sendFrame('A', 'B')">A → B</button>
+                        <button class="sim-btn" onclick="sendFrame('B', 'A')">B → A</button>
+                        <button class="sim-btn" onclick="sendFrame('C', 'D')">C → D</button>
+                        <button class="sim-btn" onclick="sendBroadcast('A')">A → Broadcast</button>
+                        <button class="sim-btn clear" onclick="clearMacTable()">Clear Table</button>
+                    </div>
+
+                    <div class="activity-log" id="activityLog">
+                        <div class="log-entry">Activity log - send frames to see switch behavior</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Port Security Configuration -->
+        <div id="port-security" class="tab-content">
+            <h2>Port Security Configuration Generator</h2>
+            <p>Configure port security settings and generate the corresponding Cisco IOS commands.</p>
+
+            <div class="security-config">
+                <div class="config-panel">
+                    <div class="config-group">
+                        <label>Interface</label>
+                        <select id="psInterface">
+                            <option value="FastEthernet0/1">FastEthernet0/1</option>
+                            <option value="FastEthernet0/2">FastEthernet0/2</option>
+                            <option value="GigabitEthernet0/1">GigabitEthernet0/1</option>
+                            <option value="GigabitEthernet0/2">GigabitEthernet0/2</option>
+                        </select>
+                    </div>
+
+                    <div class="config-group">
+                        <label>Maximum MAC Addresses</label>
+                        <input type="number" id="psMaxMac" value="2" min="1" max="132">
+                    </div>
+
+                    <div class="config-group">
+                        <label>MAC Address Mode</label>
+                        <select id="psMacMode">
+                            <option value="sticky">Sticky (learn and save)</option>
+                            <option value="dynamic">Dynamic (learn, don't save)</option>
+                            <option value="static">Static (manual entry)</option>
+                        </select>
+                    </div>
+
+                    <div class="config-group" id="staticMacGroup" style="display: none;">
+                        <label>Static MAC Address (format: xxxx.xxxx.xxxx)</label>
+                        <input type="text" id="psStaticMac" placeholder="0050.56c0.0001">
+                    </div>
+
+                    <div class="config-group">
+                        <label>Violation Mode</label>
+                        <select id="psViolation">
+                            <option value="shutdown">Shutdown (default - port disabled)</option>
+                            <option value="restrict">Restrict (block traffic, log)</option>
+                            <option value="protect">Protect (block traffic, no log)</option>
+                        </select>
+                    </div>
+
+                    <div class="config-group">
+                        <label>
+                            <input type="checkbox" id="psAutoRecovery"> Enable Auto-Recovery
+                        </label>
+                    </div>
+
+                    <div class="config-group" id="recoveryInterval" style="display: none;">
+                        <label>Recovery Interval (seconds)</label>
+                        <input type="number" id="psRecoveryTime" value="300" min="30" max="3600">
+                    </div>
+
+                    <button class="generate-btn" onclick="generatePortSecurityConfig()">Generate Configuration</button>
+                </div>
+
+                <div class="output-panel">
+                    <h3 style="color: #4caf50; margin-bottom: 15px;">Cisco IOS Commands</h3>
+                    <div class="cli-output" id="psOutput">
+<span class="cli-comment">! Select options and click Generate</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PoE Calculator -->
+        <div id="poe-calc" class="tab-content">
+            <h2>Power over Ethernet Calculator</h2>
+            <p>Calculate your PoE power budget based on connected devices.</p>
+
+            <div class="poe-calculator">
+                <div class="device-list">
+                    <h3>Add Devices</h3>
+
+                    <div class="poe-device">
+                        <div class="poe-device-info">
+                            <h4>IP Phone (7941)</h4>
+                            <span class="power">6.4W per device</span>
+                        </div>
+                        <div class="poe-device-count">
+                            <button class="count-btn" onclick="adjustDevice('phone', -1)">-</button>
+                            <span class="device-count" id="phone-count">0</span>
+                            <button class="count-btn" onclick="adjustDevice('phone', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="poe-device">
+                        <div class="poe-device-info">
+                            <h4>Wireless AP (802.11ac)</h4>
+                            <span class="power">12.9W per device</span>
+                        </div>
+                        <div class="poe-device-count">
+                            <button class="count-btn" onclick="adjustDevice('ap', -1)">-</button>
+                            <span class="device-count" id="ap-count">0</span>
+                            <button class="count-btn" onclick="adjustDevice('ap', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="poe-device">
+                        <div class="poe-device-info">
+                            <h4>Security Camera (PTZ)</h4>
+                            <span class="power">25.5W per device</span>
+                        </div>
+                        <div class="poe-device-count">
+                            <button class="count-btn" onclick="adjustDevice('camera', -1)">-</button>
+                            <span class="device-count" id="camera-count">0</span>
+                            <button class="count-btn" onclick="adjustDevice('camera', 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="poe-device">
+                        <div class="poe-device-info">
+                            <h4>Digital Signage Display</h4>
+                            <span class="power">60W per device</span>
+                        </div>
+                        <div class="poe-device-count">
+                            <button class="count-btn" onclick="adjustDevice('display', -1)">-</button>
+                            <span class="device-count" id="display-count">0</span>
+                            <button class="count-btn" onclick="adjustDevice('display', 1)">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="budget-panel">
+                    <div class="switch-selector">
+                        <label style="color: #888; display: block; margin-bottom: 8px;">Select Switch Model</label>
+                        <select id="switchModel" onchange="updatePoeCalc()">
+                            <option value="370">Catalyst 2960-24 (370W PoE Budget)</option>
+                            <option value="740">Catalyst 2960-48 (740W PoE Budget)</option>
+                            <option value="1440">Catalyst 3850-48 (1440W PoE Budget)</option>
+                            <option value="125">Catalyst 2960-8 (125W PoE Budget)</option>
+                        </select>
+                    </div>
+
+                    <div class="budget-display">
+                        <div class="budget-total" id="powerUsed">0W</div>
+                        <div class="budget-label">Power Used</div>
+                    </div>
+
+                    <div class="budget-bar">
+                        <div class="budget-fill" id="budgetFill" style="width: 0%"></div>
+                    </div>
+
+                    <div class="budget-details">
+                        <div class="budget-item">
+                            <div class="value" id="totalBudget">370W</div>
+                            <div class="label">Total Budget</div>
+                        </div>
+                        <div class="budget-item">
+                            <div class="value" id="remaining">370W</div>
+                            <div class="label">Remaining</div>
+                        </div>
+                        <div class="budget-item">
+                            <div class="value" id="deviceCount">0</div>
+                            <div class="label">Devices</div>
+                        </div>
+                        <div class="budget-item">
+                            <div class="value" id="percentUsed">0%</div>
+                            <div class="label">Utilization</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Tab Navigation
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            const activeBtn = document.querySelector(`.tab-btn[onclick*="${tabId}"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+        }
+
+        // MAC Learning Simulator
+        const macTable = {};
+        const hosts = {
+            'A': { mac: 'AA:AA:AA:AA:AA:AA', port: 'Fa0/1' },
+            'B': { mac: 'BB:BB:BB:BB:BB:BB', port: 'Fa0/2' },
+            'C': { mac: 'CC:CC:CC:CC:CC:CC', port: 'Fa0/3' },
+            'D': { mac: 'DD:DD:DD:DD:DD:DD', port: 'Fa0/4' }
+        };
+
+        function sendFrame(source, dest) {
+            const sourceHost = hosts[source];
+            const destHost = dest ? hosts[dest] : null;
+
+            // Animate source
+            const sourceEl = document.querySelector(`.host-${source.toLowerCase()}`);
+            sourceEl.classList.add('sending');
+            setTimeout(() => sourceEl.classList.remove('sending'), 500);
+
+            // Light up source port
+            const portNum = parseInt(sourceHost.port.slice(-1));
+            document.getElementById(`port${portNum}`).classList.add('active');
+            setTimeout(() => document.getElementById(`port${portNum}`).classList.remove('active'), 1000);
+
+            // Learn source MAC
+            if (!macTable[sourceHost.mac]) {
+                macTable[sourceHost.mac] = sourceHost.port;
+                addLog(`LEARN: ${sourceHost.mac} on ${sourceHost.port}`, 'learn');
+                updateMacTableDisplay();
+            }
+
+            // Forward or flood
+            if (dest) {
+                if (macTable[destHost.mac]) {
+                    addLog(`FORWARD: Frame to ${destHost.mac} via ${macTable[destHost.mac]}`, 'forward');
+                    const destPortNum = parseInt(destHost.port.slice(-1));
+                    document.getElementById(`port${destPortNum}`).classList.add('active');
+                    setTimeout(() => document.getElementById(`port${destPortNum}`).classList.remove('active'), 1000);
+                } else {
+                    addLog(`FLOOD: Unknown destination ${destHost.mac} - flooding all ports`, 'flood');
+                    [1,2,3,4].forEach(p => {
+                        if (p !== portNum) {
+                            document.getElementById(`port${p}`).classList.add('active');
+                            setTimeout(() => document.getElementById(`port${p}`).classList.remove('active'), 1000);
+                        }
+                    });
+                }
+            }
+        }
+
+        function sendBroadcast(source) {
+            const sourceHost = hosts[source];
+
+            // Learn source
+            if (!macTable[sourceHost.mac]) {
+                macTable[sourceHost.mac] = sourceHost.port;
+                addLog(`LEARN: ${sourceHost.mac} on ${sourceHost.port}`, 'learn');
+                updateMacTableDisplay();
+            }
+
+            addLog(`FLOOD: Broadcast from ${source} - flooding all ports`, 'flood');
+
+            // Light all ports
+            [1,2,3,4].forEach(p => {
+                document.getElementById(`port${p}`).classList.add('active');
+                setTimeout(() => document.getElementById(`port${p}`).classList.remove('active'), 1000);
+            });
+        }
+
+        function updateMacTableDisplay() {
+            const tbody = document.getElementById('macTableBody');
+            if (Object.keys(macTable).length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="color: #888; text-align: center;">Table empty</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = Object.entries(macTable).map(([mac, port]) =>
+                `<tr class="mac-entry"><td>${port}</td><td>${mac}</td><td>Dynamic</td></tr>`
+            ).join('');
+        }
+
+        function clearMacTable() {
+            Object.keys(macTable).forEach(key => delete macTable[key]);
+            updateMacTableDisplay();
+            addLog('MAC table cleared', 'learn');
+        }
+
+        function addLog(message, type) {
+            const log = document.getElementById('activityLog');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            log.insertBefore(entry, log.firstChild);
+            if (log.children.length > 10) {
+                log.removeChild(log.lastChild);
+            }
+        }
+
+        // Port Security Configuration
+        document.getElementById('psMacMode').addEventListener('change', function() {
+            document.getElementById('staticMacGroup').style.display = this.value === 'static' ? 'block' : 'none';
+        });
+
+        document.getElementById('psAutoRecovery').addEventListener('change', function() {
+            document.getElementById('recoveryInterval').style.display = this.checked ? 'block' : 'none';
+        });
+
+        function generatePortSecurityConfig() {
+            const iface = document.getElementById('psInterface').value;
+            const maxMac = document.getElementById('psMaxMac').value;
+            const macMode = document.getElementById('psMacMode').value;
+            const violation = document.getElementById('psViolation').value;
+            const autoRecovery = document.getElementById('psAutoRecovery').checked;
+            const recoveryTime = document.getElementById('psRecoveryTime').value;
+            const staticMac = document.getElementById('psStaticMac').value;
+
+            let config = `<span class="cli-comment">! Port Security Configuration for ${iface}</span>\n`;
+            config += `Switch(config)# interface ${iface}\n`;
+            config += `Switch(config-if)# switchport mode access\n`;
+            config += `Switch(config-if)# switchport port-security\n`;
+            config += `Switch(config-if)# switchport port-security maximum ${maxMac}\n`;
+
+            if (macMode === 'sticky') {
+                config += `Switch(config-if)# switchport port-security mac-address sticky\n`;
+            } else if (macMode === 'static' && staticMac) {
+                config += `Switch(config-if)# switchport port-security mac-address ${staticMac}\n`;
+            }
+
+            config += `Switch(config-if)# switchport port-security violation ${violation}\n`;
+            config += `Switch(config-if)# exit\n`;
+
+            if (autoRecovery) {
+                config += `\n<span class="cli-comment">! Auto-recovery configuration</span>\n`;
+                config += `Switch(config)# errdisable recovery cause psecure-violation\n`;
+                config += `Switch(config)# errdisable recovery interval ${recoveryTime}\n`;
+            }
+
+            config += `\n<span class="cli-comment">! Verification commands</span>\n`;
+            config += `Switch# show port-security interface ${iface}\n`;
+            config += `Switch# show port-security address\n`;
+
+            document.getElementById('psOutput').innerHTML = config;
+        }
+
+        // PoE Calculator
+        const poeDevices = {
+            phone: { count: 0, watts: 6.4 },
+            ap: { count: 0, watts: 12.9 },
+            camera: { count: 0, watts: 25.5 },
+            display: { count: 0, watts: 60 }
+        };
+
+        function adjustDevice(device, delta) {
+            poeDevices[device].count = Math.max(0, poeDevices[device].count + delta);
+            document.getElementById(`${device}-count`).textContent = poeDevices[device].count;
+            updatePoeCalc();
+        }
+
+        function updatePoeCalc() {
+            const budget = parseInt(document.getElementById('switchModel').value);
+            let totalPower = 0;
+            let totalDevices = 0;
+
+            Object.values(poeDevices).forEach(device => {
+                totalPower += device.count * device.watts;
+                totalDevices += device.count;
+            });
+
+            const remaining = budget - totalPower;
+            const percent = (totalPower / budget) * 100;
+
+            document.getElementById('powerUsed').textContent = totalPower.toFixed(1) + 'W';
+            document.getElementById('totalBudget').textContent = budget + 'W';
+            document.getElementById('remaining').textContent = remaining.toFixed(1) + 'W';
+            document.getElementById('deviceCount').textContent = totalDevices;
+            document.getElementById('percentUsed').textContent = percent.toFixed(0) + '%';
+
+            const fill = document.getElementById('budgetFill');
+            fill.style.width = Math.min(percent, 100) + '%';
+            fill.className = 'budget-fill';
+            if (percent > 90) fill.classList.add('danger');
+            else if (percent > 70) fill.classList.add('warning');
+        }
+
+    </script>
+<div style="text-align: center; padding: 30px;">
+    <button class="complete-btn" onclick="completeModule()">Mark Complete</button>
+</div>
+<script>
+function completeModule() {
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('web', 'web-switch-operations-tool', { returnUrl: '../index.html' });
+    }
+}
+</script>
+<script>
+(function() {
+    var TUTORIAL_KEY = 'hexworth_tutorial_switchops_v1';
+    var currentStep = 0;
+    var steps = [
+        {
+            target: '.tab-btn.active',
+            title: 'Welcome to Switch Operations',
+            body: 'This tool covers the core operations of network switches: MAC learning, port security, and PoE. Let\'s take a quick tour.',
+            position: 'below'
+        },
+        {
+            target: '.tab-btn:nth-child(1)',
+            title: 'MAC Learning Simulator',
+            body: 'Click on hosts to send frames and watch the switch build its MAC address table. See flooding, forwarding, and filtering in action.',
+            position: 'below',
+            tabSwitch: 'mac-sim'
+        },
+        {
+            target: '.tab-btn:nth-child(2)',
+            title: 'Port Security Config',
+            body: 'Configure port security settings and see the IOS commands generated. Practice with violation modes: Protect, Restrict, and Shutdown.',
+            position: 'below',
+            tabSwitch: 'port-security'
+        },
+        {
+            target: '.tab-btn:nth-child(3)',
+            title: 'PoE Calculator',
+            body: 'Calculate Power over Ethernet budgets. Add devices and see how quickly you can exhaust a switch\'s power budget.',
+            position: 'below',
+            tabSwitch: 'poe-calc'
+        },
+        {
+            target: '.complete-btn',
+            title: 'Track Your Progress',
+            body: 'When you\'ve explored the tool, click Mark Complete to track it on the Network+ hub.',
+            position: 'above',
+            tabSwitch: 'mac-sim'
+        }
+    ];
+
+    function getTargetRect(selector) {
+        var el = document.querySelector(selector);
+        if (!el) return null;
+        return { el: el, rect: el.getBoundingClientRect() };
+    }
+
+    function showStep(idx) {
+        currentStep = idx;
+        var step = steps[idx];
+        if (!step) { endTutorial(); return; }
+        if (step.tabSwitch) {
+            var tabBtn = document.querySelector('.tab-btn[onclick*="' + step.tabSwitch + '"]');
+            if (tabBtn) tabBtn.click();
+        }
+        setTimeout(function() {
+            var info = getTargetRect(step.target);
+            if (!info) { nextStep(); return; }
+            var overlay = document.getElementById('tutorialOverlay');
+            var beacon = document.getElementById('tutorialBeacon');
+            var tooltip = document.getElementById('tutorialTooltip');
+            overlay.classList.add('active');
+            document.querySelectorAll('.tutorial-highlight').forEach(function(el) { el.classList.remove('tutorial-highlight'); });
+            info.el.classList.add('tutorial-highlight');
+            var r = info.rect;
+            beacon.style.display = 'block';
+            beacon.style.left = (r.left + r.width / 2 - 12) + 'px';
+            beacon.style.top = (r.top + r.height / 2 - 12) + 'px';
+            tooltip.style.display = 'block';
+            tooltip.innerHTML = '<div class="tt-step">Step ' + (idx + 1) + ' of ' + steps.length + '</div>' +
+                '<div class="tt-title">' + step.title + '</div>' +
+                '<div class="tt-body">' + step.body + '</div>' +
+                '<div class="tt-actions">' +
+                '<button class="tt-btn tt-btn-skip" onclick="skipTutorial()">Skip Tour</button>' +
+                '<button class="tt-btn tt-btn-next" onclick="nextStep()">' + (idx < steps.length - 1 ? 'Next' : 'Start Exploring') + '</button>' +
+                '</div>';
+            if (step.position === 'below') {
+                tooltip.style.left = Math.max(10, Math.min(r.left, window.innerWidth - 340)) + 'px';
+                tooltip.style.top = (r.bottom + 16) + 'px';
+            } else if (step.position === 'above') {
+                tooltip.style.left = Math.max(10, Math.min(r.left, window.innerWidth - 340)) + 'px';
+                tooltip.style.top = (r.top - tooltip.offsetHeight - 16) + 'px';
+            }
+            info.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(function() { tooltip.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 400);
+        }, 150);
+    }
+
+    function nextStep() {
+        if (currentStep < steps.length - 1) showStep(currentStep + 1);
+        else endTutorial();
+    }
+    function skipTutorial() { endTutorial(); }
+    function endTutorial() {
+        document.getElementById('tutorialOverlay').classList.remove('active');
+        document.getElementById('tutorialBeacon').style.display = 'none';
+        document.getElementById('tutorialTooltip').style.display = 'none';
+        document.querySelectorAll('.tutorial-highlight').forEach(function(el) { el.classList.remove('tutorial-highlight'); });
+        localStorage.setItem(TUTORIAL_KEY, 'done');
+        document.getElementById('tutorialReplay').style.display = 'block';
+        var firstTab = document.querySelector('.tab-btn:nth-child(1)');
+        if (firstTab) firstTab.click();
+    }
+    function startTutorial() { currentStep = 0; showStep(0); }
+    window.nextStep = nextStep;
+    window.skipTutorial = skipTutorial;
+    window.startTutorial = startTutorial;
+    document.addEventListener('DOMContentLoaded', function() {
+        if (!localStorage.getItem(TUTORIAL_KEY)) setTimeout(startTutorial, 800);
+        else document.getElementById('tutorialReplay').style.display = 'block';
+    });
+})();
+</script>
+</body>
+</html>

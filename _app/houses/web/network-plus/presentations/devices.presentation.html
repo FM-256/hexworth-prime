@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Devices | Network+ N10-009</title>
+    <style>
+        /* =====================================================
+           RESET & BASE
+           ===================================================== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* =====================================================
+           SLIDE SYSTEM — viewport-locked, no overflow
+           ===================================================== */
+        .slide {
+            display: none;
+            position: fixed;
+            inset: 0;
+            padding: 20px 28px 72px;
+            overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide-inner {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* =====================================================
+           PROGRESS BAR
+           ===================================================== */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: #3a8fd4;
+            transition: width 0.4s ease;
+            z-index: 200;
+        }
+
+        /* =====================================================
+           NAVIGATION BAR — fixed bottom
+           ===================================================== */
+        #nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            z-index: 200;
+            padding: 0 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(58, 143, 212, 0.15);
+            color: #3a8fd4;
+            border-color: #3a8fd4;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.back-btn {
+            font-size: 0.82rem;
+            padding: 8px 16px;
+        }
+
+        #slide-counter {
+            color: #64748b;
+            font-size: 0.82rem;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        #complete-btn {
+            display: none;
+            background: #3a8fd4;
+            color: #000;
+            border: none;
+            padding: 9px 26px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+
+        #complete-btn:hover {
+            background: #5aaae0;
+            transform: translateY(-1px);
+        }
+
+        /* =====================================================
+           SLIDE HEADER
+           ===================================================== */
+        .slide-meta {
+            font-size: 0.78rem;
+            color: #3a8fd4;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .slide-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            text-align: center;
+            line-height: 1.25;
+        }
+
+        .slide-title .accent { color: #3a8fd4; }
+
+        .slide-subtitle {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        /* =====================================================
+           SCENARIO STRIP
+           ===================================================== */
+        .scenario-strip {
+            background: rgba(58, 143, 212, 0.07);
+            border-left: 3px solid #3a8fd4;
+            border-radius: 0 8px 8px 0;
+            padding: 10px 16px;
+            font-size: 0.88rem;
+            color: #bfdbfe;
+            font-style: italic;
+        }
+
+        /* =====================================================
+           INFO BOXES
+           ===================================================== */
+        .box {
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.875rem;
+        }
+
+        .box-blue {
+            background: rgba(58, 143, 212, 0.08);
+            border: 1px solid rgba(58, 143, 212, 0.3);
+            color: #bfdbfe;
+        }
+
+        .box-gold {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            color: #fef3c7;
+        }
+
+        .box-red {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fee2e2;
+        }
+
+        .box-green {
+            background: rgba(58, 181, 119, 0.08);
+            border: 1px solid rgba(58, 181, 119, 0.35);
+            color: #d1fae5;
+        }
+
+        .box-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+            opacity: 0.75;
+        }
+
+        /* =====================================================
+           TITLE SLIDE
+           ===================================================== */
+        .title-hero {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .title-hero .big-title {
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: #f1f5f9;
+            line-height: 1.2;
+        }
+
+        .title-hero .big-title .blue { color: #3a8fd4; }
+
+        .title-meta-row {
+            display: flex;
+            gap: 28px;
+            justify-content: center;
+            margin-top: 6px;
+            font-size: 0.82rem;
+            color: #475569;
+        }
+
+        .title-meta-row span {
+            border-left: 2px solid #1e293b;
+            padding-left: 28px;
+        }
+
+        .title-meta-row span:first-child {
+            border-left: none;
+            padding-left: 0;
+        }
+
+        /* =====================================================
+           DEVICE CARDS — core layout unit
+           ===================================================== */
+        .device-grid {
+            display: grid;
+            gap: 8px;
+        }
+
+        .device-grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .device-grid-2 { grid-template-columns: repeat(2, 1fr); }
+        .device-grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+        .device-card {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 8px;
+            padding: 12px 14px;
+            border-left: 3px solid transparent;
+            transition: background 0.2s;
+        }
+
+        .device-card:hover { background: rgba(255, 255, 255, 0.07); }
+
+        .device-card.c-blue   { border-left-color: #3a8fd4; }
+        .device-card.c-cyan   { border-left-color: #06b6d4; }
+        .device-card.c-green  { border-left-color: #3ab577; }
+        .device-card.c-gold   { border-left-color: #fbbf24; }
+        .device-card.c-red    { border-left-color: #ef4444; }
+        .device-card.c-purple { border-left-color: #a78bfa; }
+        .device-card.c-orange { border-left-color: #fb923c; }
+
+        .dc-header {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            margin-bottom: 5px;
+        }
+
+        .dc-name {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+
+        .dc-layer {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .layer-1 { background: rgba(239, 68, 68, 0.12); color: #fca5a5; }
+        .layer-2 { background: rgba(58, 143, 212, 0.12); color: #93c5fd; }
+        .layer-3 { background: rgba(6, 182, 212, 0.12); color: #67e8f9; }
+        .layer-4 { background: rgba(58, 181, 119, 0.12); color: #86efac; }
+        .layer-7 { background: rgba(251, 191, 36, 0.12); color: #fde68a; }
+        .layer-ng { background: rgba(168, 85, 247, 0.12); color: #d8b4fe; }
+
+        .dc-function {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            line-height: 1.4;
+        }
+
+        .dc-detail {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 4px;
+            line-height: 1.35;
+        }
+
+        /* =====================================================
+           HUB vs SWITCH COMPARISON — slide 3
+           ===================================================== */
+        .compare-cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .compare-col {
+            border-radius: 8px;
+            padding: 12px 14px;
+        }
+
+        .compare-col.col-bad {
+            background: rgba(239, 68, 68, 0.06);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .compare-col.col-good {
+            background: rgba(58, 143, 212, 0.06);
+            border: 1px solid rgba(58, 143, 212, 0.2);
+        }
+
+        .compare-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 8px;
+        }
+
+        .col-bad  .compare-label { color: #f87171; }
+        .col-good .compare-label { color: #3a8fd4; }
+
+        .compare-item {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            line-height: 1.4;
+        }
+
+        .compare-item:last-child { border-bottom: none; }
+
+        /* =====================================================
+           TOPOLOGY PLACEMENT DIAGRAM — slide 10
+           ===================================================== */
+        .topo-row {
+            display: flex;
+            align-items: center;
+            gap: 0;
+        }
+
+        .topo-node {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 7px;
+            padding: 8px 14px;
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .topo-node-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #64748b;
+            margin-bottom: 2px;
+        }
+
+        .topo-node-device {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+
+        .topo-node-layer {
+            font-size: 0.68rem;
+            color: #3a8fd4;
+            margin-top: 2px;
+        }
+
+        .topo-arrow {
+            flex: 1;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.08);
+            position: relative;
+            min-width: 20px;
+        }
+
+        .topo-arrow::after {
+            content: '';
+            position: absolute;
+            right: -1px;
+            top: -4px;
+            border: 5px solid transparent;
+            border-left-color: rgba(255, 255, 255, 0.15);
+        }
+
+        /* =====================================================
+           SECTION LABEL / DIVIDER
+           ===================================================== */
+        .section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: #475569;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        /* =====================================================
+           TWO-COLUMN LAYOUT HELPER
+           ===================================================== */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        /* =====================================================
+           SUMMARY SLIDE
+           ===================================================== */
+        .summary-facts {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .fact-row {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            font-size: 0.875rem;
+        }
+
+        .fact-num {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #3a8fd4;
+            min-width: 22px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .fact-text { color: #cbd5e1; }
+
+        .fact-text code {
+            font-family: 'Courier New', monospace;
+            color: #3a8fd4;
+            background: rgba(58, 143, 212, 0.08);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+
+        .summary-scenario {
+            background: rgba(58, 143, 212, 0.07);
+            border: 1px solid rgba(58, 143, 212, 0.3);
+            border-radius: 9px;
+            padding: 14px 18px;
+            font-size: 0.875rem;
+            color: #bfdbfe;
+            line-height: 1.65;
+        }
+
+        .summary-scenario strong { color: #3a8fd4; }
+
+        /* =====================================================
+           RESPONSIVE
+           ===================================================== */
+        @media (max-height: 700px) {
+            .slide-inner { gap: 9px; }
+            .slide-title { font-size: 1.4rem; }
+            .title-hero .big-title { font-size: 1.9rem; }
+            .device-grid-3 { gap: 5px; }
+            .device-card { padding: 8px 10px; }
+        }
+
+        @media (max-width: 768px) {
+            .device-grid-3 { grid-template-columns: 1fr; }
+            .device-grid-4 { grid-template-columns: repeat(2, 1fr); }
+            .compare-cols  { grid-template-columns: 1fr; }
+            .two-col       { grid-template-columns: 1fr; }
+            .slide-title   { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Progress bar across very top -->
+<div id="progress-bar" style="width:10%"></div>
+
+<!-- =====================================================================
+     SLIDE 1 — TITLE
+     ===================================================================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 10 &nbsp;|&nbsp; N10-009 Obj 1.2 &nbsp;|&nbsp; Network Devices</div>
+
+        <div class="title-hero">
+            <div class="big-title">
+                Network Devices:<br>
+                <span class="blue">Right Tool, Right Layer, Right Position</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Every device in a network has a specific job defined by its OSI layer. Pick the wrong one and the design fails.
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            You are designing a network from scratch. For each position in the topology you need to pick the right device.
+            Router? Switch? Firewall? WAP? Each has a specific function and a specific OSI layer. Let's map every device to its role.
+        </div>
+
+        <div class="title-meta-row">
+            <span>10 Slides</span>
+            <span>N10-009 Obj 1.2</span>
+            <span>All OSI Layers</span>
+            <span>Device Placement + Function</span>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 2 — SWITCHES: L2 FORWARDING
+     ===================================================================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 10</div>
+        <div class="slide-title">Switches — <span class="accent">Layer 2 MAC-Based Forwarding</span></div>
+        <div class="slide-subtitle">A switch learns which MAC address is reachable out of which port, then makes forwarding decisions per frame.</div>
+
+        <div class="device-grid device-grid-3">
+            <div class="device-card c-blue">
+                <div class="dc-header">
+                    <span class="dc-name">Unmanaged Switch</span>
+                    <span class="dc-layer layer-2">L2</span>
+                </div>
+                <div class="dc-function">Plug-and-play. No configuration interface. Learns MACs automatically via the CAM table. Used in small offices and home networks.</div>
+                <div class="dc-detail">No VLANs, no QoS, no management port. If anything goes wrong, your only option is to replace it.</div>
+            </div>
+            <div class="device-card c-blue">
+                <div class="dc-header">
+                    <span class="dc-name">Managed Switch</span>
+                    <span class="dc-layer layer-2">L2</span>
+                </div>
+                <div class="dc-function">Full configuration via CLI or GUI. Supports VLANs, STP, port security, SNMP monitoring, QoS, and port mirroring.</div>
+                <div class="dc-detail">Every enterprise switch is managed. You cannot run a production network without visibility into your Layer 2 infrastructure.</div>
+            </div>
+            <div class="device-card c-cyan">
+                <div class="dc-header">
+                    <span class="dc-name">Layer 3 Switch</span>
+                    <span class="dc-layer layer-3">L2/L3</span>
+                </div>
+                <div class="dc-function">Performs both MAC-based switching (L2) and IP-based routing (L3) in hardware. Used at the distribution layer for inter-VLAN routing.</div>
+                <div class="dc-detail">Faster than routing through a router for east-west traffic between VLANs. Does not replace a router for WAN connectivity.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.83rem;">
+            <strong>How MAC learning works:</strong> When a frame arrives, the switch records the source MAC and the port it arrived on in the CAM table.
+            When a frame arrives destined for a known MAC, it forwards out that specific port only. Unknown destinations are flooded to all ports.
+            This is why switches are more efficient than hubs — traffic is isolated, not shared.
+        </div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            The design: managed switches at the access layer (one per floor), a Layer 3 switch at the distribution layer for inter-VLAN routing between the finance, engineering, and guest VLANs.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 3 — HUBS vs SWITCHES: WHY HUBS ARE DEAD
+     ===================================================================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 10</div>
+        <div class="slide-title">Hubs vs Switches — <span class="accent">Why Hubs Are Dead</span></div>
+        <div class="slide-subtitle">Understanding why hubs failed explains exactly what switches were designed to solve.</div>
+
+        <div class="compare-cols">
+            <div class="compare-col col-bad">
+                <div class="compare-label">Hub — Layer 1, Physical Repeater</div>
+                <div class="compare-item">Repeats every signal out every port simultaneously.</div>
+                <div class="compare-item">All ports share a single collision domain. Two devices transmitting simultaneously = collision. Both must back off and retry (CSMA/CD).</div>
+                <div class="compare-item">All ports share a single broadcast domain.</div>
+                <div class="compare-item">10 devices on a hub share the total bandwidth — 10 Mbps hub means 1 Mbps per device under load.</div>
+                <div class="compare-item">Every device can see every other device's traffic — a passive wiretap.</div>
+                <div class="compare-item">Half-duplex only — cannot send and receive simultaneously.</div>
+            </div>
+            <div class="compare-col col-good">
+                <div class="compare-label">Switch — Layer 2, Intelligent Forwarding</div>
+                <div class="compare-item">Forwards frames only to the specific destination port based on the MAC table.</div>
+                <div class="compare-item">Each port is its own collision domain. Full-duplex — no collisions.</div>
+                <div class="compare-item">Still one broadcast domain per VLAN (VLANs segment this further).</div>
+                <div class="compare-item">Each port gets dedicated bandwidth — 1 Gbps switch gives each device 1 Gbps.</div>
+                <div class="compare-item">Traffic is isolated — a device only sees frames addressed to it (or broadcasts).</div>
+                <div class="compare-item">Full-duplex on every port simultaneously.</div>
+            </div>
+        </div>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            <strong>When would you see a hub on the exam?</strong> Network tap scenarios and packet capture questions. An attacker connecting to a hub-based segment can see all traffic — this is historically why switched networks and port security exist. Hubs also appear in questions about CSMA/CD, collision domains, and half-duplex.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 4 — ROUTERS: L3 IP FORWARDING
+     ===================================================================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 10</div>
+        <div class="slide-title">Routers — <span class="accent">Layer 3 IP-Based Forwarding</span></div>
+        <div class="slide-subtitle">A router connects different networks. It makes forwarding decisions based on IP destination address and the routing table.</div>
+
+        <div class="device-grid device-grid-3">
+            <div class="device-card c-cyan">
+                <div class="dc-header">
+                    <span class="dc-name">Routing Table</span>
+                    <span class="dc-layer layer-3">L3</span>
+                </div>
+                <div class="dc-function">The router's decision engine. Each entry: destination network, subnet mask, next-hop IP or exit interface, and metric (cost). Longest prefix match wins.</div>
+                <div class="dc-detail">Populated by static routes, directly connected routes, or dynamic routing protocols (OSPF, EIGRP, BGP).</div>
+            </div>
+            <div class="device-card c-cyan">
+                <div class="dc-header">
+                    <span class="dc-name">Broadcast Domain Segmentation</span>
+                    <span class="dc-layer layer-3">L3</span>
+                </div>
+                <div class="dc-function">Routers do not forward broadcast traffic by default. Every routed interface is a separate broadcast domain. This is how the network scales — broadcasts stay contained.</div>
+                <div class="dc-detail">Switches forward broadcasts to all ports in a VLAN. Routers stop them at the boundary.</div>
+            </div>
+            <div class="device-card c-cyan">
+                <div class="dc-header">
+                    <span class="dc-name">WAN / Internet Gateway</span>
+                    <span class="dc-layer layer-3">L3</span>
+                </div>
+                <div class="dc-function">The router connects your internal network to the ISP. Typically performs NAT (Network Address Translation) to map private internal addresses to a public IP.</div>
+                <div class="dc-detail">In small offices the router and the firewall are often the same device. In enterprise they are always separate.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.83rem;">
+            <strong>Switch vs Router — the critical distinction:</strong> A switch forwards based on Layer 2 MAC addresses within a network.
+            A router forwards based on Layer 3 IP addresses between networks. Both are necessary — switches for local delivery,
+            routers for cross-network delivery.
+        </div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            The design needs one router at the edge connecting to the ISP. Inter-VLAN traffic stays on the Layer 3 switch (faster, keeps traffic local). Only traffic destined for the Internet or remote sites hits the router.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 5 — FIREWALLS
+     ===================================================================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 10</div>
+        <div class="slide-title">Firewalls — <span class="accent">Stateful Inspection, NGFW, UTM</span></div>
+        <div class="slide-subtitle">A firewall enforces policy on traffic crossing a network boundary. The generation determines how deeply it inspects.</div>
+
+        <div class="device-grid device-grid-3">
+            <div class="device-card c-red">
+                <div class="dc-header">
+                    <span class="dc-name">Packet Filter (Legacy)</span>
+                    <span class="dc-layer layer-3">L3/L4</span>
+                </div>
+                <div class="dc-function">Examines each packet in isolation: source/destination IP, source/destination port, protocol. Stateless — does not track connections.</div>
+                <div class="dc-detail">Cannot distinguish a legitimate TCP response from an unsolicited inbound packet. ACL-based routers behave this way.</div>
+            </div>
+            <div class="device-card c-red">
+                <div class="dc-header">
+                    <span class="dc-name">Stateful Firewall</span>
+                    <span class="dc-layer layer-4">L3/L4</span>
+                </div>
+                <div class="dc-function">Tracks the state of TCP/UDP connections in a state table. Knows whether a packet is part of an established session or an unexpected inbound attempt. The standard for decades.</div>
+                <div class="dc-detail">Allows return traffic automatically without explicit permit rules. Does not inspect application-layer content.</div>
+            </div>
+            <div class="device-card c-gold">
+                <div class="dc-header">
+                    <span class="dc-name">NGFW / UTM</span>
+                    <span class="dc-layer layer-7">L7</span>
+                </div>
+                <div class="dc-function">Next-Generation Firewall: adds deep packet inspection (DPI), application awareness, IPS, TLS inspection, and user identity awareness.</div>
+                <div class="dc-detail">UTM (Unified Threat Management) bundles firewall + IPS + antivirus + web filtering + VPN in one appliance. Common in mid-market. NGFW is the enterprise term.</div>
+            </div>
+        </div>
+
+        <div class="two-col">
+            <div class="device-card c-red" style="padding:11px 14px;">
+                <div class="dc-header">
+                    <span class="dc-name">Host-Based Firewall</span>
+                    <span class="dc-layer layer-4">Software</span>
+                </div>
+                <div class="dc-function" style="font-size:0.78rem;">Runs on the endpoint (Windows Firewall, iptables). Protects the individual host. Does not protect the network — but adds a layer inside the perimeter. Defense in depth.</div>
+            </div>
+            <div class="device-card c-gold" style="padding:11px 14px;">
+                <div class="dc-header">
+                    <span class="dc-name">DMZ Architecture</span>
+                    <span class="dc-layer layer-3">Design</span>
+                </div>
+                <div class="dc-function" style="font-size:0.78rem;">Demilitarized zone — a third firewall interface segment for public-facing servers (web, email, DNS). Traffic from the Internet reaches the DMZ but cannot directly reach the internal LAN. Two firewalls create a true DMZ.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 6 — WIRELESS APs
+     ===================================================================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 10</div>
+        <div class="slide-title">Wireless Access Points — <span class="accent">Autonomous vs Controller-Based</span></div>
+        <div class="slide-subtitle">A WAP bridges wireless clients onto the wired network. The management architecture determines how you deploy and maintain them.</div>
+
+        <div class="compare-cols">
+            <div class="compare-col col-bad">
+                <div class="compare-label">Autonomous (Fat) AP</div>
+                <div class="compare-item">All configuration lives on the AP itself.</div>
+                <div class="compare-item">Each AP managed individually via web GUI or CLI. Fine for 1-5 APs.</div>
+                <div class="compare-item">Changing the SSID or security policy across 50 APs requires 50 separate logins.</div>
+                <div class="compare-item">No centralized roaming — client roams by dropping one AP and associating with another. Noticeable disruption for voice calls.</div>
+                <div class="compare-item">Typical in small offices and home environments.</div>
+            </div>
+            <div class="compare-col col-good">
+                <div class="compare-label">Controller-Based (Thin) AP</div>
+                <div class="compare-item">AP (thin AP or LAP) has minimal local config — most processing happens on the Wireless LAN Controller (WLC).</div>
+                <div class="compare-item">Single pane of glass management for all APs. Push one policy change to every AP simultaneously.</div>
+                <div class="compare-item">Seamless roaming — the WLC manages client handoff between APs without reassociation. Required for voice and video.</div>
+                <div class="compare-item">Centralized RF management, rogue AP detection, and band steering.</div>
+                <div class="compare-item">Standard for enterprise deployments. WLC can be physical appliance or cloud-managed (Meraki, Aruba Central).</div>
+            </div>
+        </div>
+
+        <div class="box box-blue" style="font-size:0.83rem;">
+            <strong>The design:</strong> Controller-based APs (Cisco or Aruba) with a WLC — 40+ APs in the new office cannot be managed individually.
+            Cloud-managed is acceptable if on-premise IT staffing is limited. Autonomous APs only for the server room console access point (one AP, no roaming requirement).
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 7 — IDS/IPS, PROXY, LOAD BALANCER
+     ===================================================================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 10</div>
+        <div class="slide-title">IDS/IPS, Proxy Servers, <span class="accent">and Load Balancers</span></div>
+        <div class="slide-subtitle">Three devices that sit in-line or adjacent to traffic flows and add inspection, filtering, or distribution capability.</div>
+
+        <div class="device-grid device-grid-3">
+            <div class="device-card c-red">
+                <div class="dc-header">
+                    <span class="dc-name">IDS — Intrusion Detection</span>
+                    <span class="dc-layer layer-7">L3-L7</span>
+                </div>
+                <div class="dc-function">Passive. Receives a copy of traffic (via SPAN/TAP). Analyzes it against signature rules and behavioral baselines. Generates alerts. Takes no blocking action.</div>
+                <div class="dc-detail">Advantage: zero impact on traffic if the IDS fails. Disadvantage: by the time an alert fires, the traffic has already been delivered.</div>
+            </div>
+            <div class="device-card c-red">
+                <div class="dc-header">
+                    <span class="dc-name">IPS — Intrusion Prevention</span>
+                    <span class="dc-layer layer-7">L3-L7</span>
+                </div>
+                <div class="dc-function">Inline. All traffic flows through the IPS. Can drop, block, or reset connections in real time. Same detection capabilities as IDS but with enforcement authority.</div>
+                <div class="dc-detail">Risk: false positives can block legitimate traffic. A failed IPS can take down the network — most support a fail-open or fail-closed bypass mode.</div>
+            </div>
+            <div class="device-card c-purple">
+                <div class="dc-header">
+                    <span class="dc-name">Proxy Server</span>
+                    <span class="dc-layer layer-7">L7</span>
+                </div>
+                <div class="dc-function">Acts as an intermediary for client requests. Forward proxy: sits between internal clients and the Internet — caches content, enforces web filtering policy. Reverse proxy: sits in front of servers — load balances, terminates TLS, hides server identity.</div>
+                <div class="dc-detail">Transparent proxy: clients are unaware. Explicit proxy: clients are configured to use it (browser proxy settings).</div>
+            </div>
+        </div>
+
+        <div class="device-grid device-grid-2" style="margin-top:0;">
+            <div class="device-card c-green">
+                <div class="dc-header">
+                    <span class="dc-name">Load Balancer</span>
+                    <span class="dc-layer layer-4">L4 / L7</span>
+                </div>
+                <div class="dc-function">Distributes incoming connections across a pool of servers. Layer 4 (TCP/IP) for raw throughput distribution. Layer 7 (HTTP) for content-aware routing — send API requests to one pool, web requests to another. Also provides health monitoring and automatic failover.</div>
+            </div>
+            <div class="device-card c-orange">
+                <div class="dc-header">
+                    <span class="dc-name">VPN Concentrator</span>
+                    <span class="dc-layer layer-3">L3</span>
+                </div>
+                <div class="dc-function">Terminates a large number of VPN tunnels from remote users or branch offices. Handles crypto offload at scale — a router can terminate a few VPNs, a concentrator terminates thousands. Supports IPsec, SSL/TLS VPN, split tunneling.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 8 — MODEMS AND MEDIA CONVERTERS
+     ===================================================================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 10</div>
+        <div class="slide-title">Modems, Media Converters, <span class="accent">and Edge Devices</span></div>
+        <div class="slide-subtitle">The devices where your internal network hands off to something external — a different medium or a different carrier.</div>
+
+        <div class="device-grid device-grid-3">
+            <div class="device-card c-blue">
+                <div class="dc-header">
+                    <span class="dc-name">Modem</span>
+                    <span class="dc-layer layer-1">L1/L2</span>
+                </div>
+                <div class="dc-function">Modulates and demodulates signals between digital data and the analog or frequency-division format used on cable, DSL, or fiber ISP lines. Converts between mediums at the carrier boundary.</div>
+                <div class="dc-detail">Cable modem (DOCSIS): coax to Ethernet. DSL modem: telephone pair to Ethernet. ONT (Optical Network Terminal): fiber ISP to Ethernet. The ISP owns the modem/ONT in most deployments.</div>
+            </div>
+            <div class="device-card c-cyan">
+                <div class="dc-header">
+                    <span class="dc-name">Media Converter</span>
+                    <span class="dc-layer layer-1">L1</span>
+                </div>
+                <div class="dc-function">Converts between two different physical media types at Layer 1 — typically copper Ethernet to fiber. No MAC address, no routing decision. Pure signal conversion. Used when you need to extend a run beyond copper's 100m limit using existing fiber.</div>
+                <div class="dc-detail">Example: 1000BASE-T copper (RJ45) to 1000BASE-SX fiber (LC). Runs in both directions simultaneously.</div>
+            </div>
+            <div class="device-card c-green">
+                <div class="dc-header">
+                    <span class="dc-name">Wireless Range Extender</span>
+                    <span class="dc-layer layer-2">L2</span>
+                </div>
+                <div class="dc-function">Receives the existing Wi-Fi signal and rebroadcasts it. Extends coverage without a new wired connection. Cuts effective bandwidth roughly in half — it both receives and transmits on the same channel.</div>
+                <div class="dc-detail">Not a replacement for proper AP placement with a wired backhaul. A legitimate second WAP on a wired drop is always the better solution.</div>
+            </div>
+        </div>
+
+        <div class="device-grid device-grid-2">
+            <div class="device-card c-gold">
+                <div class="dc-header">
+                    <span class="dc-name">CSU/DSU</span>
+                    <span class="dc-layer layer-1">L1</span>
+                </div>
+                <div class="dc-function">Channel Service Unit / Data Service Unit. Terminates a WAN line (T1, T3) at the customer premises. Converts between the WAN signal and the serial interface on the router. Legacy WAN — still tested on N10-009 for historical context.</div>
+            </div>
+            <div class="device-card c-purple">
+                <div class="dc-header">
+                    <span class="dc-name">Patch Panel</span>
+                    <span class="dc-layer layer-1">L1 (passive)</span>
+                </div>
+                <div class="dc-function">A passive cross-connect panel in the IDF/MDF. Horizontal runs terminate on the back. Patch cables on the front connect to switch ports. Provides a clean, organized, change-friendly interface between permanent cable runs and active equipment.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 9 — DEVICE PLACEMENT IN THE TOPOLOGY
+     ===================================================================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 10</div>
+        <div class="slide-title">Device Placement — <span class="accent">Where Each Device Lives</span></div>
+        <div class="slide-subtitle">Every device has a position in the topology that reflects its OSI layer and its traffic function.</div>
+
+        <div class="device-grid device-grid-2">
+            <div class="device-card c-blue">
+                <div class="sc-name" style="font-size:0.88rem; font-weight:700; color:#f1f5f9; margin-bottom:5px;">Access Layer</div>
+                <div class="dc-function">Where end devices connect. Managed Layer 2 switches, wireless APs (wired to switch). PoE delivered here. Port security enforced here. VLANs defined here.</div>
+            </div>
+            <div class="device-card c-cyan">
+                <div class="sc-name" style="font-size:0.88rem; font-weight:700; color:#f1f5f9; margin-bottom:5px;">Distribution Layer</div>
+                <div class="dc-function">Aggregates access layer switches. Layer 3 switch for inter-VLAN routing. Implements routing policy and QoS. Redundant uplinks to the core.</div>
+            </div>
+            <div class="device-card c-green">
+                <div class="sc-name" style="font-size:0.88rem; font-weight:700; color:#f1f5f9; margin-bottom:5px;">Core Layer</div>
+                <div class="dc-function">High-speed backbone. No packet filtering, no complex policy — just fast forwarding. Layer 3 switches or routers optimized for throughput. Redundant links only.</div>
+            </div>
+            <div class="device-card c-red">
+                <div class="sc-name" style="font-size:0.88rem; font-weight:700; color:#f1f5f9; margin-bottom:5px;">Edge / Perimeter</div>
+                <div class="dc-function">Where the internal network meets the Internet. Firewall (NGFW), WAN router, VPN concentrator, IPS, and DMZ reside here. Everything from the Internet must pass through this zone.</div>
+            </div>
+            <div class="device-card c-purple">
+                <div class="sc-name" style="font-size:0.88rem; font-weight:700; color:#f1f5f9; margin-bottom:5px;">DMZ</div>
+                <div class="dc-function">A third firewall interface segment. Public-facing servers (web, email, DNS) live here. Reachable from the Internet, isolated from the internal LAN. Compromise of a DMZ server does not grant LAN access.</div>
+            </div>
+            <div class="device-card c-gold">
+                <div class="sc-name" style="font-size:0.88rem; font-weight:700; color:#f1f5f9; margin-bottom:5px;">Out-of-Band Management</div>
+                <div class="dc-function">Dedicated management network physically separate from production traffic. Console servers, IPMI/iDRAC, and management switch ports. When the production network fails, OOB lets you still reach every device.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            The completed design: access-layer managed switches (PoE+) feeding a distribution-layer L3 switch, feeding a core router at the edge. NGFW between the core and Internet. WAPs at access layer, IPS inline at the edge, VPN concentrator in the DMZ alongside the public web server.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 10 — SUMMARY + COMPLETE
+     ===================================================================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 10 &nbsp;|&nbsp; N10-009 Obj 1.2</div>
+        <div class="slide-title">You Can Place Every Device Correctly</div>
+
+        <div class="summary-scenario">
+            The design spec: access-layer managed switches (Layer 2) for end devices, a Layer 3 distribution switch for inter-VLAN routing,
+            an edge router for WAN connectivity, an NGFW at the perimeter, controller-based WAPs with a WLC, IPS inline at the edge,
+            a load balancer in front of the web server pool, and a VPN concentrator in the DMZ.
+            <strong>Every device maps to an OSI layer and a position in the topology.</strong> No device is placed by intuition — each one has a justifiable function.
+        </div>
+
+        <div class="section-label">6 Facts to Carry Out of This Presentation</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Switch = Layer 2, MAC-based forwarding. Router = Layer 3, IP-based forwarding. These two are never interchangeable.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Hubs are dead because they create a single collision domain and broadcast all traffic to every port — no isolation, no security.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Stateful firewall tracks TCP session state. NGFW adds deep packet inspection and application-layer awareness.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">IDS = passive monitoring (alerts only). IPS = inline enforcement (blocks in real time). Failure modes differ — plan accordingly.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Controller-based WAPs (thin APs + WLC) are required at enterprise scale. Autonomous APs cannot support seamless roaming.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text"><code>Access = L2 switches</code> &nbsp; <code>Distribution = L3 switches</code> &nbsp; <code>Core = high-speed backbone</code> &nbsp; <code>Edge = firewall + router</code></span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     NAVIGATION BAR
+     ===================================================================== -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Network+ Hub</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 10</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<!-- =====================================================================
+     PRESENTATION LOGIC
+     ===================================================================== -->
+<script>
+    /* State */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 10;
+
+    /* Navigate to a specific slide number (1-indexed) */
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update progress bar */
+        const pct = (currentSlide / TOTAL_SLIDES) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+
+        /* Update counter */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Update nav button states */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show complete button only on the final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard navigation — arrow keys only */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            goToSlide(currentSlide + 1);
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            goToSlide(currentSlide - 1);
+        }
+    });
+
+    /* Initialize on load */
+    goToSlide(1);
+</script>
+
+<!-- Module completion — own script block per spec -->
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'web-devices', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FHRP | Network+ N10-009</title>
+    <style>
+        /* =====================================================
+           RESET & BASE
+           ===================================================== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* =====================================================
+           SLIDE SYSTEM — viewport-locked, no overflow
+           ===================================================== */
+        .slide {
+            display: none;
+            position: fixed;
+            inset: 0;
+            padding: 20px 28px 72px;
+            overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Inner wrapper — constrains content width */
+        .slide-inner {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* =====================================================
+           PROGRESS BAR
+           ===================================================== */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: #3ab577;
+            transition: width 0.4s ease;
+            z-index: 200;
+        }
+
+        /* =====================================================
+           NAVIGATION BAR — fixed bottom
+           ===================================================== */
+        #nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            z-index: 200;
+            padding: 0 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(58, 181, 119, 0.15);
+            color: #3ab577;
+            border-color: #3ab577;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.back-btn {
+            font-size: 0.82rem;
+            padding: 8px 16px;
+        }
+
+        #slide-counter {
+            color: #64748b;
+            font-size: 0.82rem;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        #complete-btn {
+            display: none;
+            background: #3ab577;
+            color: #000;
+            border: none;
+            padding: 9px 26px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+
+        #complete-btn:hover {
+            background: #4fcf8a;
+            transform: translateY(-1px);
+        }
+
+        /* =====================================================
+           SLIDE HEADER — shared across all slides
+           ===================================================== */
+        .slide-meta {
+            font-size: 0.78rem;
+            color: #3ab577;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .slide-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            text-align: center;
+            line-height: 1.25;
+        }
+
+        .slide-title .accent      { color: #3ab577; }
+        .slide-title .accent-cyan { color: #06b6d4; }
+
+        .slide-subtitle {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        /* =====================================================
+           SCENARIO STRIP — recurring narrative thread
+           ===================================================== */
+        .scenario-strip {
+            background: rgba(58, 181, 119, 0.08);
+            border-left: 3px solid #3ab577;
+            border-radius: 0 8px 8px 0;
+            padding: 10px 16px;
+            font-size: 0.88rem;
+            color: #a7f3d0;
+            font-style: italic;
+        }
+
+        /* =====================================================
+           INFO / WARNING / TIP BOXES
+           ===================================================== */
+        .box {
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.875rem;
+        }
+
+        .box-green {
+            background: rgba(58, 181, 119, 0.08);
+            border: 1px solid rgba(58, 181, 119, 0.35);
+            color: #d1fae5;
+        }
+
+        .box-cyan {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            color: #cffafe;
+        }
+
+        .box-gold {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            color: #fef3c7;
+        }
+
+        .box-red {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fee2e2;
+        }
+
+        .box-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+            opacity: 0.75;
+        }
+
+        /* =====================================================
+           LAYOUT HELPERS
+           ===================================================== */
+        .section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: #475569;
+        }
+
+        .col-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .col-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        /* =====================================================
+           SLIDE 1 — TITLE
+           ===================================================== */
+        .title-hero {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .big-title {
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: #f1f5f9;
+            line-height: 1.2;
+        }
+
+        .big-title .green { color: #3ab577; }
+        .big-title .cyan  { color: #06b6d4; }
+
+        .title-meta-row {
+            display: flex;
+            gap: 28px;
+            justify-content: center;
+            margin-top: 6px;
+            font-size: 0.82rem;
+            color: #475569;
+        }
+
+        .title-meta-row span {
+            border-left: 2px solid #1e293b;
+            padding-left: 28px;
+        }
+
+        .title-meta-row span:first-child {
+            border-left: none;
+            padding-left: 0;
+        }
+
+        /* =====================================================
+           COMPARISON CARDS
+           ===================================================== */
+        .cmp-card {
+            border-radius: 8px;
+            padding: 12px 14px;
+            font-size: 0.85rem;
+        }
+
+        .cmp-card.cmp-green { background: rgba(58, 181, 119, 0.07);  border: 1px solid rgba(58, 181, 119, 0.28); }
+        .cmp-card.cmp-cyan  { background: rgba(6, 182, 212, 0.07);   border: 1px solid rgba(6, 182, 212, 0.28); }
+        .cmp-card.cmp-gold  { background: rgba(251, 191, 36, 0.07);  border: 1px solid rgba(251, 191, 36, 0.28); }
+        .cmp-card.cmp-red   { background: rgba(239, 68, 68, 0.07);   border: 1px solid rgba(239, 68, 68, 0.28); }
+
+        .cmp-head {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 6px;
+        }
+
+        .cmp-card.cmp-green .cmp-head { color: #3ab577; }
+        .cmp-card.cmp-cyan  .cmp-head { color: #06b6d4; }
+        .cmp-card.cmp-gold  .cmp-head { color: #fbbf24; }
+        .cmp-card.cmp-red   .cmp-head { color: #f87171; }
+
+        .cmp-body { color: #cbd5e1; line-height: 1.5; }
+
+        /* =====================================================
+           GATEWAY DIAGRAM
+           ===================================================== */
+        .gw-diagram {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .gw-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .gw-box {
+            border-radius: 8px;
+            padding: 9px 16px;
+            text-align: center;
+            font-size: 0.82rem;
+            min-width: 130px;
+        }
+
+        .gw-box.gw-active  { background: rgba(58, 181, 119, 0.12); border: 2px solid #3ab577; }
+        .gw-box.gw-standby { background: rgba(255, 255, 255, 0.04); border: 2px solid rgba(255, 255, 255, 0.15); }
+        .gw-box.gw-virtual { background: rgba(6, 182, 212, 0.12);  border: 2px solid #06b6d4; }
+        .gw-box.gw-clients { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); }
+
+        .gw-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+        .gw-box.gw-active  .gw-label { color: #3ab577; }
+        .gw-box.gw-standby .gw-label { color: #64748b; }
+        .gw-box.gw-virtual .gw-label { color: #06b6d4; }
+        .gw-box.gw-clients .gw-label { color: #475569; }
+
+        .gw-ip {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        .gw-box.gw-active  .gw-ip { color: #3ab577; }
+        .gw-box.gw-standby .gw-ip { color: #475569; }
+        .gw-box.gw-virtual .gw-ip { color: #06b6d4; }
+        .gw-box.gw-clients .gw-ip { color: #94a3b8; }
+
+        .gw-arrow { color: #334155; font-size: 1.1rem; }
+
+        /* =====================================================
+           FAILOVER TIMELINE
+           ===================================================== */
+        .failover-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .fo-step {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            padding: 7px 12px;
+            border-radius: 6px;
+            font-size: 0.84rem;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .fo-time {
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            color: #3ab577;
+            min-width: 55px;
+            font-weight: 700;
+        }
+
+        .fo-event { color: #f1f5f9; font-weight: 700; min-width: 160px; }
+        .fo-detail { color: #64748b; font-size: 0.8rem; }
+
+        /* =====================================================
+           COMPARISON TABLE
+           ===================================================== */
+        .compare-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.83rem;
+        }
+
+        .compare-table thead th {
+            background: rgba(255, 255, 255, 0.05);
+            color: #64748b;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .compare-table tbody td {
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            color: #cbd5e1;
+        }
+
+        .compare-table tbody tr:hover td { background: rgba(255, 255, 255, 0.03); }
+
+        .td-feature { color: #f1f5f9; font-weight: 600; }
+        .td-hsrp    { color: #3ab577; }
+        .td-vrrp    { color: #06b6d4; }
+        .td-glbp    { color: #fbbf24; }
+
+        /* =====================================================
+           SUMMARY
+           ===================================================== */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+
+        .fact-row {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            font-size: 0.875rem;
+        }
+
+        .fact-num {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #3ab577;
+            min-width: 22px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .fact-text { color: #cbd5e1; }
+
+        .fact-text code {
+            font-family: 'Courier New', monospace;
+            color: #06b6d4;
+            background: rgba(6, 182, 212, 0.08);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+
+        .summary-scenario {
+            background: rgba(58, 181, 119, 0.07);
+            border: 1px solid rgba(58, 181, 119, 0.3);
+            border-radius: 9px;
+            padding: 14px 18px;
+            font-size: 0.875rem;
+            color: #a7f3d0;
+            line-height: 1.65;
+        }
+
+        .summary-scenario strong { color: #3ab577; }
+
+        /* =====================================================
+           RESPONSIVE — compact on shorter viewports
+           ===================================================== */
+        @media (max-height: 700px) {
+            .slide-inner   { gap: 9px; }
+            .slide-title   { font-size: 1.4rem; }
+            .big-title     { font-size: 1.9rem; }
+            .fo-step       { padding: 5px 10px; }
+            .gw-box        { padding: 7px 12px; }
+        }
+
+        @media (max-width: 768px) {
+            .col-2         { grid-template-columns: 1fr; }
+            .col-3         { grid-template-columns: 1fr; }
+            .gw-row        { flex-direction: column; }
+            .slide-title   { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Progress bar across very top -->
+<div id="progress-bar" style="width:12.5%"></div>
+
+<!-- =====================================================================
+     SLIDE 1 — TITLE
+     ===================================================================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 8 &nbsp;|&nbsp; N10-009 Obj 2.4 &nbsp;|&nbsp; High Availability</div>
+
+        <div class="title-hero">
+            <div class="big-title">
+                <span class="green">FHRP</span> — First Hop<br>
+                Redundancy Protocols
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                One virtual gateway. Multiple physical routers. Automatic failover.
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Your default gateway router fails. 500 users lose internet access because their gateway IP is gone.
+            FHRP gives you a virtual IP that survives router failure — automatic failover with no client reconfiguration.
+        </div>
+
+        <div class="title-meta-row">
+            <span>8 Slides</span>
+            <span>N10-009 Obj 2.4</span>
+            <span>HSRP / VRRP / GLBP</span>
+            <span>High Availability</span>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 2 — THE SINGLE POINT OF FAILURE PROBLEM
+     ===================================================================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 8</div>
+        <div class="slide-title">The <span class="accent">Single Point of Failure</span> Problem</div>
+        <div class="slide-subtitle">Every client hard-codes one default gateway. That is the problem.</div>
+
+        <div class="col-2">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="box box-red">
+                    <div class="box-label">Without FHRP</div>
+                    Every device on the subnet has one gateway configured: 10.0.0.1.
+                    That IP belongs to Router A — one physical interface on one device.
+                    Router A fails at 2 AM. 10.0.0.1 is gone.
+                    All 500 clients stop routing. No internet, no inter-VLAN, nothing.
+                    They will not recover until someone manually changes 500 devices or Router A comes back.
+                </div>
+
+                <div class="box box-green">
+                    <div class="box-label">With FHRP</div>
+                    Clients configure the virtual IP: 10.0.0.1.
+                    That IP is shared between Router A (active) and Router B (standby).
+                    It does not belong to either physical interface.
+                    Router A fails. Router B detects the failure within seconds and assumes the virtual IP.
+                    Clients never know. No reconfiguration. Seamless.
+                </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px; align-items:center; justify-content:center;">
+                <div class="gw-diagram">
+                    <div class="gw-row">
+                        <div class="gw-box gw-virtual">
+                            <div class="gw-label">Virtual Gateway</div>
+                            <div class="gw-ip">10.0.0.1</div>
+                        </div>
+                    </div>
+                    <div class="gw-arrow">|</div>
+                    <div class="gw-row" style="gap:18px;">
+                        <div class="gw-box gw-active">
+                            <div class="gw-label">Router A (Active)</div>
+                            <div class="gw-ip">10.0.0.2</div>
+                        </div>
+                        <div class="gw-box gw-standby">
+                            <div class="gw-label">Router B (Standby)</div>
+                            <div class="gw-ip">10.0.0.3</div>
+                        </div>
+                    </div>
+                    <div class="gw-arrow">|</div>
+                    <div class="gw-box gw-clients">
+                        <div class="gw-label">500 Clients</div>
+                        <div class="gw-ip">gateway: 10.0.0.1</div>
+                    </div>
+                </div>
+
+                <!-- SVG: clients send traffic to virtual IP → active router → internet -->
+                <svg id="vip-svg" viewBox="0 0 260 160" width="260" height="160" style="margin-top:4px; overflow:visible;">
+                    <defs>
+                        <filter id="vip-glow" x="-50%" y="-50%" width="200%" height="200%">
+                            <feGaussianBlur stdDeviation="3" result="blur"/>
+                            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                        </filter>
+                        <!-- Client to VIP paths -->
+                        <path id="vip-c1-vip" d="M 30,40 L 120,80"  fill="none"/>
+                        <path id="vip-c2-vip" d="M 30,80 L 120,80"  fill="none"/>
+                        <path id="vip-c3-vip" d="M 30,120 L 120,80" fill="none"/>
+                        <!-- Active router to internet -->
+                        <path id="vip-ra-inet" d="M 160,60 L 235,40" fill="none"/>
+                    </defs>
+
+                    <!-- Links -->
+                    <line x1="30" y1="40" x2="120" y2="80" stroke="#1e3a5f" stroke-width="1.5"/>
+                    <line x1="30" y1="80" x2="120" y2="80" stroke="#1e3a5f" stroke-width="1.5"/>
+                    <line x1="30" y1="120" x2="120" y2="80" stroke="#1e3a5f" stroke-width="1.5"/>
+                    <line x1="120" y1="80" x2="160" y2="60" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4,3"/>
+                    <line x1="160" y1="60" x2="235" y2="40" stroke="#1e3a5f" stroke-width="1.5"/>
+                    <line x1="120" y1="80" x2="160" y2="100" stroke="#334155" stroke-width="1.5" stroke-dasharray="4,3"/>
+
+                    <!-- Client PCs -->
+                    <rect x="10" y="28" width="38" height="24" rx="4" fill="#1e293b" stroke="#3a8fd4" stroke-width="1.5"/>
+                    <text x="29" y="44" fill="#94a3b8" font-size="8" text-anchor="middle">PC1</text>
+                    <rect x="10" y="68" width="38" height="24" rx="4" fill="#1e293b" stroke="#3a8fd4" stroke-width="1.5"/>
+                    <text x="29" y="84" fill="#94a3b8" font-size="8" text-anchor="middle">PC2</text>
+                    <rect x="10" y="108" width="38" height="24" rx="4" fill="#1e293b" stroke="#3a8fd4" stroke-width="1.5"/>
+                    <text x="29" y="124" fill="#94a3b8" font-size="8" text-anchor="middle">PC3</text>
+
+                    <!-- Virtual IP cloud -->
+                    <circle cx="120" cy="80" r="18" fill="#1a2744" stroke="#a78bfa" stroke-width="2" stroke-dasharray="5,3"/>
+                    <text x="120" y="77" fill="#a78bfa" font-size="7" text-anchor="middle">VIP</text>
+                    <text x="120" y="87" fill="#a78bfa" font-size="7" text-anchor="middle">10.0.0.1</text>
+
+                    <!-- Router A (Active) -->
+                    <rect x="148" y="46" width="50" height="30" rx="5" fill="#1e293b" stroke="#22c55e" stroke-width="2" id="vip-ra"/>
+                    <text x="173" y="59" fill="#22c55e" font-size="8" font-weight="bold" text-anchor="middle">Router A</text>
+                    <text x="173" y="70" fill="#94a3b8" font-size="7" text-anchor="middle">Active</text>
+
+                    <!-- Router B (Standby) -->
+                    <rect x="148" y="86" width="50" height="30" rx="5" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+                    <text x="173" y="99" fill="#94a3b8" font-size="8" text-anchor="middle">Router B</text>
+                    <text x="173" y="110" fill="#475569" font-size="7" text-anchor="middle">Standby</text>
+
+                    <!-- Internet box -->
+                    <rect x="218" y="25" width="38" height="28" rx="5" fill="#1e293b" stroke="#3a8fd4" stroke-width="1.5"/>
+                    <text x="237" y="38" fill="#3a8fd4" font-size="8" text-anchor="middle">Internet</text>
+                    <text x="237" y="48" fill="#64748b" font-size="7" text-anchor="middle">ISP</text>
+
+                    <!-- Animated traffic dots — client to VIP -->
+                    <circle r="4" fill="#a78bfa" opacity="0" filter="url(#vip-glow)">
+                        <animate attributeName="opacity" values="0;1;1;0" dur="1.0s" begin="0.2s" repeatCount="indefinite"/>
+                        <animateMotion dur="1.0s" begin="0.2s" repeatCount="indefinite"><mpath href="#vip-c1-vip"/></animateMotion>
+                    </circle>
+                    <circle r="4" fill="#a78bfa" opacity="0" filter="url(#vip-glow)">
+                        <animate attributeName="opacity" values="0;1;1;0" dur="1.0s" begin="0.6s" repeatCount="indefinite"/>
+                        <animateMotion dur="1.0s" begin="0.6s" repeatCount="indefinite"><mpath href="#vip-c2-vip"/></animateMotion>
+                    </circle>
+                    <circle r="4" fill="#a78bfa" opacity="0" filter="url(#vip-glow)">
+                        <animate attributeName="opacity" values="0;1;1;0" dur="1.0s" begin="1.0s" repeatCount="indefinite"/>
+                        <animateMotion dur="1.0s" begin="1.0s" repeatCount="indefinite"><mpath href="#vip-c3-vip"/></animateMotion>
+                    </circle>
+
+                    <!-- Animated traffic dots — Router A to internet -->
+                    <circle r="4" fill="#22c55e" opacity="0" filter="url(#vip-glow)">
+                        <animate attributeName="opacity" values="0;1;1;0" dur="0.9s" begin="0.8s" repeatCount="indefinite"/>
+                        <animateMotion dur="0.9s" begin="0.8s" repeatCount="indefinite"><mpath href="#vip-ra-inet"/></animateMotion>
+                    </circle>
+                    <circle r="4" fill="#22c55e" opacity="0" filter="url(#vip-glow)">
+                        <animate attributeName="opacity" values="0;1;1;0" dur="0.9s" begin="1.4s" repeatCount="indefinite"/>
+                        <animateMotion dur="0.9s" begin="1.4s" repeatCount="indefinite"><mpath href="#vip-ra-inet"/></animateMotion>
+                    </circle>
+                </svg>
+
+                <div style="font-size:0.78rem; color:#475569; text-align:center;">
+                    Clients always target the virtual IP.<br>
+                    Physical router IPs are irrelevant to them.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 3 — HSRP
+     ===================================================================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 8</div>
+        <div class="slide-title"><span class="accent">HSRP</span> — Hot Standby Router Protocol</div>
+        <div class="slide-subtitle">Cisco proprietary. Active/standby model. The most common exam protocol.</div>
+
+        <div class="col-2">
+            <div style="display:flex; flex-direction:column; gap:9px;">
+                <div class="cmp-card cmp-green">
+                    <div class="cmp-head">How HSRP Works</div>
+                    <div class="cmp-body">
+                        One router is elected <strong>Active</strong> — it owns the virtual IP and virtual MAC, forwards all traffic.<br>
+                        One router is <strong>Standby</strong> — listens for hellos from the Active, ready to take over.<br>
+                        <br>
+                        <strong>Hello timer:</strong> default 3 seconds — how often Active sends hellos<br>
+                        <strong>Hold timer:</strong> default 10 seconds — how long Standby waits before declaring Active dead<br>
+                        Failover happens within hold timer seconds of Active failure.
+                    </div>
+                </div>
+                <div class="cmp-card cmp-gold">
+                    <div class="cmp-head">Priority + Preemption</div>
+                    <div class="cmp-body">
+                        <strong>Priority:</strong> 0–255. Higher wins the Active election. Default is 100.<br>
+                        Set Router A to priority 110 to ensure it stays Active.<br>
+                        <strong>Preemption:</strong> must be explicitly enabled. Without it, if Router A fails and
+                        Router B takes over, Router A will NOT reclaim Active when it returns —
+                        even with higher priority. With preemption enabled, Router A reclaims immediately.
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:9px;">
+                <div class="box box-cyan">
+                    <div class="box-label">HSRP Virtual MAC</div>
+                    HSRP uses a well-known virtual MAC: <span style="font-family:'Courier New',monospace; color:#06b6d4;">0000.0C07.ACxx</span>
+                    where xx is the HSRP group number in hex.
+                    Group 1 = 0000.0C07.AC01. Clients ARP for the virtual IP and get this virtual MAC.
+                    When failover occurs, the new Active responds to ARPs with the same virtual MAC —
+                    no ARP table update required on clients.
+                </div>
+                <div class="box box-green">
+                    <div class="box-label">HSRP Versions</div>
+                    <strong>HSRPv1:</strong> 255 groups, multicast 224.0.0.2, UDP 1985<br>
+                    <strong>HSRPv2:</strong> 4096 groups, multicast 224.0.0.102, improved millisecond timers<br>
+                    Versions are not interoperable on the same group — both routers must match.
+                </div>
+                <div class="box box-gold" style="font-size:0.82rem;">
+                    Exam tip: HSRP is Cisco proprietary. If the question specifies "open standard," the answer is VRRP.
+                    If the question asks about load balancing across gateways, the answer is GLBP.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 4 — VRRP
+     ===================================================================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 8</div>
+        <div class="slide-title"><span class="accent">VRRP</span> — Virtual Router Redundancy Protocol</div>
+        <div class="slide-subtitle">Open standard (RFC 5798). Works on any vendor. Master/backup model.</div>
+
+        <div class="col-2">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="cmp-card cmp-cyan">
+                    <div class="cmp-head">VRRP vs HSRP Differences</div>
+                    <div class="cmp-body">
+                        VRRP uses <strong>Master</strong> (not Active) and <strong>Backup</strong> (not Standby) — same concept, different names.<br>
+                        <br>
+                        Key difference: the Master router's real IP <em>can be</em> the virtual IP.
+                        No separate virtual IP is required if you use the Master's physical IP as the VIP.
+                        HSRP always requires a distinct virtual IP.<br>
+                        <br>
+                        <strong>Advertisement interval:</strong> default 1 second (faster than HSRP's 3s)<br>
+                        <strong>Master down interval:</strong> 3 x advert interval + skew time<br>
+                        Multicast: 224.0.0.18 | Protocol: IP protocol 112
+                    </div>
+                </div>
+                <div class="box box-cyan">
+                    <div class="box-label">Virtual MAC</div>
+                    VRRP virtual MAC: <span style="font-family:'Courier New',monospace; color:#06b6d4;">00-00-5E-00-01-xx</span>
+                    where xx is the VRRP group (VRID) in hex.
+                    Same concept as HSRP — clients ARP for the VIP and get the virtual MAC regardless of which physical router currently holds Master role.
+                </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="box box-green">
+                    <div class="box-label">When to Choose VRRP</div>
+                    Multi-vendor environment — Cisco ASA + Juniper SRX + Palo Alto.
+                    HSRP only runs on Cisco. VRRP runs on everything.
+                    RFC 5798 (VRRPv3) also supports IPv6 natively.
+                    Any new deployment not locked into Cisco should default to VRRP.
+                </div>
+                <div class="cmp-card cmp-gold">
+                    <div class="cmp-head">Priority + Preemption</div>
+                    <div class="cmp-body">
+                        Priority: 1–254. Default 100. Higher wins Master election.<br>
+                        Priority 255 is reserved for the router that owns the virtual IP address physically.<br>
+                        <strong>Preemption is enabled by default in VRRP</strong> — opposite of HSRP where you must explicitly enable it.
+                        A returning high-priority router will automatically reclaim Master.
+                    </div>
+                </div>
+                <div class="box box-gold" style="font-size:0.82rem;">
+                    VRRP preemption is ON by default. HSRP preemption is OFF by default.
+                    This difference appears on CompTIA exams. Know it.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 5 — GLBP
+     ===================================================================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 8</div>
+        <div class="slide-title"><span class="accent">GLBP</span> — Gateway Load Balancing Protocol</div>
+        <div class="slide-subtitle">Cisco proprietary. The only FHRP that actively distributes traffic across multiple gateways.</div>
+
+        <div class="col-2">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="cmp-card cmp-gold">
+                    <div class="cmp-head">How GLBP Differs</div>
+                    <div class="cmp-body">
+                        HSRP and VRRP: one router forwards, the rest idle. Standby routers sit unused.<br>
+                        <br>
+                        GLBP: <strong>all routers forward simultaneously.</strong>
+                        One virtual IP is shared but each router gets its own virtual MAC.
+                        When a client ARPs for the virtual IP, the AVG (Active Virtual Gateway) assigns
+                        a different virtual MAC to each client using round-robin or weighted load balancing.
+                        Client A uses Router A's MAC. Client B uses Router B's MAC.
+                        Both gateways carry traffic simultaneously.
+                    </div>
+                </div>
+                <div class="cmp-card cmp-green">
+                    <div class="cmp-head">GLBP Roles</div>
+                    <div class="cmp-body">
+                        <strong>AVG (Active Virtual Gateway):</strong> owns the virtual IP, responds to ARPs,
+                        assigns virtual MACs to other routers. One per group.<br>
+                        <br>
+                        <strong>AVF (Active Virtual Forwarder):</strong> each router in the group.
+                        Each AVF has its own virtual MAC and forwards traffic for the clients assigned to it.
+                        Up to 4 AVFs per GLBP group.
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="box box-cyan">
+                    <div class="box-label">Load Balancing Methods</div>
+                    <strong>Round-robin:</strong> assigns virtual MACs in rotation. Equal distribution.<br>
+                    <strong>Weighted:</strong> assigns more MACs to higher-weighted routers. Proportional distribution.<br>
+                    <strong>Host-dependent:</strong> same client always gets the same virtual MAC. Useful for stateful applications.
+                </div>
+                <div class="box box-gold">
+                    <div class="box-label">When to Choose GLBP</div>
+                    Multiple gateway routers with spare capacity that is currently idle.
+                    High-traffic environments where one active gateway is a throughput bottleneck.
+                    Cisco-only environment — GLBP is proprietary, no open-standard equivalent.
+                </div>
+                <div class="box box-red" style="font-size:0.82rem;">
+                    GLBP virtual MAC format: <span style="font-family:'Courier New',monospace; color:#f87171;">0007.B4xx.xxyy</span>
+                    where xx.xx is the group number and yy is the AVF number.
+                    The AVG assigns each AVF's MAC to clients via ARP replies.
+                </div>
+
+                <!-- SVG: GLBP load balancing — 3 clients, 3 routers, all forwarding simultaneously -->
+                <svg id="glbp-svg" viewBox="0 0 240 150" width="240" height="150" style="overflow:visible;">
+                    <defs>
+                        <filter id="glbp-glow" x="-50%" y="-50%" width="200%" height="200%">
+                            <feGaussianBlur stdDeviation="3" result="blur"/>
+                            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                        </filter>
+                        <!-- Client to router paths -->
+                        <path id="glbp-c1-r1" d="M 38,28 L 135,28"  fill="none"/>
+                        <path id="glbp-c2-r2" d="M 38,75 L 135,75"  fill="none"/>
+                        <path id="glbp-c3-r3" d="M 38,122 L 135,122" fill="none"/>
+                        <!-- Router to internet -->
+                        <path id="glbp-r1-inet" d="M 185,28 L 225,60"  fill="none"/>
+                        <path id="glbp-r2-inet" d="M 185,75 L 225,70"  fill="none"/>
+                        <path id="glbp-r3-inet" d="M 185,122 L 225,80" fill="none"/>
+                    </defs>
+
+                    <!-- Internet cloud -->
+                    <circle cx="225" cy="70" r="14" fill="#1a2744" stroke="#3a8fd4" stroke-width="1.5"/>
+                    <text x="225" y="68" fill="#3a8fd4" font-size="7" text-anchor="middle">Inter-</text>
+                    <text x="225" y="77" fill="#3a8fd4" font-size="7" text-anchor="middle">net</text>
+
+                    <!-- VIP label -->
+                    <text x="135" y="8" fill="#fbbf24" font-size="8" text-anchor="middle">VIP: 10.0.0.1 (shared)</text>
+
+                    <!-- Client PCs -->
+                    <rect x="10" y="16" width="36" height="22" rx="4" fill="#1e293b" stroke="#22d3ee" stroke-width="1.5"/>
+                    <text x="28" y="31" fill="#94a3b8" font-size="8" text-anchor="middle">PC1</text>
+                    <rect x="10" y="63" width="36" height="22" rx="4" fill="#1e293b" stroke="#a78bfa" stroke-width="1.5"/>
+                    <text x="28" y="78" fill="#94a3b8" font-size="8" text-anchor="middle">PC2</text>
+                    <rect x="10" y="110" width="36" height="22" rx="4" fill="#1e293b" stroke="#fb923c" stroke-width="1.5"/>
+                    <text x="28" y="125" fill="#94a3b8" font-size="8" text-anchor="middle">PC3</text>
+
+                    <!-- Router 1 (AVF1) — cyan -->
+                    <rect x="120" y="14" width="52" height="28" rx="5" fill="#1e293b" stroke="#22d3ee" stroke-width="2"/>
+                    <text x="146" y="26" fill="#22d3ee" font-size="8" font-weight="bold" text-anchor="middle">Router A</text>
+                    <text x="146" y="37" fill="#64748b" font-size="7" text-anchor="middle">AVF1+AVG</text>
+
+                    <!-- Router 2 (AVF2) — purple -->
+                    <rect x="120" y="61" width="52" height="28" rx="5" fill="#1e293b" stroke="#a78bfa" stroke-width="2"/>
+                    <text x="146" y="73" fill="#a78bfa" font-size="8" font-weight="bold" text-anchor="middle">Router B</text>
+                    <text x="146" y="84" fill="#64748b" font-size="7" text-anchor="middle">AVF2</text>
+
+                    <!-- Router 3 (AVF3) — orange -->
+                    <rect x="120" y="108" width="52" height="28" rx="5" fill="#1e293b" stroke="#fb923c" stroke-width="2"/>
+                    <text x="146" y="120" fill="#fb923c" font-size="8" font-weight="bold" text-anchor="middle">Router C</text>
+                    <text x="146" y="131" fill="#64748b" font-size="7" text-anchor="middle">AVF3</text>
+
+                    <!-- Animated packets — each client to its assigned router (different colors = load balancing) -->
+                    <circle r="4" fill="#22d3ee" opacity="0" filter="url(#glbp-glow)">
+                        <animate attributeName="opacity" values="0;1;1;0" dur="1.0s" begin="0s" repeatCount="indefinite"/>
+                        <animateMotion dur="1.0s" begin="0s" repeatCount="indefinite"><mpath href="#glbp-c1-r1"/></animateMotion>
+                    </circle>
+                    <circle r="4" fill="#a78bfa" opacity="0" filter="url(#glbp-glow)">
+                        <animate attributeName="opacity" values="0;1;1;0" dur="1.0s" begin="0.33s" repeatCount="indefinite"/>
+                        <animateMotion dur="1.0s" begin="0.33s" repeatCount="indefinite"><mpath href="#glbp-c2-r2"/></animateMotion>
+                    </circle>
+                    <circle r="4" fill="#fb923c" opacity="0" filter="url(#glbp-glow)">
+                        <animate attributeName="opacity" values="0;1;1;0" dur="1.0s" begin="0.66s" repeatCount="indefinite"/>
+                        <animateMotion dur="1.0s" begin="0.66s" repeatCount="indefinite"><mpath href="#glbp-c3-r3"/></animateMotion>
+                    </circle>
+
+                    <!-- Router to internet traffic -->
+                    <circle r="3" fill="#22d3ee" opacity="0">
+                        <animate attributeName="opacity" values="0;1;0" dur="0.9s" begin="0.7s" repeatCount="indefinite"/>
+                        <animateMotion dur="0.9s" begin="0.7s" repeatCount="indefinite"><mpath href="#glbp-r1-inet"/></animateMotion>
+                    </circle>
+                    <circle r="3" fill="#a78bfa" opacity="0">
+                        <animate attributeName="opacity" values="0;1;0" dur="0.9s" begin="1.0s" repeatCount="indefinite"/>
+                        <animateMotion dur="0.9s" begin="1.0s" repeatCount="indefinite"><mpath href="#glbp-r2-inet"/></animateMotion>
+                    </circle>
+                    <circle r="3" fill="#fb923c" opacity="0">
+                        <animate attributeName="opacity" values="0;1;0" dur="0.9s" begin="1.3s" repeatCount="indefinite"/>
+                        <animateMotion dur="0.9s" begin="1.3s" repeatCount="indefinite"><mpath href="#glbp-r3-inet"/></animateMotion>
+                    </circle>
+
+                    <!-- "All forwarding" label -->
+                    <text x="120" y="148" fill="#22c55e" font-size="8" text-anchor="middle">All 3 routers active simultaneously</text>
+                </svg>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 6 — VIRTUAL IP + MAC CONCEPT
+     ===================================================================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 8</div>
+        <div class="slide-title">Virtual <span class="accent">IP + MAC</span> — How It Actually Works</div>
+        <div class="slide-subtitle">Clients talk to the virtual MAC, not the router's real MAC.</div>
+
+        <div class="col-2">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="box box-green">
+                    <div class="box-label">Normal ARP Process (No FHRP)</div>
+                    Client needs to send traffic to internet. Destination is outside subnet — use gateway.<br>
+                    Client ARPs: "Who has 10.0.0.1?" Router A replies: "I do. My MAC is AA:BB:CC:DD:EE:01."<br>
+                    Client caches that mapping. Traffic flows via Router A's real MAC.
+                    Router A fails. ARP entry expires. Client re-ARPs. No reply. Connection dies.
+                </div>
+                <div class="box box-cyan">
+                    <div class="box-label">FHRP ARP Process</div>
+                    Client ARPs: "Who has 10.0.0.1?" Active/Master router replies with the <strong>virtual MAC</strong> — not its real MAC.<br>
+                    Client caches: 10.0.0.1 = virtual MAC (e.g., 0000.0C07.AC01 for HSRP group 1).<br>
+                    Router A fails. Router B takes over and now responds to ARPs using the same virtual MAC.
+                    Client's ARP cache still valid. Traffic flows without interruption. Client never knows.
+                </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="cmp-card cmp-green">
+                    <div class="cmp-head">Gratuitous ARP on Failover</div>
+                    <div class="cmp-body">
+                        When the new Active takes over, it sends a <strong>gratuitous ARP</strong> —
+                        an unsolicited ARP reply advertising the virtual IP/MAC mapping.
+                        This forces immediate update of ARP caches on all devices in the subnet,
+                        including switches (which update their MAC address tables to point to the new physical port).
+                        No waiting for ARP entries to expire.
+                    </div>
+                </div>
+                <div class="box box-gold">
+                    <div class="box-label">Why Separate Virtual MACs Matter</div>
+                    Switches maintain MAC address tables mapping MAC addresses to physical ports.
+                    Without virtual MACs, the switch would need to relearn which port the real MAC is on after failover.
+                    With virtual MACs, the gratuitous ARP updates the switch table to point the virtual MAC to the new
+                    physical port. Failover is sub-second for frames already on the wire.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 7 — FAILOVER PROCESS + CONFIG BASICS
+     ===================================================================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 8</div>
+        <div class="slide-title">Failover Process + <span class="accent">Configuration Basics</span></div>
+        <div class="slide-subtitle">What happens second-by-second when the active gateway fails.</div>
+
+        <div class="col-2">
+            <div style="display:flex; flex-direction:column; gap:9px;">
+                <div class="section-label">HSRP Failover Timeline</div>
+                <div class="failover-steps">
+                    <div class="fo-step">
+                        <span class="fo-time">T=0</span>
+                        <span class="fo-event">Router A fails</span>
+                        <span class="fo-detail">Power loss, link down, or hardware fault — hello packets stop transmitting</span>
+                    </div>
+                    <div class="fo-step">
+                        <span class="fo-time">T=0 to 10s</span>
+                        <span class="fo-event">Hold timer counts down</span>
+                        <span class="fo-detail">Router B expects a hello every 3s. After 10s of silence, it declares Active dead</span>
+                    </div>
+                    <div class="fo-step">
+                        <span class="fo-time">T=10s</span>
+                        <span class="fo-event">Router B transitions to Active</span>
+                        <span class="fo-detail">Assumes virtual IP and virtual MAC. Sends gratuitous ARP to update all caches</span>
+                    </div>
+                    <div class="fo-step">
+                        <span class="fo-time">T=10s+</span>
+                        <span class="fo-event">Traffic resumes</span>
+                        <span class="fo-detail">Clients traffic now flows through Router B. TCP sessions that were mid-flight are dropped — must reconnect</span>
+                    </div>
+                    <div class="fo-step">
+                        <span class="fo-time">Recovery</span>
+                        <span class="fo-event">Router A returns</span>
+                        <span class="fo-detail">Without preemption: Router B stays Active. With preemption enabled: Router A reclaims Active (higher priority wins)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SVG: failover sequence — active goes red, standby turns green, gARP broadcast, traffic shifts -->
+            <div style="display:flex; flex-direction:column; gap:9px;">
+                <svg id="fo-svg" viewBox="0 0 240 150" width="240" height="148" style="overflow:visible;">
+                    <defs>
+                        <filter id="fo-glow-r" x="-50%" y="-50%" width="200%" height="200%">
+                            <feGaussianBlur stdDeviation="4" result="blur"/>
+                            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                        </filter>
+                        <filter id="fo-glow-g" x="-50%" y="-50%" width="200%" height="200%">
+                            <feGaussianBlur stdDeviation="4" result="blur"/>
+                            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                        </filter>
+                        <!-- Traffic paths: client to each router, gratuitous ARP broadcast -->
+                        <path id="fo-p-c-ra"  d="M 35,75 L 110,50"  fill="none"/>
+                        <path id="fo-p-c-rb"  d="M 35,75 L 110,100" fill="none"/>
+                        <path id="fo-p-garp1" d="M 110,100 L 35,50"  fill="none"/>
+                        <path id="fo-p-garp2" d="M 110,100 L 180,50" fill="none"/>
+                    </defs>
+
+                    <!-- Client -->
+                    <rect x="8" y="60" width="44" height="28" rx="5" fill="#1e293b" stroke="#3a8fd4" stroke-width="1.5"/>
+                    <text x="30" y="75" fill="#94a3b8" font-size="9" text-anchor="middle">Clients</text>
+                    <text x="30" y="85" fill="#475569" font-size="7" text-anchor="middle">→ VIP</text>
+
+                    <!-- Router A -->
+                    <rect x="96" y="33" width="56" height="32" rx="6" fill="#1e293b" id="fo-ra-box" stroke="#ef4444" stroke-width="2.5"/>
+                    <text x="124" y="47" fill="#ef4444" font-size="9" font-weight="bold" text-anchor="middle" id="fo-ra-lbl">Router A</text>
+                    <text x="124" y="59" fill="#64748b" font-size="8" text-anchor="middle" id="fo-ra-state">FAILED</text>
+
+                    <!-- Router B -->
+                    <rect x="96" y="83" width="56" height="32" rx="6" fill="#1e293b" id="fo-rb-box" stroke="#475569" stroke-width="2"/>
+                    <text x="124" y="97" fill="#94a3b8" font-size="9" font-weight="bold" text-anchor="middle" id="fo-rb-lbl">Router B</text>
+                    <text x="124" y="109" fill="#64748b" font-size="8" text-anchor="middle" id="fo-rb-state">Standby</text>
+
+                    <!-- Internet -->
+                    <rect x="170" y="33" width="52" height="32" rx="5" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+                    <text x="196" y="52" fill="#475569" font-size="9" text-anchor="middle">Internet</text>
+
+                    <!-- Router A fail pulse (X mark) -->
+                    <text x="124" y="51" fill="#ef4444" font-size="14" text-anchor="middle" id="fo-fail-x" opacity="0">&#x2717;</text>
+
+                    <!-- Gratuitous ARP label -->
+                    <text id="fo-garp-lbl" x="100" y="145" fill="#fbbf24" font-size="8" text-anchor="middle" opacity="0">Gratuitous ARP broadcast</text>
+
+                    <!-- Active traffic dot — initially going to Router A -->
+                    <circle id="fo-dot-ra" r="4" fill="#22d3ee" opacity="0">
+                        <animate attributeName="opacity" values="0;1;1;0" dur="0.9s" begin="0s" repeatCount="indefinite"/>
+                        <animateMotion dur="0.9s" begin="0s" repeatCount="indefinite"><mpath href="#fo-p-c-ra"/></animateMotion>
+                    </circle>
+
+                    <!-- Post-failover traffic dot — going to Router B -->
+                    <circle id="fo-dot-rb" r="4" fill="#22c55e" opacity="0">
+                        <animateMotion dur="0.9s" begin="indefinite" repeatCount="indefinite"><mpath href="#fo-p-c-rb"/></animateMotion>
+                    </circle>
+
+                    <!-- gARP packets -->
+                    <circle id="fo-garp-dot1" r="3.5" fill="#fbbf24" opacity="0">
+                        <animateMotion dur="0.8s" begin="indefinite"><mpath href="#fo-p-garp1"/></animateMotion>
+                    </circle>
+                    <circle id="fo-garp-dot2" r="3.5" fill="#fbbf24" opacity="0">
+                        <animateMotion dur="0.8s" begin="indefinite"><mpath href="#fo-p-garp2"/></animateMotion>
+                    </circle>
+
+                    <!-- Status label -->
+                    <text id="fo-status" x="120" y="130" fill="#94a3b8" font-size="8" text-anchor="middle">Normal operation — Router A forwarding</text>
+                </svg>
+
+                <script>
+                /* Failover animator: cycles through normal → failure → hold timer → takeover → gARP → normal */
+                (function() {
+                    var phases = [
+                        {
+                            label: 'Normal: Router A is Active, forwarding traffic',
+                            raStroke: '#22c55e', raState: 'Active', raLbl: '#22c55e',
+                            rbStroke: '#475569', rbState: 'Standby', rbLbl: '#94a3b8',
+                            showDotRA: true, showDotRB: false, showFailX: false,
+                            showGARP: false, labelColor: '#94a3b8',
+                            dur: 2200
+                        },
+                        {
+                            label: 'T=0: Router A fails — Hellos stop',
+                            raStroke: '#ef4444', raState: 'FAILED', raLbl: '#ef4444',
+                            rbStroke: '#475569', rbState: 'Standby', rbLbl: '#94a3b8',
+                            showDotRA: false, showDotRB: false, showFailX: true,
+                            showGARP: false, labelColor: '#ef4444',
+                            dur: 1800
+                        },
+                        {
+                            label: 'Hold timer expires — Router B declares Active dead',
+                            raStroke: '#ef4444', raState: 'FAILED', raLbl: '#ef4444',
+                            rbStroke: '#f59e0b', rbState: 'Waiting...', rbLbl: '#f59e0b',
+                            showDotRA: false, showDotRB: false, showFailX: true,
+                            showGARP: false, labelColor: '#f59e0b',
+                            dur: 1500
+                        },
+                        {
+                            label: 'Router B transitions to Active — sends gratuitous ARP',
+                            raStroke: '#ef4444', raState: 'FAILED', raLbl: '#ef4444',
+                            rbStroke: '#22c55e', rbState: 'Active', rbLbl: '#22c55e',
+                            showDotRA: false, showDotRB: false, showFailX: false,
+                            showGARP: true, labelColor: '#fbbf24',
+                            dur: 1800,
+                            fireGARP: true
+                        },
+                        {
+                            label: 'Traffic resumes via Router B — transparent to clients',
+                            raStroke: '#ef4444', raState: 'FAILED', raLbl: '#ef4444',
+                            rbStroke: '#22c55e', rbState: 'Active', rbLbl: '#22c55e',
+                            showDotRA: false, showDotRB: true, showFailX: false,
+                            showGARP: false, labelColor: '#22c55e',
+                            dur: 2200
+                        }
+                    ];
+
+                    function applyPhase(p) {
+                        var raBox = document.getElementById('fo-ra-box');
+                        var rbBox = document.getElementById('fo-rb-box');
+                        var raState = document.getElementById('fo-ra-state');
+                        var rbState = document.getElementById('fo-rb-state');
+                        var raLbl = document.getElementById('fo-ra-lbl');
+                        var rbLbl = document.getElementById('fo-rb-lbl');
+                        var dotRA = document.getElementById('fo-dot-ra');
+                        var dotRB = document.getElementById('fo-dot-rb');
+                        var failX = document.getElementById('fo-fail-x');
+                        var garpLbl = document.getElementById('fo-garp-lbl');
+                        var status = document.getElementById('fo-status');
+
+                        if (raBox) raBox.setAttribute('stroke', p.raStroke);
+                        if (rbBox) rbBox.setAttribute('stroke', p.rbStroke);
+                        if (raState) { raState.textContent = p.raState; raState.setAttribute('fill', p.raLbl); }
+                        if (rbState) { rbState.textContent = p.rbState; rbState.setAttribute('fill', p.rbLbl); }
+                        if (raLbl) raLbl.setAttribute('fill', p.raLbl);
+                        if (rbLbl) rbLbl.setAttribute('fill', p.rbLbl);
+                        if (dotRA) dotRA.setAttribute('opacity', p.showDotRA ? '1' : '0');
+                        if (dotRB) {
+                            if (p.showDotRB) {
+                                dotRB.setAttribute('opacity', '1');
+                                dotRB.querySelectorAll('animateMotion, animate').forEach(function(a) { a.beginElement(); });
+                            } else {
+                                dotRB.setAttribute('opacity', '0');
+                            }
+                        }
+                        if (failX) failX.setAttribute('opacity', p.showFailX ? '1' : '0');
+                        if (garpLbl) garpLbl.setAttribute('opacity', p.showGARP ? '1' : '0');
+                        if (status) { status.textContent = p.label; status.setAttribute('fill', p.labelColor); }
+
+                        if (p.fireGARP) {
+                            var g1 = document.getElementById('fo-garp-dot1');
+                            var g2 = document.getElementById('fo-garp-dot2');
+                            if (g1) { g1.setAttribute('opacity','1'); g1.querySelectorAll('animateMotion').forEach(function(a) { a.beginElement(); }); setTimeout(function() { if(g1) g1.setAttribute('opacity','0'); }, 900); }
+                            if (g2) { g2.setAttribute('opacity','1'); g2.querySelectorAll('animateMotion').forEach(function(a) { a.beginElement(); }); setTimeout(function() { if(g2) g2.setAttribute('opacity','0'); }, 900); }
+                        }
+                    }
+
+                    var idx = 0;
+                    function nextPhase() {
+                        applyPhase(phases[idx]);
+                        var d = phases[idx].dur;
+                        idx = (idx + 1) % phases.length;
+                        setTimeout(nextPhase, d);
+                    }
+                    setTimeout(nextPhase, 500);
+                })();
+                </script>
+
+                <div class="box box-green">
+                    <div class="box-label">HSRP Config Example (Cisco IOS)</div>
+                    <div style="font-family:'Courier New',monospace; font-size:0.8rem; line-height:1.7; color:#a7f3d0;">
+                        <span style="color:#3ab577">interface GigabitEthernet0/0</span><br>
+                        &nbsp;ip address 10.0.0.2 255.255.255.0<br>
+                        &nbsp;<span style="color:#fbbf24">standby 1 ip 10.0.0.1</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#475569">! VIP</span><br>
+                        &nbsp;<span style="color:#fbbf24">standby 1 priority 110</span>&nbsp;&nbsp;&nbsp;<span style="color:#475569">! Win election</span><br>
+                        &nbsp;<span style="color:#fbbf24">standby 1 preempt</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#475569">! Reclaim on return</span><br>
+                        &nbsp;standby 1 timers 3 10&nbsp;&nbsp;&nbsp;<span style="color:#475569">! hello hold</span>
+                    </div>
+                </div>
+                <div class="box box-cyan">
+                    <div class="box-label">Timer Tuning</div>
+                    Default hold timer is 10 seconds — that is 10 seconds of gateway outage.
+                    Tuning to sub-second timers (1ms hello, 3ms hold) dramatically reduces failover time
+                    but increases CPU and bandwidth overhead on the routers.
+                    Most production deployments use 1s/3s as a balance.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 8 — COMPARISON TABLE + COMPLETE
+     ===================================================================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 8 &nbsp;|&nbsp; N10-009 Obj 2.4</div>
+        <div class="slide-title">HSRP vs VRRP vs GLBP: <span class="accent">Exam Comparison</span></div>
+
+        <table class="compare-table">
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th class="td-hsrp">HSRP</th>
+                    <th class="td-vrrp">VRRP</th>
+                    <th class="td-glbp">GLBP</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="td-feature">Standard</td>
+                    <td>Cisco proprietary</td>
+                    <td>RFC 5798 (open)</td>
+                    <td>Cisco proprietary</td>
+                </tr>
+                <tr>
+                    <td class="td-feature">Active role name</td>
+                    <td>Active</td>
+                    <td>Master</td>
+                    <td>AVG / AVF</td>
+                </tr>
+                <tr>
+                    <td class="td-feature">Standby role name</td>
+                    <td>Standby</td>
+                    <td>Backup</td>
+                    <td>Backup AVG</td>
+                </tr>
+                <tr>
+                    <td class="td-feature">Load balancing</td>
+                    <td>No (one active)</td>
+                    <td>No (one master)</td>
+                    <td>Yes — all routers forward</td>
+                </tr>
+                <tr>
+                    <td class="td-feature">Virtual MAC</td>
+                    <td>0000.0C07.ACxx</td>
+                    <td>00-00-5E-00-01-xx</td>
+                    <td>0007.B4xx.xxyy</td>
+                </tr>
+                <tr>
+                    <td class="td-feature">Multicast address</td>
+                    <td>224.0.0.2 (v1) / 224.0.0.102 (v2)</td>
+                    <td>224.0.0.18</td>
+                    <td>224.0.0.102</td>
+                </tr>
+                <tr>
+                    <td class="td-feature">Preemption default</td>
+                    <td>Off (must enable)</td>
+                    <td>On (enabled by default)</td>
+                    <td>Off (must enable)</td>
+                </tr>
+                <tr>
+                    <td class="td-feature">Priority range</td>
+                    <td>0 – 255 (default 100)</td>
+                    <td>1 – 254 (default 100)</td>
+                    <td>1 – 255 (default 100)</td>
+                </tr>
+                <tr>
+                    <td class="td-feature">IPv6 support</td>
+                    <td>HSRPv2 only</td>
+                    <td>VRRPv3 native</td>
+                    <td>Limited</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">FHRP solves the single-point-of-failure gateway problem using a virtual IP shared between physical routers.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">HSRP = Cisco, Active/Standby. VRRP = open standard, Master/Backup, preempt ON by default. GLBP = load balances across all routers.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Failover: Active fails &rarr; hold timer expires &rarr; Standby claims virtual IP &rarr; gratuitous ARP updates all caches. TCP sessions drop and must reconnect.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     NAVIGATION BAR
+     ===================================================================== -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Network+ Hub</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 8</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<!-- =====================================================================
+     PRESENTATION LOGIC
+     ===================================================================== -->
+<script>
+    /* State */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 8;
+
+    /* Navigate to a specific slide number (1-indexed) */
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        const pct = (currentSlide / TOTAL_SLIDES) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            goToSlide(currentSlide + 1);
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            goToSlide(currentSlide - 1);
+        }
+    });
+
+    /* Initialize */
+    goToSlide(1);
+</script>
+
+<!-- Module completion — own script block per spec -->
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'web-fhrp', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

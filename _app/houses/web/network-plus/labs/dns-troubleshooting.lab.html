@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNS Troubleshooting Lab | Network+</title>
+    <style>
+        :root {
+            --web-primary: #60a5fa;
+            --web-secondary: #3b82f6;
+            --web-dark: #1e3a5f;
+            --web-glow: rgba(96, 165, 250, 0.3);
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a24;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .lab-container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+
+        .back-link {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            color: var(--web-primary); text-decoration: none; margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+        .back-link:hover { color: #93c5fd; transform: translateX(-5px); }
+
+        .lab-header {
+            text-align: center; margin-bottom: 2rem; padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+            border-radius: 16px; border: 1px solid var(--web-primary);
+            box-shadow: 0 0 30px var(--web-glow);
+        }
+        .lab-header h1 {
+            font-size: 2.2rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--web-primary), #93c5fd);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 1rem; }
+
+        .progress-section {
+            background: var(--bg-secondary); border-radius: 12px; padding: 1.5rem;
+            margin-bottom: 2rem; border: 1px solid rgba(96, 165, 250, 0.2);
+        }
+        .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .progress-bar { height: 12px; background: var(--bg-tertiary); border-radius: 6px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--web-primary), var(--success)); border-radius: 6px; transition: width 0.5s ease; }
+
+        .exercise {
+            background: var(--bg-secondary); border-radius: 16px; padding: 2rem;
+            margin-bottom: 2rem; border: 1px solid rgba(96, 165, 250, 0.2);
+            transition: all 0.3s ease;
+        }
+        .exercise:hover { border-color: var(--web-primary); box-shadow: 0 0 20px var(--web-glow); }
+        .exercise.completed { border-color: var(--success); background: linear-gradient(135deg, var(--bg-secondary), rgba(34, 197, 94, 0.1)); }
+
+        .exercise-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+        .exercise-number {
+            width: 50px; height: 50px;
+            background: linear-gradient(135deg, var(--web-primary), var(--web-secondary));
+            border-radius: 12px; display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; font-weight: bold;
+        }
+        .exercise-title h2 { font-size: 1.4rem; color: var(--text-primary); }
+        .exercise-title .time { color: var(--text-secondary); font-size: 0.9rem; }
+
+        .objective {
+            background: var(--bg-tertiary); padding: 1rem 1.5rem; border-radius: 8px;
+            margin-bottom: 1.5rem; border-left: 4px solid var(--web-primary);
+        }
+        .objective strong { color: var(--web-primary); }
+
+        .content-section { margin-bottom: 1.5rem; }
+        .content-section h3 { color: var(--web-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+
+        .terminal {
+            background: #0d1117; padding: 1.5rem; border-radius: 8px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            border: 1px solid #30363d; margin-bottom: 1rem; overflow-x: auto;
+        }
+        .terminal .prompt { color: var(--success); }
+        .terminal .cmd { color: #f0f6fc; }
+        .terminal .output { color: #8b949e; }
+        .terminal .highlight { color: var(--warning); }
+        .terminal .error { color: var(--danger); }
+        .terminal .success-text { color: var(--success); }
+
+        .dns-table {
+            width: 100%; border-collapse: separate; border-spacing: 0;
+            border-radius: 10px; overflow: hidden;
+            border: 1px solid rgba(96, 165, 250, 0.2); margin: 15px 0;
+        }
+        .dns-table th, .dns-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; }
+        .dns-table th { background: var(--web-dark); color: var(--web-primary); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .dns-table tr:nth-child(even) td { background: rgba(0,0,0,0.15); }
+
+        .scenario-box {
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.1), rgba(96, 165, 250, 0.05));
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            border-radius: 10px; padding: 1.5rem; margin: 1rem 0;
+        }
+        .scenario-box h4 { color: var(--web-primary); margin-bottom: 8px; }
+        .scenario-box p { color: var(--text-secondary); font-size: 0.9rem; }
+
+        .question-block {
+            background: var(--bg-tertiary); border: 1px solid rgba(96, 165, 250, 0.2);
+            border-radius: 10px; padding: 1.5rem; margin-bottom: 1rem;
+        }
+        .question-block label { display: block; color: var(--web-primary); font-weight: 600; margin-bottom: 0.5rem; }
+        .question-block input, .question-block select {
+            width: 100%; padding: 10px 14px;
+            background: rgba(0,0,0,0.3); border: 1px solid rgba(96,165,250,0.3);
+            border-radius: 8px; color: var(--text-primary); font-size: 0.9rem;
+            font-family: 'Courier New', monospace;
+        }
+        .question-block input:focus, .question-block select:focus {
+            outline: none; border-color: var(--web-primary); box-shadow: 0 0 10px var(--web-glow);
+        }
+
+        .check-btn {
+            padding: 10px 24px; background: linear-gradient(135deg, var(--web-primary), var(--web-secondary));
+            color: white; border: none; border-radius: 8px; font-size: 0.9rem;
+            font-weight: 600; cursor: pointer; transition: all 0.3s; margin-top: 0.5rem;
+        }
+        .check-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px var(--web-glow); }
+
+        .feedback { padding: 10px 16px; border-radius: 8px; margin-top: 10px; font-size: 0.9rem; display: none; }
+        .feedback.correct { display: block; background: rgba(34,197,94,0.15); border: 1px solid var(--success); color: var(--success); }
+        .feedback.incorrect { display: block; background: rgba(239,68,68,0.15); border: 1px solid var(--danger); color: var(--danger); }
+
+        .tip-box { background: rgba(245,158,11,0.1); border: 1px solid var(--warning); border-radius: 8px; padding: 1rem; margin: 1rem 0; }
+        .tip-box strong { color: var(--warning); }
+
+        .concept-card {
+            background: var(--bg-tertiary); border-radius: 8px; padding: 1rem;
+            margin-bottom: 0.75rem; border-left: 3px solid var(--web-primary);
+        }
+        .concept-card h4 { color: var(--web-primary); margin-bottom: 0.5rem; }
+        .concept-card p { color: var(--text-secondary); font-size: 0.9rem; }
+
+        .completion-btn {
+            width: 100%; padding: 1rem 2rem;
+            background: linear-gradient(135deg, var(--web-primary), var(--web-secondary));
+            color: white; border: none; border-radius: 8px; font-size: 1.1rem;
+            font-weight: 600; cursor: pointer; transition: all 0.3s ease;
+            display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+        }
+        .completion-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px var(--web-glow); }
+        .completion-btn.completed { background: var(--success); }
+
+        @media (max-width: 768px) {
+            .lab-container { padding: 1rem; }
+            .lab-header h1 { font-size: 1.8rem; }
+            .terminal { font-size: 0.7rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <a href="../index.html" class="back-link">&larr; Network+ Hub</a>
+
+        <header class="lab-header">
+            <h1>DNS Troubleshooting Lab</h1>
+            <p class="subtitle">Master DNS resolution, record types, and common misconfigurations</p>
+        </header>
+
+        <div class="progress-section">
+            <div class="progress-header">
+                <span>Lab Progress</span>
+                <span id="progressText">0 / 5 exercises</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Exercise 1: DNS Record Types -->
+        <div class="exercise" id="exercise1">
+            <div class="exercise-header">
+                <div class="exercise-number">1</div>
+                <div class="exercise-title">
+                    <h2>DNS Record Types</h2>
+                    <span class="time">10 minutes</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Objective:</strong> Understand the purpose of common DNS record types and when each is used.
+            </div>
+
+            <div class="content-section">
+                <h3>Common DNS Record Types</h3>
+                <table class="dns-table">
+                    <thead>
+                        <tr><th scope="col">Type</th><th scope="col">Purpose</th><th scope="col">Example</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>A</strong></td><td>Maps hostname to IPv4 address</td><td>example.com &rarr; 93.184.216.34</td></tr>
+                        <tr><td><strong>AAAA</strong></td><td>Maps hostname to IPv6 address</td><td>example.com &rarr; 2606:2800:220:1::</td></tr>
+                        <tr><td><strong>CNAME</strong></td><td>Alias pointing to another hostname</td><td>www.example.com &rarr; example.com</td></tr>
+                        <tr><td><strong>MX</strong></td><td>Mail exchange server for domain</td><td>example.com &rarr; mail.example.com (priority 10)</td></tr>
+                        <tr><td><strong>PTR</strong></td><td>Reverse DNS (IP to hostname)</td><td>34.216.184.93.in-addr.arpa &rarr; example.com</td></tr>
+                        <tr><td><strong>NS</strong></td><td>Authoritative nameserver for domain</td><td>example.com &rarr; ns1.example.com</td></tr>
+                        <tr><td><strong>TXT</strong></td><td>Arbitrary text (SPF, DKIM, verification)</td><td>"v=spf1 include:_spf.google.com ~all"</td></tr>
+                        <tr><td><strong>SOA</strong></td><td>Start of Authority - zone parameters</td><td>Primary NS, admin email, serial, refresh intervals</td></tr>
+                        <tr><td><strong>SRV</strong></td><td>Service location record</td><td>_sip._tcp.example.com &rarr; sipserver.example.com:5060</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="content-section">
+                <h3>Questions</h3>
+                <div class="question-block">
+                    <label>Q1: What record type would you query to find a domain's mail server?</label>
+                    <input type="text" id="q1_1" placeholder="Record type">
+                    <button class="check-btn" onclick="checkAnswer('q1_1','MX','fb1_1')">Check</button>
+                    <div class="feedback" id="fb1_1"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q2: What record type maps an IP address BACK to a hostname?</label>
+                    <input type="text" id="q1_2" placeholder="Record type">
+                    <button class="check-btn" onclick="checkAnswer('q1_2','PTR','fb1_2')">Check</button>
+                    <div class="feedback" id="fb1_2"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q3: What is the difference between an A record and a CNAME record?</label>
+                    <select id="q1_3">
+                        <option value="">-- Select --</option>
+                        <option value="a">A record points to an IP; CNAME points to another hostname</option>
+                        <option value="b">A record is for IPv6; CNAME is for IPv4</option>
+                        <option value="c">There is no difference</option>
+                    </select>
+                    <button class="check-btn" onclick="checkAnswer('q1_3','a','fb1_3')">Check</button>
+                    <div class="feedback" id="fb1_3"></div>
+                </div>
+            </div>
+
+            <button class="completion-btn" onclick="completeExercise(1)">Mark Exercise Complete</button>
+        </div>
+
+        <!-- Exercise 2: Using nslookup -->
+        <div class="exercise" id="exercise2">
+            <div class="exercise-header">
+                <div class="exercise-number">2</div>
+                <div class="exercise-title">
+                    <h2>Querying DNS with nslookup</h2>
+                    <span class="time">15 minutes</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Objective:</strong> Read nslookup output and extract DNS information for troubleshooting.
+            </div>
+
+            <div class="content-section">
+                <h3>nslookup Output - Standard Query</h3>
+                <div class="terminal">
+<span class="prompt">$</span> <span class="cmd">nslookup www.hexworth.edu</span>
+<span class="output">Server:		</span><span class="highlight">192.168.1.1</span>
+<span class="output">Address:	192.168.1.1#53</span>
+
+<span class="output">Non-authoritative answer:</span>
+<span class="output">www.hexworth.edu	canonical name = </span><span class="highlight">hexworth.edu</span>
+<span class="output">Name:	hexworth.edu</span>
+<span class="output">Address: </span><span class="success-text">10.50.25.100</span></div>
+
+                <h3>nslookup Output - MX Record Query</h3>
+                <div class="terminal">
+<span class="prompt">$</span> <span class="cmd">nslookup -type=MX hexworth.edu</span>
+<span class="output">Server:		192.168.1.1</span>
+<span class="output">Address:	192.168.1.1#53</span>
+
+<span class="output">Non-authoritative answer:</span>
+<span class="output">hexworth.edu	mail exchanger = </span><span class="highlight">10 mail1.hexworth.edu</span>
+<span class="output">hexworth.edu	mail exchanger = </span><span class="highlight">20 mail2.hexworth.edu</span>
+
+<span class="output">Authoritative answers can be found from:</span>
+<span class="output">mail1.hexworth.edu	internet address = 10.50.25.110</span>
+<span class="output">mail2.hexworth.edu	internet address = 10.50.25.111</span></div>
+            </div>
+
+            <div class="content-section">
+                <h3>Questions</h3>
+                <div class="question-block">
+                    <label>Q1: What DNS server answered the query?</label>
+                    <input type="text" id="q2_1" placeholder="IP address">
+                    <button class="check-btn" onclick="checkAnswer('q2_1','192.168.1.1','fb2_1')">Check</button>
+                    <div class="feedback" id="fb2_1"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q2: What type of record is www.hexworth.edu? (A, CNAME, etc.)</label>
+                    <input type="text" id="q2_2" placeholder="Record type">
+                    <button class="check-btn" onclick="checkAnswer('q2_2','CNAME','fb2_2')">Check</button>
+                    <div class="feedback" id="fb2_2"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q3: Which mail server has the highest priority (lowest number)?</label>
+                    <input type="text" id="q2_3" placeholder="Mail server hostname">
+                    <button class="check-btn" onclick="checkAnswer('q2_3','mail1.hexworth.edu','fb2_3',true)">Check</button>
+                    <div class="feedback" id="fb2_3"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q4: Why does the response say "Non-authoritative answer"?</label>
+                    <select id="q2_4">
+                        <option value="">-- Select --</option>
+                        <option value="a">The DNS server returned a cached result, not from the authoritative source</option>
+                        <option value="b">The DNS record has expired</option>
+                        <option value="c">The query failed</option>
+                    </select>
+                    <button class="check-btn" onclick="checkAnswer('q2_4','a','fb2_4')">Check</button>
+                    <div class="feedback" id="fb2_4"></div>
+                </div>
+            </div>
+
+            <button class="completion-btn" onclick="completeExercise(2)">Mark Exercise Complete</button>
+        </div>
+
+        <!-- Exercise 3: Using dig -->
+        <div class="exercise" id="exercise3">
+            <div class="exercise-header">
+                <div class="exercise-number">3</div>
+                <div class="exercise-title">
+                    <h2>Advanced DNS with dig</h2>
+                    <span class="time">15 minutes</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Objective:</strong> Interpret dig command output including flags, sections, and query statistics.
+            </div>
+
+            <div class="content-section">
+                <h3>dig Output</h3>
+                <div class="terminal">
+<span class="prompt">$</span> <span class="cmd">dig hexworth.edu ANY +noall +answer +stats</span>
+
+<span class="output">;; ANSWER SECTION:</span>
+<span class="success-text">hexworth.edu.       300   IN   A       10.50.25.100</span>
+<span class="success-text">hexworth.edu.       300   IN   AAAA    2001:db8::1</span>
+<span class="success-text">hexworth.edu.       3600  IN   NS      ns1.hexworth.edu.</span>
+<span class="success-text">hexworth.edu.       3600  IN   NS      ns2.hexworth.edu.</span>
+<span class="success-text">hexworth.edu.       3600  IN   MX      10 mail1.hexworth.edu.</span>
+<span class="success-text">hexworth.edu.       3600  IN   SOA     ns1.hexworth.edu. admin.hexworth.edu. 2025021501 3600 900 1209600 86400</span>
+<span class="success-text">hexworth.edu.       300   IN   TXT     "v=spf1 ip4:10.50.25.0/24 -all"</span>
+
+<span class="output">;; Query time: </span><span class="highlight">23 msec</span>
+<span class="output">;; SERVER: </span><span class="highlight">192.168.1.1#53(192.168.1.1)</span>
+<span class="output">;; WHEN: Sun Feb 16 10:30:00 UTC 2026</span>
+<span class="output">;; MSG SIZE  rcvd: 312</span></div>
+            </div>
+
+            <div class="tip-box">
+                <strong>dig Tip:</strong> The number after the hostname (300, 3600) is the TTL (Time To Live) in seconds. It tells caching resolvers how long to keep this record before re-querying the authoritative server.
+            </div>
+
+            <div class="content-section">
+                <h3>Questions</h3>
+                <div class="question-block">
+                    <label>Q1: What is the TTL of the A record (in seconds)?</label>
+                    <input type="text" id="q3_1" placeholder="TTL value">
+                    <button class="check-btn" onclick="checkAnswer('q3_1','300','fb3_1')">Check</button>
+                    <div class="feedback" id="fb3_1"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q2: What is the admin email from the SOA record? (in email format)</label>
+                    <input type="text" id="q3_2" placeholder="email@domain.com">
+                    <button class="check-btn" onclick="checkAnswer('q3_2','admin@hexworth.edu','fb3_2')">Check</button>
+                    <div class="feedback" id="fb3_2"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q3: What does the SPF TXT record "-all" mean?</label>
+                    <select id="q3_3">
+                        <option value="">-- Select --</option>
+                        <option value="a">Fail (reject) any sender not in the SPF record</option>
+                        <option value="b">Soft fail - accept but mark suspicious</option>
+                        <option value="c">Allow all senders</option>
+                    </select>
+                    <button class="check-btn" onclick="checkAnswer('q3_3','a','fb3_3')">Check</button>
+                    <div class="feedback" id="fb3_3"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q4: What is the serial number in the SOA record?</label>
+                    <input type="text" id="q3_4" placeholder="Serial number">
+                    <button class="check-btn" onclick="checkAnswer('q3_4','2025021501','fb3_4')">Check</button>
+                    <div class="feedback" id="fb3_4"></div>
+                </div>
+            </div>
+
+            <button class="completion-btn" onclick="completeExercise(3)">Mark Exercise Complete</button>
+        </div>
+
+        <!-- Exercise 4: Troubleshooting DNS Misconfigurations -->
+        <div class="exercise" id="exercise4">
+            <div class="exercise-header">
+                <div class="exercise-number">4</div>
+                <div class="exercise-title">
+                    <h2>Fixing DNS Misconfigurations</h2>
+                    <span class="time">20 minutes</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Objective:</strong> Diagnose and identify fixes for common DNS problems from troubleshooting output.
+            </div>
+
+            <div class="scenario-box">
+                <h3>Scenario: Website Down</h3>
+                <p>Users report they cannot reach intranet.hexworth.edu. The web server is running and accessible by IP. You investigate with DNS tools.</p>
+            </div>
+
+            <div class="content-section">
+                <h3>Investigation Output</h3>
+                <div class="terminal">
+<span class="prompt">$</span> <span class="cmd">nslookup intranet.hexworth.edu</span>
+<span class="error">** server can't find intranet.hexworth.edu: NXDOMAIN</span>
+
+<span class="prompt">$</span> <span class="cmd">nslookup intranet.hexworth.edu 10.50.25.2</span>
+<span class="output">Server:		10.50.25.2</span>
+<span class="output">Address:	10.50.25.2#53</span>
+
+<span class="output">Name:	intranet.hexworth.edu</span>
+<span class="output">Address: </span><span class="success-text">10.50.25.200</span>
+
+<span class="prompt">$</span> <span class="cmd">ping 10.50.25.200</span>
+<span class="success-text">PING 10.50.25.200: 64 bytes from 10.50.25.200: icmp_seq=0 ttl=64 time=1.2 ms</span>
+
+<span class="prompt">$</span> <span class="cmd">cat /etc/resolv.conf</span>
+<span class="output">nameserver 8.8.8.8</span>
+<span class="output">nameserver 8.8.4.4</span></div>
+            </div>
+
+            <div class="content-section">
+                <h3>Questions</h3>
+                <div class="question-block">
+                    <label>Q1: Why does the first nslookup fail but the second one succeeds?</label>
+                    <select id="q4_1">
+                        <option value="">-- Select --</option>
+                        <option value="a">The default DNS server (8.8.8.8) does not have the record; the internal DNS (10.50.25.2) does</option>
+                        <option value="b">The web server is down</option>
+                        <option value="c">The DNS record has expired</option>
+                    </select>
+                    <button class="check-btn" onclick="checkAnswer('q4_1','a','fb4_1')">Check</button>
+                    <div class="feedback" id="fb4_1"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q2: What is the root cause? (check resolv.conf)</label>
+                    <select id="q4_2">
+                        <option value="">-- Select --</option>
+                        <option value="a">resolv.conf points to public DNS (8.8.8.8) which cannot resolve internal hostnames</option>
+                        <option value="b">The A record is misconfigured</option>
+                        <option value="c">The TTL is too low</option>
+                    </select>
+                    <button class="check-btn" onclick="checkAnswer('q4_2','a','fb4_2')">Check</button>
+                    <div class="feedback" id="fb4_2"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q3: What should the nameserver entry be changed to?</label>
+                    <input type="text" id="q4_3" placeholder="IP address">
+                    <button class="check-btn" onclick="checkAnswer('q4_3','10.50.25.2','fb4_3')">Check</button>
+                    <div class="feedback" id="fb4_3"></div>
+                </div>
+            </div>
+
+            <button class="completion-btn" onclick="completeExercise(4)">Mark Exercise Complete</button>
+        </div>
+
+        <!-- Exercise 5: CNAME Loop and Zone Transfer -->
+        <div class="exercise" id="exercise5">
+            <div class="exercise-header">
+                <div class="exercise-number">5</div>
+                <div class="exercise-title">
+                    <h2>Advanced DNS Issues</h2>
+                    <span class="time">15 minutes</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Objective:</strong> Identify CNAME loops, zone transfer vulnerabilities, and DNS cache poisoning indicators.
+            </div>
+
+            <div class="scenario-box">
+                <h3>Scenario A: CNAME Loop</h3>
+                <p>A developer reports that app.hexworth.edu is "timing out on DNS." You investigate.</p>
+            </div>
+
+            <div class="content-section">
+                <div class="terminal">
+<span class="prompt">$</span> <span class="cmd">dig app.hexworth.edu</span>
+<span class="output">;; ANSWER SECTION:</span>
+<span class="highlight">app.hexworth.edu.     300  IN  CNAME  portal.hexworth.edu.</span>
+<span class="highlight">portal.hexworth.edu.  300  IN  CNAME  web.hexworth.edu.</span>
+<span class="highlight">web.hexworth.edu.     300  IN  CNAME  app.hexworth.edu.</span>
+
+<span class="error">;; WARNING: CNAME loop detected</span></div>
+            </div>
+
+            <div class="scenario-box" style="margin-top: 1.5rem;">
+                <h4>Scenario B: Zone Transfer Leak</h4>
+                <p>During a security audit, you test whether zone transfers are properly restricted.</p>
+            </div>
+
+            <div class="content-section">
+                <div class="terminal">
+<span class="prompt">$</span> <span class="cmd">dig @ns1.hexworth.edu hexworth.edu AXFR</span>
+<span class="output">;; ANSWER SECTION:</span>
+<span class="danger">hexworth.edu.         3600  IN  SOA   ns1.hexworth.edu. admin.hexworth.edu. ...</span>
+<span class="danger">hexworth.edu.         3600  IN  NS    ns1.hexworth.edu.</span>
+<span class="danger">hexworth.edu.         3600  IN  NS    ns2.hexworth.edu.</span>
+<span class="danger">hexworth.edu.         300   IN  A     10.50.25.100</span>
+<span class="danger">admin-portal.hexworth.edu. 300 IN A   10.50.25.150</span>
+<span class="danger">vpn.hexworth.edu.     300   IN  A     10.50.25.5</span>
+<span class="danger">db-master.hexworth.edu. 300 IN  A     10.50.25.50</span>
+<span class="danger">staging.hexworth.edu. 300   IN  A     10.50.25.201</span>
+<span class="danger">hexworth.edu.         3600  IN  SOA   ns1.hexworth.edu. admin.hexworth.edu. ...</span>
+<span class="output">;; XFR size: 45 records</span></div>
+            </div>
+
+            <div class="content-section">
+                <h3>Questions</h3>
+                <div class="question-block">
+                    <label>Q1: In Scenario A, what is the problem?</label>
+                    <select id="q5_1">
+                        <option value="">-- Select --</option>
+                        <option value="a">A CNAME loop: app -> portal -> web -> app (circular reference)</option>
+                        <option value="b">The TTL is too low</option>
+                        <option value="c">The A record is missing</option>
+                    </select>
+                    <button class="check-btn" onclick="checkAnswer('q5_1','a','fb5_1')">Check</button>
+                    <div class="feedback" id="fb5_1"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q2: How would you fix the CNAME loop? (which record needs to point to an IP?)</label>
+                    <input type="text" id="q5_2" placeholder="Which hostname?">
+                    <button class="check-btn" onclick="checkAnswer('q5_2','web.hexworth.edu','fb5_2',true)">Check</button>
+                    <div class="feedback" id="fb5_2"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q3: In Scenario B, what security risk does AXFR zone transfer expose?</label>
+                    <select id="q5_3">
+                        <option value="">-- Select --</option>
+                        <option value="a">It reveals the entire internal DNS zone including hidden hostnames and infrastructure</option>
+                        <option value="b">It corrupts the DNS cache</option>
+                        <option value="c">It allows modifying DNS records</option>
+                    </select>
+                    <button class="check-btn" onclick="checkAnswer('q5_3','a','fb5_3')">Check</button>
+                    <div class="feedback" id="fb5_3"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q4: What sensitive internal hostname was exposed that an attacker would target?</label>
+                    <input type="text" id="q5_4" placeholder="Hostname">
+                    <button class="check-btn" onclick="checkAnswer('q5_4','db-master','fb5_4',true)">Check</button>
+                    <div class="feedback" id="fb5_4"></div>
+                </div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Security Best Practice:</strong> Zone transfers (AXFR) should be restricted to authorized secondary DNS servers only. Configure your DNS server with <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: var(--warning);">allow-transfer { trusted-servers; };</code> in BIND or equivalent ACLs in your DNS software.
+            </div>
+
+            <button class="completion-btn" onclick="completeExercise(5)">Mark Lab Complete</button>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'web_dns_troubleshooting_lab_progress';
+        let completedExercises = [];
+
+        function loadProgress() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                completedExercises = JSON.parse(saved);
+                completedExercises.forEach(function(num) {
+                    const exercise = document.getElementById('exercise' + num);
+                    if (exercise) {
+                        exercise.classList.add('completed');
+                        var btn = exercise.querySelector('.completion-btn');
+                        btn.classList.add('completed');
+                        btn.textContent = 'Completed';
+                    }
+                });
+            }
+            updateProgress();
+        }
+
+        function saveProgress() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(completedExercises));
+        }
+
+        function updateProgress() {
+            var total = 5;
+            var completed = completedExercises.length;
+            var percent = (completed / total) * 100;
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = completed + ' / ' + total + ' exercises';
+        }
+
+        function checkAnswer(inputId, correctAnswer, feedbackId, fuzzy) {
+            var input = document.getElementById(inputId);
+            var feedback = document.getElementById(feedbackId);
+            var userAnswer = input.value ? input.value.trim().toLowerCase() : input.value;
+            var correct = correctAnswer.toLowerCase();
+
+            feedback.className = 'feedback';
+
+            if (fuzzy ? (userAnswer && (userAnswer.indexOf(correct) !== -1 || correct.indexOf(userAnswer) !== -1)) : userAnswer === correct) {
+                feedback.className = 'feedback correct';
+                feedback.textContent = 'Correct!';
+            } else {
+                feedback.className = 'feedback incorrect';
+                feedback.textContent = 'Not quite. Expected: ' + correctAnswer;
+            }
+        }
+
+        function completeExercise(num) {
+            if (completedExercises.indexOf(num) === -1) {
+                completedExercises.push(num);
+                var exercise = document.getElementById('exercise' + num);
+                exercise.classList.add('completed');
+                var btn = exercise.querySelector('.completion-btn');
+                btn.classList.add('completed');
+                btn.textContent = 'Completed';
+                saveProgress();
+                updateProgress();
+
+                if (completedExercises.length === 5) {
+                    if (typeof ModuleProgress !== 'undefined') {
+                        ModuleProgress.complete('web', 'web-dns-troubleshooting', { returnToDashboard: false, returnUrl: '../index.html' });
+                    }
+                }
+            }
+        }
+
+        loadProgress();
+    </script>
+</body>
+</html>

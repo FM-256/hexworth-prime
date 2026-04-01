@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Troubleshooting Lab | Network+</title>
+    <style>
+        :root {
+            --web-primary: #60a5fa;
+            --web-secondary: #3b82f6;
+            --web-dark: #1e3a5f;
+            --web-glow: rgba(96, 165, 250, 0.3);
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a24;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; line-height: 1.6; }
+        .lab-container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+        .back-link { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--web-primary); text-decoration: none; margin-bottom: 1rem; transition: all 0.3s ease; }
+        .back-link:hover { color: #93c5fd; transform: translateX(-5px); }
+        .lab-header { text-align: center; margin-bottom: 2rem; padding: 2rem; background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary)); border-radius: 16px; border: 1px solid var(--web-primary); box-shadow: 0 0 30px var(--web-glow); }
+        .lab-header h1 { font-size: 2.2rem; margin-bottom: 0.5rem; background: linear-gradient(135deg, var(--web-primary), #93c5fd); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 1rem; margin-bottom: 1rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-secondary); }
+        .progress-section { background: var(--bg-secondary); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid rgba(96, 165, 250, 0.2); }
+        .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .progress-bar { height: 12px; background: var(--bg-tertiary); border-radius: 6px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--web-primary), var(--success)); border-radius: 6px; transition: width 0.5s ease; }
+        .task { background: var(--bg-secondary); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; border: 1px solid rgba(96, 165, 250, 0.2); transition: all 0.3s ease; }
+        .task:hover { border-color: var(--web-primary); box-shadow: 0 0 20px var(--web-glow); }
+        .task.completed { border-color: var(--success); background: linear-gradient(135deg, var(--bg-secondary), rgba(34, 197, 94, 0.1)); }
+        .task-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+        .task-number { width: 50px; height: 50px; background: linear-gradient(135deg, var(--web-primary), var(--web-secondary)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; }
+        .task-title h2 { font-size: 1.3rem; }
+        .task-title .diff { color: var(--text-secondary); font-size: 0.85rem; }
+        .objective { background: var(--bg-tertiary); padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid var(--web-primary); }
+        .objective strong { color: var(--web-primary); }
+        .topology { background: #000; padding: 1.5rem; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.78rem; overflow-x: auto; white-space: pre; color: var(--web-primary); border: 1px solid var(--web-dark); margin-bottom: 1rem; line-height: 1.5; }
+        .terminal-wrap { background: #0c0c0c; border: 1px solid var(--web-dark); border-radius: 8px; margin: 1rem 0; overflow: hidden; }
+        .terminal-bar { background: #1a1a2e; padding: 6px 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--web-dark); }
+        .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .terminal-dot.red { background: #ef4444; }
+        .terminal-dot.yellow { background: #f59e0b; }
+        .terminal-dot.green { background: #22c55e; }
+        .terminal-label { color: var(--text-secondary); font-size: 0.75rem; margin-left: auto; font-family: 'Courier New', monospace; }
+        .terminal-body { padding: 1rem; font-family: 'Courier New', monospace; font-size: 0.82rem; max-height: 300px; overflow-y: auto; }
+        .terminal-output { white-space: pre-wrap; word-break: break-all; color: #a0a0a0; margin-bottom: 0.5rem; }
+        .terminal-output .success { color: var(--success); }
+        .terminal-output .fail { color: var(--danger); }
+        .terminal-output .info { color: var(--web-primary); }
+        .terminal-output .warn { color: var(--warning); }
+        .terminal-input-line { display: flex; align-items: center; gap: 0; }
+        .terminal-prompt { color: var(--success); white-space: nowrap; }
+        .terminal-input { flex: 1; background: transparent; border: none; color: var(--text-primary); font-family: 'Courier New', monospace; font-size: 0.82rem; outline: none; padding: 2px 4px; }
+        .question-block { background: var(--bg-tertiary); border: 1px solid rgba(96, 165, 250, 0.2); border-radius: 10px; padding: 1.5rem; margin-bottom: 1rem; }
+        .question-block label { display: block; color: var(--web-primary); font-weight: 600; margin-bottom: 0.5rem; }
+        .question-block input, .question-block select { width: 100%; padding: 10px 14px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 0.9rem; font-family: 'Courier New', monospace; }
+        .question-block input:focus { outline: none; border-color: var(--web-primary); box-shadow: 0 0 10px var(--web-glow); }
+        .check-btn { padding: 10px 24px; background: linear-gradient(135deg, var(--web-primary), var(--web-secondary)); color: white; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.3s; margin-top: 0.5rem; }
+        .check-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px var(--web-glow); }
+        .feedback { padding: 10px 16px; border-radius: 8px; margin-top: 10px; font-size: 0.9rem; display: none; }
+        .feedback.correct { display: block; background: rgba(34, 197, 94, 0.15); border: 1px solid var(--success); color: var(--success); }
+        .feedback.incorrect { display: block; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: var(--danger); }
+        .tip-box { background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning); border-radius: 8px; padding: 1rem; margin: 1rem 0; font-size: 0.9rem; }
+        .tip-box strong { color: var(--warning); }
+        .tool-ref { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 1rem 0; }
+        .tool-card { background: var(--bg-tertiary); border: 1px solid rgba(96, 165, 250, 0.15); border-radius: 8px; padding: 1rem; }
+        .tool-card h4 { color: var(--web-primary); font-size: 0.9rem; margin-bottom: 4px; }
+        .tool-card code { background: rgba(96, 165, 250, 0.1); padding: 2px 6px; border-radius: 3px; font-size: 0.8rem; }
+        .tool-card p { color: var(--text-secondary); font-size: 0.8rem; margin-top: 4px; }
+        .completion-btn { width: 100%; padding: 1rem 2rem; background: linear-gradient(135deg, var(--web-primary), var(--web-secondary)); color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .completion-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px var(--web-glow); }
+        .completion-btn.completed { background: var(--success); }
+        @media (max-width: 768px) { .lab-container { padding: 1rem; } .lab-header h1 { font-size: 1.8rem; } .topology { font-size: 0.65rem; } .tool-ref { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <a href="../index.html" class="back-link">&larr; Network+ Hub</a>
+
+        <header class="lab-header">
+            <h1>Network Troubleshooting Lab</h1>
+            <p class="subtitle">Diagnose and resolve connectivity issues using simulated ping, traceroute, nslookup, and more</p>
+            <div class="lab-meta">
+                <span class="meta-item">75 minutes</span>
+                <span class="meta-item">Intermediate</span>
+                <span class="meta-item">6 Scenarios</span>
+            </div>
+        </header>
+
+        <div class="progress-section">
+            <div class="progress-header">
+                <span>Lab Progress</span>
+                <span id="progressText">0 / 6 scenarios</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Tool Reference -->
+        <div class="task" style="border-color: rgba(245, 158, 11, 0.3);">
+            <div class="task-header">
+                <div class="task-number" style="background: linear-gradient(135deg, var(--warning), #d97706);">R</div>
+                <div class="task-title">
+                    <h2>Troubleshooting Toolkit Reference</h2>
+                    <span class="diff">Available commands in the simulator</span>
+                </div>
+            </div>
+            <div class="tool-ref">
+                <div class="tool-card">
+                    <h3>ping</h3>
+                    <code>ping &lt;host&gt;</code>
+                    <p>Test Layer 3 reachability. Sends ICMP echo requests to a target.</p>
+                </div>
+                <div class="tool-card">
+                    <h4>traceroute</h4>
+                    <code>traceroute &lt;host&gt;</code>
+                    <p>Show the path packets take. Reveals where connectivity breaks.</p>
+                </div>
+                <div class="tool-card">
+                    <h4>nslookup</h4>
+                    <code>nslookup &lt;domain&gt;</code>
+                    <p>Query DNS. Check if name resolution is working correctly.</p>
+                </div>
+                <div class="tool-card">
+                    <h4>ipconfig</h4>
+                    <code>ipconfig</code>
+                    <p>Show local IP configuration: address, mask, gateway, DNS.</p>
+                </div>
+                <div class="tool-card">
+                    <h4>arp</h4>
+                    <code>arp -a</code>
+                    <p>Show the ARP table. Maps IP addresses to MAC addresses.</p>
+                </div>
+                <div class="tool-card">
+                    <h4>netstat</h4>
+                    <code>netstat</code>
+                    <p>Show active connections and listening ports on the local host.</p>
+                </div>
+            </div>
+            <div class="tip-box">
+                <strong>Troubleshooting Method:</strong> Always work bottom-up through the OSI model. (1) Check physical/link layer (cable, NIC). (2) Check IP config (ipconfig). (3) Ping default gateway. (4) Ping remote IP. (5) Check DNS (nslookup). (6) Trace the path (traceroute).
+            </div>
+        </div>
+
+        <!-- Scenario 1: No Gateway -->
+        <div class="task" id="task1">
+            <div class="task-header">
+                <div class="task-number">1</div>
+                <div class="task-title">
+                    <h2>The Missing Gateway</h2>
+                    <span class="diff">Beginner</span>
+                </div>
+            </div>
+            <div class="objective">
+                <strong>Ticket:</strong> A user reports they cannot access any websites or reach any servers outside their subnet. Other users on the same switch are working fine.
+            </div>
+            <div class="topology">
+   User PC (10.0.1.50/24)
+       |
+   [Switch] --- [Router: 10.0.1.1] --- [Internet]
+       |
+   Other PCs (working fine)</div>
+
+            <div class="terminal-wrap">
+                <div class="terminal-bar">
+                    <div class="terminal-dot red"></div>
+                    <div class="terminal-dot yellow"></div>
+                    <div class="terminal-dot green"></div>
+                    <span class="terminal-label">user-pc</span>
+                </div>
+                <div class="terminal-body" id="term1">
+                    <div class="terminal-output"><span class="info">Type commands to diagnose the issue. Try: ipconfig, ping, traceroute, nslookup, arp</span></div>
+                    <div class="terminal-input-line">
+                        <span class="terminal-prompt">user-pc&gt; </span>
+                        <input type="text" class="terminal-input" id="input1" onkeydown="if(event.key==='Enter')runCmd(1)" placeholder="Type a command...">
+                    </div>
+                </div>
+            </div>
+
+            <div class="question-block">
+                <label>What is the root cause of this connectivity issue?</label>
+                <input type="text" id="q1" placeholder="The problem is...">
+                <button class="check-btn" onclick="checkAnswer('q1','gateway','fb1',true)">Check</button>
+                <div class="feedback" id="fb1"></div>
+            </div>
+            <div class="question-block">
+                <label>What command would fix it? (e.g., set gateway to X.X.X.X)</label>
+                <input type="text" id="q1b" placeholder="Fix command...">
+                <button class="check-btn" onclick="checkAnswer('q1b','10.0.1.1','fb1b',true)">Check</button>
+                <div class="feedback" id="fb1b"></div>
+            </div>
+            <button class="completion-btn" onclick="completeTask(1)">Mark Scenario Complete</button>
+        </div>
+
+        <!-- Scenario 2: DNS Failure -->
+        <div class="task" id="task2">
+            <div class="task-header">
+                <div class="task-number">2</div>
+                <div class="task-title">
+                    <h2>Names Without Faces</h2>
+                    <span class="diff">Beginner</span>
+                </div>
+            </div>
+            <div class="objective">
+                <strong>Ticket:</strong> A user says "the internet is down." They cannot open any websites by name, but you suspect the issue might be more specific than total connectivity loss.
+            </div>
+            <div class="topology">
+   User PC (192.168.1.100/24)
+       |
+   [Switch] --- [Router: 192.168.1.1] --- [ISP DNS: 8.8.8.8]
+                                      |
+                                [Web Server: 93.184.216.34 = example.com]</div>
+
+            <div class="terminal-wrap">
+                <div class="terminal-bar">
+                    <div class="terminal-dot red"></div>
+                    <div class="terminal-dot yellow"></div>
+                    <div class="terminal-dot green"></div>
+                    <span class="terminal-label">workstation</span>
+                </div>
+                <div class="terminal-body" id="term2">
+                    <div class="terminal-output"><span class="info">User says "internet is down." Investigate systematically.</span></div>
+                    <div class="terminal-input-line">
+                        <span class="terminal-prompt">workstation&gt; </span>
+                        <input type="text" class="terminal-input" id="input2" onkeydown="if(event.key==='Enter')runCmd(2)" placeholder="Type a command...">
+                    </div>
+                </div>
+            </div>
+
+            <div class="question-block">
+                <label>Can the user reach IP addresses directly? (yes/no)</label>
+                <input type="text" id="q2a" placeholder="yes or no">
+                <button class="check-btn" onclick="checkAnswer('q2a','yes','fb2a')">Check</button>
+                <div class="feedback" id="fb2a"></div>
+            </div>
+            <div class="question-block">
+                <label>What specific service is failing?</label>
+                <input type="text" id="q2b" placeholder="The failing service is...">
+                <button class="check-btn" onclick="checkAnswer('q2b','dns','fb2b',true)">Check</button>
+                <div class="feedback" id="fb2b"></div>
+            </div>
+            <div class="question-block">
+                <label>What is the misconfigured DNS server address in ipconfig?</label>
+                <input type="text" id="q2c" placeholder="x.x.x.x">
+                <button class="check-btn" onclick="checkAnswer('q2c','10.10.10.10','fb2c')">Check</button>
+                <div class="feedback" id="fb2c"></div>
+            </div>
+            <button class="completion-btn" onclick="completeTask(2)">Mark Scenario Complete</button>
+        </div>
+
+        <!-- Scenario 3: Wrong Subnet Mask -->
+        <div class="task" id="task3">
+            <div class="task-header">
+                <div class="task-number">3</div>
+                <div class="task-title">
+                    <h2>The Narrowed Horizon</h2>
+                    <span class="diff">Intermediate</span>
+                </div>
+            </div>
+            <div class="objective">
+                <strong>Ticket:</strong> A workstation can ping some hosts on the local network (10.0.1.1 through 10.0.1.15) but cannot reach 10.0.1.50 or anything beyond the local subnet. The switch and router are confirmed working for other hosts.
+            </div>
+            <div class="topology">
+   Problem PC (10.0.1.5/???)      Server (10.0.1.50/24)
+       |                               |
+   [Switch] -------- [Router: 10.0.1.1/24] --- [Internet]
+       |
+   Working PCs (10.0.1.20-30, all /24, working fine)</div>
+
+            <div class="terminal-wrap">
+                <div class="terminal-bar">
+                    <div class="terminal-dot red"></div>
+                    <div class="terminal-dot yellow"></div>
+                    <div class="terminal-dot green"></div>
+                    <span class="terminal-label">problem-pc</span>
+                </div>
+                <div class="terminal-body" id="term3">
+                    <div class="terminal-output"><span class="info">This PC can reach some hosts but not others. Investigate.</span></div>
+                    <div class="terminal-input-line">
+                        <span class="terminal-prompt">problem-pc&gt; </span>
+                        <input type="text" class="terminal-input" id="input3" onkeydown="if(event.key==='Enter')runCmd(3)" placeholder="Type a command...">
+                    </div>
+                </div>
+            </div>
+
+            <div class="question-block">
+                <label>What subnet mask does the problem PC actually have?</label>
+                <input type="text" id="q3a" placeholder="x.x.x.x">
+                <button class="check-btn" onclick="checkAnswer('q3a','255.255.255.240','fb3a')">Check</button>
+                <div class="feedback" id="fb3a"></div>
+            </div>
+            <div class="question-block">
+                <label>What CIDR prefix is that? (/XX)</label>
+                <input type="text" id="q3b" placeholder="/XX">
+                <button class="check-btn" onclick="checkAnswer('q3b','/28','fb3b')">Check</button>
+                <div class="feedback" id="fb3b"></div>
+            </div>
+            <div class="question-block">
+                <label>What should the correct subnet mask be?</label>
+                <input type="text" id="q3c" placeholder="x.x.x.x">
+                <button class="check-btn" onclick="checkAnswer('q3c','255.255.255.0','fb3c')">Check</button>
+                <div class="feedback" id="fb3c"></div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Insight:</strong> A /28 mask means the PC thinks its network is 10.0.1.0 - 10.0.1.15. Any IP above .15 appears to be on a "different network," so the PC tries to route through its gateway instead of reaching them directly. If the gateway also seems unreachable due to mask confusion, everything breaks.
+            </div>
+            <button class="completion-btn" onclick="completeTask(3)">Mark Scenario Complete</button>
+        </div>
+
+        <!-- Scenario 4: Routing Black Hole -->
+        <div class="task" id="task4">
+            <div class="task-header">
+                <div class="task-number">4</div>
+                <div class="task-title">
+                    <h2>The Black Hole</h2>
+                    <span class="diff">Intermediate</span>
+                </div>
+            </div>
+            <div class="objective">
+                <strong>Ticket:</strong> Users on the 10.0.1.0/24 network can reach the internet, but cannot access the branch office server at 172.16.5.10. The branch office confirms their server is up and reachable locally.
+            </div>
+            <div class="topology">
+   HQ Network                                  Branch Office
+   10.0.1.0/24                                172.16.5.0/24
+       |                                           |
+   [HQ Router: 10.0.1.1] --- [ISP] --- [Branch Router: 172.16.5.1]
+                                                   |
+                                            [Server: 172.16.5.10]</div>
+
+            <div class="terminal-wrap">
+                <div class="terminal-bar">
+                    <div class="terminal-dot red"></div>
+                    <div class="terminal-dot yellow"></div>
+                    <div class="terminal-dot green"></div>
+                    <span class="terminal-label">hq-workstation</span>
+                </div>
+                <div class="terminal-body" id="term4">
+                    <div class="terminal-output"><span class="info">Cannot reach branch server 172.16.5.10. Internet works fine.</span></div>
+                    <div class="terminal-input-line">
+                        <span class="terminal-prompt">hq-workstation&gt; </span>
+                        <input type="text" class="terminal-input" id="input4" onkeydown="if(event.key==='Enter')runCmd(4)" placeholder="Type a command...">
+                    </div>
+                </div>
+            </div>
+
+            <div class="question-block">
+                <label>At which hop does the traceroute fail (packet is lost)?</label>
+                <input type="text" id="q4a" placeholder="Hop number">
+                <button class="check-btn" onclick="checkAnswer('q4a','3','fb4a')">Check</button>
+                <div class="feedback" id="fb4a"></div>
+            </div>
+            <div class="question-block">
+                <label>What is the IP address of the last responding hop?</label>
+                <input type="text" id="q4b" placeholder="x.x.x.x">
+                <button class="check-btn" onclick="checkAnswer('q4b','203.0.113.5','fb4b')">Check</button>
+                <div class="feedback" id="fb4b"></div>
+            </div>
+            <div class="question-block">
+                <label>What is the likely cause? (missing ___ on the ISP router)</label>
+                <input type="text" id="q4c" placeholder="missing...">
+                <button class="check-btn" onclick="checkAnswer('q4c','route','fb4c',true)">Check</button>
+                <div class="feedback" id="fb4c"></div>
+            </div>
+            <button class="completion-btn" onclick="completeTask(4)">Mark Scenario Complete</button>
+        </div>
+
+        <!-- Scenario 5: Duplicate IP -->
+        <div class="task" id="task5">
+            <div class="task-header">
+                <div class="task-number">5</div>
+                <div class="task-title">
+                    <h2>The Impostor</h2>
+                    <span class="diff">Advanced</span>
+                </div>
+            </div>
+            <div class="objective">
+                <strong>Ticket:</strong> A user reports intermittent connectivity. Sometimes pings work, sometimes they do not. The connection drops and recovers randomly every few seconds. Another user nearby has no issues.
+            </div>
+            <div class="topology">
+   User A PC (192.168.1.25/24)   User B PC (192.168.1.25/24) &lt;-- CONFLICT!
+       |                              |
+   [Fa0/1]                       [Fa0/5]
+       |                              |
+   [============ Switch ============]
+                    |
+            [Router: 192.168.1.1]</div>
+
+            <div class="terminal-wrap">
+                <div class="terminal-bar">
+                    <div class="terminal-dot red"></div>
+                    <div class="terminal-dot yellow"></div>
+                    <div class="terminal-dot green"></div>
+                    <span class="terminal-label">user-a-pc</span>
+                </div>
+                <div class="terminal-body" id="term5">
+                    <div class="terminal-output"><span class="info">Intermittent connectivity. Pings sometimes succeed, sometimes fail.</span></div>
+                    <div class="terminal-input-line">
+                        <span class="terminal-prompt">user-a-pc&gt; </span>
+                        <input type="text" class="terminal-input" id="input5" onkeydown="if(event.key==='Enter')runCmd(5)" placeholder="Type a command...">
+                    </div>
+                </div>
+            </div>
+
+            <div class="question-block">
+                <label>What does the ARP table reveal about the gateway (192.168.1.1)?</label>
+                <input type="text" id="q5a" placeholder="The ARP table shows...">
+                <button class="check-btn" onclick="checkAnswer('q5a','mac','fb5a',true)">Check</button>
+                <div class="feedback" id="fb5a"></div>
+            </div>
+            <div class="question-block">
+                <label>What is the root cause of intermittent connectivity?</label>
+                <input type="text" id="q5b" placeholder="The cause is...">
+                <button class="check-btn" onclick="checkAnswer('q5b','duplicate','fb5b',true)">Check</button>
+                <div class="feedback" id="fb5b"></div>
+            </div>
+            <div class="question-block">
+                <label>What address do the two machines share?</label>
+                <input type="text" id="q5c" placeholder="x.x.x.x">
+                <button class="check-btn" onclick="checkAnswer('q5c','192.168.1.25','fb5c')">Check</button>
+                <div class="feedback" id="fb5c"></div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Duplicate IP Detection:</strong> When two hosts share an IP, the switch ARP table oscillates between their MAC addresses. Intermittent failures are the hallmark. Windows will pop a "duplicate IP" warning, but not always immediately. Use <code>arp -a</code> and watch the MAC for the conflicting IP change between checks.
+            </div>
+            <button class="completion-btn" onclick="completeTask(5)">Mark Scenario Complete</button>
+        </div>
+
+        <!-- Scenario 6: Multi-Layer Failure -->
+        <div class="task" id="task6">
+            <div class="task-header">
+                <div class="task-number">6</div>
+                <div class="task-title">
+                    <h2>The Perfect Storm</h2>
+                    <span class="diff">Advanced</span>
+                </div>
+            </div>
+            <div class="objective">
+                <strong>Ticket:</strong> A newly provisioned server (10.0.2.100) in the DMZ cannot reach anything. It was just racked and cabled. The network team says the switch port is up. Systematically identify ALL misconfigurations (there are multiple).
+            </div>
+            <div class="topology">
+   New Server (10.0.2.100/24)
+       |
+   [DMZ Switch] --- [Firewall: 10.0.2.1] --- [Core Router] --- [Internet]
+                                               |
+                                          [LAN: 10.0.1.0/24]</div>
+
+            <div class="terminal-wrap">
+                <div class="terminal-bar">
+                    <div class="terminal-dot red"></div>
+                    <div class="terminal-dot yellow"></div>
+                    <div class="terminal-dot green"></div>
+                    <span class="terminal-label">dmz-server</span>
+                </div>
+                <div class="terminal-body" id="term6">
+                    <div class="terminal-output"><span class="info">New server cannot reach anything. Find ALL misconfigurations.</span></div>
+                    <div class="terminal-input-line">
+                        <span class="terminal-prompt">dmz-server&gt; </span>
+                        <input type="text" class="terminal-input" id="input6" onkeydown="if(event.key==='Enter')runCmd(6)" placeholder="Type a command...">
+                    </div>
+                </div>
+            </div>
+
+            <div class="question-block">
+                <label>Issue 1: What is wrong with the IP configuration? (check the subnet mask)</label>
+                <input type="text" id="q6a" placeholder="The mask is...">
+                <button class="check-btn" onclick="checkAnswer('q6a','255.255.0.0','fb6a',true)">Check</button>
+                <div class="feedback" id="fb6a"></div>
+            </div>
+            <div class="question-block">
+                <label>Issue 2: What is wrong with the default gateway?</label>
+                <input type="text" id="q6b" placeholder="The gateway is...">
+                <button class="check-btn" onclick="checkAnswer('q6b','10.0.1.1','fb6b',true)">Check</button>
+                <div class="feedback" id="fb6b"></div>
+            </div>
+            <div class="question-block">
+                <label>Issue 3: What is wrong with the DNS server?</label>
+                <input type="text" id="q6c" placeholder="The DNS is...">
+                <button class="check-btn" onclick="checkAnswer('q6c','127.0.0.1','fb6c',true)">Check</button>
+                <div class="feedback" id="fb6c"></div>
+            </div>
+            <div class="question-block">
+                <label>What should the correct gateway be for a server in the 10.0.2.0/24 DMZ?</label>
+                <input type="text" id="q6d" placeholder="x.x.x.x">
+                <button class="check-btn" onclick="checkAnswer('q6d','10.0.2.1','fb6d')">Check</button>
+                <div class="feedback" id="fb6d"></div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Lesson:</strong> New server builds often have multiple configuration errors stacked together. A systematic bottom-up approach catches them all. Check IP, mask, gateway, and DNS independently -- never assume only one thing is wrong.
+            </div>
+            <button class="completion-btn" onclick="completeTask(6)">Mark Lab Complete</button>
+        </div>
+    </div>
+
+    <script>
+        var STORAGE_KEY = 'web_troubleshooting_lab_progress';
+        var TOTAL = 6;
+        var completedTasks = [];
+
+        // === Scenario command databases ===
+        var scenarios = {
+            1: {
+                hostname: 'user-pc',
+                ipconfig: {
+                    ip: '10.0.1.50', mask: '255.255.255.0',
+                    gateway: '0.0.0.0', dns: '8.8.8.8'
+                },
+                ping: {
+                    '10.0.1.50':  { ok: true, ip: '10.0.1.50' },
+                    '10.0.1.1':   { ok: true, ip: '10.0.1.1' },
+                    '10.0.1.20':  { ok: true, ip: '10.0.1.20' },
+                    '8.8.8.8':    { ok: false, msg: 'Network is unreachable' },
+                    '1.1.1.1':    { ok: false, msg: 'Network is unreachable' },
+                    'google.com': { ok: false, msg: 'Network is unreachable', resolve: false },
+                    'example.com':{ ok: false, msg: 'Network is unreachable', resolve: false }
+                },
+                traceroute: {
+                    '8.8.8.8':      'traceroute to 8.8.8.8\n 1  * * * Request timed out.\n 2  * * * Request timed out.\n 3  * * * Request timed out.',
+                    '10.0.1.1':     'traceroute to 10.0.1.1\n 1  10.0.1.1  1ms  1ms  1ms',
+                    '172.16.5.10':  'traceroute to 172.16.5.10\n 1  * * * Request timed out.\n 2  * * * Request timed out.'
+                },
+                nslookup: {
+                    'google.com':  { ok: false, msg: 'DNS request timed out.\nServer: 8.8.8.8\n*** 8.8.8.8 can\'t find google.com: No response from server' },
+                    'example.com': { ok: false, msg: 'DNS request timed out.\nServer: 8.8.8.8\n*** 8.8.8.8 can\'t find example.com: No response from server' }
+                },
+                arp: 'Internet Address    Physical Address    Type\n10.0.1.1            00-1A-2B-3C-4D-01   dynamic\n10.0.1.20           00-1A-2B-3C-4D-14   dynamic',
+                netstat: 'Active Connections\nProto  Local Address       Foreign Address     State\nTCP    10.0.1.50:49152     10.0.1.50:0         LISTENING'
+            },
+            2: {
+                hostname: 'workstation',
+                ipconfig: {
+                    ip: '192.168.1.100', mask: '255.255.255.0',
+                    gateway: '192.168.1.1', dns: '10.10.10.10'
+                },
+                ping: {
+                    '192.168.1.100': { ok: true, ip: '192.168.1.100' },
+                    '192.168.1.1':   { ok: true, ip: '192.168.1.1' },
+                    '8.8.8.8':       { ok: true, ip: '8.8.8.8' },
+                    '1.1.1.1':       { ok: true, ip: '1.1.1.1' },
+                    '93.184.216.34': { ok: true, ip: '93.184.216.34' },
+                    'google.com':    { ok: false, msg: 'Ping request could not find host google.com. Please check the name and try again.', resolve: false },
+                    'example.com':   { ok: false, msg: 'Ping request could not find host example.com. Please check the name and try again.', resolve: false }
+                },
+                traceroute: {
+                    '8.8.8.8':       'traceroute to 8.8.8.8\n 1  192.168.1.1   1ms\n 2  10.0.0.1      5ms\n 3  8.8.8.8       12ms',
+                    '93.184.216.34': 'traceroute to 93.184.216.34\n 1  192.168.1.1   1ms\n 2  10.0.0.1      5ms\n 3  203.0.113.1   15ms\n 4  93.184.216.34  22ms'
+                },
+                nslookup: {
+                    'google.com':  { ok: false, msg: 'DNS request timed out.\nServer: 10.10.10.10\nAddress: 10.10.10.10#53\n\n*** 10.10.10.10 can\'t find google.com: Server failed' },
+                    'example.com': { ok: false, msg: 'DNS request timed out.\nServer: 10.10.10.10\nAddress: 10.10.10.10#53\n\n*** 10.10.10.10 can\'t find example.com: Server failed' }
+                },
+                arp: 'Internet Address    Physical Address    Type\n192.168.1.1         00-AA-BB-CC-DD-01   dynamic\n192.168.1.50        00-AA-BB-CC-DD-32   dynamic',
+                netstat: 'Active Connections\nProto  Local Address          Foreign Address     State\nTCP    192.168.1.100:49200    93.184.216.34:80    ESTABLISHED\nTCP    192.168.1.100:49201    192.168.1.100:0     LISTENING'
+            },
+            3: {
+                hostname: 'problem-pc',
+                ipconfig: {
+                    ip: '10.0.1.5', mask: '255.255.255.240',
+                    gateway: '10.0.1.1', dns: '8.8.8.8'
+                },
+                ping: {
+                    '10.0.1.5':  { ok: true, ip: '10.0.1.5' },
+                    '10.0.1.1':  { ok: true, ip: '10.0.1.1' },
+                    '10.0.1.10': { ok: true, ip: '10.0.1.10' },
+                    '10.0.1.14': { ok: true, ip: '10.0.1.14' },
+                    '10.0.1.15': { ok: true, ip: '10.0.1.15' },
+                    '10.0.1.16': { ok: false, msg: 'Destination host unreachable' },
+                    '10.0.1.20': { ok: false, msg: 'Destination host unreachable' },
+                    '10.0.1.50': { ok: false, msg: 'Destination host unreachable' },
+                    '10.0.1.100':{ ok: false, msg: 'Destination host unreachable' },
+                    '8.8.8.8':   { ok: false, msg: 'Destination host unreachable' },
+                    'google.com':{ ok: false, msg: 'Destination host unreachable', resolve: false }
+                },
+                traceroute: {
+                    '10.0.1.50': 'traceroute to 10.0.1.50\n 1  * * * Request timed out.\n 2  * * * Request timed out.',
+                    '8.8.8.8':   'traceroute to 8.8.8.8\n 1  * * * Request timed out.\n 2  * * * Request timed out.'
+                },
+                nslookup: {
+                    'google.com':  { ok: false, msg: 'DNS request timed out.\nServer: 8.8.8.8\n*** Can\'t reach DNS server 8.8.8.8' }
+                },
+                arp: 'Internet Address    Physical Address    Type\n10.0.1.1            00-1A-2B-3C-4D-01   dynamic\n10.0.1.10           00-1A-2B-3C-4D-0A   dynamic',
+                netstat: 'Active Connections\nProto  Local Address       Foreign Address     State\nTCP    10.0.1.5:49300      10.0.1.5:0          LISTENING'
+            },
+            4: {
+                hostname: 'hq-workstation',
+                ipconfig: {
+                    ip: '10.0.1.25', mask: '255.255.255.0',
+                    gateway: '10.0.1.1', dns: '10.0.1.2'
+                },
+                ping: {
+                    '10.0.1.25':    { ok: true, ip: '10.0.1.25' },
+                    '10.0.1.1':     { ok: true, ip: '10.0.1.1' },
+                    '8.8.8.8':      { ok: true, ip: '8.8.8.8' },
+                    '1.1.1.1':      { ok: true, ip: '1.1.1.1' },
+                    '172.16.5.10':  { ok: false, msg: 'Request timed out.' },
+                    '172.16.5.1':   { ok: false, msg: 'Request timed out.' },
+                    'google.com':   { ok: true, ip: '142.250.80.46' }
+                },
+                traceroute: {
+                    '172.16.5.10':  'traceroute to 172.16.5.10\n 1  10.0.1.1       1ms  1ms  1ms\n 2  203.0.113.5    8ms  7ms  8ms\n 3  * * * Request timed out.\n 4  * * * Request timed out.\n 5  * * * Request timed out.',
+                    '8.8.8.8':      'traceroute to 8.8.8.8\n 1  10.0.1.1       1ms  1ms  1ms\n 2  203.0.113.5    8ms  7ms  8ms\n 3  203.0.113.9   12ms 11ms 12ms\n 4  8.8.8.8       15ms 14ms 15ms',
+                    '172.16.5.1':   'traceroute to 172.16.5.1\n 1  10.0.1.1       1ms  1ms  1ms\n 2  203.0.113.5    8ms  7ms  8ms\n 3  * * * Request timed out.\n 4  * * * Request timed out.'
+                },
+                nslookup: {
+                    'google.com':  { ok: true, msg: 'Server: 10.0.1.2\nAddress: 10.0.1.2#53\n\nNon-authoritative answer:\nName: google.com\nAddress: 142.250.80.46' },
+                    'example.com': { ok: true, msg: 'Server: 10.0.1.2\nAddress: 10.0.1.2#53\n\nNon-authoritative answer:\nName: example.com\nAddress: 93.184.216.34' }
+                },
+                arp: 'Internet Address    Physical Address    Type\n10.0.1.1            00-1A-2B-3C-4D-01   dynamic\n10.0.1.2            00-1A-2B-3C-4D-02   dynamic',
+                netstat: 'Active Connections\nProto  Local Address          Foreign Address     State\nTCP    10.0.1.25:49400       142.250.80.46:443   ESTABLISHED\nTCP    10.0.1.25:49401       93.184.216.34:80    TIME_WAIT'
+            },
+            5: {
+                hostname: 'user-a-pc',
+                ipconfig: {
+                    ip: '192.168.1.25', mask: '255.255.255.0',
+                    gateway: '192.168.1.1', dns: '8.8.8.8'
+                },
+                ping: {
+                    '192.168.1.25': { ok: true, ip: '192.168.1.25' },
+                    '192.168.1.1':  { ok: 'intermittent' },
+                    '8.8.8.8':      { ok: 'intermittent' },
+                    'google.com':   { ok: 'intermittent', ip: '142.250.80.46' }
+                },
+                traceroute: {
+                    '8.8.8.8':     'traceroute to 8.8.8.8\n 1  192.168.1.1   1ms  * 1ms\n 2  *  10.0.0.1  5ms  *\n 3  * * 8.8.8.8  15ms',
+                    '192.168.1.1': 'traceroute to 192.168.1.1\n 1  192.168.1.1   1ms  * 1ms  (intermittent)'
+                },
+                nslookup: {
+                    'google.com': { ok: true, msg: 'Server: 8.8.8.8\nAddress: 8.8.8.8#53\n\nNon-authoritative answer:\nName: google.com\nAddress: 142.250.80.46' }
+                },
+                arp: 'Internet Address    Physical Address    Type\n192.168.1.1         00-AA-BB-CC-DD-01   dynamic\n192.168.1.25        <span class="warn">00-11-22-33-44-BB</span>   dynamic\n\n<span class="warn">WARNING: Duplicate IP address 192.168.1.25 detected!</span>\n<span class="warn">MAC 00-11-22-33-44-AA (this machine) conflicts with 00-11-22-33-44-BB</span>',
+                netstat: 'Active Connections\nProto  Local Address          Foreign Address     State\nTCP    192.168.1.25:49500    192.168.1.25:0      LISTENING'
+            },
+            6: {
+                hostname: 'dmz-server',
+                ipconfig: {
+                    ip: '10.0.2.100', mask: '255.255.0.0',
+                    gateway: '10.0.1.1', dns: '127.0.0.1'
+                },
+                ping: {
+                    '10.0.2.100': { ok: true, ip: '10.0.2.100' },
+                    '10.0.2.1':   { ok: false, msg: 'Destination host unreachable' },
+                    '10.0.1.1':   { ok: false, msg: 'Destination host unreachable' },
+                    '8.8.8.8':    { ok: false, msg: 'Network is unreachable' },
+                    'google.com': { ok: false, msg: 'Ping request could not find host google.com.', resolve: false }
+                },
+                traceroute: {
+                    '10.0.2.1': 'traceroute to 10.0.2.1\n 1  * * * Request timed out.\n 2  * * * Request timed out.',
+                    '8.8.8.8':  'traceroute to 8.8.8.8\n 1  * * * Request timed out.\n 2  * * * Request timed out.'
+                },
+                nslookup: {
+                    'google.com':  { ok: false, msg: 'Server: 127.0.0.1\nAddress: 127.0.0.1#53\n\n*** 127.0.0.1 can\'t find google.com: Connection refused\n(No DNS server running on localhost)' },
+                    'example.com': { ok: false, msg: 'Server: 127.0.0.1\nAddress: 127.0.0.1#53\n\n*** 127.0.0.1 can\'t find example.com: Connection refused' }
+                },
+                arp: 'Internet Address    Physical Address    Type\n(no entries found - cannot reach any other host)',
+                netstat: 'Active Connections\nProto  Local Address          Foreign Address     State\nTCP    10.0.2.100:22          0.0.0.0:0           LISTENING\nTCP    10.0.2.100:80          0.0.0.0:0           LISTENING\nTCP    10.0.2.100:443         0.0.0.0:0           LISTENING'
+            }
+        };
+
+        // === Terminal command processor ===
+        function runCmd(scenarioNum) {
+            var input = document.getElementById('input' + scenarioNum);
+            var term = document.getElementById('term' + scenarioNum);
+            var cmd = input.value.trim().toLowerCase();
+            input.value = '';
+            if (!cmd) return;
+
+            var scenario = scenarios[scenarioNum];
+            var outputDiv = document.createElement('div');
+            outputDiv.className = 'terminal-output';
+
+            var promptLine = '<span class="info">' + scenario.hostname + '&gt; ' + cmd + '</span>\n';
+            var result = '';
+
+            var parts = cmd.split(/\s+/);
+            var command = parts[0];
+            var target = parts[1] || '';
+
+            if (command === 'ipconfig' || command === 'ifconfig') {
+                var c = scenario.ipconfig;
+                result = 'Network Configuration:\n';
+                result += '  IPv4 Address . . . : <span class="info">' + c.ip + '</span>\n';
+                result += '  Subnet Mask  . . . : ' + c.mask + '\n';
+                result += '  Default Gateway  . : ' + (c.gateway === '0.0.0.0' ? '<span class="fail">0.0.0.0 (Not configured)</span>' : c.gateway) + '\n';
+                result += '  DNS Server . . . . : ' + c.dns;
+
+            } else if (command === 'ping') {
+                if (!target) { result = '<span class="fail">Usage: ping &lt;host&gt;</span>'; }
+                else {
+                    var pData = scenario.ping[target];
+                    if (!pData) {
+                        result = 'Pinging ' + target + '...\n<span class="fail">Request timed out.</span>\n<span class="fail">Request timed out.</span>\n<span class="fail">Request timed out.</span>\n<span class="fail">Request timed out.</span>\n\nPackets: Sent = 4, Received = 0, Lost = 4 (100% loss)';
+                    } else if (pData.ok === true) {
+                        var rip = pData.ip || target;
+                        result = 'Pinging ' + rip + ' with 32 bytes of data:\n';
+                        result += '<span class="success">Reply from ' + rip + ': bytes=32 time=1ms TTL=64</span>\n';
+                        result += '<span class="success">Reply from ' + rip + ': bytes=32 time=1ms TTL=64</span>\n';
+                        result += '<span class="success">Reply from ' + rip + ': bytes=32 time=2ms TTL=64</span>\n';
+                        result += '<span class="success">Reply from ' + rip + ': bytes=32 time=1ms TTL=64</span>\n';
+                        result += '\nPackets: Sent = 4, Received = 4, Lost = 0 (0% loss)';
+                    } else if (pData.ok === 'intermittent') {
+                        var rip2 = pData.ip || target;
+                        result = 'Pinging ' + rip2 + ' with 32 bytes of data:\n';
+                        result += '<span class="success">Reply from ' + rip2 + ': bytes=32 time=1ms TTL=64</span>\n';
+                        result += '<span class="fail">Request timed out.</span>\n';
+                        result += '<span class="success">Reply from ' + rip2 + ': bytes=32 time=2ms TTL=64</span>\n';
+                        result += '<span class="fail">Request timed out.</span>\n';
+                        result += '\n<span class="warn">Packets: Sent = 4, Received = 2, Lost = 2 (50% loss)</span>';
+                    } else {
+                        result = 'Pinging ' + target + '...\n<span class="fail">' + pData.msg + '</span>';
+                        if (pData.resolve === false) {
+                            result = '<span class="fail">' + pData.msg + '</span>';
+                        }
+                    }
+                }
+
+            } else if (command === 'traceroute' || command === 'tracert') {
+                if (!target) { result = '<span class="fail">Usage: traceroute &lt;host&gt;</span>'; }
+                else {
+                    var tData = scenario.traceroute[target];
+                    result = tData || 'traceroute to ' + target + '\n 1  * * * Request timed out.\n 2  * * * Request timed out.\n 3  * * * Request timed out.';
+                }
+
+            } else if (command === 'nslookup') {
+                if (!target) { result = '<span class="fail">Usage: nslookup &lt;domain&gt;</span>'; }
+                else {
+                    var nData = scenario.nslookup[target];
+                    if (!nData) {
+                        result = 'Server: ' + scenario.ipconfig.dns + '\n<span class="fail">*** ' + scenario.ipconfig.dns + ' can\'t find ' + target + ': Non-existent domain</span>';
+                    } else {
+                        result = nData.ok ? '<span class="success">' + nData.msg + '</span>' : '<span class="fail">' + nData.msg + '</span>';
+                    }
+                }
+
+            } else if (command === 'arp') {
+                result = scenario.arp;
+
+            } else if (command === 'netstat') {
+                result = scenario.netstat;
+
+            } else if (command === 'help') {
+                result = '<span class="info">Available commands: ipconfig, ping, traceroute, nslookup, arp, netstat, clear</span>';
+
+            } else if (command === 'clear' || command === 'cls') {
+                var body = term.querySelector('.terminal-body') || term;
+                var outputs = term.querySelectorAll('.terminal-output');
+                outputs.forEach(function(o) { o.remove(); });
+                return;
+
+            } else {
+                result = '<span class="fail">\'' + command + '\' is not recognized. Type "help" for available commands.</span>';
+            }
+
+            outputDiv.innerHTML = promptLine + result;
+            var inputLine = term.querySelector('.terminal-input-line');
+            term.querySelector('.terminal-body').insertBefore(outputDiv, inputLine);
+            term.querySelector('.terminal-body').scrollTop = term.querySelector('.terminal-body').scrollHeight;
+        }
+
+        // === Answer checking ===
+        function checkAnswer(inputId, correctAnswer, feedbackId, fuzzy) {
+            var input = document.getElementById(inputId);
+            var feedback = document.getElementById(feedbackId);
+            var userAnswer = input.value.trim().toLowerCase();
+            var correct = correctAnswer.toLowerCase();
+            feedback.className = 'feedback';
+            if (fuzzy ? (userAnswer.indexOf(correct) !== -1 || correct.indexOf(userAnswer) !== -1) : userAnswer === correct) {
+                feedback.className = 'feedback correct';
+                feedback.textContent = 'Correct!';
+            } else {
+                feedback.className = 'feedback incorrect';
+                feedback.textContent = 'Not quite. Expected answer includes: ' + correctAnswer;
+            }
+        }
+
+        // === Progress tracking ===
+        function loadProgress() {
+            var saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                completedTasks = JSON.parse(saved);
+                completedTasks.forEach(function(num) {
+                    var task = document.getElementById('task' + num);
+                    if (task) {
+                        task.classList.add('completed');
+                        var btn = task.querySelector('.completion-btn');
+                        btn.classList.add('completed');
+                        btn.textContent = 'Completed';
+                    }
+                });
+            }
+            updateProgress();
+        }
+
+        function saveProgress() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(completedTasks));
+        }
+
+        function updateProgress() {
+            var completed = completedTasks.length;
+            var percent = (completed / TOTAL) * 100;
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = completed + ' / ' + TOTAL + ' scenarios';
+        }
+
+        function completeTask(num) {
+            if (completedTasks.indexOf(num) === -1) {
+                completedTasks.push(num);
+                var task = document.getElementById('task' + num);
+                task.classList.add('completed');
+                var btn = task.querySelector('.completion-btn');
+                btn.classList.add('completed');
+                btn.textContent = 'Completed';
+                saveProgress();
+                updateProgress();
+
+                if (completedTasks.length === TOTAL) {
+                    if (typeof ModuleProgress !== 'undefined') {
+                        ModuleProgress.complete('web', 'web-troubleshooting', { returnToDashboard: false });
+                    }
+                    setTimeout(function() {
+                        alert('Congratulations! You have completed the Network Troubleshooting Lab.\n\nYou can now systematically diagnose connectivity issues using ping, traceroute, nslookup, ipconfig, ARP, and netstat.');
+                    }, 500);
+                }
+            }
+        }
+
+        loadProgress();
+    </script>
+
+    <script src="../../../../components/TrailHunter.js"></script>
+</body>
+</html>

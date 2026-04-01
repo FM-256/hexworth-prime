@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSI Model - The 7 Layers of Networking</title>
+    <style>
+        /* =====================================================
+           RESET & BASE
+           ===================================================== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* =====================================================
+           SLIDE SYSTEM — viewport-locked, no overflow
+           ===================================================== */
+        .slide {
+            display: none;
+            position: fixed;
+            inset: 0;
+            padding: 20px 28px 72px;
+            overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide-inner {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* =====================================================
+           PROGRESS BAR
+           ===================================================== */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: #06b6d4;
+            transition: width 0.4s ease;
+            z-index: 200;
+        }
+
+        /* =====================================================
+           NAVIGATION BAR
+           ===================================================== */
+        #nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            z-index: 200;
+            padding: 0 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(6, 182, 212, 0.15);
+            color: #06b6d4;
+            border-color: #06b6d4;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.back-btn {
+            font-size: 0.82rem;
+            padding: 8px 16px;
+        }
+
+        #slide-counter {
+            color: #64748b;
+            font-size: 0.82rem;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        #complete-btn {
+            display: none;
+            background: #3ab577;
+            color: #000;
+            border: none;
+            padding: 9px 26px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+
+        #complete-btn:hover {
+            background: #4fcf8a;
+            transform: translateY(-1px);
+        }
+
+        /* =====================================================
+           TYPOGRAPHY — scaled down for viewport fit
+           ===================================================== */
+        h1 {
+            color: #06b6d4;
+            font-size: 2em;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        h2 {
+            color: #06b6d4;
+            font-size: 1.45em;
+            margin-bottom: 8px;
+            border-bottom: 3px solid rgba(6, 182, 212, 0.3);
+            padding-bottom: 6px;
+        }
+
+        h3 {
+            color: #06b6d4;
+            font-size: 1.1em;
+            margin-top: 6px;
+            margin-bottom: 4px;
+        }
+
+        p, li {
+            font-size: 0.88em;
+            line-height: 1.5;
+            margin-bottom: 4px;
+            color: #c8d0dc;
+        }
+
+        ul {
+            margin-left: 20px;
+        }
+
+        .subtitle {
+            font-size: 1em;
+            color: #8892a8;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        /* =====================================================
+           OSI Layer Colors
+           ===================================================== */
+        .layer-7 { background: linear-gradient(135deg, #dc4a4a, #b53a3a); }
+        .layer-6 { background: linear-gradient(135deg, #d4783a, #b5622e); }
+        .layer-5 { background: linear-gradient(135deg, #c9a83a, #a88c2e); }
+        .layer-4 { background: linear-gradient(135deg, #3ab577, #2e9660); }
+        .layer-3 { background: linear-gradient(135deg, #3a8fd4, #2e74b5); }
+        .layer-2 { background: linear-gradient(135deg, #8a5cb5, #724a96); }
+        .layer-1 { background: linear-gradient(135deg, #5a6a7a, #4a5868); }
+
+        /* =====================================================
+           OSI Stack Diagram
+           ===================================================== */
+        .osi-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            max-width: 550px;
+            margin: 6px auto;
+        }
+
+        .osi-layer {
+            padding: 7px 14px;
+            color: white;
+            border-radius: 5px;
+            border: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            font-size: 0.88em;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .osi-layer:hover {
+            transform: scale(1.02);
+            box-shadow: 0 3px 12px rgba(0,0,0,0.3);
+        }
+
+        .layer-num {
+            background: rgba(255,255,255,0.3);
+            padding: 3px 9px;
+            border-radius: 15px;
+            font-size: 0.85em;
+        }
+
+        .layer-name {
+            font-size: 0.95em;
+        }
+
+        .layer-pdu {
+            font-size: 0.8em;
+            opacity: 0.9;
+        }
+
+        /* =====================================================
+           Two Column Layout
+           ===================================================== */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 6px;
+        }
+
+        .col {
+            padding: 0;
+        }
+
+        /* =====================================================
+           Info / Highlight / Analogy Boxes
+           ===================================================== */
+        .highlight-box {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            color: #e2e8f0;
+            padding: 10px 14px;
+            border-radius: 10px;
+            margin: 6px 0;
+        }
+
+        .highlight-box h3 {
+            color: #06b6d4;
+            margin-top: 0;
+            font-size: 1em;
+        }
+
+        .highlight-box li {
+            color: #e2e8f0;
+        }
+
+        .info-card {
+            background: rgba(6, 182, 212, 0.06);
+            border-left: 3px solid #06b6d4;
+            color: #c8d0dc;
+            padding: 8px 12px;
+            margin: 4px 0;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.85em;
+        }
+
+        .info-card.warning {
+            border-left-color: #dc4a4a;
+            background: rgba(220, 74, 74, 0.06);
+        }
+
+        .info-card.success {
+            border-left-color: #3ab577;
+            background: rgba(58, 181, 119, 0.06);
+        }
+
+        .analogy-box {
+            background: rgba(201, 168, 58, 0.08);
+            border: 1px solid rgba(201, 168, 58, 0.2);
+            padding: 10px 14px;
+            border-radius: 10px;
+            margin: 6px 0;
+        }
+
+        .analogy-box h3 {
+            color: #c9a83a;
+            margin-top: 0;
+            font-size: 1em;
+        }
+
+        .analogy-box p {
+            color: #c8d0dc;
+        }
+
+        /* =====================================================
+           Command Box
+           ===================================================== */
+        .command-box {
+            background: #0a0a14;
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #d4d4d4;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            margin: 4px 0;
+            overflow-x: auto;
+            font-size: 0.82em;
+            line-height: 1.6;
+        }
+
+        .command-box .prompt { color: #6a9955; }
+        .command-box .cmd { color: #dcdcaa; }
+        .command-box .output { color: #9cdcfe; }
+
+        /* =====================================================
+           Protocol Table
+           ===================================================== */
+        .protocol-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 4px 0;
+            font-size: 0.82em;
+        }
+
+        .protocol-table th,
+        .protocol-table td {
+            padding: 5px 8px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .protocol-table th {
+            background: rgba(6, 182, 212, 0.15);
+            color: #06b6d4;
+            font-size: 0.9em;
+        }
+
+        .protocol-table tr:hover {
+            background: rgba(255,255,255,0.03);
+        }
+
+        /* =====================================================
+           Encapsulation Animation
+           ===================================================== */
+        .encap-demo {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            margin: 6px 0;
+        }
+
+        .encap-demo p {
+            margin-bottom: 0;
+            font-size: 0.8em;
+        }
+
+        .data-unit {
+            padding: 8px 16px;
+            border-radius: 7px;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.5s;
+            font-size: 0.85em;
+        }
+
+        .data-unit.app-data { background: #dc4a4a; }
+        .data-unit.segment { background: #3ab577; }
+        .data-unit.packet { background: #3a8fd4; }
+        .data-unit.frame { background: #8a5cb5; }
+        .data-unit.bits { background: #5a6a7a; }
+
+        /* =====================================================
+           Device Icons
+           ===================================================== */
+        .device-row {
+            display: flex;
+            justify-content: space-around;
+            margin: 8px 0;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .device-icon {
+            text-align: center;
+            padding: 8px;
+            min-width: 80px;
+        }
+
+        .device-icon .icon {
+            font-size: 2em;
+            margin-bottom: 4px;
+        }
+
+        .device-icon .label {
+            font-weight: bold;
+            color: #06b6d4;
+            font-size: 0.85em;
+        }
+
+        /* =====================================================
+           Mnemonic
+           ===================================================== */
+        .mnemonic {
+            background: rgba(6, 182, 212, 0.06);
+            border: 1px solid rgba(6, 182, 212, 0.15);
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 6px 0;
+        }
+
+        .mnemonic h3 {
+            color: #06b6d4;
+            margin-bottom: 8px;
+            font-size: 1em;
+        }
+
+        .mnemonic .letters {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .mnemonic .letter {
+            background: rgba(15, 15, 26, 0.8);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 8px 12px;
+            border-radius: 7px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .mnemonic .letter span {
+            display: block;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #dc4a4a;
+        }
+
+        .mnemonic .letter small {
+            color: #8892a8;
+            font-size: 0.82em;
+        }
+
+        /* =====================================================
+           Comparison Grid
+           ===================================================== */
+        .compare-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 6px 0;
+        }
+
+        .compare-box {
+            padding: 10px;
+            border-radius: 10px;
+            background: rgba(15, 15, 26, 0.6);
+        }
+
+        .compare-box.osi { border: 2px solid #3a8fd4; }
+        .compare-box.tcp { border: 2px solid #3ab577; }
+
+        .compare-box h3 {
+            text-align: center;
+            margin-bottom: 6px;
+            font-size: 1em;
+        }
+
+        /* =====================================================
+           Quiz Section
+           ===================================================== */
+        .quiz-section {
+            background: rgba(6, 182, 212, 0.04);
+            border: 1px solid rgba(6, 182, 212, 0.12);
+            padding: 8px 12px;
+            border-radius: 10px;
+            margin: 4px 0;
+        }
+
+        .quiz-question {
+            font-weight: bold;
+            color: #06b6d4;
+            margin-bottom: 4px;
+            font-size: 0.88em;
+        }
+
+        .quiz-section p {
+            font-size: 0.85em;
+            margin-bottom: 2px;
+        }
+
+        /* =====================================================
+           RESPONSIVE
+           ===================================================== */
+        @media (max-height: 700px) {
+            .slide-inner { gap: 6px; }
+            h1 { font-size: 1.6em; }
+            h2 { font-size: 1.2em; }
+            .osi-layer { padding: 5px 10px; }
+            .mnemonic .letter { padding: 5px 8px; }
+        }
+
+        @media (max-width: 900px) {
+            .two-col { grid-template-columns: 1fr; }
+            .compare-grid { grid-template-columns: 1fr; }
+            h1 { font-size: 1.6em; }
+            h2 { font-size: 1.2em; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="progress-bar" style="width:5%"></div>
+
+<!-- =====================================================================
+     SLIDE 1: Title
+     ===================================================================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <h1>The OSI Model</h1>
+        <p class="subtitle">Understanding the 7 Layers of Network Communication</p>
+
+        <div class="osi-stack" style="margin-top: 10px;">
+            <div class="osi-layer layer-7">
+                <span class="layer-num">7</span>
+                <span class="layer-name">Application</span>
+                <span class="layer-pdu">Data</span>
+            </div>
+            <div class="osi-layer layer-6">
+                <span class="layer-num">6</span>
+                <span class="layer-name">Presentation</span>
+                <span class="layer-pdu">Data</span>
+            </div>
+            <div class="osi-layer layer-5">
+                <span class="layer-num">5</span>
+                <span class="layer-name">Session</span>
+                <span class="layer-pdu">Data</span>
+            </div>
+            <div class="osi-layer layer-4">
+                <span class="layer-num">4</span>
+                <span class="layer-name">Transport</span>
+                <span class="layer-pdu">Segment</span>
+            </div>
+            <div class="osi-layer layer-3">
+                <span class="layer-num">3</span>
+                <span class="layer-name">Network</span>
+                <span class="layer-pdu">Packet</span>
+            </div>
+            <div class="osi-layer layer-2">
+                <span class="layer-num">2</span>
+                <span class="layer-name">Data Link</span>
+                <span class="layer-pdu">Frame</span>
+            </div>
+            <div class="osi-layer layer-1">
+                <span class="layer-num">1</span>
+                <span class="layer-name">Physical</span>
+                <span class="layer-pdu">Bits</span>
+            </div>
+        </div>
+
+        <p style="text-align: center; margin-top: 8px; color: #8892a8; font-size: 0.85em;">
+            CompTIA Network+ N10-009 Objective 1.1
+        </p>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 2: What is the OSI Model?
+     ===================================================================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <h2>What is the OSI Model?</h2>
+
+        <div class="two-col">
+            <div class="col">
+                <h3>Definition</h3>
+                <p>The <strong>Open Systems Interconnection (OSI)</strong> model is a conceptual framework that describes how data travels across a network.</p>
+                <p>Created by the <strong>International Organization for Standardization (ISO)</strong> in 1984, it divides network communication into <strong>7 distinct layers</strong>.</p>
+                <div class="info-card">
+                    <strong>Key Point:</strong> The OSI model is a <em>reference model</em>, not a protocol. It helps us understand and troubleshoot networks by breaking down complex communication into manageable pieces.
+                </div>
+            </div>
+
+            <div class="col">
+                <h3>Why 7 Layers?</h3>
+                <ul>
+                    <li><strong>Modularity:</strong> Each layer has a specific job</li>
+                    <li><strong>Interoperability:</strong> Different vendors can work together</li>
+                    <li><strong>Troubleshooting:</strong> Isolate problems to specific layers</li>
+                    <li><strong>Standardization:</strong> Common language for networking</li>
+                </ul>
+                <div class="analogy-box">
+                    <h3>Real-World Analogy</h3>
+                    <p>Think of the OSI model like <strong>sending a letter through the postal system</strong>. Each step (writing, envelope, address, sorting, delivery) is handled by a different department, but they all work together to deliver your message.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 3: Memory Trick
+     ===================================================================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <h2>How to Remember the 7 Layers</h2>
+
+        <div class="mnemonic">
+            <h3>From Layer 7 (Top) to Layer 1 (Bottom)</h3>
+            <div class="letters">
+                <div class="letter"><span>A</span><small>All</small></div>
+                <div class="letter"><span>P</span><small>People</small></div>
+                <div class="letter"><span>S</span><small>Seem</small></div>
+                <div class="letter"><span>T</span><small>To</small></div>
+                <div class="letter"><span>N</span><small>Need</small></div>
+                <div class="letter"><span>D</span><small>Data</small></div>
+                <div class="letter"><span>P</span><small>Processing</small></div>
+            </div>
+            <p style="margin-top: 10px; color: #e2e8f0;"><strong>"All People Seem To Need Data Processing"</strong></p>
+        </div>
+
+        <div class="mnemonic" style="background: rgba(58, 181, 119, 0.08); border-color: rgba(58, 181, 119, 0.2);">
+            <h3>From Layer 1 (Bottom) to Layer 7 (Top)</h3>
+            <div class="letters">
+                <div class="letter"><span>P</span><small>Please</small></div>
+                <div class="letter"><span>D</span><small>Do</small></div>
+                <div class="letter"><span>N</span><small>Not</small></div>
+                <div class="letter"><span>T</span><small>Throw</small></div>
+                <div class="letter"><span>S</span><small>Sausage</small></div>
+                <div class="letter"><span>P</span><small>Pizza</small></div>
+                <div class="letter"><span>A</span><small>Away</small></div>
+            </div>
+            <p style="margin-top: 10px; color: #e2e8f0;"><strong>"Please Do Not Throw Sausage Pizza Away"</strong></p>
+        </div>
+
+        <div class="info-card success">
+            <strong>Exam Tip:</strong> You WILL be tested on layer order. Pick one mnemonic and practice until it's automatic!
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 4: Alternative Mnemonics
+     ===================================================================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <h2><img src="/assets/images/icons/icon-brain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Alternative Mnemonics</h2>
+        <p style="text-align: center; margin-bottom: 8px; color: #8892a8; font-size: 0.88em;">Choose the one that sticks with you best!</p>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+                <h3 style="color: #3a8fd4; text-align: center; margin-bottom: 8px;">Top-Down (L7 to L1)</h3>
+                <div style="background: rgba(58, 143, 212, 0.1); border: 1px solid rgba(58, 143, 212, 0.25); padding: 10px; border-radius: 7px; margin-bottom: 6px; color: #e2e8f0; font-size: 0.88em;">
+                    <strong style="font-size: 0.85em; color: #06b6d4;">Classic:</strong><br>
+                    "All People Seem To Need Data Processing"
+                </div>
+                <div style="background: rgba(58, 143, 212, 0.06); border: 1px solid rgba(58, 143, 212, 0.15); padding: 10px; border-radius: 7px; margin-bottom: 6px; color: #e2e8f0; font-size: 0.88em;">
+                    <strong style="font-size: 0.85em; color: #06b6d4;">Tech-Themed:</strong><br>
+                    "A Penguin Said That Nobody Drinks Pepsi"
+                </div>
+                <div style="background: rgba(58, 143, 212, 0.06); border: 1px solid rgba(58, 143, 212, 0.15); padding: 10px; border-radius: 7px; margin-bottom: 6px; color: #e2e8f0; font-size: 0.88em;">
+                    <strong style="font-size: 0.85em; color: #06b6d4;">Sassy:</strong><br>
+                    "All Pros Search Top Notch Donut Places"
+                </div>
+            </div>
+
+            <div>
+                <h3 style="color: #3ab577; text-align: center; margin-bottom: 8px;">Bottom-Up (L1 to L7)</h3>
+                <div style="background: rgba(58, 181, 119, 0.1); border: 1px solid rgba(58, 181, 119, 0.25); padding: 10px; border-radius: 7px; margin-bottom: 6px; color: #e2e8f0; font-size: 0.88em;">
+                    <strong style="font-size: 0.85em; color: #3ab577;">Classic:</strong><br>
+                    "Please Do Not Throw Sausage Pizza Away"
+                </div>
+                <div style="background: rgba(58, 181, 119, 0.06); border: 1px solid rgba(58, 181, 119, 0.15); padding: 10px; border-radius: 7px; margin-bottom: 6px; color: #e2e8f0; font-size: 0.88em;">
+                    <strong style="font-size: 0.85em; color: #3ab577;">Edgy:</strong><br>
+                    "Pew! Dead Ninja Turtles Smell Pretty Awful"
+                </div>
+                <div style="background: rgba(58, 181, 119, 0.06); border: 1px solid rgba(58, 181, 119, 0.15); padding: 10px; border-radius: 7px; margin-bottom: 6px; color: #e2e8f0; font-size: 0.88em;">
+                    <strong style="font-size: 0.85em; color: #3ab577;">Skeptical:</strong><br>
+                    "People Don't Need Those Stupid Packets Anyway"
+                </div>
+            </div>
+        </div>
+
+        <div class="info-card" style="margin-top: 6px;">
+            <strong><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Pro Tip:</strong> The first letter of each word matches the first letter of each layer:
+            <strong>A</strong>pplication, <strong>P</strong>resentation, <strong>S</strong>ession, <strong>T</strong>ransport, <strong>N</strong>etwork, <strong>D</strong>ata Link, <strong>P</strong>hysical
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 5: Layer 7 - Application
+     ===================================================================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <h2 style="border-color: #dc4a4a;">Layer 7: Application Layer</h2>
+
+        <div class="info-card" style="margin-bottom: 6px;">
+            <strong>PDU (Protocol Data Unit):</strong> Each OSI layer wraps data with its own header, creating a unit specific to that layer. Layers 7-5 call it <strong>Data</strong>, Layer 4 calls it a <strong>Segment</strong>, Layer 3 a <strong>Packet</strong>, Layer 2 a <strong>Frame</strong>, and Layer 1 transmits <strong>Bits</strong>.
+        </div>
+
+        <div class="two-col">
+            <div class="col">
+                <div class="osi-layer layer-7" style="margin-bottom: 8px;">
+                    <span class="layer-num">7</span>
+                    <span class="layer-name">Application</span>
+                    <span class="layer-pdu">Data</span>
+                </div>
+                <h3>What It Does</h3>
+                <p>The Application layer is the <strong>interface between network services and the user</strong>. It's where humans interact with the network.</p>
+                <div class="info-card warning">
+                    <strong>Common Misconception:</strong> The Application layer is NOT your apps (Chrome, Outlook). It's the <em>protocols</em> those apps use to communicate!
+                </div>
+            </div>
+
+            <div class="col">
+                <h3>Common Protocols</h3>
+                <table class="protocol-table">
+                    <tr><th>Protocol</th><th>Port</th><th>Purpose</th></tr>
+                    <tr><td>HTTP/HTTPS</td><td>80/443</td><td>Web browsing</td></tr>
+                    <tr><td>FTP</td><td>20/21</td><td>File transfer</td></tr>
+                    <tr><td>SMTP</td><td>25</td><td>Sending email</td></tr>
+                    <tr><td>POP3/IMAP</td><td>110/143</td><td>Receiving email</td></tr>
+                    <tr><td>DNS</td><td>53</td><td>Name resolution</td></tr>
+                    <tr><td>SSH</td><td>22</td><td>Secure remote access</td></tr>
+                    <tr><td>Telnet</td><td>23</td><td>Remote access (insecure)</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="analogy-box">
+            <h3>Postal Analogy</h3>
+            <p>Layer 7 is like <strong>writing the letter</strong> - it's the actual content of your message, written in a language (protocol) that the recipient understands.</p>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 6: Layer 6 - Presentation
+     ===================================================================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <h2 style="border-color: #d4783a;">Layer 6: Presentation Layer</h2>
+
+        <div class="two-col">
+            <div class="col">
+                <div class="osi-layer layer-6" style="margin-bottom: 8px;">
+                    <span class="layer-num">6</span>
+                    <span class="layer-name">Presentation</span>
+                    <span class="layer-pdu">Data</span>
+                </div>
+                <h3>What It Does</h3>
+                <p>The Presentation layer is the <strong>"translator"</strong> of the network. It handles:</p>
+                <ul>
+                    <li><strong>Data formatting</strong> (ASCII, EBCDIC, Unicode)</li>
+                    <li><strong>Encryption/Decryption</strong> (SSL/TLS)</li>
+                    <li><strong>Compression</strong> (reducing data size)</li>
+                </ul>
+            </div>
+
+            <div class="col">
+                <h3>Key Functions</h3>
+                <div class="info-card">
+                    <strong>Translation:</strong> Converts data between formats so different systems can understand each other (like English to Spanish)
+                </div>
+                <div class="info-card success">
+                    <strong>Encryption:</strong> SSL/TLS operates here - that padlock icon in your browser means Layer 6 is protecting your data!
+                </div>
+                <div class="info-card">
+                    <strong>Compression:</strong> Reduces file sizes for faster transmission (like ZIP files)
+                </div>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <h3>Examples at Layer 6</h3>
+            <ul>
+                <li><strong>JPEG, GIF, PNG</strong> - Image formatting</li>
+                <li><strong>MPEG, AVI</strong> - Video formatting</li>
+                <li><strong>SSL/TLS</strong> - Encryption</li>
+                <li><strong>ASCII, UTF-8</strong> - Character encoding</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 7: Layer 5 - Session
+     ===================================================================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <h2 style="border-color: #c9a83a;">Layer 5: Session Layer</h2>
+
+        <div class="two-col">
+            <div class="col">
+                <div class="osi-layer layer-5" style="margin-bottom: 8px;">
+                    <span class="layer-num">5</span>
+                    <span class="layer-name">Session</span>
+                    <span class="layer-pdu">Data</span>
+                </div>
+                <h3>What It Does</h3>
+                <p>The Session layer <strong>manages conversations</strong> between applications. It:</p>
+                <ul>
+                    <li><strong>Establishes</strong> connections (start the conversation)</li>
+                    <li><strong>Maintains</strong> connections (keep it going)</li>
+                    <li><strong>Terminates</strong> connections (end gracefully)</li>
+                </ul>
+            </div>
+
+            <div class="col">
+                <h3>Session Types</h3>
+                <div class="info-card">
+                    <strong>Simplex:</strong> One-way communication only (like a radio broadcast)
+                </div>
+                <div class="info-card">
+                    <strong>Half-Duplex:</strong> Two-way, but one at a time (like a walkie-talkie)
+                </div>
+                <div class="info-card success">
+                    <strong>Full-Duplex:</strong> Two-way, simultaneous (like a phone call)
+                </div>
+            </div>
+        </div>
+
+        <div class="analogy-box">
+            <h3>Real-World Analogy</h3>
+            <p>Layer 5 is like a <strong>phone call manager</strong>. It dials the number (establish), keeps the line open while you talk (maintain), and hangs up when done (terminate). It also handles checkpoints - if a large file transfer fails at 50%, you can resume from there instead of starting over!</p>
+        </div>
+
+        <h3>Common Protocols</h3>
+        <p><strong>NetBIOS</strong> - Windows networking sessions | <strong>RPC</strong> - Remote Procedure Call | <strong>SQL Sessions</strong> - Database connections</p>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 8: Layer 4 - Transport
+     ===================================================================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <h2 style="border-color: #3ab577;">Layer 4: Transport Layer</h2>
+
+        <div class="two-col">
+            <div class="col">
+                <div class="osi-layer layer-4" style="margin-bottom: 8px;">
+                    <span class="layer-num">4</span>
+                    <span class="layer-name">Transport</span>
+                    <span class="layer-pdu">Segment</span>
+                </div>
+                <h3>What It Does</h3>
+                <p>The Transport layer provides <strong>end-to-end delivery</strong> of data. Think of it as the delivery guarantee service!</p>
+                <ul>
+                    <li><strong>Segmentation:</strong> Breaks large data into smaller segments</li>
+                    <li><strong>Flow Control:</strong> Prevents overwhelming the receiver</li>
+                    <li><strong>Error Recovery:</strong> Detects and retransmits lost segments</li>
+                    <li><strong>Port Numbers:</strong> Identifies specific applications</li>
+                </ul>
+            </div>
+
+            <div class="col">
+                <h3>TCP vs UDP</h3>
+                <table class="protocol-table">
+                    <tr><th>TCP</th><th>UDP</th></tr>
+                    <tr><td>Connection-oriented</td><td>Connectionless</td></tr>
+                    <tr><td>Reliable delivery</td><td>Best-effort delivery</td></tr>
+                    <tr><td>Error checking</td><td>No error recovery</td></tr>
+                    <tr><td>Slower (overhead)</td><td>Faster (lightweight)</td></tr>
+                    <tr><td>Web, Email, FTP</td><td>DNS, Streaming, VoIP</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <h3>PDU: Segment</h3>
+            <p>At Layer 4, data is called a <strong>Segment</strong>. Each segment contains a header with source/destination <strong>port numbers</strong> (e.g., port 80 for HTTP, port 443 for HTTPS).</p>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 9: Layer 3 - Network
+     ===================================================================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <h2 style="border-color: #3a8fd4;">Layer 3: Network Layer</h2>
+
+        <div class="two-col">
+            <div class="col">
+                <div class="osi-layer layer-3" style="margin-bottom: 8px;">
+                    <span class="layer-num">3</span>
+                    <span class="layer-name">Network</span>
+                    <span class="layer-pdu">Packet</span>
+                </div>
+                <h3>What It Does</h3>
+                <p>The Network layer handles <strong>logical addressing</strong> and <strong>routing</strong> - finding the best path for data to travel across networks.</p>
+                <ul>
+                    <li><strong>IP Addressing:</strong> Logical addresses (IPv4/IPv6)</li>
+                    <li><strong>Routing:</strong> Path determination</li>
+                    <li><strong>Packet Forwarding:</strong> Moving data hop-by-hop</li>
+                </ul>
+            </div>
+
+            <div class="col">
+                <h3>Key Devices</h3>
+                <div class="device-row">
+                    <div class="device-icon">
+                        <div class="icon"><img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
+                        <div class="label">Router</div>
+                    </div>
+                    <div class="device-icon">
+                        <div class="icon"><img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
+                        <div class="label">Layer 3 Switch</div>
+                    </div>
+                </div>
+                <div class="info-card success">
+                    <strong>Key Point:</strong> Routers operate at Layer 3. They use IP addresses to make forwarding decisions and can connect different networks (like your home network to the Internet).
+                </div>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <h3>PDU: Packet</h3>
+            <p>At Layer 3, data is called a <strong>Packet</strong>. The packet header contains <strong>source and destination IP addresses</strong> - the logical addresses that allow data to travel across the Internet.</p>
+        </div>
+        <p><strong>Protocols:</strong> IP (IPv4/IPv6), ICMP (ping), OSPF, EIGRP, BGP</p>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 10: Layer 2 - Data Link
+     ===================================================================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <h2 style="border-color: #8a5cb5;">Layer 2: Data Link Layer</h2>
+
+        <div class="two-col">
+            <div class="col">
+                <div class="osi-layer layer-2" style="margin-bottom: 8px;">
+                    <span class="layer-num">2</span>
+                    <span class="layer-name">Data Link</span>
+                    <span class="layer-pdu">Frame</span>
+                </div>
+                <h3>What It Does</h3>
+                <p>The Data Link layer provides <strong>node-to-node delivery</strong> on the same network segment (LAN). It handles:</p>
+                <ul>
+                    <li><strong>MAC Addressing:</strong> Physical/hardware addresses</li>
+                    <li><strong>Framing:</strong> Packaging data for local delivery</li>
+                    <li><strong>Error Detection:</strong> CRC/FCS checking</li>
+                    <li><strong>Access Control:</strong> Who can transmit when?</li>
+                </ul>
+            </div>
+
+            <div class="col">
+                <h3>Two Sub-Layers</h3>
+                <div class="info-card">
+                    <strong>LLC (Logical Link Control):</strong> Interfaces with Layer 3, handles multiplexing
+                </div>
+                <div class="info-card">
+                    <strong>MAC (Media Access Control):</strong> Handles physical addressing and media access (CSMA/CD, CSMA/CA)
+                </div>
+                <h3>Key Devices</h3>
+                <div class="device-row">
+                    <div class="device-icon">
+                        <div class="icon"><img src="/assets/images/icons/icon-diamond.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                        <div class="label">Switch</div>
+                    </div>
+                    <div class="device-icon">
+                        <div class="icon"><img src="/assets/images/icons/icon-network.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                        <div class="label">Bridge</div>
+                    </div>
+                    <div class="device-icon">
+                        <div class="icon"><img src="/assets/images/icons/icon-idcard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                        <div class="label">NIC</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <h3>PDU: Frame</h3>
+            <p>At Layer 2, data is called a <strong>Frame</strong>. Contains <strong>source and destination MAC addresses</strong> - the 48-bit physical addresses burned into network cards (e.g., <code style="color:#06b6d4;">00:1A:2B:3C:4D:5E</code>).</p>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 11: Layer 1 - Physical
+     ===================================================================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <h2 style="border-color: #5a6a7a;">Layer 1: Physical Layer</h2>
+
+        <div class="two-col">
+            <div class="col">
+                <div class="osi-layer layer-1" style="margin-bottom: 8px;">
+                    <span class="layer-num">1</span>
+                    <span class="layer-name">Physical</span>
+                    <span class="layer-pdu">Bits</span>
+                </div>
+                <h3>What It Does</h3>
+                <p>The Physical layer deals with the <strong>actual transmission</strong> of raw bits over a physical medium. It's all about:</p>
+                <ul>
+                    <li><strong>Electrical signals</strong> (copper cables)</li>
+                    <li><strong>Light pulses</strong> (fiber optic)</li>
+                    <li><strong>Radio waves</strong> (wireless)</li>
+                    <li><strong>Physical connectors</strong> (RJ-45, fiber connectors)</li>
+                </ul>
+            </div>
+
+            <div class="col">
+                <h3>Key Components</h3>
+                <div class="device-row">
+                    <div class="device-icon">
+                        <div class="icon"><img src="/assets/images/icons/icon-plug.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
+                        <div class="label">Cables</div>
+                    </div>
+                    <div class="device-icon">
+                        <div class="icon"><img src="/assets/images/icons/icon-antenna.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
+                        <div class="label">Repeaters</div>
+                    </div>
+                    <div class="device-icon">
+                        <div class="icon"><img src="/assets/images/icons/icon-branch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
+                        <div class="label">Hubs</div>
+                    </div>
+                </div>
+                <div class="info-card warning">
+                    <strong>Layer 1 Issues:</strong> If you can physically see or touch the problem (loose cable, broken connector, signal degradation), it's a Layer 1 issue!
+                </div>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <h3>PDU: Bits</h3>
+            <p>At Layer 1, data is just <strong>Bits</strong> - 1s and 0s represented as electrical voltages, light pulses, or radio frequencies. Layer 1 doesn't understand addresses, protocols, or data - just raw binary!</p>
+        </div>
+        <p><strong>Standards:</strong> Ethernet (IEEE 802.3), WiFi (IEEE 802.11), RS-232, DSL, SONET</p>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 12: Encapsulation
+     ===================================================================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <h2>Encapsulation: How Data Travels Down</h2>
+
+        <p>When you send data, each layer <strong>adds its own header</strong> (and sometimes trailer) to the data. This process is called <strong>encapsulation</strong>.</p>
+
+        <div class="encap-demo">
+            <div class="data-unit app-data" style="width: 180px;"><img src="/assets/images/icons/icon-email.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Data</div>
+            <p style="color:#64748b;">Layer 4 adds TCP/UDP header</p>
+            <div class="data-unit segment" style="width: 250px;">TCP | <img src="/assets/images/icons/icon-email.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Data</div>
+            <p style="color:#64748b;">Layer 3 adds IP header</p>
+            <div class="data-unit packet" style="width: 320px;">IP | TCP | <img src="/assets/images/icons/icon-email.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Data</div>
+            <p style="color:#64748b;">Layer 2 adds MAC header &amp; trailer</p>
+            <div class="data-unit frame" style="width: 400px;">MAC | IP | TCP | <img src="/assets/images/icons/icon-email.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Data | FCS</div>
+            <p style="color:#64748b;">Layer 1 converts to bits</p>
+            <div class="data-unit bits" style="width: 480px;">10110100 10101010 11001100 01010101...</div>
+        </div>
+
+        <div class="analogy-box">
+            <h3>Postal Analogy</h3>
+            <p>Encapsulation is like <strong>preparing a package</strong>:
+            <br>Write the letter (Application data) -- Put it in an envelope, add recipient name (Transport - port numbers)
+            <br>Add street address (Network - IP addresses) -- Put in mailbox for local carrier (Data Link - MAC addresses)
+            <br>Carrier physically delivers it (Physical - the actual transport)</p>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 13: De-encapsulation
+     ===================================================================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <h2>De-encapsulation: How Data Travels Up</h2>
+
+        <p>When data arrives at its destination, each layer <strong>removes its header</strong> (and trailer) before passing data up. This is <strong>de-encapsulation</strong>.</p>
+
+        <div class="encap-demo">
+            <div class="data-unit bits" style="width: 480px;">10110100 10101010 11001100 01010101...</div>
+            <p style="color:#64748b;">Layer 1 receives bits, passes to Layer 2</p>
+            <div class="data-unit frame" style="width: 400px;">MAC | IP | TCP | <img src="/assets/images/icons/icon-email.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Data | FCS</div>
+            <p style="color:#64748b;">Layer 2 checks MAC, removes header/trailer</p>
+            <div class="data-unit packet" style="width: 320px;">IP | TCP | <img src="/assets/images/icons/icon-email.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Data</div>
+            <p style="color:#64748b;">Layer 3 checks IP, removes header</p>
+            <div class="data-unit segment" style="width: 250px;">TCP | <img src="/assets/images/icons/icon-email.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Data</div>
+            <p style="color:#64748b;">Layer 4 checks port, removes header</p>
+            <div class="data-unit app-data" style="width: 180px;"><img src="/assets/images/icons/icon-email.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Data</div>
+        </div>
+
+        <div class="highlight-box">
+            <h3>Layer-by-Layer Processing</h3>
+            <ul>
+                <li><strong>Layer 2:</strong> "Is this MAC address mine?" -- Yes: pass up | No: discard</li>
+                <li><strong>Layer 3:</strong> "Is this IP address mine?" -- Yes: pass up | No: route it</li>
+                <li><strong>Layer 4:</strong> "Which application needs this?" (Check port number)</li>
+                <li><strong>Layers 5-7:</strong> Process the actual data for the user</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 14: PDU Summary
+     ===================================================================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <h2>Protocol Data Units (PDUs) Summary</h2>
+        <p>Each layer has a specific name for the data unit it handles:</p>
+
+        <div class="osi-stack" style="max-width: 700px;">
+            <div class="osi-layer layer-7" style="justify-content: flex-start; gap: 20px;">
+                <span class="layer-num">7</span>
+                <span class="layer-name" style="width: 120px;">Application</span>
+                <span style="flex-grow: 1;">PDU: <strong>Data</strong></span>
+                <span class="layer-pdu">User interacts here</span>
+            </div>
+            <div class="osi-layer layer-6" style="justify-content: flex-start; gap: 20px;">
+                <span class="layer-num">6</span>
+                <span class="layer-name" style="width: 120px;">Presentation</span>
+                <span style="flex-grow: 1;">PDU: <strong>Data</strong></span>
+                <span class="layer-pdu">Formatting/Encryption</span>
+            </div>
+            <div class="osi-layer layer-5" style="justify-content: flex-start; gap: 20px;">
+                <span class="layer-num">5</span>
+                <span class="layer-name" style="width: 120px;">Session</span>
+                <span style="flex-grow: 1;">PDU: <strong>Data</strong></span>
+                <span class="layer-pdu">Session management</span>
+            </div>
+            <div class="osi-layer layer-4" style="justify-content: flex-start; gap: 20px;">
+                <span class="layer-num">4</span>
+                <span class="layer-name" style="width: 120px;">Transport</span>
+                <span style="flex-grow: 1;">PDU: <strong>Segment</strong></span>
+                <span class="layer-pdu">Port numbers</span>
+            </div>
+            <div class="osi-layer layer-3" style="justify-content: flex-start; gap: 20px;">
+                <span class="layer-num">3</span>
+                <span class="layer-name" style="width: 120px;">Network</span>
+                <span style="flex-grow: 1;">PDU: <strong>Packet</strong></span>
+                <span class="layer-pdu">IP addresses</span>
+            </div>
+            <div class="osi-layer layer-2" style="justify-content: flex-start; gap: 20px;">
+                <span class="layer-num">2</span>
+                <span class="layer-name" style="width: 120px;">Data Link</span>
+                <span style="flex-grow: 1;">PDU: <strong>Frame</strong></span>
+                <span class="layer-pdu">MAC addresses</span>
+            </div>
+            <div class="osi-layer layer-1" style="justify-content: flex-start; gap: 20px;">
+                <span class="layer-num">1</span>
+                <span class="layer-name" style="width: 120px;">Physical</span>
+                <span style="flex-grow: 1;">PDU: <strong>Bits</strong></span>
+                <span class="layer-pdu">Electrical/Light/Radio</span>
+            </div>
+        </div>
+
+        <div class="info-card success">
+            <strong>Exam Tip:</strong> Memorize these PDU names! A common question is "At which layer is data called a frame?" Answer: Layer 2 (Data Link).
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 15: Devices by Layer
+     ===================================================================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <h2>Network Devices by Layer</h2>
+        <p>Different network devices operate at different layers of the OSI model:</p>
+
+        <div class="two-col">
+            <div class="col">
+                <h3>Layer 1 Devices</h3>
+                <div class="info-card">
+                    <strong>Hub:</strong> Broadcasts to all ports (dumb device)
+                    <br><strong>Repeater:</strong> Regenerates signals
+                    <br><strong>Cables/Connectors:</strong> Physical medium
+                </div>
+                <h3>Layer 2 Devices</h3>
+                <div class="info-card">
+                    <strong>Switch:</strong> Forwards based on MAC address
+                    <br><strong>Bridge:</strong> Connects two network segments
+                    <br><strong>NIC:</strong> Network Interface Card
+                    <br><strong>WAP:</strong> Wireless Access Point
+                </div>
+            </div>
+
+            <div class="col">
+                <h3>Layer 3 Devices</h3>
+                <div class="info-card success">
+                    <strong>Router:</strong> Forwards based on IP address
+                    <br><strong>Layer 3 Switch:</strong> Switch with routing capability
+                    <br><strong>Firewall:</strong> Often operates at L3-L7
+                </div>
+                <h3>Layer 4-7 Devices</h3>
+                <div class="info-card">
+                    <strong>Load Balancer:</strong> Distributes traffic (L4-L7)
+                    <br><strong>Proxy Server:</strong> Intermediary for requests (L7)
+                    <br><strong>Next-Gen Firewall:</strong> Deep packet inspection (L7)
+                </div>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <h3>Key Insight</h3>
+            <p>Higher-layer devices can understand all layers below them. A router (L3) can read MAC addresses (L2) and bits (L1), but a hub (L1) has no concept of IP or MAC addresses!</p>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 16: OSI vs TCP/IP
+     ===================================================================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <h2>OSI Model vs TCP/IP Model</h2>
+        <p>The TCP/IP model is the <strong>practical implementation</strong> used on the Internet. It has only 4 layers:</p>
+
+        <div class="compare-grid">
+            <div class="compare-box osi">
+                <h3 style="color: #3498db;">OSI Model (7 Layers)</h3>
+                <div class="osi-stack" style="margin: 0;">
+                    <div class="osi-layer layer-7" style="padding: 5px 10px;"><span>7</span><span>Application</span></div>
+                    <div class="osi-layer layer-6" style="padding: 5px 10px;"><span>6</span><span>Presentation</span></div>
+                    <div class="osi-layer layer-5" style="padding: 5px 10px;"><span>5</span><span>Session</span></div>
+                    <div class="osi-layer layer-4" style="padding: 5px 10px;"><span>4</span><span>Transport</span></div>
+                    <div class="osi-layer layer-3" style="padding: 5px 10px;"><span>3</span><span>Network</span></div>
+                    <div class="osi-layer layer-2" style="padding: 5px 10px;"><span>2</span><span>Data Link</span></div>
+                    <div class="osi-layer layer-1" style="padding: 5px 10px;"><span>1</span><span>Physical</span></div>
+                </div>
+            </div>
+
+            <div class="compare-box tcp">
+                <h3 style="color: #27ae60;">TCP/IP Model (4 Layers)</h3>
+                <div class="osi-stack" style="margin: 0;">
+                    <div class="osi-layer" style="padding: 16px 10px; background: linear-gradient(135deg, #e74c3c, #f39c12);">
+                        <span>4</span><span>Application</span><span style="font-size: 0.75em;">(OSI 5-7)</span>
+                    </div>
+                    <div class="osi-layer layer-4" style="padding: 10px;">
+                        <span>3</span><span>Transport</span><span style="font-size: 0.75em;">(OSI 4)</span>
+                    </div>
+                    <div class="osi-layer layer-3" style="padding: 10px;">
+                        <span>2</span><span>Internet</span><span style="font-size: 0.75em;">(OSI 3)</span>
+                    </div>
+                    <div class="osi-layer" style="padding: 16px 10px; background: linear-gradient(135deg, #9b59b6, #34495e);">
+                        <span>1</span><span>Network Access</span><span style="font-size: 0.75em;">(OSI 1-2)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-card">
+            <strong>Why Two Models?</strong>
+            <br><strong>OSI:</strong> Theoretical reference model (great for learning and troubleshooting)
+            <br><strong>TCP/IP:</strong> Practical model used on the Internet (what actually runs)
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 17: DOD Model
+     ===================================================================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <h2><img src="/assets/images/icons/icon-institution.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> The DOD Model (TCP/IP Origins)</h2>
+
+        <p style="margin-bottom: 8px; font-size:0.88em;">The TCP/IP model is also called the <strong>DOD Model</strong> because it was developed by the U.S. Department of Defense for ARPANET (the Internet's predecessor).</p>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div>
+                <h3 style="color: #3498db; margin-bottom: 6px; font-size:1em;"><img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Alternative Layer Names</h3>
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.82em;">
+                    <tr style="background: #e74c3c; color: white;">
+                        <th style="padding: 6px; text-align: left;">TCP/IP</th>
+                        <th style="padding: 6px; text-align: left;">DOD Name</th>
+                        <th style="padding: 6px; text-align: left;">OSI Equiv.</th>
+                    </tr>
+                    <tr style="background: #fadbd8;">
+                        <td style="padding: 5px; border: 1px solid #ddd;">Application</td>
+                        <td style="padding: 5px; border: 1px solid #ddd;"><strong>Process/Application</strong></td>
+                        <td style="padding: 5px; border: 1px solid #ddd;">L5-L7</td>
+                    </tr>
+                    <tr style="background: #fdebd0;">
+                        <td style="padding: 5px; border: 1px solid #ddd;">Transport</td>
+                        <td style="padding: 5px; border: 1px solid #ddd;"><strong>Host-to-Host</strong></td>
+                        <td style="padding: 5px; border: 1px solid #ddd;">L4</td>
+                    </tr>
+                    <tr style="background: #d5f5e3;">
+                        <td style="padding: 5px; border: 1px solid #ddd;">Internet</td>
+                        <td style="padding: 5px; border: 1px solid #ddd;"><strong>Internet</strong></td>
+                        <td style="padding: 5px; border: 1px solid #ddd;">L3</td>
+                    </tr>
+                    <tr style="background: #d4e6f1;">
+                        <td style="padding: 5px; border: 1px solid #ddd;">Network Access</td>
+                        <td style="padding: 5px; border: 1px solid #ddd;"><strong>Network Interface</strong></td>
+                        <td style="padding: 5px; border: 1px solid #ddd;">L1-L2</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div>
+                <h3 style="color: #27ae60; margin-bottom: 6px; font-size:1em;"><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Key Protocols by Layer</h3>
+                <div style="background: linear-gradient(135deg, #ff6b6b, #ee5a5a); padding: 8px; border-radius: 6px; margin-bottom: 5px; color: white; font-size: 0.82em;">
+                    <strong>Application:</strong> HTTP, HTTPS, FTP, SMTP, DNS, DHCP, SSH, Telnet
+                </div>
+                <div style="background: linear-gradient(135deg, #feca57, #ff9f43); padding: 8px; border-radius: 6px; margin-bottom: 5px; color: white; font-size: 0.82em;">
+                    <strong>Transport:</strong> TCP (reliable), UDP (fast)
+                </div>
+                <div style="background: linear-gradient(135deg, #1dd1a1, #10ac84); padding: 8px; border-radius: 6px; margin-bottom: 5px; color: white; font-size: 0.82em;">
+                    <strong>Internet:</strong> IP, ICMP, ARP, IGMP
+                </div>
+                <div style="background: linear-gradient(135deg, #54a0ff, #2e86de); padding: 8px; border-radius: 6px; color: white; font-size: 0.82em;">
+                    <strong>Network Access:</strong> Ethernet, Wi-Fi, PPP, Frame Relay
+                </div>
+            </div>
+        </div>
+
+        <div class="info-card warning" style="margin-top: 6px;">
+            <strong><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Exam Alert:</strong> CompTIA exams may use either "TCP/IP" or "DOD" model names. Know both!
+            <br>"Host-to-Host" = Transport Layer | "Network Interface" = Network Access Layer
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 18: Troubleshooting with OSI
+     ===================================================================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <h2>Troubleshooting with the OSI Model</h2>
+        <p>The OSI model is incredibly useful for <strong>systematic troubleshooting</strong>. Start at Layer 1 and work up!</p>
+
+        <div class="two-col">
+            <div class="col">
+                <h3>Bottom-Up Approach</h3>
+                <div class="info-card">
+                    <strong>Layer 1:</strong> Is the cable plugged in? Link light on?
+                </div>
+                <div class="info-card">
+                    <strong>Layer 2:</strong> Can you see MAC addresses? Switch port active?
+                </div>
+                <div class="info-card">
+                    <strong>Layer 3:</strong> Do you have an IP address? Can you ping the gateway?
+                </div>
+                <div class="info-card">
+                    <strong>Layer 4:</strong> Is the service port open? Firewall blocking?
+                </div>
+                <div class="info-card">
+                    <strong>Layers 5-7:</strong> Application configured correctly?
+                </div>
+            </div>
+
+            <div class="col">
+                <h3>Troubleshooting Commands</h3>
+                <div class="command-box">
+                    <span class="prompt"># Layer 1 - Physical check</span><br>
+                    <span class="cmd">Check cable connections and link lights</span><br><br>
+                    <span class="prompt"># Layer 2 - MAC/ARP check</span><br>
+                    <span class="cmd">arp -a</span><br>
+                    <span class="cmd">show mac address-table</span><br><br>
+                    <span class="prompt"># Layer 3 - IP/Routing check</span><br>
+                    <span class="cmd">ping 192.168.1.1</span><br>
+                    <span class="cmd">traceroute google.com</span><br><br>
+                    <span class="prompt"># Layer 4 - Port check</span><br>
+                    <span class="cmd">netstat -an | grep LISTEN</span><br>
+                    <span class="cmd">telnet server.com 80</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="analogy-box">
+            <h3>Troubleshooting Tip</h3>
+            <p>When someone says "the network is down," don't panic! Start at Layer 1: "Is the cable plugged in?" You'd be surprised how often that's the answer!</p>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 19: Same Layer Communication
+     ===================================================================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <h2>Same-Layer Communication</h2>
+        <p>Each layer on the sending device communicates with the <strong>same layer</strong> on the receiving device. This is called <strong>peer-to-peer communication</strong>.</p>
+
+        <div style="display: flex; justify-content: space-around; align-items: center; margin: 10px 0;">
+            <div class="osi-stack" style="max-width: 200px;">
+                <p style="text-align: center; font-weight: bold; color: #2a5298; font-size: 0.88em;">Sender</p>
+                <div class="osi-layer layer-7" style="padding: 5px;"><span>L7</span></div>
+                <div class="osi-layer layer-6" style="padding: 5px;"><span>L6</span></div>
+                <div class="osi-layer layer-5" style="padding: 5px;"><span>L5</span></div>
+                <div class="osi-layer layer-4" style="padding: 5px;"><span>L4</span></div>
+                <div class="osi-layer layer-3" style="padding: 5px;"><span>L3</span></div>
+                <div class="osi-layer layer-2" style="padding: 5px;"><span>L2</span></div>
+                <div class="osi-layer layer-1" style="padding: 5px;"><span>L1</span></div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 4px; font-size: 1.1em; color: #94a3b8;">
+                <span>-- HTTP/SMTP --</span>
+                <span>-- SSL/TLS --</span>
+                <span>-- Session --</span>
+                <span>-- TCP/UDP --</span>
+                <span>-- IP --</span>
+                <span>-- Ethernet --</span>
+                <span>-- Bits --</span>
+            </div>
+
+            <div class="osi-stack" style="max-width: 200px;">
+                <p style="text-align: center; font-weight: bold; color: #2a5298; font-size: 0.88em;">Receiver</p>
+                <div class="osi-layer layer-7" style="padding: 5px;"><span>L7</span></div>
+                <div class="osi-layer layer-6" style="padding: 5px;"><span>L6</span></div>
+                <div class="osi-layer layer-5" style="padding: 5px;"><span>L5</span></div>
+                <div class="osi-layer layer-4" style="padding: 5px;"><span>L4</span></div>
+                <div class="osi-layer layer-3" style="padding: 5px;"><span>L3</span></div>
+                <div class="osi-layer layer-2" style="padding: 5px;"><span>L2</span></div>
+                <div class="osi-layer layer-1" style="padding: 5px;"><span>L1</span></div>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <h3>Key Concept</h3>
+            <p>Layer 3 on your computer "talks" to Layer 3 on the destination. The conversation appears horizontal (peer-to-peer), even though data physically travels down and then up the stack!</p>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 20: Real-World Example
+     ===================================================================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <h2>Real-World Example: Loading a Website</h2>
+        <p style="font-size:0.88em;">Let's trace what happens when you type <strong>www.google.com</strong> in your browser:</p>
+
+        <div class="two-col">
+            <div class="col">
+                <h3>Your Computer (Sender)</h3>
+                <div class="info-card" style="border-left-color: #e74c3c; padding: 5px 10px;">
+                    <strong>L7:</strong> Browser creates HTTP GET request
+                </div>
+                <div class="info-card" style="border-left-color: #e67e22; padding: 5px 10px;">
+                    <strong>L6:</strong> Encrypts with TLS (HTTPS)
+                </div>
+                <div class="info-card" style="border-left-color: #f1c40f; padding: 5px 10px;">
+                    <strong>L5:</strong> Establishes session with server
+                </div>
+                <div class="info-card" style="border-left-color: #2ecc71; padding: 5px 10px;">
+                    <strong>L4:</strong> TCP adds port 443, sequence numbers
+                </div>
+                <div class="info-card" style="border-left-color: #3498db; padding: 5px 10px;">
+                    <strong>L3:</strong> IP adds your IP + Google's IP (172.217.x.x)
+                </div>
+                <div class="info-card" style="border-left-color: #9b59b6; padding: 5px 10px;">
+                    <strong>L2:</strong> Ethernet adds your MAC + router's MAC
+                </div>
+                <div class="info-card" style="border-left-color: #34495e; padding: 5px 10px;">
+                    <strong>L1:</strong> Bits sent as electrical signals
+                </div>
+            </div>
+
+            <div class="col">
+                <h3>Google Server (Receiver)</h3>
+                <div class="info-card" style="border-left-color: #34495e; padding: 5px 10px;">
+                    <strong>L1:</strong> Receives electrical signals
+                </div>
+                <div class="info-card" style="border-left-color: #9b59b6; padding: 5px 10px;">
+                    <strong>L2:</strong> Checks MAC, strips frame header
+                </div>
+                <div class="info-card" style="border-left-color: #3498db; padding: 5px 10px;">
+                    <strong>L3:</strong> Checks IP, strips packet header
+                </div>
+                <div class="info-card" style="border-left-color: #2ecc71; padding: 5px 10px;">
+                    <strong>L4:</strong> TCP delivers to port 443 (HTTPS)
+                </div>
+                <div class="info-card" style="border-left-color: #f1c40f; padding: 5px 10px;">
+                    <strong>L5:</strong> Maintains session
+                </div>
+                <div class="info-card" style="border-left-color: #e67e22; padding: 5px 10px;">
+                    <strong>L6:</strong> Decrypts TLS
+                </div>
+                <div class="info-card" style="border-left-color: #e74c3c; padding: 5px 10px;">
+                    <strong>L7:</strong> Web server processes HTTP request
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 21: Key Exam Points
+     ===================================================================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <h2>Key Exam Points</h2>
+
+        <div class="two-col">
+            <div class="col">
+                <h3>Must Know for Network+</h3>
+                <div class="quiz-section">
+                    <p class="quiz-question">Q: What is the PDU at Layer 2?</p>
+                    <p><strong>A: Frame</strong></p>
+                </div>
+                <div class="quiz-section">
+                    <p class="quiz-question">Q: Which layer uses IP addresses?</p>
+                    <p><strong>A: Layer 3 (Network)</strong></p>
+                </div>
+                <div class="quiz-section">
+                    <p class="quiz-question">Q: At which layer does a switch operate?</p>
+                    <p><strong>A: Layer 2 (Data Link)</strong></p>
+                </div>
+                <div class="quiz-section">
+                    <p class="quiz-question">Q: What happens during encapsulation?</p>
+                    <p><strong>A: Headers are added as data moves down the layers</strong></p>
+                </div>
+            </div>
+
+            <div class="col">
+                <h3>Must Know for CCNA</h3>
+                <div class="quiz-section">
+                    <p class="quiz-question">Q: How does TCP/IP model differ from OSI?</p>
+                    <p><strong>A: TCP/IP has 4 layers; combines OSI L5-7 into Application and L1-2 into Network Access</strong></p>
+                </div>
+                <div class="quiz-section">
+                    <p class="quiz-question">Q: Which layer handles error recovery?</p>
+                    <p><strong>A: Layer 4 (Transport) - TCP provides reliable delivery</strong></p>
+                </div>
+                <div class="quiz-section">
+                    <p class="quiz-question">Q: What addresses are used at Layer 2?</p>
+                    <p><strong>A: MAC addresses (48-bit physical addresses)</strong></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-card success">
+            <strong>Final Tip:</strong> When in doubt, remember the data flow: Application -- Transport -- Network -- Data Link -- Physical. Data goes DOWN on sender, UP on receiver!
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 22: Summary
+     ===================================================================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <h2>OSI Model Summary</h2>
+
+        <div class="osi-stack" style="max-width: 800px;">
+            <div class="osi-layer layer-7" style="justify-content: flex-start; gap: 14px;">
+                <span class="layer-num">7</span>
+                <span class="layer-name" style="width: 110px;">Application</span>
+                <span style="width: 70px;">Data</span>
+                <span style="flex-grow: 1; font-size: 0.85em;">HTTP, HTTPS, FTP, SMTP, DNS, SSH</span>
+            </div>
+            <div class="osi-layer layer-6" style="justify-content: flex-start; gap: 14px;">
+                <span class="layer-num">6</span>
+                <span class="layer-name" style="width: 110px;">Presentation</span>
+                <span style="width: 70px;">Data</span>
+                <span style="flex-grow: 1; font-size: 0.85em;">SSL/TLS, JPEG, MPEG, ASCII, Encryption</span>
+            </div>
+            <div class="osi-layer layer-5" style="justify-content: flex-start; gap: 14px;">
+                <span class="layer-num">5</span>
+                <span class="layer-name" style="width: 110px;">Session</span>
+                <span style="width: 70px;">Data</span>
+                <span style="flex-grow: 1; font-size: 0.85em;">NetBIOS, RPC, SQL Sessions</span>
+            </div>
+            <div class="osi-layer layer-4" style="justify-content: flex-start; gap: 14px;">
+                <span class="layer-num">4</span>
+                <span class="layer-name" style="width: 110px;">Transport</span>
+                <span style="width: 70px;">Segment</span>
+                <span style="flex-grow: 1; font-size: 0.85em;">TCP, UDP | Port Numbers</span>
+            </div>
+            <div class="osi-layer layer-3" style="justify-content: flex-start; gap: 14px;">
+                <span class="layer-num">3</span>
+                <span class="layer-name" style="width: 110px;">Network</span>
+                <span style="width: 70px;">Packet</span>
+                <span style="flex-grow: 1; font-size: 0.85em;">IP, ICMP, OSPF | Routers</span>
+            </div>
+            <div class="osi-layer layer-2" style="justify-content: flex-start; gap: 14px;">
+                <span class="layer-num">2</span>
+                <span class="layer-name" style="width: 110px;">Data Link</span>
+                <span style="width: 70px;">Frame</span>
+                <span style="flex-grow: 1; font-size: 0.85em;">Ethernet, 802.11 | Switches, MAC</span>
+            </div>
+            <div class="osi-layer layer-1" style="justify-content: flex-start; gap: 14px;">
+                <span class="layer-num">1</span>
+                <span class="layer-name" style="width: 110px;">Physical</span>
+                <span style="width: 70px;">Bits</span>
+                <span style="flex-grow: 1; font-size: 0.85em;">Cables, Hubs, Signals</span>
+            </div>
+        </div>
+
+        <div class="highlight-box" style="margin-top: 10px;">
+            <h3>Remember</h3>
+            <ul>
+                <li><strong>All People Seem To Need Data Processing</strong> (L7 to L1)</li>
+                <li><strong>Encapsulation:</strong> Headers added going DOWN | <strong>De-encapsulation:</strong> Headers removed going UP</li>
+                <li><strong>Layer 3 = IP addresses (Routers)</strong> | <strong>Layer 2 = MAC addresses (Switches)</strong></li>
+                <li><strong>Troubleshoot bottom-up:</strong> Start at Layer 1 (is it plugged in?)</li>
+            </ul>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     NAVIGATION BAR
+     ===================================================================== -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Network+ Hub</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 22</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<!-- =====================================================================
+     PRESENTATION LOGIC
+     ===================================================================== -->
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 22;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            goToSlide(currentSlide + 1);
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            goToSlide(currentSlide - 1);
+        }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'web-osi', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

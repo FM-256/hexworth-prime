@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subnetting Practice Lab | Network+</title>
+    <style>
+        :root {
+            --web-primary: #60a5fa;
+            --web-secondary: #3b82f6;
+            --web-dark: #1e3a5f;
+            --web-glow: rgba(96, 165, 250, 0.3);
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a24;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; line-height: 1.6; }
+        .lab-container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+        .back-link { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--web-primary); text-decoration: none; margin-bottom: 1rem; transition: all 0.3s ease; }
+        .back-link:hover { color: #93c5fd; transform: translateX(-5px); }
+        .lab-header { text-align: center; margin-bottom: 2rem; padding: 2rem; background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary)); border-radius: 16px; border: 1px solid var(--web-primary); box-shadow: 0 0 30px var(--web-glow); }
+        .lab-header h1 { font-size: 2.2rem; margin-bottom: 0.5rem; background: linear-gradient(135deg, var(--web-primary), #93c5fd); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 1rem; margin-bottom: 1rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+        .meta-item { display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); }
+        .progress-section { background: var(--bg-secondary); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid rgba(96, 165, 250, 0.2); }
+        .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .progress-bar { height: 12px; background: var(--bg-tertiary); border-radius: 6px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--web-primary), var(--success)); border-radius: 6px; transition: width 0.5s ease; }
+        .task { background: var(--bg-secondary); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; border: 1px solid rgba(96, 165, 250, 0.2); transition: all 0.3s ease; }
+        .task:hover { border-color: var(--web-primary); box-shadow: 0 0 20px var(--web-glow); }
+        .task.completed { border-color: var(--success); background: linear-gradient(135deg, var(--bg-secondary), rgba(34, 197, 94, 0.1)); }
+        .task-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+        .task-number { width: 50px; height: 50px; background: linear-gradient(135deg, var(--web-primary), var(--web-secondary)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; }
+        .task-title h2 { font-size: 1.3rem; color: var(--text-primary); }
+        .task-title .diff { color: var(--text-secondary); font-size: 0.85rem; }
+        .objective { background: var(--bg-tertiary); padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid var(--web-primary); }
+        .objective strong { color: var(--web-primary); }
+        .scenario { background: #000; padding: 1.5rem; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.9rem; color: var(--web-primary); border: 1px solid var(--web-dark); margin-bottom: 1.5rem; }
+        .answer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1rem; }
+        .answer-group { display: flex; flex-direction: column; gap: 6px; }
+        .answer-group label { font-size: 0.8rem; color: var(--web-primary); text-transform: uppercase; letter-spacing: 0.05em; }
+        .answer-group input { padding: 10px 14px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 0.9rem; font-family: 'Courier New', monospace; }
+        .answer-group input:focus { outline: none; border-color: var(--web-primary); box-shadow: 0 0 10px var(--web-glow); }
+        .answer-group input.correct { border-color: var(--success); background: rgba(34, 197, 94, 0.1); }
+        .answer-group input.incorrect { border-color: var(--danger); background: rgba(239, 68, 68, 0.1); }
+        .check-btn { padding: 10px 24px; background: linear-gradient(135deg, var(--web-primary), var(--web-secondary)); color: white; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.3s; margin-top: 0.5rem; }
+        .check-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px var(--web-glow); }
+        .feedback { padding: 10px 16px; border-radius: 8px; margin-top: 10px; font-size: 0.9rem; display: none; }
+        .feedback.correct { display: block; background: rgba(34, 197, 94, 0.15); border: 1px solid var(--success); color: var(--success); }
+        .feedback.incorrect { display: block; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: var(--danger); }
+        .tip-box { background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning); border-radius: 8px; padding: 1rem; margin: 1rem 0; font-size: 0.9rem; }
+        .tip-box strong { color: var(--warning); }
+        .ref-table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.85rem; }
+        .ref-table th, .ref-table td { padding: 0.6rem 0.8rem; text-align: left; border: 1px solid rgba(96, 165, 250, 0.2); }
+        .ref-table th { background: var(--web-dark); color: var(--web-primary); }
+        .ref-table tr:nth-child(even) { background: var(--bg-tertiary); }
+        .ref-table code { background: rgba(96, 165, 250, 0.1); padding: 0.15rem 0.4rem; border-radius: 3px; font-family: 'Courier New', monospace; }
+        .completion-btn { width: 100%; padding: 1rem 2rem; background: linear-gradient(135deg, var(--web-primary), var(--web-secondary)); color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .completion-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px var(--web-glow); }
+        .completion-btn.completed { background: var(--success); }
+        .score-display { text-align: center; padding: 20px; background: var(--bg-secondary); border-radius: 12px; border: 1px solid rgba(96, 165, 250, 0.3); margin-top: 1.5rem; }
+        .score-display .score-big { font-size: 2.5rem; font-weight: 300; color: var(--web-primary); }
+        @media (max-width: 768px) {
+            .lab-container { padding: 1rem; }
+            .lab-header h1 { font-size: 1.8rem; }
+            .answer-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <a href="../index.html" class="back-link">&larr; Network+ Hub</a>
+
+        <header class="lab-header">
+            <h1>Subnetting Practice Lab</h1>
+            <p class="subtitle">Calculate network addresses, broadcast addresses, host ranges, and usable hosts from CIDR notation</p>
+            <div class="lab-meta">
+                <span class="meta-item">60 minutes</span>
+                <span class="meta-item">Beginner to Intermediate</span>
+                <span class="meta-item">7 Tasks</span>
+            </div>
+        </header>
+
+        <div class="progress-section">
+            <div class="progress-header">
+                <span>Lab Progress</span>
+                <span id="progressText">0 / 7 tasks</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Reference Section -->
+        <div class="task" style="border-color: rgba(245, 158, 11, 0.3);">
+            <div class="task-header">
+                <div class="task-number" style="background: linear-gradient(135deg, var(--warning), #d97706);">R</div>
+                <div class="task-title">
+                    <h2>Quick Reference: Subnet Cheat Sheet</h2>
+                    <span class="diff">Keep this open as you work</span>
+                </div>
+            </div>
+            <table class="ref-table">
+                <tr><th>CIDR</th><th>Subnet Mask</th><th>Wildcard</th><th>Total IPs</th><th>Usable Hosts</th></tr>
+                <tr><td><code>/24</code></td><td>255.255.255.0</td><td>0.0.0.255</td><td>256</td><td>254</td></tr>
+                <tr><td><code>/25</code></td><td>255.255.255.128</td><td>0.0.0.127</td><td>128</td><td>126</td></tr>
+                <tr><td><code>/26</code></td><td>255.255.255.192</td><td>0.0.0.63</td><td>64</td><td>62</td></tr>
+                <tr><td><code>/27</code></td><td>255.255.255.224</td><td>0.0.0.31</td><td>32</td><td>30</td></tr>
+                <tr><td><code>/28</code></td><td>255.255.255.240</td><td>0.0.0.15</td><td>16</td><td>14</td></tr>
+                <tr><td><code>/29</code></td><td>255.255.255.248</td><td>0.0.0.7</td><td>8</td><td>6</td></tr>
+                <tr><td><code>/30</code></td><td>255.255.255.252</td><td>0.0.0.3</td><td>4</td><td>2</td></tr>
+            </table>
+            <div class="tip-box">
+                <strong>Method:</strong> Network address = IP AND subnet mask. Broadcast = Network OR wildcard mask. First host = Network + 1. Last host = Broadcast - 1. Usable hosts = 2^(32-prefix) - 2.
+            </div>
+        </div>
+
+        <!-- Task 1: Basic /24 -->
+        <div class="task" id="task1">
+            <div class="task-header">
+                <div class="task-number">1</div>
+                <div class="task-title">
+                    <h2>/24 Network Calculation</h2>
+                    <span class="diff">Beginner</span>
+                </div>
+            </div>
+            <div class="objective"><strong>Given:</strong> A host with IP address <code style="color: var(--web-primary);">192.168.10.47/24</code>. Calculate the network properties.</div>
+            <div class="scenario">Host IP:  192.168.10.47
+CIDR:     /24
+Mask:     255.255.255.0</div>
+            <div class="answer-grid">
+                <div class="answer-group">
+                    <label>Network Address</label>
+                    <input type="text" id="t1_net" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>Broadcast Address</label>
+                    <input type="text" id="t1_bc" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>First Usable Host</label>
+                    <input type="text" id="t1_first" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>Last Usable Host</label>
+                    <input type="text" id="t1_last" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>Total Usable Hosts</label>
+                    <input type="text" id="t1_hosts" placeholder="Number">
+                </div>
+                <div class="answer-group">
+                    <label>Subnet Mask</label>
+                    <input type="text" id="t1_mask" placeholder="x.x.x.x">
+                </div>
+            </div>
+            <button class="check-btn" onclick="checkTask(1, {net:'192.168.10.0', bc:'192.168.10.255', first:'192.168.10.1', last:'192.168.10.254', hosts:'254', mask:'255.255.255.0'})">Check Answers</button>
+            <div class="feedback" id="fb_t1"></div>
+            <button class="completion-btn" onclick="completeTask(1)" style="margin-top: 1rem;">Mark Complete</button>
+        </div>
+
+        <!-- Task 2: /26 -->
+        <div class="task" id="task2">
+            <div class="task-header">
+                <div class="task-number">2</div>
+                <div class="task-title">
+                    <h2>/26 Network Calculation</h2>
+                    <span class="diff">Beginner</span>
+                </div>
+            </div>
+            <div class="objective"><strong>Given:</strong> A host with IP address <code style="color: var(--web-primary);">10.0.5.130/26</code>. Calculate the network properties.</div>
+            <div class="scenario">Host IP:  10.0.5.130
+CIDR:     /26
+Mask:     255.255.255.192
+Block size: 64 (256 - 192)</div>
+            <div class="answer-grid">
+                <div class="answer-group">
+                    <label>Network Address</label>
+                    <input type="text" id="t2_net" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>Broadcast Address</label>
+                    <input type="text" id="t2_bc" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>First Usable Host</label>
+                    <input type="text" id="t2_first" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>Last Usable Host</label>
+                    <input type="text" id="t2_last" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>Total Usable Hosts</label>
+                    <input type="text" id="t2_hosts" placeholder="Number">
+                </div>
+                <div class="answer-group">
+                    <label>Subnet Mask</label>
+                    <input type="text" id="t2_mask" placeholder="x.x.x.x">
+                </div>
+            </div>
+            <button class="check-btn" onclick="checkTask(2, {net:'10.0.5.128', bc:'10.0.5.191', first:'10.0.5.129', last:'10.0.5.190', hosts:'62', mask:'255.255.255.192'})">Check Answers</button>
+            <div class="feedback" id="fb_t2"></div>
+            <button class="completion-btn" onclick="completeTask(2)" style="margin-top: 1rem;">Mark Complete</button>
+        </div>
+
+        <!-- Task 3: /28 -->
+        <div class="task" id="task3">
+            <div class="task-header">
+                <div class="task-number">3</div>
+                <div class="task-title">
+                    <h2>/28 Network Calculation</h2>
+                    <span class="diff">Intermediate</span>
+                </div>
+            </div>
+            <div class="objective"><strong>Given:</strong> A host with IP address <code style="color: var(--web-primary);">172.16.20.100/28</code>. Calculate the network properties.</div>
+            <div class="scenario">Host IP:  172.16.20.100
+CIDR:     /28
+Mask:     255.255.255.240
+Block size: 16 (256 - 240)
+Hint: 100 / 16 = 6.25 => network starts at 6 * 16 = 96</div>
+            <div class="answer-grid">
+                <div class="answer-group">
+                    <label>Network Address</label>
+                    <input type="text" id="t3_net" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>Broadcast Address</label>
+                    <input type="text" id="t3_bc" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>First Usable Host</label>
+                    <input type="text" id="t3_first" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>Last Usable Host</label>
+                    <input type="text" id="t3_last" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>Total Usable Hosts</label>
+                    <input type="text" id="t3_hosts" placeholder="Number">
+                </div>
+                <div class="answer-group">
+                    <label>Subnet Mask</label>
+                    <input type="text" id="t3_mask" placeholder="x.x.x.x">
+                </div>
+            </div>
+            <button class="check-btn" onclick="checkTask(3, {net:'172.16.20.96', bc:'172.16.20.111', first:'172.16.20.97', last:'172.16.20.110', hosts:'14', mask:'255.255.255.240'})">Check Answers</button>
+            <div class="feedback" id="fb_t3"></div>
+            <button class="completion-btn" onclick="completeTask(3)" style="margin-top: 1rem;">Mark Complete</button>
+        </div>
+
+        <!-- Task 4: /30 Point-to-Point -->
+        <div class="task" id="task4">
+            <div class="task-header">
+                <div class="task-number">4</div>
+                <div class="task-title">
+                    <h2>/30 Point-to-Point Link</h2>
+                    <span class="diff">Intermediate</span>
+                </div>
+            </div>
+            <div class="objective"><strong>Given:</strong> A router interface with IP address <code style="color: var(--web-primary);">10.0.0.9/30</code>. This is a point-to-point WAN link.</div>
+            <div class="scenario">Host IP:  10.0.0.9
+CIDR:     /30
+Mask:     255.255.255.252
+Block size: 4 (256 - 252)
+Note: /30 subnets provide exactly 2 usable IPs - perfect for router-to-router links.</div>
+            <div class="answer-grid">
+                <div class="answer-group">
+                    <label>Network Address</label>
+                    <input type="text" id="t4_net" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>Broadcast Address</label>
+                    <input type="text" id="t4_bc" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>First Usable Host</label>
+                    <input type="text" id="t4_first" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>Last Usable Host</label>
+                    <input type="text" id="t4_last" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>Total Usable Hosts</label>
+                    <input type="text" id="t4_hosts" placeholder="Number">
+                </div>
+                <div class="answer-group">
+                    <label>Other Router's IP</label>
+                    <input type="text" id="t4_mask" placeholder="x.x.x.x">
+                </div>
+            </div>
+            <button class="check-btn" onclick="checkTask(4, {net:'10.0.0.8', bc:'10.0.0.11', first:'10.0.0.9', last:'10.0.0.10', hosts:'2', mask:'10.0.0.10'})">Check Answers</button>
+            <div class="feedback" id="fb_t4"></div>
+            <button class="completion-btn" onclick="completeTask(4)" style="margin-top: 1rem;">Mark Complete</button>
+        </div>
+
+        <!-- Task 5: /27 -->
+        <div class="task" id="task5">
+            <div class="task-header">
+                <div class="task-number">5</div>
+                <div class="task-title">
+                    <h2>/27 Server Subnet</h2>
+                    <span class="diff">Intermediate</span>
+                </div>
+            </div>
+            <div class="objective"><strong>Given:</strong> A server with IP address <code style="color: var(--web-primary);">192.168.1.200/27</code>. Calculate all subnet details.</div>
+            <div class="scenario">Host IP:  192.168.1.200
+CIDR:     /27
+Mask:     255.255.255.224
+Block size: 32 (256 - 224)
+Hint: 200 / 32 = 6.25 => network starts at 6 * 32 = 192</div>
+            <div class="answer-grid">
+                <div class="answer-group">
+                    <label>Network Address</label>
+                    <input type="text" id="t5_net" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>Broadcast Address</label>
+                    <input type="text" id="t5_bc" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>First Usable Host</label>
+                    <input type="text" id="t5_first" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>Last Usable Host</label>
+                    <input type="text" id="t5_last" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>Total Usable Hosts</label>
+                    <input type="text" id="t5_hosts" placeholder="Number">
+                </div>
+                <div class="answer-group">
+                    <label>Subnet Mask</label>
+                    <input type="text" id="t5_mask" placeholder="x.x.x.x">
+                </div>
+            </div>
+            <button class="check-btn" onclick="checkTask(5, {net:'192.168.1.192', bc:'192.168.1.223', first:'192.168.1.193', last:'192.168.1.222', hosts:'30', mask:'255.255.255.224'})">Check Answers</button>
+            <div class="feedback" id="fb_t5"></div>
+            <button class="completion-btn" onclick="completeTask(5)" style="margin-top: 1rem;">Mark Complete</button>
+        </div>
+
+        <!-- Task 6: Subnet Design -->
+        <div class="task" id="task6">
+            <div class="task-header">
+                <div class="task-number">6</div>
+                <div class="task-title">
+                    <h2>Subnet Design Challenge</h2>
+                    <span class="diff">Advanced</span>
+                </div>
+            </div>
+            <div class="objective"><strong>Scenario:</strong> You have been given the network <code style="color: var(--web-primary);">172.16.0.0/16</code>. Design subnets for 3 departments: Sales (50 hosts), Engineering (200 hosts), and Management (12 hosts). What is the smallest CIDR prefix for each?</div>
+            <div class="scenario">Available network:  172.16.0.0/16
+Department needs:
+  Sales:       50 hosts  => need at least 52 IPs (50 + network + broadcast)
+  Engineering: 200 hosts => need at least 202 IPs
+  Management:  12 hosts  => need at least 14 IPs
+
+Remember: choose the smallest subnet that fits (most specific prefix).</div>
+            <div class="answer-grid">
+                <div class="answer-group">
+                    <label>Sales CIDR prefix (/XX)</label>
+                    <input type="text" id="t6_net" placeholder="e.g., /24">
+                </div>
+                <div class="answer-group">
+                    <label>Engineering CIDR prefix (/XX)</label>
+                    <input type="text" id="t6_bc" placeholder="e.g., /24">
+                </div>
+                <div class="answer-group">
+                    <label>Management CIDR prefix (/XX)</label>
+                    <input type="text" id="t6_first" placeholder="e.g., /24">
+                </div>
+                <div class="answer-group">
+                    <label>Sales usable hosts</label>
+                    <input type="text" id="t6_last" placeholder="Number">
+                </div>
+                <div class="answer-group">
+                    <label>Engineering usable hosts</label>
+                    <input type="text" id="t6_hosts" placeholder="Number">
+                </div>
+                <div class="answer-group">
+                    <label>Management usable hosts</label>
+                    <input type="text" id="t6_mask" placeholder="Number">
+                </div>
+            </div>
+            <button class="check-btn" onclick="checkTask(6, {net:'/26', bc:'/24', first:'/28', last:'62', hosts:'254', mask:'14'})">Check Answers</button>
+            <div class="feedback" id="fb_t6"></div>
+            <div class="tip-box">
+                <strong>Design Tip:</strong> Sales needs 50 hosts: 2^6 = 64 IPs (62 usable) => /26. Engineering needs 200 hosts: 2^8 = 256 IPs (254 usable) => /24. Management needs 12 hosts: 2^4 = 16 IPs (14 usable) => /28.
+            </div>
+            <button class="completion-btn" onclick="completeTask(6)" style="margin-top: 1rem;">Mark Complete</button>
+        </div>
+
+        <!-- Task 7: Classless Challenge -->
+        <div class="task" id="task7">
+            <div class="task-header">
+                <div class="task-number">7</div>
+                <div class="task-title">
+                    <h2>VLSM Supernet Challenge</h2>
+                    <span class="diff">Advanced</span>
+                </div>
+            </div>
+            <div class="objective"><strong>Given:</strong> Two adjacent /24 networks: <code style="color: var(--web-primary);">10.10.0.0/24</code> and <code style="color: var(--web-primary);">10.10.1.0/24</code>. Can they be summarized into a single route? What would the summary be?</div>
+            <div class="scenario">Network 1:  10.10.0.0/24   (10.10.0.0 - 10.10.0.255)
+Network 2:  10.10.1.0/24   (10.10.1.0 - 10.10.1.255)
+
+Question: What single CIDR block covers both networks exactly?
+Hint: Compare the binary of the 3rd octet:
+  0 = 00000000
+  1 = 00000001
+  They differ only in the last bit of octet 3.</div>
+            <div class="answer-grid">
+                <div class="answer-group">
+                    <label>Summary Network Address</label>
+                    <input type="text" id="t7_net" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>Summary CIDR Prefix</label>
+                    <input type="text" id="t7_bc" placeholder="/XX">
+                </div>
+                <div class="answer-group">
+                    <label>Summary Subnet Mask</label>
+                    <input type="text" id="t7_first" placeholder="x.x.x.x">
+                </div>
+                <div class="answer-group">
+                    <label>Total usable hosts in summary</label>
+                    <input type="text" id="t7_last" placeholder="Number">
+                </div>
+            </div>
+            <button class="check-btn" onclick="checkTask(7, {net:'10.10.0.0', bc:'/23', first:'255.255.254.0', last:'510'})">Check Answers</button>
+            <div class="feedback" id="fb_t7"></div>
+            <button class="completion-btn" onclick="completeTask(7)" style="margin-top: 1rem;">Mark Lab Complete</button>
+        </div>
+
+        <div class="score-display" id="scoreDisplay" style="display: none;">
+            <div class="score-big" id="scoreBig">0 / 7</div>
+            <p style="color: var(--text-secondary); margin-top: 8px;">Tasks completed</p>
+        </div>
+    </div>
+
+    <script>
+        var STORAGE_KEY = 'web_subnetting_lab_progress';
+        var TOTAL = 7;
+        var completedTasks = [];
+
+        function loadProgress() {
+            var saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                completedTasks = JSON.parse(saved);
+                completedTasks.forEach(function(num) {
+                    var task = document.getElementById('task' + num);
+                    if (task) {
+                        task.classList.add('completed');
+                        var btn = task.querySelector('.completion-btn');
+                        btn.classList.add('completed');
+                        btn.textContent = 'Completed';
+                    }
+                });
+            }
+            updateProgress();
+        }
+
+        function saveProgress() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(completedTasks));
+        }
+
+        function updateProgress() {
+            var completed = completedTasks.length;
+            var percent = (completed / TOTAL) * 100;
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = completed + ' / ' + TOTAL + ' tasks';
+        }
+
+        function checkTask(num, answers) {
+            var prefix = 't' + num + '_';
+            var fields = ['net', 'bc', 'first', 'last', 'hosts', 'mask'];
+            var allCorrect = true;
+            var checked = 0;
+
+            fields.forEach(function(field) {
+                var input = document.getElementById(prefix + field);
+                if (!input) return;
+                var expected = answers[field];
+                if (!expected) return;
+                checked++;
+                var val = input.value.trim().toLowerCase();
+                var exp = expected.toLowerCase();
+
+                if (val === exp) {
+                    input.className = input.className.replace(' incorrect', '').replace(' correct', '') + ' correct';
+                } else {
+                    input.className = input.className.replace(' correct', '').replace(' incorrect', '') + ' incorrect';
+                    allCorrect = false;
+                }
+            });
+
+            var fb = document.getElementById('fb_t' + num);
+            if (allCorrect && checked > 0) {
+                fb.className = 'feedback correct';
+                fb.textContent = 'All answers correct! Well done.';
+            } else {
+                fb.className = 'feedback incorrect';
+                fb.textContent = 'Some answers are incorrect. Red fields need correction.';
+            }
+        }
+
+        // Answer keys for validation before completion
+        var TASK_ANSWERS = {
+            1: {net:'192.168.10.0', bc:'192.168.10.255', first:'192.168.10.1', last:'192.168.10.254', hosts:'254', mask:'255.255.255.0'},
+            2: {net:'10.0.5.128', bc:'10.0.5.191', first:'10.0.5.129', last:'10.0.5.190', hosts:'62', mask:'255.255.255.192'},
+            3: {net:'172.16.20.96', bc:'172.16.20.111', first:'172.16.20.97', last:'172.16.20.110', hosts:'14', mask:'255.255.255.240'},
+            4: {net:'10.0.0.8', bc:'10.0.0.11', first:'10.0.0.9', last:'10.0.0.10', hosts:'2', mask:'10.0.0.10'},
+            5: {net:'192.168.1.192', bc:'192.168.1.223', first:'192.168.1.193', last:'192.168.1.222', hosts:'30', mask:'255.255.255.224'},
+            6: {net:'/26', bc:'/24', first:'/28', last:'62', hosts:'254', mask:'14'},
+            7: {net:'10.10.0.0', bc:'/23', first:'255.255.254.0', last:'510'}
+        };
+
+        function completeTask(num) {
+            if (completedTasks.indexOf(num) !== -1) return; // already done
+
+            // Validate answers first
+            var answers = TASK_ANSWERS[num];
+            if (answers) {
+                var prefix = 't' + num + '_';
+                var fields = Object.keys(answers);
+                var allCorrect = true;
+                var anyFilled = false;
+
+                fields.forEach(function(field) {
+                    var input = document.getElementById(prefix + field);
+                    if (!input) return;
+                    var val = input.value.trim().toLowerCase();
+                    var exp = answers[field].toLowerCase();
+                    if (val) anyFilled = true;
+                    if (val !== exp) allCorrect = false;
+                });
+
+                if (!anyFilled) {
+                    var fb = document.getElementById('fb_t' + num);
+                    if (fb) { fb.className = 'feedback incorrect'; fb.textContent = 'Complete the task before marking it done. Fill in all fields and check your answers.'; }
+                    return;
+                }
+
+                if (!allCorrect) {
+                    // Run checkTask to highlight errors
+                    checkTask(num, answers);
+                    return;
+                }
+            }
+
+            completedTasks.push(num);
+            var task = document.getElementById('task' + num);
+            task.classList.add('completed');
+            var btn = task.querySelector('.completion-btn');
+            btn.classList.add('completed');
+            btn.textContent = 'Completed';
+            saveProgress();
+            updateProgress();
+
+            if (completedTasks.length === TOTAL) {
+                var sd = document.getElementById('scoreDisplay');
+                sd.style.display = 'block';
+                document.getElementById('scoreBig').textContent = TOTAL + ' / ' + TOTAL;
+                if (typeof ModuleProgress !== 'undefined') {
+                    ModuleProgress.complete('web', 'web-subnetting-practice', { returnToDashboard: false });
+                }
+            }
+        }
+
+        loadProgress();
+    </script>
+
+    <script src="../../../../components/TrailHunter.js"></script>
+</body>
+</html>

@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ports &amp; Protocols | Network+ N10-009</title>
+    <style>
+        /* =====================================================
+           RESET & BASE
+           ===================================================== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden; /* No scrolling — slides are viewport-fit */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* =====================================================
+           SLIDE SYSTEM — viewport-locked, no overflow
+           ===================================================== */
+        .slide {
+            display: none;
+            position: fixed;
+            inset: 0;
+            padding: 20px 28px 72px; /* bottom clearance for nav bar */
+            overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Inner wrapper — constrains content width */
+        .slide-inner {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* =====================================================
+           PROGRESS BAR
+           ===================================================== */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: #3ab577;
+            transition: width 0.4s ease;
+            z-index: 200;
+        }
+
+        /* =====================================================
+           NAVIGATION BAR — fixed bottom
+           ===================================================== */
+        #nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            z-index: 200;
+            padding: 0 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(6, 182, 212, 0.15);
+            color: #06b6d4;
+            border-color: #06b6d4;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.back-btn {
+            font-size: 0.82rem;
+            padding: 8px 16px;
+        }
+
+        #slide-counter {
+            color: #64748b;
+            font-size: 0.82rem;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        #complete-btn {
+            display: none;
+            background: #3ab577;
+            color: #000;
+            border: none;
+            padding: 9px 26px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+
+        #complete-btn:hover {
+            background: #4fcf8a;
+            transform: translateY(-1px);
+        }
+
+        /* =====================================================
+           SLIDE HEADER — shared across all slides
+           ===================================================== */
+        .slide-meta {
+            font-size: 0.78rem;
+            color: #3ab577;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .slide-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            text-align: center;
+            line-height: 1.25;
+        }
+
+        .slide-title span.accent-green {
+            color: #3ab577;
+        }
+
+        .slide-title span.accent-cyan {
+            color: #06b6d4;
+        }
+
+        .slide-subtitle {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        /* =====================================================
+           SCENARIO STRIP — recurring narrative thread
+           ===================================================== */
+        .scenario-strip {
+            background: rgba(58, 181, 119, 0.08);
+            border-left: 3px solid #3ab577;
+            border-radius: 0 8px 8px 0;
+            padding: 10px 16px;
+            font-size: 0.88rem;
+            color: #a7f3d0;
+            font-style: italic;
+        }
+
+        /* =====================================================
+           INFO / WARNING / TIP BOXES
+           ===================================================== */
+        .box {
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.875rem;
+        }
+
+        .box-cyan {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            color: #cffafe;
+        }
+
+        .box-green {
+            background: rgba(58, 181, 119, 0.08);
+            border: 1px solid rgba(58, 181, 119, 0.35);
+            color: #d1fae5;
+        }
+
+        .box-red {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fee2e2;
+        }
+
+        .box-gold {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            color: #fef3c7;
+        }
+
+        .box-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+            opacity: 0.75;
+        }
+
+        /* =====================================================
+           PORT CARDS — Slide 4 & 5 grids
+           ===================================================== */
+        .port-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .port-card {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 7px;
+            padding: 9px 10px;
+            border-left: 3px solid transparent;
+            transition: background 0.2s;
+        }
+
+        .port-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .port-card.c-green  { border-left-color: #3ab577; }
+        .port-card.c-red    { border-left-color: #ef4444; }
+        .port-card.c-cyan   { border-left-color: #06b6d4; }
+        .port-card.c-gold   { border-left-color: #fbbf24; }
+
+        .pc-number {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            line-height: 1;
+        }
+
+        .pc-name {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 2px;
+        }
+
+        .pc-desc {
+            font-size: 0.78rem;
+            color: #64748b;
+            margin-top: 3px;
+            line-height: 1.3;
+        }
+
+        .port-legend {
+            display: flex;
+            gap: 18px;
+            justify-content: center;
+            font-size: 0.78rem;
+            color: #64748b;
+        }
+
+        .legend-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+
+        /* =====================================================
+           SLIDE 1 — TITLE
+           ===================================================== */
+        .title-hero {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .title-hero .big-title {
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: #f1f5f9;
+            line-height: 1.2;
+        }
+
+        .title-hero .big-title .green { color: #3ab577; }
+        .title-hero .big-title .cyan  { color: #06b6d4; }
+
+        .title-meta-row {
+            display: flex;
+            gap: 28px;
+            justify-content: center;
+            margin-top: 6px;
+            font-size: 0.82rem;
+            color: #475569;
+        }
+
+        .title-meta-row span {
+            border-left: 2px solid #1e293b;
+            padding-left: 28px;
+        }
+
+        .title-meta-row span:first-child {
+            border-left: none;
+            padding-left: 0;
+        }
+
+        /* =====================================================
+           SLIDE 2 — SERVER VISUAL
+           ===================================================== */
+        .server-diagram {
+            display: flex;
+            gap: 32px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .server-box {
+            background: rgba(255, 255, 255, 0.04);
+            border: 2px solid rgba(58, 181, 119, 0.4);
+            border-radius: 12px;
+            padding: 16px 20px;
+            text-align: center;
+            min-width: 160px;
+        }
+
+        .server-box .server-label {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+
+        .server-box .server-ip {
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            color: #3ab577;
+            margin-bottom: 12px;
+        }
+
+        .door-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .door-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            padding: 5px 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            border-left: 2px solid #334155;
+            transition: border-color 0.2s;
+        }
+
+        .door-item.active-door { border-left-color: #3ab577; }
+
+        .door-port { color: #06b6d4; font-weight: 700; }
+        .door-svc  { color: #94a3b8; }
+
+        .socket-demo {
+            font-family: 'Courier New', monospace;
+            font-size: 0.95rem;
+            color: #fbbf24;
+            background: rgba(251, 191, 36, 0.07);
+            border: 1px solid rgba(251, 191, 36, 0.25);
+            border-radius: 7px;
+            padding: 9px 18px;
+            text-align: center;
+            letter-spacing: 0.04em;
+        }
+
+        /* =====================================================
+           SLIDE 3 — PORT RANGES BAR
+           ===================================================== */
+        .range-bar-wrap {
+            width: 100%;
+        }
+
+        .range-bar {
+            display: flex;
+            height: 36px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .range-seg {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            transition: opacity 0.2s;
+        }
+
+        .range-seg:hover { opacity: 0.85; }
+
+        .range-seg.seg-green {
+            background: rgba(58, 181, 119, 0.25);
+            color: #3ab577;
+            flex: 1024;
+        }
+
+        .range-seg.seg-cyan {
+            background: rgba(6, 182, 212, 0.2);
+            color: #06b6d4;
+            flex: 48128;
+        }
+
+        .range-seg.seg-gold {
+            background: rgba(251, 191, 36, 0.18);
+            color: #fbbf24;
+            flex: 16384;
+        }
+
+        .range-labels {
+            display: flex;
+            margin-top: 6px;
+            font-size: 0.72rem;
+            color: #475569;
+        }
+
+        .range-labels span {
+            flex: 1024;
+            text-align: left;
+        }
+
+        .range-labels span:nth-child(2) {
+            flex: 48128;
+            text-align: center;
+        }
+
+        .range-labels span:nth-child(3) {
+            flex: 16384;
+            text-align: right;
+        }
+
+        .range-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .range-card {
+            border-radius: 8px;
+            padding: 12px 14px;
+            font-size: 0.85rem;
+        }
+
+        .range-card.rc-green {
+            background: rgba(58, 181, 119, 0.08);
+            border: 1px solid rgba(58, 181, 119, 0.3);
+        }
+
+        .range-card.rc-cyan {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .range-card.rc-gold {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+
+        .range-card .rc-range {
+            font-family: 'Courier New', monospace;
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 3px;
+        }
+
+        .range-card.rc-green .rc-range { color: #3ab577; }
+        .range-card.rc-cyan  .rc-range { color: #06b6d4; }
+        .range-card.rc-gold  .rc-range { color: #fbbf24; }
+
+        .range-card .rc-name {
+            font-weight: 700;
+            color: #f1f5f9;
+            margin-bottom: 4px;
+        }
+
+        .range-card .rc-note {
+            font-size: 0.78rem;
+            color: #64748b;
+            line-height: 1.4;
+        }
+
+        .conn-demo {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            text-align: center;
+            color: #e2e8f0;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 7px;
+            padding: 10px 16px;
+        }
+
+        .conn-demo .src-port { color: #fbbf24; }
+        .conn-demo .dst-port { color: #3ab577; }
+        .conn-demo .arrow    { color: #475569; margin: 0 8px; }
+
+        /* =====================================================
+           SLIDE 6 — SECURE vs INSECURE PAIRS
+           ===================================================== */
+        .upgrade-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 7px;
+        }
+
+        .upgrade-pair {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .up-insecure, .up-secure {
+            border-radius: 6px;
+            padding: 7px 10px;
+            font-size: 0.8rem;
+        }
+
+        .up-insecure {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+
+        .up-secure {
+            background: rgba(58, 181, 119, 0.08);
+            border: 1px solid rgba(58, 181, 119, 0.3);
+            color: #86efac;
+        }
+
+        .up-arrow {
+            text-align: center;
+            font-size: 0.7rem;
+            color: #475569;
+            line-height: 1;
+        }
+
+        .up-port {
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+
+        .up-name {
+            font-size: 0.7rem;
+            opacity: 0.75;
+            margin-top: 1px;
+        }
+
+        /* =====================================================
+           SLIDE 7 — TCP vs UDP COLUMNS
+           ===================================================== */
+        .proto-cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+        }
+
+        .proto-col {
+            border-radius: 8px;
+            padding: 12px 14px;
+        }
+
+        .proto-col.col-tcp {
+            background: rgba(59, 130, 246, 0.07);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+        }
+
+        .proto-col.col-udp {
+            background: rgba(58, 181, 119, 0.07);
+            border: 1px solid rgba(58, 181, 119, 0.25);
+        }
+
+        .proto-col.col-both {
+            background: rgba(251, 191, 36, 0.07);
+            border: 1px solid rgba(251, 191, 36, 0.25);
+        }
+
+        .proto-col-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+
+        .col-tcp  .proto-col-label { color: #60a5fa; }
+        .col-udp  .proto-col-label { color: #3ab577; }
+        .col-both .proto-col-label { color: #fbbf24; }
+
+        .proto-port-item {
+            font-size: 0.82rem;
+            color: #94a3b8;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            display: flex;
+            gap: 6px;
+        }
+
+        .proto-port-item:last-child {
+            border-bottom: none;
+        }
+
+        .proto-port-item .pp-num {
+            font-family: 'Courier New', monospace;
+            color: #e2e8f0;
+            font-weight: 600;
+            min-width: 48px;
+        }
+
+        /* =====================================================
+           SLIDE 8 — TERMINAL BLOCKS
+           ===================================================== */
+        .terminal-block {
+            background: #0a0a0f;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            line-height: 1.6;
+        }
+
+        .terminal-block .t-state {
+            color: #fbbf24;
+            font-weight: 700;
+            margin-bottom: 3px;
+            font-size: 0.75rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .terminal-block .t-line {
+            color: #3ab577;
+        }
+
+        .terminal-block .t-meaning {
+            color: #64748b;
+            font-size: 0.78rem;
+            margin-top: 3px;
+            font-family: 'Segoe UI', sans-serif;
+            font-style: italic;
+        }
+
+        .state-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+        }
+
+        .cmd-ref {
+            display: flex;
+            gap: 12px;
+            font-size: 0.82rem;
+        }
+
+        .cmd-chip {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            padding: 5px 12px;
+            font-family: 'Courier New', monospace;
+            color: #06b6d4;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            font-size: 0.8rem;
+        }
+
+        /* =====================================================
+           SLIDE 9 — ATTACK SCENARIO CARDS
+           ===================================================== */
+        .attack-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .attack-card {
+            background: rgba(239, 68, 68, 0.06);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: 8px;
+            padding: 12px 14px;
+            font-size: 0.85rem;
+        }
+
+        .attack-card .ac-port {
+            font-family: 'Courier New', monospace;
+            color: #f87171;
+            font-weight: 700;
+            margin-bottom: 4px;
+            font-size: 0.9rem;
+        }
+
+        .attack-card .ac-scenario {
+            color: #fca5a5;
+            font-size: 0.82rem;
+            margin-bottom: 4px;
+        }
+
+        .attack-card .ac-rule {
+            color: #94a3b8;
+            font-size: 0.78rem;
+            font-style: italic;
+        }
+
+        .defense-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+        }
+
+        .defense-item {
+            background: rgba(58, 181, 119, 0.06);
+            border-left: 2px solid #3ab577;
+            border-radius: 0 6px 6px 0;
+            padding: 7px 12px;
+            font-size: 0.82rem;
+            color: #a7f3d0;
+        }
+
+        /* =====================================================
+           SLIDE 10 — SUMMARY
+           ===================================================== */
+        .summary-facts {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .fact-row {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            font-size: 0.875rem;
+        }
+
+        .fact-num {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #3ab577;
+            min-width: 22px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .fact-text {
+            color: #cbd5e1;
+        }
+
+        .fact-text code {
+            font-family: 'Courier New', monospace;
+            color: #06b6d4;
+            background: rgba(6, 182, 212, 0.08);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+
+        .summary-scenario {
+            background: rgba(58, 181, 119, 0.07);
+            border: 1px solid rgba(58, 181, 119, 0.3);
+            border-radius: 9px;
+            padding: 14px 18px;
+            font-size: 0.875rem;
+            color: #a7f3d0;
+            line-height: 1.65;
+        }
+
+        .summary-scenario strong {
+            color: #3ab577;
+        }
+
+        /* =====================================================
+           UTILITY
+           ===================================================== */
+        .section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: #475569;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        /* =====================================================
+           RESPONSIVE — compact on shorter viewports
+           ===================================================== */
+        @media (max-height: 700px) {
+            .slide-inner { gap: 9px; }
+            .slide-title { font-size: 1.4rem; }
+            .title-hero .big-title { font-size: 1.9rem; }
+            .port-grid { gap: 5px; }
+            .upgrade-grid { gap: 5px; }
+            .port-card { padding: 7px 8px; }
+        }
+
+        @media (max-width: 768px) {
+            .port-grid   { grid-template-columns: repeat(2, 1fr); }
+            .upgrade-grid { grid-template-columns: repeat(2, 1fr); }
+            .proto-cols  { grid-template-columns: 1fr; gap: 8px; }
+            .state-grid  { grid-template-columns: 1fr; }
+            .attack-cards { grid-template-columns: 1fr; }
+            .server-diagram { flex-direction: column; gap: 14px; }
+            .slide-title { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Progress bar across very top -->
+<div id="progress-bar" style="width:10%"></div>
+
+<!-- =====================================================================
+     SLIDE 1 — TITLE
+     ===================================================================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 10 &nbsp;|&nbsp; N10-009 Obj 1.4 &nbsp;|&nbsp; Chapter 2</div>
+
+        <div class="title-hero">
+            <div class="big-title">
+                Ports &amp; Protocols:<br>
+                <span class="green">The Doors</span> to Network Services
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Every service has an address. Every address has a number.
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Your boss walks up: "Port 443 is down on the web server." You nod like you know exactly what that means.
+            But do you actually understand what a port <em>is</em>, why it exists, and what to do about it?
+            Let's fix that.
+        </div>
+
+        <div class="title-meta-row">
+            <span>10 Slides</span>
+            <span>N10-009 Obj 1.4</span>
+            <span>Transport Layer (Layer 4)</span>
+            <span>Concepts + Context</span>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 2 — WHAT IS A PORT?
+     ===================================================================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 10</div>
+        <div class="slide-title">What Is a Port?</div>
+        <div class="slide-subtitle">An IP address is a building. A port is a specific office inside that building.</div>
+
+        <div class="server-diagram">
+            <div style="max-width:260px; flex-shrink:0;">
+                <div class="server-box">
+                    <div class="server-label">Server</div>
+                    <div class="server-ip">192.168.1.5</div>
+                    <div class="door-list">
+                        <div class="door-item active-door"><span class="door-port">:80</span><span class="door-svc">HTTP (Web)</span></div>
+                        <div class="door-item active-door"><span class="door-port">:443</span><span class="door-svc">HTTPS (Secure Web)</span></div>
+                        <div class="door-item active-door"><span class="door-port">:22</span><span class="door-svc">SSH (Remote Access)</span></div>
+                        <div class="door-item"><span class="door-port">:25</span><span class="door-svc">SMTP (Mail)</span></div>
+                        <div class="door-item"><span class="door-port">:3389</span><span class="door-svc">RDP (Remote Desktop)</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px; flex:1; min-width:0;">
+                <div class="box box-cyan">
+                    <div class="box-label">How It Works</div>
+                    The IP address routes the packet to the correct machine on the network.
+                    The port number tells that machine which <strong>service</strong> should handle the connection.
+                    Without ports, the server would not know whether an incoming packet is for the web server, the mail server, or SSH.
+                </div>
+
+                <div class="socket-demo">
+                    Socket = IP + Port &nbsp;&nbsp;
+                    <span style="color:#3ab577">192.168.1.5</span>
+                    <span style="color:#475569">:</span>
+                    <span style="color:#06b6d4">443</span>
+                </div>
+
+                <div class="box box-green">
+                    <div class="box-label">The Scenario</div>
+                    When your boss says "Port 443 is down," they mean the HTTPS service on that server
+                    is not accepting connections. The IP is fine. The machine is up. Just that specific door is closed.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            Ports are defined at <strong>Layer 4</strong> (Transport Layer) of the OSI model. TCP and UDP both use port numbers.
+            Port numbers range from 0 to 65535. That is 16 bits.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 3 — THE THREE PORT RANGES
+     ===================================================================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 10</div>
+        <div class="slide-title">The Three Port Ranges</div>
+        <div class="slide-subtitle">Not all 65,535 ports are equal. They are organized into three tiers.</div>
+
+        <div class="range-bar-wrap">
+            <div class="range-bar">
+                <div class="range-seg seg-green">Well-Known</div>
+                <div class="range-seg seg-cyan">Registered</div>
+                <div class="range-seg seg-gold">Dynamic</div>
+            </div>
+            <div class="range-labels">
+                <span>0 &#8594; 1023</span>
+                <span>1024 &#8594; 49151</span>
+                <span>49152 &#8594; 65535</span>
+            </div>
+        </div>
+
+        <div class="range-cards">
+            <div class="range-card rc-green">
+                <div class="rc-range">0 – 1023</div>
+                <div class="rc-name">Well-Known</div>
+                <div class="rc-note">Reserved by IANA. Services in this range must run with root/admin privileges. HTTP (80), HTTPS (443), SSH (22) live here. These are the standards.</div>
+            </div>
+            <div class="range-card rc-cyan">
+                <div class="rc-range">1024 – 49151</div>
+                <div class="rc-name">Registered</div>
+                <div class="rc-note">Vendors register these with IANA for specific applications. MySQL (3306), PostgreSQL (5432), RDP (3389). Widely used but not universally reserved.</div>
+            </div>
+            <div class="range-card rc-gold">
+                <div class="rc-range">49152 – 65535</div>
+                <div class="rc-name">Dynamic / Ephemeral</div>
+                <div class="rc-note">Your OS assigns these temporarily when YOU initiate a connection. Also called client ports or private ports. They disappear when the session ends.</div>
+            </div>
+        </div>
+
+        <div class="conn-demo">
+            Your PC<span class="src-port">:51483</span>
+            <span class="arrow">&#8596;</span>
+            google.com<span class="dst-port">:443</span>
+            &nbsp;&nbsp;&nbsp;
+            <span style="color:#64748b; font-family: 'Segoe UI', sans-serif; font-size:0.8rem;">
+                Your OS picked 51483. The server's reply goes back to that port.
+            </span>
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            The source port (dynamic range) is embedded in every packet so the server knows where to send the reply.
+            This is how one machine can have hundreds of simultaneous browser tabs open — each tab gets its own source port.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 4 — TIER 1 PORTS
+     ===================================================================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 10</div>
+        <div class="slide-title">Exam Ports — <span class="accent-green">Tier 1</span></div>
+        <div class="slide-subtitle">Know these cold. They will appear on the exam, in job interviews, and in daily work.</div>
+
+        <div class="port-grid">
+            <div class="port-card c-green">
+                <div class="pc-number">20 / 21</div>
+                <div class="pc-name">FTP</div>
+                <div class="pc-desc">File transfer. 21 = control channel. 20 = data channel.</div>
+            </div>
+            <div class="port-card c-green">
+                <div class="pc-number">22</div>
+                <div class="pc-name">SSH</div>
+                <div class="pc-desc">Encrypted remote access. Replaced Telnet as the standard.</div>
+            </div>
+            <div class="port-card c-red">
+                <div class="pc-number">23</div>
+                <div class="pc-name">Telnet</div>
+                <div class="pc-desc">Insecure remote access. Credentials sent plaintext. Do not use.</div>
+            </div>
+            <div class="port-card c-green">
+                <div class="pc-number">25</div>
+                <div class="pc-name">SMTP</div>
+                <div class="pc-desc">Sending email between mail servers. Outbound mail relay.</div>
+            </div>
+            <div class="port-card c-cyan">
+                <div class="pc-number">53</div>
+                <div class="pc-name">DNS</div>
+                <div class="pc-desc">Name resolution. UDP for queries. TCP for zone transfers.</div>
+            </div>
+            <div class="port-card c-cyan">
+                <div class="pc-number">67 / 68</div>
+                <div class="pc-name">DHCP</div>
+                <div class="pc-desc">Automatic IP assignment. 67 = server. 68 = client.</div>
+            </div>
+            <div class="port-card c-green">
+                <div class="pc-number">80</div>
+                <div class="pc-name">HTTP</div>
+                <div class="pc-desc">Unencrypted web traffic. Still common for redirects.</div>
+            </div>
+            <div class="port-card c-gold">
+                <div class="pc-number">110</div>
+                <div class="pc-name">POP3</div>
+                <div class="pc-desc">Receive email by downloading and removing from server.</div>
+            </div>
+            <div class="port-card c-gold">
+                <div class="pc-number">143</div>
+                <div class="pc-name">IMAP</div>
+                <div class="pc-desc">Receive email. Messages stay on server and sync across devices.</div>
+            </div>
+            <div class="port-card c-green">
+                <div class="pc-number">443</div>
+                <div class="pc-name">HTTPS</div>
+                <div class="pc-desc">Encrypted web. TLS-wrapped HTTP. The default today.</div>
+            </div>
+            <div class="port-card c-red">
+                <div class="pc-number">3389</div>
+                <div class="pc-name">RDP</div>
+                <div class="pc-desc">Remote Desktop Protocol. High-value attack target. VPN first.</div>
+            </div>
+        </div>
+
+        <div class="port-legend">
+            <span><span class="legend-dot" style="background:#3ab577;"></span>Safe to use</span>
+            <span><span class="legend-dot" style="background:#ef4444;"></span>Security concern</span>
+            <span><span class="legend-dot" style="background:#06b6d4;"></span>Infrastructure</span>
+            <span><span class="legend-dot" style="background:#fbbf24;"></span>Email</span>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 5 — TIER 2 PORTS
+     ===================================================================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 10</div>
+        <div class="slide-title">Exam Ports — <span class="accent-cyan">Tier 2</span></div>
+        <div class="slide-subtitle">Less frequent but still fair game. Know the secure vs. insecure split.</div>
+
+        <div class="port-grid">
+            <div class="port-card c-red">
+                <div class="pc-number">69</div>
+                <div class="pc-name">TFTP</div>
+                <div class="pc-desc">Trivial FTP. No authentication. UDP only. Used for PXE boot.</div>
+            </div>
+            <div class="port-card c-cyan">
+                <div class="pc-number">123</div>
+                <div class="pc-name">NTP</div>
+                <div class="pc-desc">Time synchronization. Critical for logs, Kerberos, and MFA.</div>
+            </div>
+            <div class="port-card c-cyan">
+                <div class="pc-number">161 / 162</div>
+                <div class="pc-name">SNMP</div>
+                <div class="pc-desc">Network monitoring. 161 = queries to device. 162 = traps (alerts).</div>
+            </div>
+            <div class="port-card c-gold">
+                <div class="pc-number">389</div>
+                <div class="pc-name">LDAP</div>
+                <div class="pc-desc">Directory services. Active Directory lookups use this.</div>
+            </div>
+            <div class="port-card c-red">
+                <div class="pc-number">445</div>
+                <div class="pc-name">SMB</div>
+                <div class="pc-desc">File and printer sharing. WannaCry exploited this. Never expose to Internet.</div>
+            </div>
+            <div class="port-card c-cyan">
+                <div class="pc-number">514</div>
+                <div class="pc-name">Syslog</div>
+                <div class="pc-desc">Centralized logging. UDP. Devices ship logs to a SIEM.</div>
+            </div>
+            <div class="port-card c-green">
+                <div class="pc-number">587</div>
+                <div class="pc-name">SMTPS</div>
+                <div class="pc-desc">Secure email submission. Replaces port 25 for client-to-server mail.</div>
+            </div>
+            <div class="port-card c-green">
+                <div class="pc-number">636</div>
+                <div class="pc-name">LDAPS</div>
+                <div class="pc-desc">LDAP over TLS. Encrypts Active Directory queries in transit.</div>
+            </div>
+            <div class="port-card c-gold">
+                <div class="pc-number">1433</div>
+                <div class="pc-name">SQL Server</div>
+                <div class="pc-desc">Microsoft SQL Server database port. Should never be public-facing.</div>
+            </div>
+            <div class="port-card c-gold">
+                <div class="pc-number">5060 / 5061</div>
+                <div class="pc-name">SIP</div>
+                <div class="pc-desc">VoIP call signaling. 5060 = plaintext. 5061 = SIP over TLS.</div>
+            </div>
+        </div>
+
+        <div class="port-legend">
+            <span><span class="legend-dot" style="background:#3ab577;"></span>Safe / secure version</span>
+            <span><span class="legend-dot" style="background:#ef4444;"></span>Security concern</span>
+            <span><span class="legend-dot" style="background:#06b6d4;"></span>Infrastructure</span>
+            <span><span class="legend-dot" style="background:#fbbf24;"></span>Application services</span>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 6 — SECURE vs INSECURE
+     ===================================================================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 10</div>
+        <div class="slide-title">The Upgrade Path: Insecure <span class="accent-green">&#8594;</span> Secure</div>
+        <div class="slide-subtitle">Every insecure protocol has a TLS-wrapped or encrypted replacement. Know the pairs.</div>
+
+        <div class="upgrade-grid">
+            <div class="upgrade-pair">
+                <div class="up-insecure">
+                    <div class="up-port">:23 Telnet</div>
+                    <div class="up-name">Plaintext shell</div>
+                </div>
+                <div class="up-arrow">&#8595;</div>
+                <div class="up-secure">
+                    <div class="up-port">:22 SSH</div>
+                    <div class="up-name">Encrypted shell</div>
+                </div>
+            </div>
+
+            <div class="upgrade-pair">
+                <div class="up-insecure">
+                    <div class="up-port">:80 HTTP</div>
+                    <div class="up-name">Plaintext web</div>
+                </div>
+                <div class="up-arrow">&#8595;</div>
+                <div class="up-secure">
+                    <div class="up-port">:443 HTTPS</div>
+                    <div class="up-name">TLS-encrypted web</div>
+                </div>
+            </div>
+
+            <div class="upgrade-pair">
+                <div class="up-insecure">
+                    <div class="up-port">:21 FTP</div>
+                    <div class="up-name">Plaintext file transfer</div>
+                </div>
+                <div class="up-arrow">&#8595;</div>
+                <div class="up-secure">
+                    <div class="up-port">:22 SFTP / :990 FTPS</div>
+                    <div class="up-name">SFTP = SSH-based, FTPS = TLS</div>
+                </div>
+            </div>
+
+            <div class="upgrade-pair">
+                <div class="up-insecure">
+                    <div class="up-port">:25 SMTP</div>
+                    <div class="up-name">Unencrypted relay</div>
+                </div>
+                <div class="up-arrow">&#8595;</div>
+                <div class="up-secure">
+                    <div class="up-port">:587 SMTPS</div>
+                    <div class="up-name">Authenticated submission</div>
+                </div>
+            </div>
+
+            <div class="upgrade-pair">
+                <div class="up-insecure">
+                    <div class="up-port">:389 LDAP</div>
+                    <div class="up-name">Plaintext directory</div>
+                </div>
+                <div class="up-arrow">&#8595;</div>
+                <div class="up-secure">
+                    <div class="up-port">:636 LDAPS</div>
+                    <div class="up-name">TLS-encrypted directory</div>
+                </div>
+            </div>
+
+            <div class="upgrade-pair">
+                <div class="up-insecure">
+                    <div class="up-port">:110 POP3</div>
+                    <div class="up-name">Plaintext email retrieval</div>
+                </div>
+                <div class="up-arrow">&#8595;</div>
+                <div class="up-secure">
+                    <div class="up-port">:995 POP3S</div>
+                    <div class="up-name">TLS-encrypted POP3</div>
+                </div>
+            </div>
+
+            <div class="upgrade-pair">
+                <div class="up-insecure">
+                    <div class="up-port">:143 IMAP</div>
+                    <div class="up-name">Plaintext email sync</div>
+                </div>
+                <div class="up-arrow">&#8595;</div>
+                <div class="up-secure">
+                    <div class="up-port">:993 IMAPS</div>
+                    <div class="up-name">TLS-encrypted IMAP</div>
+                </div>
+            </div>
+
+            <div class="upgrade-pair">
+                <div class="up-insecure">
+                    <div class="up-port">:161 SNMPv1/v2</div>
+                    <div class="up-name">No encryption, weak auth</div>
+                </div>
+                <div class="up-arrow">&#8595;</div>
+                <div class="up-secure">
+                    <div class="up-port">:161 SNMPv3</div>
+                    <div class="up-name">Same port, added encryption</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Exam tip:</strong> If a question asks "which is the secure alternative to X" — look for the TLS/SSL-wrapped version.
+            The port number usually changes, except SNMPv3 which kept port 161 and added encryption internally.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 7 — TCP vs UDP
+     ===================================================================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 10</div>
+        <div class="slide-title">TCP vs UDP — Which Ports Use What?</div>
+        <div class="slide-subtitle">TCP guarantees delivery. UDP prioritizes speed. The protocol a service uses reflects what it needs.</div>
+
+        <div class="proto-cols">
+            <div class="proto-col col-tcp">
+                <div class="proto-col-label">TCP Only — Reliability Required</div>
+                <div class="proto-port-item"><span class="pp-num">20/21</span><span>FTP — file integrity matters</span></div>
+                <div class="proto-port-item"><span class="pp-num">22</span><span>SSH — interactive commands</span></div>
+                <div class="proto-port-item"><span class="pp-num">23</span><span>Telnet — interactive shell</span></div>
+                <div class="proto-port-item"><span class="pp-num">25</span><span>SMTP — email must arrive</span></div>
+                <div class="proto-port-item"><span class="pp-num">80</span><span>HTTP — web pages</span></div>
+                <div class="proto-port-item"><span class="pp-num">110</span><span>POP3 — email retrieval</span></div>
+                <div class="proto-port-item"><span class="pp-num">143</span><span>IMAP — email sync</span></div>
+                <div class="proto-port-item"><span class="pp-num">443</span><span>HTTPS — encrypted web</span></div>
+                <div class="proto-port-item"><span class="pp-num">445</span><span>SMB — file sharing</span></div>
+                <div class="proto-port-item"><span class="pp-num">3389</span><span>RDP — remote desktop</span></div>
+            </div>
+
+            <div class="proto-col col-udp">
+                <div class="proto-col-label">UDP Only — Speed Required</div>
+                <div class="proto-port-item"><span class="pp-num">67/68</span><span>DHCP — fast broadcast</span></div>
+                <div class="proto-port-item"><span class="pp-num">69</span><span>TFTP — lightweight, no auth</span></div>
+                <div class="proto-port-item"><span class="pp-num">123</span><span>NTP — small time packets</span></div>
+                <div class="proto-port-item"><span class="pp-num">161/162</span><span>SNMP — frequent polling</span></div>
+                <div class="proto-port-item"><span class="pp-num">514</span><span>Syslog — fire and forget logs</span></div>
+            </div>
+
+            <div class="proto-col col-both">
+                <div class="proto-col-label">Both TCP + UDP</div>
+                <div class="proto-port-item"><span class="pp-num">53</span><span>DNS — see below</span></div>
+                <div class="proto-port-item"><span class="pp-num">5060</span><span>SIP — call setup</span></div>
+                <div style="margin-top:10px; padding-top:10px; border-top:1px solid rgba(251,191,36,0.15);">
+                    <div class="box-label" style="color:#fbbf24; font-size:0.7rem; margin-bottom:5px;">Why DNS uses both</div>
+                    <div style="font-size:0.8rem; color:#94a3b8; line-height:1.5;">
+                        UDP port 53 for standard queries — small, fast, good enough.
+                        TCP port 53 for zone transfers — large data sets that need guaranteed delivery.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            <strong>Exam tip:</strong> When asked which transport protocol a service uses — think about whether that service needs reliability (missing data = broken connection = use TCP) or tolerates loss in exchange for speed (use UDP).
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 8 — PORT STATES (netstat)
+     ===================================================================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 10</div>
+        <div class="slide-title">Port States — What netstat Tells You</div>
+        <div class="slide-subtitle">Knowing a port number is step one. Being able to read real output is step two.</div>
+
+        <div class="state-grid">
+            <div class="terminal-block">
+                <div class="t-state">LISTENING</div>
+                <div class="t-line">TCP 0.0.0.0:443 0.0.0.0:0 LISTENING</div>
+                <div class="t-meaning">Service is running and waiting for connections. Port 443 is open. The web server is healthy.</div>
+            </div>
+            <div class="terminal-block">
+                <div class="t-state">ESTABLISHED</div>
+                <div class="t-line">TCP 10.0.1.5:49201 93.184.216.34:443 ESTABLISHED</div>
+                <div class="t-meaning">Active session. Your machine (port 49201) is talking to a remote server on port 443 right now.</div>
+            </div>
+            <div class="terminal-block">
+                <div class="t-state">TIME_WAIT</div>
+                <div class="t-line">TCP 10.0.1.5:49201 93.184.216.34:443 TIME_WAIT</div>
+                <div class="t-meaning">Connection just closed. OS holds the port briefly to catch any delayed packets. Normal behavior.</div>
+            </div>
+        </div>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            <strong>Security states (from a port scanner perspective):</strong>&nbsp;
+            <strong>FILTERED</strong> = a firewall is silently dropping packets (no response). &nbsp;
+            <strong>CLOSED</strong> = no service running, but the OS sends a TCP RST (reset) back.
+            Filtered is harder to detect than closed.
+        </div>
+
+        <hr class="divider">
+
+        <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+            <span class="section-label">Commands:</span>
+            <div class="cmd-ref">
+                <span class="cmd-chip">netstat -an</span>
+                <span style="font-size:0.8rem; color:#475569; align-self:center;">Windows — all connections + listening ports</span>
+            </div>
+            <div class="cmd-ref">
+                <span class="cmd-chip">ss -tlnp</span>
+                <span style="font-size:0.8rem; color:#475569; align-self:center;">Linux — TCP listening ports with process names</span>
+            </div>
+        </div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            Your boss says "Port 443 is down." Run <code style="color:#3ab577; font-family:monospace;">netstat -an | findstr 443</code> on the server.
+            If it shows LISTENING, the service is up — check the firewall. If nothing shows, the web service crashed — restart it.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 9 — SECURITY: WHEN PORTS GO WRONG
+     ===================================================================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 10</div>
+        <div class="slide-title">Security — When Ports Go Wrong</div>
+        <div class="slide-subtitle">Ports are also attack surfaces. Three real-world examples every admin needs to know.</div>
+
+        <div class="attack-cards">
+            <div class="attack-card">
+                <div class="ac-port">Port 445 (SMB)</div>
+                <div class="ac-scenario">WannaCry ransomware (2017) spread across the world by exploiting SMB exposed to the Internet.</div>
+                <div class="ac-rule">Rule: SMB should never be accessible from outside your network. No exceptions.</div>
+            </div>
+            <div class="attack-card">
+                <div class="ac-port">Port 23 (Telnet)</div>
+                <div class="ac-scenario">Any credentials typed over Telnet are sent as plaintext. A single network tap captures your admin password.</div>
+                <div class="ac-rule">Rule: If you see Telnet in production in 2026, that is an immediate finding.</div>
+            </div>
+            <div class="attack-card">
+                <div class="ac-port">Port 3389 (RDP)</div>
+                <div class="ac-scenario">RDP exposed directly to the Internet is one of the most-attacked services globally. Credential brute force runs 24/7.</div>
+                <div class="ac-rule">Rule: Always require VPN before RDP. Optionally restrict source IPs.</div>
+            </div>
+        </div>
+
+        <div class="section-label" style="margin-top:4px;">Defense Posture</div>
+
+        <div class="defense-list">
+            <div class="defense-item">Close unused ports — if no service runs on it, firewall it off</div>
+            <div class="defense-item">Use the secure alternative — SSH over Telnet, HTTPS over HTTP</div>
+            <div class="defense-item">Deny by default — firewall rules should permit exceptions, not deny exceptions</div>
+            <div class="defense-item">Audit regularly — run netstat or nmap on your own systems before attackers do</div>
+        </div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            When your boss says "Port 443 is down," the failure could be the service, the firewall, or the TLS certificate.
+            Port knowledge lets you diagnose systematically instead of guessing.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 10 — SUMMARY + COMPLETE
+     ===================================================================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 10 &nbsp;|&nbsp; N10-009 Obj 1.4</div>
+        <div class="slide-title">You Speak Ports Now</div>
+
+        <div class="summary-scenario">
+            Your boss says "Port 443 is down on the web server." You now know: that is HTTPS — TCP, well-known range (0-1023), Layer 4.
+            You run <strong>netstat -an | findstr 443</strong> on the server. If it shows <strong>LISTENING</strong>, the service is alive —
+            check the firewall or the TLS certificate. If it shows nothing, the web service crashed — restart it and check the logs.
+            <br><br>
+            You do not need to guess. You understand what the port number means, what protocol it uses, what state it should be in,
+            and what failure looks like. That is the difference between nodding and knowing.
+        </div>
+
+        <div class="section-label">5 Facts to Carry Out of This Presentation</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Port ranges: <code>0-1023</code> Well-Known &nbsp;|&nbsp; <code>1024-49151</code> Registered &nbsp;|&nbsp; <code>49152-65535</code> Dynamic</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">TCP = reliable (ordered delivery). UDP = fast (no guarantee). Choose based on what the service requires.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">DNS uses <em>both</em>: UDP port 53 for queries, TCP port 53 for zone transfers.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Know the upgrade path: Telnet&rarr;SSH, HTTP&rarr;HTTPS, FTP&rarr;SFTP, SMTP&rarr;SMTPS, LDAP&rarr;LDAPS, POP3&rarr;POP3S, IMAP&rarr;IMAPS.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><code>netstat -an</code> (Windows) and <code>ss -tlnp</code> (Linux) show port states: LISTENING, ESTABLISHED, TIME_WAIT.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     NAVIGATION BAR
+     ===================================================================== -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Network+ Hub</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 10</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<!-- =====================================================================
+     PRESENTATION LOGIC
+     ===================================================================== -->
+<script>
+    /* State */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 10;
+
+    /* Navigate to a specific slide number (1-indexed) */
+    function goToSlide(n) {
+        /* Clamp to valid range */
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Hide current slide */
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        /* Show new slide */
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update progress bar */
+        const pct = (currentSlide / TOTAL_SLIDES) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+
+        /* Update counter */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Update nav button states */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show/hide complete button on final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard navigation — arrows only (no spacebar to avoid accessibility conflicts) */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            goToSlide(currentSlide + 1);
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            goToSlide(currentSlide - 1);
+        }
+    });
+
+    /* Initialize on load */
+    goToSlide(1);
+</script>
+
+<!-- Module completion — own script block per spec -->
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'web-ports', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

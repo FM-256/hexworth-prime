@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Switch Operations | Network+ N10-009</title>
+    <style>
+        /* =====================================================
+           RESET & BASE
+           ===================================================== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #110f18 100%);
+            color: #e2e8f0;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* =====================================================
+           SLIDE SYSTEM — viewport-locked, no overflow
+           ===================================================== */
+        .slide {
+            display: none;
+            position: fixed;
+            inset: 0;
+            padding: 20px 28px 72px;
+            overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide-inner {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* =====================================================
+           PROGRESS BAR
+           ===================================================== */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: #8a5cb5;
+            transition: width 0.4s ease;
+            z-index: 200;
+        }
+
+        /* =====================================================
+           NAVIGATION BAR
+           ===================================================== */
+        #nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            z-index: 200;
+            padding: 0 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(138, 92, 181, 0.18);
+            color: #a78bfa;
+            border-color: #8a5cb5;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.back-btn {
+            font-size: 0.82rem;
+            padding: 8px 16px;
+        }
+
+        #slide-counter {
+            color: #64748b;
+            font-size: 0.82rem;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        #complete-btn {
+            display: none;
+            background: #8a5cb5;
+            color: #fff;
+            border: none;
+            padding: 9px 26px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+
+        #complete-btn:hover {
+            background: #a78bfa;
+            transform: translateY(-1px);
+        }
+
+        /* =====================================================
+           SLIDE HEADERS
+           ===================================================== */
+        .slide-meta {
+            font-size: 0.78rem;
+            color: #8a5cb5;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .slide-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            text-align: center;
+            line-height: 1.25;
+        }
+
+        .slide-title span.accent       { color: #a78bfa; }
+        .slide-title span.accent-red   { color: #f87171; }
+        .slide-title span.accent-green { color: #4ade80; }
+
+        .slide-subtitle {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        /* =====================================================
+           SCENARIO STRIP
+           ===================================================== */
+        .scenario-strip {
+            background: rgba(138, 92, 181, 0.08);
+            border-left: 3px solid #8a5cb5;
+            border-radius: 0 8px 8px 0;
+            padding: 10px 16px;
+            font-size: 0.88rem;
+            color: #ddd6fe;
+            font-style: italic;
+        }
+
+        /* =====================================================
+           INFO BOXES
+           ===================================================== */
+        .box {
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.875rem;
+        }
+
+        .box-purple {
+            background: rgba(138, 92, 181, 0.08);
+            border: 1px solid rgba(138, 92, 181, 0.3);
+            color: #ddd6fe;
+        }
+
+        .box-green {
+            background: rgba(58, 181, 119, 0.08);
+            border: 1px solid rgba(58, 181, 119, 0.35);
+            color: #d1fae5;
+        }
+
+        .box-red {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fee2e2;
+        }
+
+        .box-gold {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            color: #fef3c7;
+        }
+
+        .box-cyan {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            color: #cffafe;
+        }
+
+        .box-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+            opacity: 0.75;
+        }
+
+        /* =====================================================
+           SLIDE 1 — TITLE HERO
+           ===================================================== */
+        .title-hero {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .title-hero .big-title {
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: #f1f5f9;
+            line-height: 1.2;
+        }
+
+        .title-hero .big-title .purple { color: #a78bfa; }
+
+        .title-meta-row {
+            display: flex;
+            gap: 28px;
+            justify-content: center;
+            margin-top: 6px;
+            font-size: 0.82rem;
+            color: #475569;
+        }
+
+        .title-meta-row span {
+            border-left: 2px solid #1e293b;
+            padding-left: 28px;
+        }
+
+        .title-meta-row span:first-child {
+            border-left: none;
+            padding-left: 0;
+        }
+
+        /* =====================================================
+           MAC TABLE VISUAL
+           ===================================================== */
+        .mac-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.83rem;
+        }
+
+        .mac-table th {
+            background: rgba(138, 92, 181, 0.12);
+            color: #a78bfa;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            padding: 7px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(138, 92, 181, 0.2);
+        }
+
+        .mac-table td {
+            padding: 6px 12px;
+            color: #cbd5e1;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+        }
+
+        .mac-table tr:last-child td { border-bottom: none; }
+        .mac-table tr:hover td { background: rgba(255, 255, 255, 0.025); }
+
+        .mac-table td.mac-addr  { color: #a78bfa; font-weight: 600; }
+        .mac-table td.mac-port  { color: #4ade80; font-weight: 700; }
+        .mac-table td.mac-type  { color: #fbbf24; }
+        .mac-table td.mac-age   { color: #64748b; font-family: 'Segoe UI', sans-serif; }
+
+        /* =====================================================
+           SWITCHING METHODS
+           ===================================================== */
+        .method-cols {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .method-card {
+            border-radius: 8px;
+            padding: 12px 14px;
+        }
+
+        .method-card.mc-sf {
+            background: rgba(58, 181, 119, 0.07);
+            border: 1px solid rgba(58, 181, 119, 0.25);
+        }
+
+        .method-card.mc-ct {
+            background: rgba(6, 182, 212, 0.07);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+        }
+
+        .method-card.mc-ff {
+            background: rgba(251, 191, 36, 0.07);
+            border: 1px solid rgba(251, 191, 36, 0.25);
+        }
+
+        .method-name {
+            font-weight: 700;
+            color: #f1f5f9;
+            font-size: 0.9rem;
+            margin-bottom: 3px;
+        }
+
+        .method-tag {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 6px;
+        }
+
+        .mc-sf .method-tag { color: #4ade80; }
+        .mc-ct .method-tag { color: #06b6d4; }
+        .mc-ff .method-tag { color: #fbbf24; }
+
+        .method-body {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            line-height: 1.45;
+        }
+
+        .method-body strong { color: #e2e8f0; }
+
+        /* =====================================================
+           PORT SECURITY
+           ===================================================== */
+        .violation-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 9px;
+        }
+
+        .violation-card {
+            border-radius: 8px;
+            padding: 11px 13px;
+        }
+
+        .violation-card.vc-shutdown {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.28);
+        }
+
+        .violation-card.vc-restrict {
+            background: rgba(251, 191, 36, 0.07);
+            border: 1px solid rgba(251, 191, 36, 0.25);
+        }
+
+        .violation-card.vc-protect {
+            background: rgba(58, 181, 119, 0.07);
+            border: 1px solid rgba(58, 181, 119, 0.25);
+        }
+
+        .viol-name {
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+
+        .vc-shutdown  .viol-name { color: #f87171; }
+        .vc-restrict  .viol-name { color: #fbbf24; }
+        .vc-protect   .viol-name { color: #4ade80; }
+
+        .viol-body {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            line-height: 1.4;
+        }
+
+        .viol-body strong { color: #e2e8f0; }
+
+        .config-snippet {
+            background: #0a0a0f;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 7px;
+            padding: 10px 14px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            line-height: 1.7;
+        }
+
+        .cs-comment { color: #475569; }
+        .cs-cmd     { color: #a78bfa; }
+        .cs-val     { color: #4ade80; }
+
+        /* =====================================================
+           POE TABLE
+           ===================================================== */
+        .poe-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.83rem;
+        }
+
+        .poe-table th {
+            background: rgba(138, 92, 181, 0.10);
+            color: #a78bfa;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            padding: 7px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(138, 92, 181, 0.18);
+        }
+
+        .poe-table td {
+            padding: 6px 12px;
+            color: #cbd5e1;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 0.82rem;
+        }
+
+        .poe-table tr:last-child td { border-bottom: none; }
+        .poe-table tr:hover td { background: rgba(255, 255, 255, 0.025); }
+
+        .poe-table td.poe-std   { font-family: 'Courier New', monospace; color: #a78bfa; font-weight: 700; }
+        .poe-table td.poe-watts { color: #4ade80; font-weight: 600; }
+        .poe-table td.poe-class { color: #fbbf24; }
+
+        /* =====================================================
+           SPAN / LLDP / CDP
+           ===================================================== */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 8px;
+            padding: 11px 14px;
+        }
+
+        .feature-title {
+            font-weight: 700;
+            color: #f1f5f9;
+            font-size: 0.88rem;
+            margin-bottom: 5px;
+        }
+
+        .feature-title code {
+            font-family: 'Courier New', monospace;
+            background: rgba(255, 255, 255, 0.06);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.88em;
+            color: #a78bfa;
+        }
+
+        .feature-body {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            line-height: 1.45;
+        }
+
+        .feature-body code {
+            font-family: 'Courier New', monospace;
+            color: #a78bfa;
+            background: rgba(138, 92, 181, 0.1);
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+
+        /* =====================================================
+           QOS
+           ===================================================== */
+        .qos-ladder {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .qos-tier {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-radius: 6px;
+            padding: 8px 12px;
+        }
+
+        .qos-tier.qt-voice  { background: rgba(239, 68, 68, 0.07); border-left: 3px solid #f87171; }
+        .qos-tier.qt-video  { background: rgba(251, 191, 36, 0.07); border-left: 3px solid #fbbf24; }
+        .qos-tier.qt-data   { background: rgba(6, 182, 212, 0.07); border-left: 3px solid #06b6d4; }
+        .qos-tier.qt-bulk   { background: rgba(255, 255, 255, 0.03); border-left: 3px solid #334155; }
+
+        .qos-priority {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            min-width: 60px;
+        }
+
+        .qt-voice .qos-priority { color: #f87171; }
+        .qt-video .qos-priority { color: #fbbf24; }
+        .qt-data  .qos-priority { color: #06b6d4; }
+        .qt-bulk  .qos-priority { color: #475569; }
+
+        .qos-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #e2e8f0;
+            min-width: 140px;
+        }
+
+        .qos-desc {
+            font-size: 0.78rem;
+            color: #64748b;
+        }
+
+        /* =====================================================
+           TERMINAL BLOCKS
+           ===================================================== */
+        .terminal-block {
+            background: #0a0a0f;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            line-height: 1.65;
+        }
+
+        .t-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: #fbbf24;
+            margin-bottom: 4px;
+        }
+
+        .t-cmd    { color: #a78bfa; }
+        .t-output { color: #4ade80; }
+        .t-comment { color: #475569; }
+
+        /* =====================================================
+           MANAGED VS UNMANAGED
+           ===================================================== */
+        .managed-cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .managed-col {
+            border-radius: 8px;
+            padding: 12px 14px;
+        }
+
+        .managed-col.col-unmanaged {
+            background: rgba(239, 68, 68, 0.06);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .managed-col.col-managed {
+            background: rgba(138, 92, 181, 0.08);
+            border: 1px solid rgba(138, 92, 181, 0.28);
+        }
+
+        .managed-col-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+
+        .col-unmanaged .managed-col-label { color: #f87171; }
+        .col-managed   .managed-col-label { color: #a78bfa; }
+
+        .managed-item {
+            font-size: 0.82rem;
+            color: #94a3b8;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            line-height: 1.4;
+        }
+
+        .managed-item:last-child { border-bottom: none; }
+        .managed-item strong { color: #e2e8f0; }
+
+        /* =====================================================
+           SUMMARY FACTS
+           ===================================================== */
+        .summary-facts {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .fact-row {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            font-size: 0.875rem;
+        }
+
+        .fact-num {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #a78bfa;
+            min-width: 22px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .fact-text { color: #cbd5e1; }
+
+        .fact-text code {
+            font-family: 'Courier New', monospace;
+            color: #a78bfa;
+            background: rgba(138, 92, 181, 0.1);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+
+        .summary-scenario {
+            background: rgba(138, 92, 181, 0.07);
+            border: 1px solid rgba(138, 92, 181, 0.3);
+            border-radius: 9px;
+            padding: 14px 18px;
+            font-size: 0.875rem;
+            color: #ddd6fe;
+            line-height: 1.65;
+        }
+
+        .summary-scenario strong { color: #a78bfa; }
+
+        /* =====================================================
+           UTILITY
+           ===================================================== */
+        .section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: #475569;
+        }
+
+        /* =====================================================
+           RESPONSIVE
+           ===================================================== */
+        @media (max-height: 700px) {
+            .slide-inner { gap: 9px; }
+            .slide-title { font-size: 1.4rem; }
+            .title-hero .big-title { font-size: 1.9rem; }
+        }
+
+        @media (max-width: 768px) {
+            .method-cols   { grid-template-columns: 1fr; }
+            .violation-grid { grid-template-columns: 1fr; }
+            .feature-grid  { grid-template-columns: 1fr; }
+            .managed-cols  { grid-template-columns: 1fr; }
+            .slide-title   { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="progress-bar" style="width:10%"></div>
+
+<!-- =====================================================================
+     SLIDE 1 — TITLE
+     ===================================================================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 10 &nbsp;|&nbsp; N10-009 Obj 2.3 &nbsp;|&nbsp; Chapter 8</div>
+
+        <div class="title-hero">
+            <div class="big-title">
+                Switch Operations:<br>
+                <span class="purple">From MAC Learning</span> to Port Security
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                A rogue device can flood your CAM table. Understanding how switches work prevents it.
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            A rogue device is flooding your switch with fake MAC addresses. Your CAM table is full and the switch is
+            acting like a hub — forwarding every frame out every port. Understanding switch operations and port security prevents this.
+        </div>
+
+        <div class="title-meta-row">
+            <span>10 Slides</span>
+            <span>N10-009 Obj 2.3</span>
+            <span>Data Link Layer (Layer 2)</span>
+            <span>Architecture + Security</span>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 2 — HOW SWITCHES LEARN
+     ===================================================================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 10</div>
+        <div class="slide-title">How Switches Learn — The <span class="accent">MAC Table</span></div>
+        <div class="slide-subtitle">Switches build a MAC address table (also called the CAM table) dynamically. Entries expire after about 5 minutes by default.</div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div>
+                <div class="section-label" style="margin-bottom:7px;">Switch MAC Address Table</div>
+                <table class="mac-table">
+                    <thead>
+                        <tr>
+                            <th>MAC Address</th>
+                            <th>Port</th>
+                            <th>Type</th>
+                            <th>Age (sec)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="mac-addr">00:1A:2B:3C:4D:01</td>
+                            <td class="mac-port">Gi0/1</td>
+                            <td class="mac-type">Dynamic</td>
+                            <td class="mac-age">210</td>
+                        </tr>
+                        <tr>
+                            <td class="mac-addr">00:1A:2B:3C:4D:02</td>
+                            <td class="mac-port">Gi0/2</td>
+                            <td class="mac-type">Dynamic</td>
+                            <td class="mac-age">45</td>
+                        </tr>
+                        <tr>
+                            <td class="mac-addr">00:1A:2B:3C:4D:03</td>
+                            <td class="mac-port">Gi0/3</td>
+                            <td class="mac-type">Static</td>
+                            <td class="mac-age">--</td>
+                        </tr>
+                        <tr>
+                            <td class="mac-addr">FF:FF:FF:FF:FF:FF</td>
+                            <td class="mac-port">All</td>
+                            <td class="mac-type">Built-in</td>
+                            <td class="mac-age">--</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="box box-purple">
+                    <div class="box-label">Learning Process</div>
+                    When a frame arrives, the switch reads the <strong>source MAC address</strong> and records which port it came from.
+                    This is passive and automatic — every device that sends a frame teaches the switch about its location.
+                </div>
+                <div class="box box-green">
+                    <div class="box-label">Forwarding Decision</div>
+                    When a frame arrives for a destination MAC: if the switch knows the port, it forwards only there (unicast).
+                    If it does not know the destination, it <strong>floods</strong> out all ports except the incoming one.
+                </div>
+                <div class="box box-red">
+                    <div class="box-label">CAM Table Flood Attack</div>
+                    Flood the switch with frames using thousands of fake source MACs. The CAM table fills up.
+                    Now the switch cannot learn real MACs and must flood every frame — it behaves like a hub.
+                    An attacker can capture all traffic. This is <strong>MAC flooding</strong>.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 3 — SWITCHING METHODS
+     ===================================================================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 10</div>
+        <div class="slide-title">Switching Methods — <span class="accent">When Does the Frame Leave?</span></div>
+        <div class="slide-subtitle">Three methods differ in how much of a frame the switch reads before forwarding it. Each trades latency against error detection.</div>
+
+        <div class="method-cols">
+            <div class="method-card mc-sf">
+                <div class="method-tag">Safest</div>
+                <div class="method-name">Store-and-Forward</div>
+                <div class="method-body">
+                    <strong>Reads:</strong> The entire frame before forwarding.
+                    <br><strong>Error check:</strong> Full CRC check. Corrupt frames are discarded.
+                    <br><strong>Latency:</strong> Highest — must wait for last bit.
+                    <br><strong>When used:</strong> Default on modern enterprise switches. Required for QoS decisions.
+                    <br><br>
+                    The only method that can catch a bad frame before it propagates to other devices.
+                </div>
+            </div>
+            <div class="method-card mc-ct">
+                <div class="method-tag">Fastest</div>
+                <div class="method-name">Cut-Through</div>
+                <div class="method-body">
+                    <strong>Reads:</strong> Only the first 6 bytes (destination MAC) then immediately forwards.
+                    <br><strong>Error check:</strong> None — corrupt frames are forwarded.
+                    <br><strong>Latency:</strong> Lowest possible. Begins forwarding before the frame fully arrives.
+                    <br><br>
+                    Two sub-modes: Fast-Forward (forwards after DA only) and Fragment-Free (see below).
+                    Used in low-latency trading and HPC environments.
+                </div>
+            </div>
+            <div class="method-card mc-ff">
+                <div class="method-tag">Compromise</div>
+                <div class="method-name">Fragment-Free</div>
+                <div class="method-body">
+                    <strong>Reads:</strong> First 64 bytes before forwarding.
+                    <br><strong>Rationale:</strong> Most errors and all collision fragments are contained in the first 64 bytes.
+                    <br><strong>Error check:</strong> Partial — catches collision-damaged frames but not bit errors in the payload.
+                    <br><br>
+                    A middle ground between cut-through latency and store-and-forward reliability.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Exam tip:</strong> Store-and-forward is the correct answer for "which switching method performs error checking?"
+            Cut-through is correct for "which method has the lowest latency?"
+            Fragment-free reads the first 64 bytes — the minimum Ethernet frame size.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 4 — PORT SECURITY
+     ===================================================================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 10</div>
+        <div class="slide-title">Port Security — Locking Down <span class="accent">MACs per Port</span></div>
+        <div class="slide-subtitle">Port security limits how many MAC addresses can use a port and what happens when the limit is violated.</div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div>
+                <div class="config-snippet">
+                    <div class="cs-comment">! Enable port security on an interface</div>
+                    <div class="cs-cmd">Switch(config-if)# <span class="cs-val">switchport mode access</span></div>
+                    <div class="cs-cmd">Switch(config-if)# <span class="cs-val">switchport port-security</span></div>
+                    <div class="cs-cmd">Switch(config-if)# <span class="cs-val">switchport port-security maximum 2</span></div>
+                    <div class="cs-cmd">Switch(config-if)# <span class="cs-val">switchport port-security mac-address sticky</span></div>
+                    <div class="cs-cmd">Switch(config-if)# <span class="cs-val">switchport port-security violation shutdown</span></div>
+                </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="box box-purple" style="font-size:0.83rem;">
+                    <div class="box-label">Sticky MAC</div>
+                    The <code style="font-family:monospace; color:#a78bfa;">sticky</code> keyword causes the switch to automatically learn the first MAC(s) up to the maximum
+                    and then store them as if they were statically configured. Saves manual entry but still locks the port.
+                </div>
+                <div class="box box-gold" style="font-size:0.83rem;">
+                    <div class="box-label">Maximum MACs</div>
+                    Set to 1 for a port serving a single workstation. Set to 2 if a VoIP phone is daisy-chained (phone + PC share one port).
+                    Default maximum is 1.
+                </div>
+            </div>
+        </div>
+
+        <div class="violation-grid">
+            <div class="violation-card vc-shutdown">
+                <div class="viol-name">Shutdown</div>
+                <div class="viol-body">
+                    Port immediately goes to <strong>err-disabled</strong> state. No traffic flows.
+                    Admin must manually re-enable with <code style="font-family:monospace;">no shutdown</code>.
+                    Generates a syslog message and SNMP trap.
+                    <br><strong>Use for:</strong> High-security environments. Best protection. Most visible.
+                </div>
+            </div>
+            <div class="violation-card vc-restrict">
+                <div class="viol-name">Restrict</div>
+                <div class="viol-body">
+                    Frames from unknown MACs are <strong>dropped silently</strong>.
+                    The violation counter increments. A syslog message is generated.
+                    Port stays up and legitimate traffic continues flowing.
+                    <br><strong>Use for:</strong> Monitoring while keeping the port operational.
+                </div>
+            </div>
+            <div class="violation-card vc-protect">
+                <div class="viol-name">Protect</div>
+                <div class="viol-body">
+                    Frames from unknown MACs are <strong>dropped silently</strong>.
+                    No syslog. No counter increment. No notification of any kind.
+                    Port stays up.
+                    <br><strong>Use for:</strong> Environments where you want silent dropping with no log noise.
+                    Least visible — not ideal for security auditing.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 5 — POE
+     ===================================================================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 10</div>
+        <div class="slide-title">PoE — Power Over Ethernet</div>
+        <div class="slide-subtitle">Three standards. Know the wattage. Know the use cases. Know what a power budget is.</div>
+
+        <table class="poe-table">
+            <thead>
+                <tr>
+                    <th>Standard</th>
+                    <th>Also Known As</th>
+                    <th>Max per Port</th>
+                    <th>Max at PSE</th>
+                    <th>Pairs Used</th>
+                    <th>Common Use Cases</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="poe-std">802.3af</td>
+                    <td>PoE</td>
+                    <td class="poe-watts">15.4W</td>
+                    <td>12.95W</td>
+                    <td>2 pairs</td>
+                    <td>IP phones, basic Wi-Fi access points, IP cameras</td>
+                </tr>
+                <tr>
+                    <td class="poe-std">802.3at</td>
+                    <td>PoE+</td>
+                    <td class="poe-watts">30W</td>
+                    <td>25.5W</td>
+                    <td>2 pairs</td>
+                    <td>High-power APs (802.11n/ac), video phones, pan-tilt cameras</td>
+                </tr>
+                <tr>
+                    <td class="poe-std">802.3bt</td>
+                    <td>PoE++ / 4PPoE</td>
+                    <td class="poe-watts">60W / 90W</td>
+                    <td>51W / 71.3W</td>
+                    <td>4 pairs</td>
+                    <td>802.11ax APs, thin clients, LED lighting, small switches</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px;">
+            <div class="box box-purple">
+                <div class="box-label">Power Budget</div>
+                A 48-port PoE switch might have a total power budget of 740W. If every port draws 15.4W (802.3af), you hit the limit at 48 ports — exactly. More powerful devices reduce how many ports you can run simultaneously.
+            </div>
+            <div class="box box-gold">
+                <div class="box-label">PSE vs PD</div>
+                PSE (Power Sourcing Equipment) = the switch providing power.
+                PD (Powered Device) = the device receiving power (camera, phone, AP).
+                The switch negotiates with the device to determine how much power to deliver.
+            </div>
+            <div class="box box-cyan">
+                <div class="box-label">PoE Injectors</div>
+                If your switch does not support PoE, a PoE injector sits inline between the switch and the PD.
+                It adds DC power to the Ethernet cable without replacing the network path.
+                Midspan devices provide similar functionality for multiple ports.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 6 — PORT MIRRORING / SPAN
+     ===================================================================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 10</div>
+        <div class="slide-title">Port Mirroring — SPAN and <span class="accent">Traffic Analysis</span></div>
+        <div class="slide-subtitle">You cannot plug a packet sniffer into a switch port and see all traffic. Port mirroring solves this.</div>
+
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-title"><code>SPAN</code> — Switched Port Analyzer</div>
+                <div class="feature-body">
+                    Copies traffic from one or more source ports (or VLANs) to a destination port.
+                    A network tap, IDS, or Wireshark captures traffic on the destination port without interrupting the live path.
+                    Traffic flows bidirectionally unless you specify ingress-only or egress-only.
+                    <br><br>
+                    Example: Mirror Gi0/1 and Gi0/2 to Gi0/24 where your IDS lives.
+                    All traffic on those ports is copied to the IDS without inserting any device in the data path.
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title"><code>RSPAN</code> — Remote SPAN</div>
+                <div class="feature-body">
+                    Extends SPAN across multiple switches using a dedicated RSPAN VLAN.
+                    The mirrored traffic traverses the network to reach a monitoring device on a different switch.
+                    Useful when your IDS is in a central monitoring rack and the monitored ports are on edge switches.
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title"><code>CDP</code> — Cisco Discovery Protocol</div>
+                <div class="feature-body">
+                    Layer 2 proprietary Cisco protocol. Advertises device type, hostname, IP address, IOS version, and connected interface.
+                    Runs on Cisco devices only. Sends multicast frames every 60 seconds.
+                    <strong>Security concern:</strong> CDP leaks device information. Disable on untrusted ports (customer-facing, external).
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-title"><code>LLDP</code> — Link Layer Discovery Protocol</div>
+                <div class="feature-body">
+                    IEEE 802.1AB standard equivalent of CDP. Vendor-neutral. Works across Cisco, Juniper, HP, and any 802.1AB-compliant device.
+                    Advertises similar information: device ID, port ID, capabilities, management address.
+                    Used by IP phones to auto-discover the voice VLAN from the switch.
+                    Enable selectively — same security cautions apply as CDP.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Exam distinction:</strong> CDP is Cisco-proprietary, LLDP is IEEE standard. Both operate at Layer 2.
+            Both should be disabled on ports connected to untrusted devices or public-facing infrastructure.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 7 — QOS BASICS
+     ===================================================================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 10</div>
+        <div class="slide-title">QoS Basics — Prioritizing <span class="accent">Time-Sensitive Traffic</span></div>
+        <div class="slide-subtitle">Quality of Service ensures voice and video are not starved when the network is congested. Switches enforce QoS at Layer 2.</div>
+
+        <div class="qos-ladder">
+            <div class="qos-tier qt-voice">
+                <div class="qos-priority">Priority 1</div>
+                <div class="qos-label">Voice (VoIP)</div>
+                <div class="qos-desc">Requires &lt;150ms one-way delay, &lt;30ms jitter, &lt;1% packet loss. Highest queue priority. Any dropped voice packet is audible as a gap or click.</div>
+            </div>
+            <div class="qos-tier qt-video">
+                <div class="qos-priority">Priority 2</div>
+                <div class="qos-label">Video / Real-Time</div>
+                <div class="qos-desc">Requires low jitter but slightly more tolerant than voice. Video conferencing and surveillance streams go here. Buffering is noticeable but not catastrophic.</div>
+            </div>
+            <div class="qos-tier qt-data">
+                <div class="qos-priority">Priority 3</div>
+                <div class="qos-label">Critical Data</div>
+                <div class="qos-desc">Business-critical applications — ERP, database queries, VDI. Humans are waiting on responses. Gets forwarding preference over background traffic.</div>
+            </div>
+            <div class="qos-tier qt-bulk">
+                <div class="qos-priority">Best Effort</div>
+                <div class="qos-label">Bulk / Background</div>
+                <div class="qos-desc">Backups, software updates, file transfers. Gets whatever bandwidth remains after higher tiers are served. Can be rate-limited to prevent congestion.</div>
+            </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:4px;">
+            <div class="box box-purple" style="font-size:0.82rem;">
+                <div class="box-label">802.1p — CoS (Class of Service)</div>
+                3-bit field in the 802.1Q VLAN tag. Values 0-7. 7 = highest priority.
+                Used by switches to classify and queue traffic at Layer 2.
+            </div>
+            <div class="box box-cyan" style="font-size:0.82rem;">
+                <div class="box-label">DSCP — Layer 3 Marking</div>
+                Differentiated Services Code Point. 6-bit field in the IP header.
+                Preserved end-to-end. Switches can mark, trust, or remark DSCP values.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 8 — MANAGED vs UNMANAGED
+     ===================================================================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 10</div>
+        <div class="slide-title">Managed vs <span class="accent">Unmanaged</span> Switches</div>
+        <div class="slide-subtitle">The difference matters for where in the network each type belongs and what features you can configure.</div>
+
+        <div class="managed-cols">
+            <div class="managed-col col-unmanaged">
+                <div class="managed-col-label">Unmanaged Switch</div>
+                <div class="managed-item"><strong>Configuration:</strong> None — plug in and it works</div>
+                <div class="managed-item"><strong>VLANs:</strong> Not supported</div>
+                <div class="managed-item"><strong>Port security:</strong> Not available</div>
+                <div class="managed-item"><strong>QoS:</strong> Not available</div>
+                <div class="managed-item"><strong>SPAN:</strong> Not available</div>
+                <div class="managed-item"><strong>Management interface:</strong> None</div>
+                <div class="managed-item"><strong>STP:</strong> Basic (some models)</div>
+                <div class="managed-item"><strong>Use case:</strong> Home, small office, temporary deployments, connecting a few devices under a managed switch</div>
+            </div>
+            <div class="managed-col col-managed">
+                <div class="managed-col-label">Managed Switch</div>
+                <div class="managed-item"><strong>Configuration:</strong> CLI (SSH/Telnet), web GUI, or SNMP</div>
+                <div class="managed-item"><strong>VLANs:</strong> Full 802.1Q VLAN support</div>
+                <div class="managed-item"><strong>Port security:</strong> MAC limiting, violation modes</div>
+                <div class="managed-item"><strong>QoS:</strong> 802.1p CoS, DSCP marking/trust</div>
+                <div class="managed-item"><strong>SPAN:</strong> Traffic mirroring to monitoring device</div>
+                <div class="managed-item"><strong>Management interface:</strong> Out-of-band MGMT port</div>
+                <div class="managed-item"><strong>STP:</strong> Full RSTP, PVST+, MSTP</div>
+                <div class="managed-item"><strong>Use case:</strong> All enterprise environments. Any network that needs segmentation, monitoring, or security.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            In enterprise networks, <strong>all</strong> switches in the wiring closet or data center are managed.
+            Unmanaged switches occasionally appear in conference rooms or small remote offices under a managed distribution layer switch,
+            but you should never place them where VLANs, port security, or monitoring are required.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 9 — TROUBLESHOOTING COMMANDS
+     ===================================================================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 10</div>
+        <div class="slide-title">Troubleshooting — <span class="accent">show</span> Commands That Matter</div>
+        <div class="slide-subtitle">The CAM table flood scenario started this presentation. These commands diagnose it and every other Layer 2 problem.</div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="terminal-block">
+                <div class="t-label">show mac address-table</div>
+                <div class="t-cmd">Switch# show mac address-table</div>
+                <div class="t-output">Mac Address Table</div>
+                <div class="t-output">Vlan  Mac Address      Type    Ports</div>
+                <div class="t-output">----  ---------------  ------  -----</div>
+                <div class="t-output">   1  00a0.1b2c.3d4e  DYNAMIC Gi0/1</div>
+                <div class="t-output">   1  00a0.1b2c.3d4f  DYNAMIC Gi0/2</div>
+                <div class="t-comment">-- If thousands of entries, CAM flood in progress</div>
+            </div>
+
+            <div class="terminal-block">
+                <div class="t-label">show port-security</div>
+                <div class="t-cmd">Switch# show port-security interface Gi0/1</div>
+                <div class="t-output">Port Security              : Enabled</div>
+                <div class="t-output">Port Status                : Secure-up</div>
+                <div class="t-output">Violation Mode             : Shutdown</div>
+                <div class="t-output">Maximum MAC Addresses      : 1</div>
+                <div class="t-output">Total MAC Addresses        : 1</div>
+                <div class="t-output">Security Violation Count   : 0</div>
+            </div>
+
+            <div class="terminal-block">
+                <div class="t-label">show mac address-table count</div>
+                <div class="t-cmd">Switch# show mac address-table count</div>
+                <div class="t-output">Mac Entries for Vlan 1:</div>
+                <div class="t-output">  Dynamic Address Count : 14</div>
+                <div class="t-output">  Static Address Count  : 1</div>
+                <div class="t-output">  Total Mac Addresses   : 15</div>
+                <div class="t-comment">-- Normal. Thousands = CAM flood</div>
+            </div>
+
+            <div class="terminal-block">
+                <div class="t-label">show interfaces — err-disabled check</div>
+                <div class="t-cmd">Switch# show interfaces status</div>
+                <div class="t-output">Port   Name     Status       Vlan</div>
+                <div class="t-output">Gi0/1           connected    1</div>
+                <div class="t-output">Gi0/4           err-disabled  1</div>
+                <div class="t-comment">-- err-disabled = port security fired</div>
+                <div class="t-cmd">Switch(config-if)# shutdown</div>
+                <div class="t-cmd">Switch(config-if)# no shutdown</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            You see thousands of MAC entries in the CAM table and the switch is flooding all traffic.
+            First: identify the source port. Then: enable port security with maximum 1 and violation shutdown.
+            The rogue device's port goes err-disabled the moment it sends a second MAC.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 10 — SUMMARY + COMPLETE
+     ===================================================================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 10 &nbsp;|&nbsp; N10-009 Obj 2.3</div>
+        <div class="slide-title">Switch Operations — Complete Picture</div>
+
+        <div class="summary-scenario">
+            The rogue device flooded your CAM table with fake MACs. Your switch started acting like a hub.
+            You ran <strong>show mac address-table count</strong> — thousands of entries. You identified the port,
+            enabled <strong>port-security maximum 1 violation shutdown</strong>, and the rogue device's port went
+            err-disabled on its next frame. Traffic returned to normal. CAM flood: prevented.
+        </div>
+
+        <div class="section-label">5 Facts to Carry Out of This Presentation</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Switches learn by source MAC. Unknown destinations are flooded. A full CAM table causes all traffic to flood — the MAC flood attack.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Three switching methods: <code>store-and-forward</code> (CRC check, most reliable), <code>cut-through</code> (first 6 bytes, fastest), <code>fragment-free</code> (first 64 bytes, partial check).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Port security violation modes: <code>shutdown</code> (err-disabled, most secure), <code>restrict</code> (drop + log), <code>protect</code> (silent drop, no log).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">PoE standards: <code>802.3af</code> = 15.4W, <code>802.3at</code> = 30W, <code>802.3bt</code> = 60/90W. Know the wattage per standard.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><code>show mac address-table</code> diagnoses CAM floods. <code>show port-security</code> shows violation counts. CDP = Cisco-only, LLDP = IEEE standard.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     NAVIGATION BAR
+     ===================================================================== -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Network+ Hub</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 10</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<!-- =====================================================================
+     PRESENTATION LOGIC
+     ===================================================================== -->
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 10;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        const pct = (currentSlide / TOTAL_SLIDES) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            goToSlide(currentSlide + 1);
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            goToSlide(currentSlide - 1);
+        }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'web-switch-operations', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

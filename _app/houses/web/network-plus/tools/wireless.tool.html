@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wireless Networking Visualizer - Network Essentials</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .header h1 { font-size: 1.5em; color: #fff; }
+        .header h1 span { color: #f59e0b; }
+        .back-btn {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+            border: 1px solid #f59e0b;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.9em;
+            transition: all 0.3s;
+        }
+        .back-btn:hover { background: #f59e0b; color: #fff; }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px 20px 40px;
+        }
+
+        .tabs {
+            display: flex;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0 20px;
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            padding: 15px 25px;
+            cursor: pointer;
+            color: #888;
+            border: none;
+            background: transparent;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            font-weight: 500;
+            white-space: nowrap;
+            font-size: 14px;
+        }
+
+        .tab-btn:hover {
+            color: #f59e0b;
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        .tab-btn.active {
+            color: #f59e0b;
+            border-bottom-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        .tab-content {
+            display: none;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 30px;
+            margin: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h2 {
+            color: #00d4ff;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        h3 {
+            color: #f472b6;
+            margin: 20px 0 10px;
+            font-size: 1.3em;
+        }
+
+        p {
+            color: #e2e8f0;
+            line-height: 1.7;
+            margin-bottom: 15px;
+        }
+
+        /* Standards Explorer Styles */
+        .standards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .standard-btn {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            padding: 20px;
+            border-radius: 15px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .standard-btn:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.05);
+        }
+
+        .standard-btn.active {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.2);
+        }
+
+        .standard-btn .name {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+
+        .standard-btn .wifi-name {
+            font-size: 0.9em;
+            color: #a5b4fc;
+            margin-top: 5px;
+        }
+
+        .standard-info {
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 15px;
+        }
+
+        .info-item {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 3px solid #00d4ff;
+        }
+
+        .info-item label {
+            color: #a5b4fc;
+            font-size: 0.9em;
+        }
+
+        .info-item .value {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: white;
+            margin-top: 5px;
+        }
+
+        /* Channel Visualizer Styles */
+        .channel-container {
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+
+        .spectrum-display {
+            position: relative;
+            height: 150px;
+            margin: 20px 0;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .channel-block {
+            position: absolute;
+            height: 80px;
+            top: 35px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            opacity: 0.8;
+        }
+
+        .channel-block:hover {
+            opacity: 1;
+            transform: scaleY(1.1);
+        }
+
+        .channel-block.non-overlap {
+            opacity: 1;
+            border: 2px solid white;
+        }
+
+        .channel-labels {
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            color: #a5b4fc;
+            font-size: 0.85em;
+        }
+
+        .band-selector {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .band-btn {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 10px 25px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .band-btn.active {
+            background: linear-gradient(135deg, #7c3aed, #00d4ff);
+            border-color: transparent;
+        }
+
+        /* Security Comparison Styles */
+        .security-timeline {
+            position: relative;
+            margin: 30px 0;
+        }
+
+        .security-item {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .security-item:hover {
+            transform: translateX(10px);
+        }
+
+        .security-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            margin-right: 20px;
+            flex-shrink: 0;
+        }
+
+        .security-icon.broken { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .security-icon.deprecated { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .security-icon.secure { background: linear-gradient(135deg, #22c55e, #16a34a); }
+        .security-icon.best { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+
+        .security-content {
+            flex: 1;
+            background: rgba(255,255,255,0.05);
+            padding: 15px 20px;
+            border-radius: 10px;
+        }
+
+        .security-content h4 {
+            color: #00d4ff;
+            margin-bottom: 5px;
+        }
+
+        .security-details {
+            display: none;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .security-details.show {
+            display: block;
+        }
+
+        /* Guided Tutorial Overlay */
+        .tutorial-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); z-index: 9000; display: none; }
+        .tutorial-overlay.active { display: block; }
+        .tutorial-beacon { position: absolute; width: 24px; height: 24px; border-radius: 50%; background: #f59e0b; z-index: 9002; cursor: pointer; animation: beacon-pulse 1.5s ease-in-out infinite; }
+        .tutorial-beacon::after { content: ''; position: absolute; inset: -8px; border-radius: 50%; border: 2px solid #f59e0b; animation: beacon-ring 1.5s ease-in-out infinite; }
+        @keyframes beacon-pulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); } 50% { transform: scale(1.2); box-shadow: 0 0 20px 8px rgba(245, 158, 11, 0.3); } }
+        @keyframes beacon-ring { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.8); opacity: 0; } }
+        .tutorial-tooltip { position: absolute; background: #0a0a14; border: 2px solid #f59e0b; border-radius: 12px; padding: 16px 20px; max-width: 320px; z-index: 9003; color: #e2e8f0; box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
+        .tutorial-tooltip .tt-step { font-size: 0.7rem; color: #f59e0b; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+        .tutorial-tooltip .tt-title { font-size: 1rem; font-weight: 700; color: #f1f5f9; margin-bottom: 8px; }
+        .tutorial-tooltip .tt-body { font-size: 0.85rem; color: #94a3b8; line-height: 1.5; margin-bottom: 12px; }
+        .tutorial-tooltip .tt-actions { display: flex; gap: 8px; justify-content: flex-end; }
+        .tutorial-tooltip .tt-btn { padding: 6px 16px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+        .tutorial-tooltip .tt-btn-next { background: #f59e0b; color: #fff; }
+        .tutorial-tooltip .tt-btn-next:hover { background: #d97706; }
+        .tutorial-tooltip .tt-btn-skip { background: transparent; color: #64748b; border: 1px solid rgba(255,255,255,0.1); }
+        .tutorial-tooltip .tt-btn-skip:hover { color: #94a3b8; }
+        .tutorial-highlight { position: relative; z-index: 9001 !important; box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.5), 0 0 20px rgba(245, 158, 11, 0.3) !important; border-radius: 8px; }
+        .tutorial-replay { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #f59e0b; padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; animation: tutorial-flash 2s ease-in-out infinite; letter-spacing: 0.02em; }
+        .tutorial-replay:hover { background: rgba(245, 158, 11, 0.3); animation: none; }
+        @keyframes tutorial-flash { 0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); } 50% { opacity: 0.7; box-shadow: 0 0 12px 4px rgba(245, 158, 11, 0.3); } }
+
+        /* Signal Strength Calculator */
+        .calculator-section {
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+
+        .signal-bar {
+            height: 30px;
+            background: linear-gradient(90deg, #ef4444, #f59e0b, #22c55e, #3b82f6);
+            border-radius: 15px;
+            position: relative;
+            margin: 20px 0;
+        }
+
+        .signal-marker {
+            position: absolute;
+            top: -10px;
+            width: 4px;
+            height: 50px;
+            background: white;
+            border-radius: 2px;
+            transition: left 0.3s ease;
+        }
+
+        .signal-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85em;
+            color: #a5b4fc;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 20px 0;
+            -webkit-appearance: none;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            height: 10px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 25px;
+            height: 25px;
+            background: linear-gradient(135deg, #7c3aed, #00d4ff);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .signal-result {
+            text-align: center;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .signal-value {
+            font-size: 3em;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+
+        .signal-quality {
+            font-size: 1.3em;
+            margin-top: 10px;
+        }
+
+        /* Speed comparison bar */
+        .speed-comparison {
+            margin: 20px 0;
+        }
+
+        .speed-bar-container {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+
+        .speed-label {
+            width: 100px;
+            color: #a5b4fc;
+            font-size: 0.9em;
+        }
+
+        .speed-bar-bg {
+            flex: 1;
+            height: 25px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .speed-bar-fill {
+            height: 100%;
+            border-radius: 12px;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 10px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .highlight-tip {
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(0, 212, 255, 0.2));
+            border-left: 4px solid #7c3aed;
+            padding: 15px;
+            border-radius: 0 10px 10px 0;
+            margin: 15px 0;
+        }
+
+        .complete-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .complete-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(34, 197, 94, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="tutorial-overlay" id="tutorialOverlay"></div>
+    <div class="tutorial-beacon" id="tutorialBeacon" style="display:none;"></div>
+    <div class="tutorial-tooltip" id="tutorialTooltip" style="display:none;"></div>
+
+    <div class="header">
+        <h1>Wireless <span>Networking</span> Visualizer</h1>
+        <a href="../index.html" class="back-btn">Back to Network+ Hub</a>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('standards')"><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Standards Explorer</button>
+        <button class="tab-btn" onclick="showTab('channels')"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Channel Visualizer</button>
+        <button class="tab-btn" onclick="showTab('security')"><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Security Comparison</button>
+        <button class="tutorial-replay" id="tutorialReplay" onclick="startTutorial()" style="display:none;">Tutorial</button>
+    </div>
+
+    <div class="container">
+
+        <!-- Tab 1: Standards Explorer -->
+        <div id="standards" class="tab-content active">
+            <h2><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> 802.11 Standards Explorer</h2>
+            <p>Click on a standard to learn about its characteristics, speed, and features.</p>
+
+            <div class="standards-grid">
+                <div class="standard-btn" data-std="b" onclick="showStandard('b')">
+                    <div class="name">802.11b</div>
+                    <div class="wifi-name">Wi-Fi 1</div>
+                </div>
+                <div class="standard-btn" data-std="a" onclick="showStandard('a')">
+                    <div class="name">802.11a</div>
+                    <div class="wifi-name">Wi-Fi 2</div>
+                </div>
+                <div class="standard-btn" data-std="g" onclick="showStandard('g')">
+                    <div class="name">802.11g</div>
+                    <div class="wifi-name">Wi-Fi 3</div>
+                </div>
+                <div class="standard-btn" data-std="n" onclick="showStandard('n')">
+                    <div class="name">802.11n</div>
+                    <div class="wifi-name">Wi-Fi 4</div>
+                </div>
+                <div class="standard-btn" data-std="ac" onclick="showStandard('ac')">
+                    <div class="name">802.11ac</div>
+                    <div class="wifi-name">Wi-Fi 5</div>
+                </div>
+                <div class="standard-btn" data-std="ax" onclick="showStandard('ax')">
+                    <div class="name">802.11ax</div>
+                    <div class="wifi-name">Wi-Fi 6/6E</div>
+                </div>
+            </div>
+
+            <div id="standardInfo" class="standard-info" style="display: none;">
+                <h3 id="stdTitle"></h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <label>Frequency Band</label>
+                        <div class="value" id="stdBand"></div>
+                    </div>
+                    <div class="info-item">
+                        <label>Max Speed</label>
+                        <div class="value" id="stdSpeed"></div>
+                    </div>
+                    <div class="info-item">
+                        <label>Year Released</label>
+                        <div class="value" id="stdYear"></div>
+                    </div>
+                    <div class="info-item">
+                        <label>Modulation</label>
+                        <div class="value" id="stdMod"></div>
+                    </div>
+                </div>
+                <div id="stdFeatures" style="margin-top: 20px;"></div>
+                <div class="speed-comparison" id="speedCompare"></div>
+            </div>
+
+            <div class="highlight-tip">
+                <strong><img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Exam Tip:</strong> Remember: 802.11ac is 5 GHz ONLY! All other modern standards (n, ax) support multiple bands.
+            </div>
+        </div>
+
+        <!-- Tab 2: Channel Visualizer -->
+        <div id="channels" class="tab-content">
+            <h2><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Channel Spectrum Visualizer</h2>
+            <p>Visualize how Wi-Fi channels are allocated and why channel planning matters.</p>
+
+            <div class="band-selector">
+                <button class="band-btn active" onclick="showBand('2.4')">2.4 GHz</button>
+                <button class="band-btn" onclick="showBand('5')">5 GHz</button>
+            </div>
+
+            <div class="channel-container" id="channelDisplay">
+                <!-- 2.4 GHz Display -->
+                <div id="band24" class="band-display">
+                    <h3>2.4 GHz Channel Allocation (North America)</h3>
+                    <p>Each channel is 22 MHz wide, but centers are only 5 MHz apart. Only channels <strong>1, 6, and 11</strong> are non-overlapping!</p>
+
+                    <div class="spectrum-display" id="spectrum24">
+                        <!-- Channels will be drawn by JS -->
+                    </div>
+
+                    <div class="channel-labels">
+                        <span>2.401 GHz</span>
+                        <span>2.437 GHz</span>
+                        <span>2.473 GHz</span>
+                    </div>
+
+                    <div class="highlight-tip">
+                        <strong><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Best Practice:</strong> In any 2.4 GHz deployment, use ONLY channels 1, 6, and 11. Using any other channels causes interference with neighbors!
+                    </div>
+                </div>
+
+                <!-- 5 GHz Display -->
+                <div id="band5" class="band-display" style="display: none;">
+                    <h3>5 GHz Channel Groups (UNII Bands)</h3>
+                    <p>The 5 GHz band offers many more non-overlapping channels, organized into UNII bands.</p>
+
+                    <div class="spectrum-display" id="spectrum5" style="height: 200px;">
+                        <!-- 5 GHz channels will be drawn by JS -->
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <h4 style="color: #f472b6;">Channel Groups:</h4>
+                        <div class="info-grid">
+                            <div class="info-item" style="border-left-color: #22c55e;">
+                                <label>UNII-1 (36-48)</label>
+                                <div class="value" style="font-size: 1em;">Indoor, No DFS</div>
+                            </div>
+                            <div class="info-item" style="border-left-color: #f59e0b;">
+                                <label>UNII-2A (52-64)</label>
+                                <div class="value" style="font-size: 1em;">DFS Required</div>
+                            </div>
+                            <div class="info-item" style="border-left-color: #f59e0b;">
+                                <label>UNII-2C (100-144)</label>
+                                <div class="value" style="font-size: 1em;">DFS Required</div>
+                            </div>
+                            <div class="info-item" style="border-left-color: #3b82f6;">
+                                <label>UNII-3 (149-165)</label>
+                                <div class="value" style="font-size: 1em;">No DFS, Higher Power</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="highlight-tip">
+                        <strong><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> DFS Note:</strong> DFS (Dynamic Frequency Selection) channels can cause brief disconnections if radar is detected. For critical applications, stick to UNII-1 and UNII-3.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Signal Strength Calculator -->
+            <div class="calculator-section">
+                <h3><img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Signal Strength Reference</h3>
+                <p>Understanding dBm values and what they mean for connectivity.</p>
+
+                <div class="signal-bar">
+                    <div class="signal-marker" id="signalMarker" style="left: 50%;"></div>
+                </div>
+                <div class="signal-labels">
+                    <span>-30 dBm (Excellent)</span>
+                    <span>-65 dBm (Good)</span>
+                    <span>-90 dBm (Poor)</span>
+                </div>
+
+                <input type="range" id="signalSlider" min="-90" max="-30" value="-60" oninput="updateSignal()">
+
+                <div class="signal-result">
+                    <div class="signal-value" id="signalValue">-60 dBm</div>
+                    <div class="signal-quality" id="signalQuality">Good Signal</div>
+                    <p id="signalDescription" style="margin-top: 10px; color: #a5b4fc;"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Security Comparison -->
+        <div id="security" class="tab-content">
+            <h2><img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Wireless Security Protocol Comparison</h2>
+            <p>Click on each protocol to learn about its encryption, vulnerabilities, and recommendations.</p>
+
+            <div class="security-timeline">
+                <div class="security-item" onclick="toggleSecurity('wep')">
+                    <div class="security-icon broken"><img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
+                    <div class="security-content">
+                        <h3>WEP (Wired Equivalent Privacy) - 1999</h3>
+                        <p>Encryption: RC4 | Key: 64/128-bit | Status: <strong style="color: #ef4444;">BROKEN - Never Use!</strong></p>
+                        <div class="security-details" id="wep-details">
+                            <p><strong>Why It's Broken:</strong></p>
+                            <ul style="margin-left: 20px; margin-top: 10px;">
+                                <li>24-bit IV (Initialization Vector) is too short - repeats frequently</li>
+                                <li>Static key shared by all users</li>
+                                <li>No protection against replay attacks</li>
+                                <li>Can be cracked in under 5 minutes with free tools</li>
+                            </ul>
+                            <p style="margin-top: 15px; color: #ef4444;"><strong>Recommendation:</strong> Never use WEP under any circumstances!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="security-item" onclick="toggleSecurity('wpa')">
+                    <div class="security-icon deprecated"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></div>
+                    <div class="security-content">
+                        <h4>WPA (Wi-Fi Protected Access) - 2003</h4>
+                        <p>Encryption: TKIP (RC4) | Key: 128-bit | Status: <strong style="color: #f59e0b;">Deprecated</strong></p>
+                        <div class="security-details" id="wpa-details">
+                            <p><strong>Improvements over WEP:</strong></p>
+                            <ul style="margin-left: 20px; margin-top: 10px;">
+                                <li>TKIP - Temporal Key Integrity Protocol</li>
+                                <li>Per-packet key mixing</li>
+                                <li>Message integrity check (MIC)</li>
+                                <li>Designed to work on WEP hardware via firmware update</li>
+                            </ul>
+                            <p style="margin-top: 15px;"><strong>Weaknesses:</strong></p>
+                            <ul style="margin-left: 20px; margin-top: 10px;">
+                                <li>Still uses RC4 cipher (same as WEP)</li>
+                                <li>TKIP has known vulnerabilities</li>
+                                <li>Was only meant as a temporary solution</li>
+                            </ul>
+                            <p style="margin-top: 15px; color: #f59e0b;"><strong>Recommendation:</strong> Upgrade to WPA2 or WPA3</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="security-item" onclick="toggleSecurity('wpa2')">
+                    <div class="security-icon secure"><img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
+                    <div class="security-content">
+                        <h4>WPA2 (Wi-Fi Protected Access 2) - 2004</h4>
+                        <p>Encryption: AES-CCMP | Key: 128-bit | Status: <strong style="color: #22c55e;">Secure</strong></p>
+                        <div class="security-details" id="wpa2-details">
+                            <p><strong>Key Features:</strong></p>
+                            <ul style="margin-left: 20px; margin-top: 10px;">
+                                <li>AES encryption (much stronger than RC4)</li>
+                                <li>CCMP for data integrity</li>
+                                <li>Mandatory for Wi-Fi certification since 2006</li>
+                            </ul>
+                            <p style="margin-top: 15px;"><strong>Two Modes:</strong></p>
+                            <ul style="margin-left: 20px; margin-top: 10px;">
+                                <li><strong>Personal (PSK):</strong> Shared password for all users</li>
+                                <li><strong>Enterprise (802.1X):</strong> Individual user credentials via RADIUS</li>
+                            </ul>
+                            <p style="margin-top: 15px;"><strong>Known Weakness:</strong> KRACK attack (2017) - fixed with patches. Offline dictionary attacks possible with weak passwords.</p>
+                            <p style="margin-top: 15px; color: #22c55e;"><strong>Recommendation:</strong> Acceptable for most uses with strong passwords (12+ characters)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="security-item" onclick="toggleSecurity('wpa3')">
+                    <div class="security-icon best"><img src="/assets/images/icons/icon-trophy.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></div>
+                    <div class="security-content">
+                        <h4>WPA3 (Wi-Fi Protected Access 3) - 2018</h4>
+                        <p>Encryption: SAE + AES | Key: 128/192-bit | Status: <strong style="color: #3b82f6;">Best Available</strong></p>
+                        <div class="security-details" id="wpa3-details">
+                            <p><strong>Key Improvements:</strong></p>
+                            <ul style="margin-left: 20px; margin-top: 10px;">
+                                <li><strong>SAE (Dragonfly):</strong> Resistant to offline dictionary attacks</li>
+                                <li><strong>Forward Secrecy:</strong> Each session uses unique keys</li>
+                                <li><strong>Protected Management Frames:</strong> Prevents deauth attacks</li>
+                                <li><strong>192-bit Enterprise:</strong> Government-grade security option</li>
+                            </ul>
+                            <p style="margin-top: 15px;"><strong>Additional Features:</strong></p>
+                            <ul style="margin-left: 20px; margin-top: 10px;">
+                                <li>Wi-Fi Easy Connect (DPP) for IoT devices</li>
+                                <li>Opportunistic Wireless Encryption for open networks</li>
+                            </ul>
+                            <p style="margin-top: 15px; color: #3b82f6;"><strong>Recommendation:</strong> Use WPA3 whenever possible - it's the most secure option available</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="highlight-tip">
+                <strong><img src="/assets/images/icons/icon-notepad.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Exam Key:</strong> WEP = RC4 = Broken | WPA = TKIP = Deprecated | WPA2 = AES = Good | WPA3 = SAE = Best
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Tab Management
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Standards Data
+        const standardsData = {
+            b: {
+                name: '802.11b (Wi-Fi 1)',
+                band: '2.4 GHz',
+                speed: '11 Mbps',
+                year: '1999',
+                modulation: 'DSSS',
+                speedPercent: 1,
+                features: [
+                    'First widely adopted Wi-Fi standard',
+                    'Long range due to 2.4 GHz',
+                    'Only 3 non-overlapping channels',
+                    'Backward compatible with nothing (first!)'
+                ]
+            },
+            a: {
+                name: '802.11a (Wi-Fi 2)',
+                band: '5 GHz',
+                speed: '54 Mbps',
+                year: '1999',
+                modulation: 'OFDM',
+                speedPercent: 5,
+                features: [
+                    'First 5 GHz Wi-Fi standard',
+                    'Less interference than 2.4 GHz',
+                    'More available channels (23)',
+                    'Shorter range than 802.11b'
+                ]
+            },
+            g: {
+                name: '802.11g (Wi-Fi 3)',
+                band: '2.4 GHz',
+                speed: '54 Mbps',
+                year: '2003',
+                modulation: 'OFDM',
+                speedPercent: 5,
+                features: [
+                    'Combined speed of 802.11a with range of 802.11b',
+                    'Backward compatible with 802.11b',
+                    'Same channel limitations as 802.11b (1, 6, 11)',
+                    'Dominated home networks for years'
+                ]
+            },
+            n: {
+                name: '802.11n (Wi-Fi 4)',
+                band: '2.4 GHz & 5 GHz',
+                speed: '600 Mbps',
+                year: '2009',
+                modulation: 'OFDM + MIMO',
+                speedPercent: 60,
+                features: [
+                    'First dual-band standard',
+                    'MIMO - Multiple antennas (up to 4x4)',
+                    'Channel bonding (40 MHz)',
+                    'Backward compatible with a/b/g'
+                ]
+            },
+            ac: {
+                name: '802.11ac (Wi-Fi 5)',
+                band: '5 GHz ONLY',
+                speed: '6.9 Gbps',
+                year: '2013',
+                modulation: 'OFDM + MU-MIMO',
+                speedPercent: 69,
+                features: [
+                    '5 GHz ONLY - no 2.4 GHz support!',
+                    'Wider channels (up to 160 MHz)',
+                    'MU-MIMO in Wave 2',
+                    '256-QAM modulation',
+                    'Beamforming support'
+                ]
+            },
+            ax: {
+                name: '802.11ax (Wi-Fi 6/6E)',
+                band: '2.4 / 5 / 6 GHz',
+                speed: '9.6 Gbps',
+                year: '2019',
+                modulation: 'OFDMA',
+                speedPercent: 96,
+                features: [
+                    'OFDMA - Multiple users per channel',
+                    '1024-QAM modulation',
+                    'Target Wake Time (TWT) for battery savings',
+                    'BSS Coloring to reduce interference',
+                    '6E adds 6 GHz band (1200 MHz new spectrum!)'
+                ]
+            }
+        };
+
+        function showStandard(std) {
+            const data = standardsData[std];
+
+            document.querySelectorAll('.standard-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[data-std="${std}"]`).classList.add('active');
+
+            document.getElementById('stdTitle').textContent = data.name;
+            document.getElementById('stdBand').textContent = data.band;
+            document.getElementById('stdSpeed').textContent = data.speed;
+            document.getElementById('stdYear').textContent = data.year;
+            document.getElementById('stdMod').textContent = data.modulation;
+
+            let featuresHtml = '<h4 style="color: #f472b6; margin-bottom: 10px;">Key Features:</h4><ul style="margin-left: 20px;">';
+            data.features.forEach(f => featuresHtml += `<li style="margin: 8px 0;">${f}</li>`);
+            featuresHtml += '</ul>';
+            document.getElementById('stdFeatures').innerHTML = featuresHtml;
+
+            // Speed comparison
+            document.getElementById('speedCompare').innerHTML = `
+                <h4 style="color: #f472b6; margin: 20px 0 10px;">Speed Comparison:</h4>
+                <div class="speed-bar-container">
+                    <span class="speed-label">${std.toUpperCase()}</span>
+                    <div class="speed-bar-bg">
+                        <div class="speed-bar-fill" style="width: ${data.speedPercent}%; background: linear-gradient(90deg, #00d4ff, #7c3aed);">
+                            ${data.speed}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('standardInfo').style.display = 'block';
+        }
+
+        // Channel Visualization
+        function showBand(band) {
+            document.querySelectorAll('.band-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (band === '2.4') {
+                document.getElementById('band24').style.display = 'block';
+                document.getElementById('band5').style.display = 'none';
+            } else {
+                document.getElementById('band24').style.display = 'none';
+                document.getElementById('band5').style.display = 'block';
+            }
+        }
+
+        // Draw 2.4 GHz channels
+        function draw24GHzChannels() {
+            const spectrum = document.getElementById('spectrum24');
+            const colors = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7'];
+            let html = '';
+
+            for (let i = 1; i <= 11; i++) {
+                const left = ((i - 1) * 7.5) + 5;
+                const isNonOverlap = [1, 6, 11].includes(i);
+                const color = colors[i - 1];
+
+                html += `<div class="channel-block ${isNonOverlap ? 'non-overlap' : ''}"
+                    style="left: ${left}%; width: 25%; background: ${color}${isNonOverlap ? '' : '80'};"
+                    title="Channel ${i}${isNonOverlap ? ' (Non-overlapping)' : ' (Overlapping)'}">
+                    ${i}
+                </div>`;
+            }
+
+            spectrum.innerHTML = html;
+        }
+
+        // Draw 5 GHz channels
+        function draw5GHzChannels() {
+            const spectrum = document.getElementById('spectrum5');
+            const unii1 = [36, 40, 44, 48];
+            const unii2a = [52, 56, 60, 64];
+            const unii2c = [100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144];
+            const unii3 = [149, 153, 157, 161, 165];
+
+            let html = '';
+            let pos = 2;
+
+            // UNII-1
+            unii1.forEach(ch => {
+                html += `<div class="channel-block non-overlap" style="left: ${pos}%; width: 5%; height: 60px; top: 20px; background: #22c55e;" title="Channel ${ch} (UNII-1, No DFS)">${ch}</div>`;
+                pos += 5.5;
+            });
+
+            pos += 2;
+
+            // UNII-2A
+            unii2a.forEach(ch => {
+                html += `<div class="channel-block" style="left: ${pos}%; width: 5%; height: 60px; top: 20px; background: #f59e0b80;" title="Channel ${ch} (UNII-2A, DFS Required)">${ch}</div>`;
+                pos += 5.5;
+            });
+
+            pos += 2;
+
+            // UNII-2C (simplified)
+            html += `<div style="position: absolute; left: ${pos}%; width: 20%; height: 60px; top: 20px; background: #f59e0b40; border-radius: 5px; display: flex; align-items: center; justify-content: center; color: #f59e0b;">100-144 (DFS)</div>`;
+            pos += 22;
+
+            // UNII-3
+            unii3.forEach(ch => {
+                html += `<div class="channel-block non-overlap" style="left: ${pos}%; width: 5%; height: 60px; top: 20px; background: #3b82f6;" title="Channel ${ch} (UNII-3, No DFS)">${ch}</div>`;
+                pos += 5.5;
+            });
+
+            spectrum.innerHTML = html;
+        }
+
+        // Signal Strength Calculator
+        function updateSignal() {
+            const value = parseInt(document.getElementById('signalSlider').value);
+            document.getElementById('signalValue').textContent = value + ' dBm';
+
+            // Update marker position
+            const percent = ((value + 90) / 60) * 100;
+            document.getElementById('signalMarker').style.left = percent + '%';
+
+            let quality, description, color;
+            if (value >= -50) {
+                quality = 'Excellent Signal';
+                description = 'Very close to AP. Perfect for high-bandwidth applications.';
+                color = '#3b82f6';
+            } else if (value >= -60) {
+                quality = 'Great Signal';
+                description = 'Strong connection. Suitable for video streaming and VoIP.';
+                color = '#22c55e';
+            } else if (value >= -70) {
+                quality = 'Good Signal';
+                description = 'Reliable for web browsing and email. May have occasional hiccups with video.';
+                color = '#84cc16';
+            } else if (value >= -80) {
+                quality = 'Fair Signal';
+                description = 'Basic connectivity. Expect slower speeds and possible drops.';
+                color = '#f59e0b';
+            } else {
+                quality = 'Poor Signal';
+                description = 'Unreliable connection. Consider moving closer to AP or adding another AP.';
+                color = '#ef4444';
+            }
+
+            document.getElementById('signalQuality').textContent = quality;
+            document.getElementById('signalQuality').style.color = color;
+            document.getElementById('signalDescription').textContent = description;
+        }
+
+        // Security Toggle
+        function toggleSecurity(protocol) {
+            const details = document.getElementById(protocol + '-details');
+            details.classList.toggle('show');
+        }
+
+        // Initialize
+        draw24GHzChannels();
+        draw5GHzChannels();
+        updateSignal();
+    </script>
+<div style="text-align: center; padding: 30px;">
+    <button class="complete-btn" onclick="completeModule()">Mark Complete</button>
+</div>
+<script>
+function completeModule() {
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('web', 'web-wireless-tool', { returnUrl: '../index.html' });
+    }
+}
+</script>
+
+<!-- Guided Tutorial -->
+<script>
+(function() {
+    var TUTORIAL_KEY = 'hexworth_tutorial_wireless_v1';
+    var currentStep = 0;
+    var steps = [
+        { target: '.tab-btn.active', title: 'Welcome to Wireless Networking', body: 'This tool covers 802.11 standards, channel planning, and wireless security. Let\'s take a quick tour of each section.', position: 'below' },
+        { target: '.tab-btn:nth-child(1)', title: 'Standards Explorer', body: 'Click any Wi-Fi standard (802.11a/b/g/n/ac/ax) to compare speeds, frequencies, and features side by side.', position: 'below' },
+        { target: '.tab-btn:nth-child(2)', title: 'Channel Visualizer', body: 'See how 2.4 GHz and 5 GHz channels overlap. Learn why channels 1, 6, and 11 are the only non-overlapping choices.', position: 'below' },
+        { target: '.tab-btn:nth-child(3)', title: 'Security Comparison', body: 'Compare WEP, WPA, WPA2, and WPA3. See why older protocols are broken and what makes modern ones secure.', position: 'below' },
+        { target: '.complete-btn', title: 'Track Your Progress', body: 'When you\'ve explored the tool, mark it complete to track your progress on the Network+ hub.', position: 'above' }
+    ];
+
+    function getTarget(selector) {
+        var selectors = selector.split(',');
+        for (var i = 0; i < selectors.length; i++) {
+            var el = document.querySelector(selectors[i].trim());
+            if (el) return el;
+        }
+        return null;
+    }
+
+    function showStep(idx) {
+        currentStep = idx;
+        var step = steps[idx];
+        if (!step) { endTutorial(); return; }
+        var el = getTarget(step.target);
+        if (!el) { if (idx < steps.length - 1) showStep(idx + 1); else endTutorial(); return; }
+        if (step.scrollTo) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(function() {
+            var overlay = document.getElementById('tutorialOverlay');
+            var beacon = document.getElementById('tutorialBeacon');
+            var tooltip = document.getElementById('tutorialTooltip');
+            overlay.classList.add('active');
+            document.querySelectorAll('.tutorial-highlight').forEach(function(e) { e.classList.remove('tutorial-highlight'); });
+            el.classList.add('tutorial-highlight');
+            var r = el.getBoundingClientRect();
+            beacon.style.display = 'block';
+            beacon.style.left = (r.left + r.width / 2 - 12) + 'px';
+            beacon.style.top = (r.top + r.height / 2 - 12) + 'px';
+            tooltip.style.display = 'block';
+            tooltip.innerHTML = '<div class="tt-step">Step ' + (idx + 1) + ' of ' + steps.length + '</div>' +
+                '<div class="tt-title">' + step.title + '</div>' +
+                '<div class="tt-body">' + step.body + '</div>' +
+                '<div class="tt-actions">' +
+                '<button class="tt-btn tt-btn-skip" onclick="skipTutorial()">Skip Tour</button>' +
+                '<button class="tt-btn tt-btn-next" onclick="nextStep()">' + (idx < steps.length - 1 ? 'Next' : 'Start Exploring') + '</button></div>';
+            if (step.position === 'below') {
+                tooltip.style.left = Math.max(10, Math.min(r.left, window.innerWidth - 340)) + 'px';
+                tooltip.style.top = (r.bottom + 16) + 'px';
+            } else {
+                tooltip.style.left = Math.max(10, Math.min(r.left, window.innerWidth - 340)) + 'px';
+                tooltip.style.top = (r.top - 180) + 'px';
+            }
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(function() { tooltip.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 400);
+        }, 300);
+    }
+
+    function nextStep() { showStep(currentStep + 1); }
+    function skipTutorial() { endTutorial(); }
+    function endTutorial() {
+        document.getElementById('tutorialOverlay').classList.remove('active');
+        document.getElementById('tutorialBeacon').style.display = 'none';
+        document.getElementById('tutorialTooltip').style.display = 'none';
+        document.querySelectorAll('.tutorial-highlight').forEach(function(e) { e.classList.remove('tutorial-highlight'); });
+        localStorage.setItem(TUTORIAL_KEY, 'done');
+        document.getElementById('tutorialReplay').style.display = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    function startTutorial() { currentStep = 0; window.scrollTo({ top: 0 }); setTimeout(function() { showStep(0); }, 300); }
+
+    window.nextStep = nextStep;
+    window.skipTutorial = skipTutorial;
+    window.startTutorial = startTutorial;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (!localStorage.getItem(TUTORIAL_KEY)) { setTimeout(startTutorial, 800); }
+        else { document.getElementById('tutorialReplay').style.display = 'block'; }
+    });
+})();
+</script>
+
+</body>
+</html>

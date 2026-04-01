@@ -1,0 +1,2163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NE-04 Lab: Server Room Setup</title>
+    <style>
+        /* ============================================================
+           Base layout and CSS custom properties
+        ============================================================ */
+        :root {
+            --bg:        #090910;
+            --surface:   #0d1117;
+            --surface2:  #111827;
+            --border:    rgba(255,255,255,0.07);
+            --gold:      #c9a83a;
+            --gold-dim:  rgba(201,168,58,0.15);
+            --gold-glow: rgba(201,168,58,0.35);
+            --cyan:      #06b6d4;
+            --cyan-dim:  rgba(6,182,212,0.15);
+            --green:     #22c55e;
+            --green-dim: rgba(34,197,94,0.15);
+            --amber:     #f59e0b;
+            --amber-dim: rgba(245,158,11,0.15);
+            --red:       #ef4444;
+            --red-dim:   rgba(239,68,68,0.15);
+            --text:      #eef2ff;
+            --text-muted:#64748b;
+            --radius:    6px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ============================================================
+           Navigation bar
+        ============================================================ */
+        .lab-nav {
+            padding: 12px 20px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+        .lab-nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.2s;
+        }
+        .lab-nav a:hover { color: var(--gold); }
+        .lab-nav .badge {
+            background: var(--gold-dim);
+            color: var(--gold);
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        /* ============================================================
+           Main wrapper: sidebar + content area
+        ============================================================ */
+        #main-wrapper {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            min-height: calc(100vh - 49px);
+        }
+
+        /* ============================================================
+           Device palette sidebar
+        ============================================================ */
+        #palette {
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            padding: 16px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        #palette h3 {
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        .device-card {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 8px 10px;
+            cursor: grab;
+            transition: border-color 0.2s, background 0.2s;
+            user-select: none;
+        }
+        .device-card:hover {
+            border-color: rgba(255,255,255,0.18);
+            background: #1a2236;
+        }
+        .device-card.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        .device-card .dc-name {
+            font-size: 0.82rem;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        .device-card .dc-meta {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+        }
+        .device-card .dc-swatch {
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            display: inline-block;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+        .device-card.exhausted {
+            opacity: 0.35;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .dc-count {
+            float: right;
+            font-size: 0.68rem;
+            background: rgba(255,255,255,0.07);
+            border-radius: 3px;
+            padding: 1px 5px;
+            color: var(--text-muted);
+        }
+
+        /* ============================================================
+           Right content area: tabs + rack
+        ============================================================ */
+        #content-area {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Tab bar */
+        .tab-bar {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+            padding: 0 16px;
+            gap: 2px;
+            flex-shrink: 0;
+        }
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 11px 14px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: color 0.2s, border-color 0.2s;
+            letter-spacing: 0.3px;
+        }
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active {
+            color: var(--gold);
+            border-bottom-color: var(--gold);
+        }
+
+        /* Tab panels */
+        .tab-panel { display: none; flex: 1; overflow: auto; }
+        .tab-panel.active { display: flex; }
+
+        /* ============================================================
+           Tab 1: Rack Layout
+        ============================================================ */
+        #tab-rack {
+            flex-direction: row;
+            gap: 0;
+            padding: 20px;
+            align-items: flex-start;
+            justify-content: center;
+        }
+
+        #rack-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        #rack-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .ctrl-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .airflow-btn {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 5px 12px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .airflow-btn.active {
+            background: var(--cyan-dim);
+            border-color: var(--cyan);
+            color: var(--cyan);
+        }
+
+        /* The SVG rack is built by JS; this just sizes its container */
+        #rack-svg-container {
+            position: relative;
+        }
+
+        /* Rack info panel to the right */
+        #rack-info {
+            margin-left: 24px;
+            width: 280px;
+            flex-shrink: 0;
+        }
+        .info-card {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            margin-bottom: 12px;
+        }
+        .info-card h4 {
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+        .slot-info {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+        .slot-info strong { color: var(--text); }
+
+        /* Device selector popup */
+        #device-selector {
+            display: none;
+            position: fixed;
+            background: #1a2236;
+            border: 1px solid rgba(201,168,58,0.4);
+            border-radius: 8px;
+            padding: 12px;
+            z-index: 1000;
+            min-width: 200px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+        }
+        #device-selector h5 {
+            font-size: 0.68rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        .ds-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: background 0.15s;
+        }
+        .ds-option:hover { background: rgba(255,255,255,0.06); }
+        .ds-option .ds-swatch {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+        .ds-option .ds-u {
+            margin-left: auto;
+            font-size: 0.68rem;
+            color: var(--text-muted);
+        }
+        .ds-cancel {
+            margin-top: 8px;
+            width: 100%;
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            padding: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .ds-cancel:hover { border-color: var(--red); color: var(--red); }
+
+        /* Placed device context menu */
+        #device-menu {
+            display: none;
+            position: fixed;
+            background: #1a2236;
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px;
+            padding: 6px;
+            z-index: 1001;
+            min-width: 140px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+        .dm-item {
+            padding: 7px 10px;
+            font-size: 0.78rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .dm-item:hover { background: rgba(255,255,255,0.06); }
+        .dm-item.dm-remove { color: var(--red); }
+
+        /* ============================================================
+           Tab 2: Environmental
+        ============================================================ */
+        #tab-env {
+            padding: 24px;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: flex-start;
+        }
+
+        .env-card {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px 20px;
+            width: 280px;
+        }
+        .env-card h4 {
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 14px;
+        }
+
+        /* Thermometer gauge */
+        .gauge-wrap {
+            display: flex;
+            align-items: flex-end;
+            gap: 16px;
+            margin-bottom: 14px;
+        }
+        .thermo-svg { flex-shrink: 0; }
+
+        .gauge-labels {
+            font-size: 0.78rem;
+        }
+        .gauge-val {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--green);
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+        .gauge-val.warn { color: var(--amber); }
+        .gauge-val.crit { color: var(--red); }
+
+        .threshold-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .threshold-row label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            min-width: 60px;
+        }
+        .threshold-row input[type="number"] {
+            width: 72px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            outline: none;
+        }
+        .threshold-row input[type="number"]:focus {
+            border-color: var(--gold);
+        }
+        .threshold-row .unit {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
+
+        .fire-select {
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+            font-size: 0.8rem;
+            padding: 6px 10px;
+            outline: none;
+            cursor: pointer;
+        }
+        .fire-select:focus { border-color: var(--gold); }
+
+        /* Humidity bar */
+        .hbar-track {
+            background: rgba(255,255,255,0.07);
+            border-radius: 3px;
+            height: 8px;
+            margin: 6px 0 4px;
+            overflow: hidden;
+        }
+        .hbar-fill {
+            height: 100%;
+            border-radius: 3px;
+            background: linear-gradient(90deg, var(--cyan), #0ea5e9);
+            transition: width 1s ease;
+        }
+        .hbar-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        /* ============================================================
+           Tab 3: Power
+        ============================================================ */
+        #tab-power {
+            padding: 24px;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: flex-start;
+        }
+
+        .power-card {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px 20px;
+        }
+        .power-card h4 {
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 14px;
+        }
+
+        /* Battery bar */
+        .battery-shell {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 10px;
+        }
+        .battery-body {
+            flex: 1;
+            height: 22px;
+            background: rgba(255,255,255,0.07);
+            border: 1.5px solid rgba(255,255,255,0.15);
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+        .battery-fill {
+            height: 100%;
+            border-radius: 2px;
+            background: linear-gradient(90deg, var(--green), #16a34a);
+            transition: width 1.5s ease;
+        }
+        .battery-nub {
+            width: 5px;
+            height: 10px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 0 2px 2px 0;
+        }
+        .battery-pct {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .power-stat {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            padding: 4px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .power-stat:last-child { border-bottom: none; }
+        .power-stat .ps-label { color: var(--text-muted); }
+        .power-stat .ps-val { font-weight: 600; }
+
+        .calc-section {
+            width: 340px;
+        }
+        .calc-q {
+            font-size: 0.82rem;
+            color: var(--text);
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+        .calc-input-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .calc-input-row input {
+            width: 90px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+            font-size: 0.85rem;
+            padding: 6px 10px;
+            outline: none;
+        }
+        .calc-input-row input:focus { border-color: var(--gold); }
+        .calc-input-row .unit-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        .calc-feedback {
+            margin-top: 8px;
+            font-size: 0.78rem;
+            padding: 6px 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .calc-feedback.ok { background: var(--green-dim); color: var(--green); display: block; }
+        .calc-feedback.err { background: var(--red-dim); color: var(--red); display: block; }
+
+        /* Server PSU toggles */
+        .server-psu-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .psu-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.8rem;
+        }
+        .psu-toggle {
+            display: flex;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .psu-opt {
+            padding: 3px 9px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.15s;
+        }
+        .psu-opt.active {
+            background: var(--green-dim);
+            color: var(--green);
+        }
+
+        /* ============================================================
+           Tab 4: Verification
+        ============================================================ */
+        #tab-verify {
+            padding: 24px;
+            flex-direction: column;
+            gap: 16px;
+            max-width: 680px;
+        }
+
+        .verify-header h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .verify-header p {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        #submit-btn {
+            background: linear-gradient(135deg, var(--gold), #a07830);
+            color: #0a0807;
+            font-weight: 700;
+            font-size: 0.9rem;
+            padding: 11px 28px;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            letter-spacing: 0.3px;
+            transition: opacity 0.2s, transform 0.1s;
+            align-self: flex-start;
+        }
+        #submit-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+        #submit-btn:active { transform: translateY(0); }
+
+        #verify-results { display: none; }
+
+        .check-list { display: flex; flex-direction: column; gap: 8px; }
+
+        .check-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 10px 12px;
+            font-size: 0.82rem;
+        }
+        .check-item.pass { border-left: 3px solid var(--green); }
+        .check-item.fail { border-left: 3px solid var(--red); }
+
+        .check-icon {
+            font-size: 0.9rem;
+            font-weight: 700;
+            flex-shrink: 0;
+            margin-top: 1px;
+            width: 16px;
+        }
+        .check-icon.ok { color: var(--green); }
+        .check-icon.no { color: var(--red); }
+
+        .check-text strong { display: block; margin-bottom: 2px; }
+        .check-text span { color: var(--text-muted); font-size: 0.76rem; line-height: 1.4; }
+
+        .score-banner {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .score-big {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--gold);
+            line-height: 1;
+            flex-shrink: 0;
+        }
+        .score-sub {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+        .score-sub strong { color: var(--text); display: block; font-size: 1rem; }
+
+        #complete-btn {
+            display: none;
+            background: var(--green);
+            color: #fff;
+            font-weight: 700;
+            font-size: 0.9rem;
+            padding: 11px 28px;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            align-self: flex-start;
+            transition: opacity 0.2s;
+        }
+        #complete-btn:hover { opacity: 0.85; }
+
+        /* ============================================================
+           Airflow overlay (animated arrows in SVG)
+        ============================================================ */
+        @keyframes flow-right {
+            0%   { opacity: 0; transform: translateX(-8px); }
+            50%  { opacity: 0.8; }
+            100% { opacity: 0; transform: translateX(8px); }
+        }
+        @keyframes flow-left {
+            0%   { opacity: 0; transform: translateX(8px); }
+            50%  { opacity: 0.8; }
+            100% { opacity: 0; transform: translateX(-8px); }
+        }
+        .airflow-arrow { animation: flow-right 1.4s ease-in-out infinite; }
+        .airflow-arrow.reverse { animation: flow-left 1.4s ease-in-out infinite; }
+
+        /* Power line animation */
+        @keyframes dash-run {
+            to { stroke-dashoffset: -20; }
+        }
+        .power-line {
+            stroke-dasharray: 4 6;
+            animation: dash-run 0.8s linear infinite;
+        }
+        .net-line {
+            stroke-dasharray: 4 6;
+            animation: dash-run 1.2s linear infinite;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="lab-nav">
+    <a href="../index.html">&larr; Network+ Hub</a>
+    <span class="badge">NE-04 INFRASTRUCTURE</span>
+</nav>
+
+<div id="main-wrapper">
+
+    <!-- ============================================================
+         LEFT SIDEBAR: Device Palette
+    ============================================================ -->
+    <aside id="palette">
+        <h3>Device Palette</h3>
+        <p style="font-size:0.7rem;color:var(--text-muted);line-height:1.4;margin-bottom:8px;">
+            Click an empty rack slot, then choose a device to place it.
+        </p>
+        <!-- Cards are built by JS so counts stay in sync -->
+        <div id="palette-cards"></div>
+    </aside>
+
+    <!-- ============================================================
+         RIGHT AREA: Tabs + Panels
+    ============================================================ -->
+    <div id="content-area">
+
+        <div class="tab-bar">
+            <button class="tab-btn active" data-tab="rack">Rack Layout</button>
+            <button class="tab-btn" data-tab="env">Environmental</button>
+            <button class="tab-btn" data-tab="power">Power</button>
+            <button class="tab-btn" data-tab="verify">Verification</button>
+        </div>
+
+        <!-- TAB 1: RACK LAYOUT -->
+        <div class="tab-panel active" id="tab-rack">
+            <div id="rack-wrap">
+                <div id="rack-controls">
+                    <span class="ctrl-label">Airflow:</span>
+                    <button class="airflow-btn" id="af-ftb" data-dir="ftb">Front-to-Back</button>
+                    <button class="airflow-btn" id="af-btf" data-dir="btf">Back-to-Front</button>
+                    <button class="airflow-btn" id="af-off" data-dir="off" style="border-color:var(--border);color:var(--text-muted);">Off</button>
+                </div>
+                <div id="rack-svg-container">
+                    <!-- SVG injected by JS -->
+                </div>
+            </div>
+            <div id="rack-info">
+                <div class="info-card">
+                    <h4>Selected Slot</h4>
+                    <div class="slot-info" id="slot-detail">
+                        Click an empty slot to place a device, or click a placed device to manage it.
+                    </div>
+                </div>
+                <div class="info-card">
+                    <h4>Rack Summary</h4>
+                    <div id="rack-summary" style="font-size:0.8rem;line-height:1.8;">
+                        <div>Total slots: <strong>42U</strong></div>
+                        <div>Used: <strong id="sum-used">0U</strong></div>
+                        <div>Free: <strong id="sum-free">42U</strong></div>
+                        <div style="margin-top:6px;font-size:0.72rem;color:var(--text-muted);">
+                            Devices placed: <span id="sum-count">0</span> / 9 required
+                        </div>
+                    </div>
+                </div>
+                <div class="info-card">
+                    <h4>Best Practices</h4>
+                    <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6;">
+                        <div>- UPS at bottom (U38-42) — heaviest</div>
+                        <div>- Servers in mid-rack (U15-30)</div>
+                        <div>- Patch panel near switch (+/- 2U)</div>
+                        <div>- Cable mgmt between PP and switch</div>
+                        <div>- PDU adjacent to UPS</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: ENVIRONMENTAL -->
+        <div class="tab-panel" id="tab-env">
+
+            <!-- Temperature -->
+            <div class="env-card">
+                <h4>Temperature Monitor</h4>
+                <div class="gauge-wrap">
+                    <svg class="thermo-svg" width="48" height="120" viewBox="0 0 48 120" id="thermo-svg">
+                        <!-- Thermometer tube -->
+                        <rect x="18" y="10" width="12" height="80" rx="6" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                        <!-- Mercury fill — height animated by JS -->
+                        <clipPath id="thermo-clip">
+                            <rect x="20" y="12" width="8" height="76" rx="4"/>
+                        </clipPath>
+                        <rect id="thermo-fill" x="20" y="52" width="8" height="36" rx="0" fill="#22c55e" clip-path="url(#thermo-clip)"/>
+                        <!-- Bulb -->
+                        <circle cx="24" cy="98" r="10" fill="#22c55e" id="thermo-bulb"/>
+                        <circle cx="24" cy="98" r="10" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                        <!-- Tick marks -->
+                        <line x1="30" y1="18" x2="36" y2="18" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+                        <line x1="30" y1="34" x2="36" y2="34" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+                        <line x1="30" y1="50" x2="36" y2="50" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+                        <line x1="30" y1="66" x2="36" y2="66" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+                        <line x1="30" y1="82" x2="36" y2="82" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+                        <text x="38" y="21" font-size="7" fill="rgba(255,255,255,0.35)" font-family="monospace">95</text>
+                        <text x="38" y="37" font-size="7" fill="rgba(255,255,255,0.35)" font-family="monospace">85</text>
+                        <text x="38" y="53" font-size="7" fill="rgba(255,255,255,0.35)" font-family="monospace">75</text>
+                        <text x="38" y="69" font-size="7" fill="rgba(255,255,255,0.35)" font-family="monospace">65</text>
+                        <text x="38" y="85" font-size="7" fill="rgba(255,255,255,0.35)" font-family="monospace">55</text>
+                    </svg>
+                    <div class="gauge-labels">
+                        <div class="gauge-val" id="temp-display">68 F</div>
+                        <div style="font-size:0.72rem;color:var(--text-muted);">Inlet temp</div>
+                        <div style="font-size:0.72rem;color:var(--text-muted);margin-top:6px;">Status: <span id="temp-status" style="color:var(--green);">Normal</span></div>
+                    </div>
+                </div>
+                <div class="threshold-row">
+                    <label>Warning</label>
+                    <input type="number" id="temp-warn" value="75" min="60" max="90">
+                    <span class="unit">deg F</span>
+                </div>
+                <div class="threshold-row">
+                    <label>Critical</label>
+                    <input type="number" id="temp-crit" value="85" min="70" max="100">
+                    <span class="unit">deg F</span>
+                </div>
+            </div>
+
+            <!-- Humidity -->
+            <div class="env-card">
+                <h4>Humidity Monitor</h4>
+                <div style="margin-bottom:14px;">
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+                        <span style="font-size:0.72rem;color:var(--text-muted);">Current Level</span>
+                        <span style="font-size:1.4rem;font-weight:700;color:var(--cyan);" id="humid-display">45%</span>
+                    </div>
+                    <div class="hbar-track">
+                        <div class="hbar-fill" id="humid-bar" style="width:45%"></div>
+                    </div>
+                    <div class="hbar-label">
+                        <span>0%</span><span>Ideal: 40-60%</span><span>100%</span>
+                    </div>
+                </div>
+                <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:12px;line-height:1.5;">
+                    Target range: 40-60% RH. Too low causes static discharge; too high risks condensation.
+                </div>
+                <div class="threshold-row">
+                    <label>Min</label>
+                    <input type="number" id="humid-min" value="40" min="20" max="55">
+                    <span class="unit">%</span>
+                </div>
+                <div class="threshold-row">
+                    <label>Max</label>
+                    <input type="number" id="humid-max" value="60" min="55" max="90">
+                    <span class="unit">%</span>
+                </div>
+            </div>
+
+            <!-- Fire Suppression -->
+            <div class="env-card">
+                <h4>Fire Suppression</h4>
+                <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.6;margin-bottom:12px;">
+                    Select the suppression type appropriate for an active server room environment.
+                </div>
+                <select class="fire-select" id="fire-type">
+                    <option value="">-- Select type --</option>
+                    <option value="wet-pipe">Wet Pipe (water — NOT for server rooms)</option>
+                    <option value="dry-pipe">Dry Pipe (pressurized air, delayed water)</option>
+                    <option value="clean-agent">Clean Agent (FM-200 / Novec — preferred)</option>
+                    <option value="pre-action">Pre-Action (dual signal, low risk)</option>
+                </select>
+                <div id="fire-desc" style="margin-top:12px;font-size:0.75rem;color:var(--text-muted);line-height:1.5;min-height:48px;"></div>
+            </div>
+        </div>
+
+        <!-- TAB 3: POWER -->
+        <div class="tab-panel" id="tab-power">
+
+            <!-- UPS Status -->
+            <div class="power-card" style="width:280px;">
+                <h4>UPS Status — APC Smart-UPS 3000VA</h4>
+                <div class="battery-shell">
+                    <div class="battery-body">
+                        <div class="battery-fill" id="ups-fill" style="width:82%"></div>
+                        <div class="battery-pct" id="ups-pct">82%</div>
+                    </div>
+                    <div class="battery-nub"></div>
+                </div>
+                <div class="power-stat">
+                    <span class="ps-label">Capacity</span>
+                    <span class="ps-val" id="ups-cap">3000 VA / 2700 W</span>
+                </div>
+                <div class="power-stat">
+                    <span class="ps-label">Current Load</span>
+                    <span class="ps-val" id="ups-load-disp">0 W (0%)</span>
+                </div>
+                <div class="power-stat">
+                    <span class="ps-label">Est. Runtime</span>
+                    <span class="ps-val" id="ups-runtime">-- min</span>
+                </div>
+                <div class="power-stat">
+                    <span class="ps-label">Status</span>
+                    <span class="ps-val" style="color:var(--green);">Online</span>
+                </div>
+            </div>
+
+            <!-- Runtime Calc -->
+            <div class="power-card calc-section">
+                <h4>Runtime Calculation</h4>
+                <div class="calc-q">
+                    Each server draws <strong>500 W</strong>. The UPS is rated at <strong>3000 VA</strong>
+                    with a power factor of <strong>0.9</strong> (2700 W usable). With 3 servers running,
+                    how many minutes can the UPS sustain load?
+                    <br><br>
+                    <span style="color:var(--text-muted);font-size:0.75rem;">
+                        Hint: Runtime (min) = (Watt-hours x 60) / Load (W).
+                        Assume 1 kWh battery capacity at 82% charge.
+                    </span>
+                </div>
+                <div class="calc-input-row">
+                    <input type="number" id="runtime-ans" placeholder="e.g. 29" min="0" max="999">
+                    <span class="unit-label">minutes</span>
+                    <button id="check-calc" style="background:var(--gold-dim);border:1px solid var(--gold);color:var(--gold);border-radius:4px;padding:5px 12px;cursor:pointer;font-size:0.75rem;">Check</button>
+                </div>
+                <div class="calc-feedback" id="calc-fb"></div>
+            </div>
+
+            <!-- Server PSU -->
+            <div class="power-card" style="width:260px;">
+                <h4>Server Power Redundancy</h4>
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:12px;line-height:1.5;">
+                    Toggle each server between single and dual power supply (dual recommended for production).
+                </div>
+                <div class="server-psu-list" id="psu-list">
+                    <!-- Built by JS when servers are placed -->
+                    <div style="font-size:0.78rem;color:var(--text-muted);">Place servers in the rack first.</div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- TAB 4: VERIFICATION -->
+        <div class="tab-panel" id="tab-verify">
+            <div class="verify-header">
+                <h2>Configuration Verification</h2>
+                <p>
+                    Submit your rack configuration for evaluation. All 10 checks must pass to complete the lab.
+                    Ensure you have placed all required devices, configured environmental thresholds,
+                    set power redundancy, and selected the correct fire suppression type.
+                </p>
+            </div>
+            <button id="submit-btn">Submit Configuration</button>
+            <div id="verify-results">
+                <div class="score-banner">
+                    <div class="score-big" id="score-val">0/10</div>
+                    <div class="score-sub">
+                        <strong id="score-title">Checks Passed</strong>
+                        <span id="score-msg"></span>
+                    </div>
+                </div>
+                <div class="check-list" id="check-list"></div>
+                <button id="complete-btn">Mark Lab Complete</button>
+            </div>
+        </div>
+
+    </div><!-- /content-area -->
+</div><!-- /main-wrapper -->
+
+<!-- Device selector popup -->
+<div id="device-selector">
+    <h5>Place Device — Slot <span id="ds-slot-label"></span></h5>
+    <div id="ds-options"></div>
+    <button class="ds-cancel" id="ds-cancel">Cancel</button>
+</div>
+
+<!-- Placed device context menu -->
+<div id="device-menu">
+    <div class="dm-item dm-remove" id="dm-remove">Remove Device</div>
+</div>
+
+<script>
+/* ============================================================
+   NE-04 Server Room Lab — Standalone Implementation
+   No external engine dependency. All state managed here.
+   ============================================================ */
+
+'use strict';
+
+/* ============================================================
+   DEVICE DEFINITIONS
+   Each device has a stable id, display name, U-height,
+   fill color (hex), available quantity, and a category used
+   in placement rules.
+============================================================ */
+const DEVICES = [
+    { id: 'core-switch',  name: 'Core Switch',       uHeight: 2, color: '#06b6d4', qty: 1, cat: 'switch'  },
+    { id: 'patch-panel',  name: 'Patch Panel',        uHeight: 1, color: '#94a3b8', qty: 1, cat: 'patch'   },
+    { id: 'cable-mgmt',   name: 'Cable Management',   uHeight: 1, color: '#374151', qty: 1, cat: 'cable'   },
+    { id: 'server',       name: 'Server',              uHeight: 2, color: '#22c55e', qty: 3, cat: 'server'  },
+    { id: 'ups',          name: 'UPS',                 uHeight: 3, color: '#f59e0b', qty: 1, cat: 'ups'     },
+    { id: 'pdu',          name: 'PDU',                 uHeight: 1, color: '#d97706', qty: 1, cat: 'pdu'     },
+    { id: 'blank-panel',  name: 'Blank Panel',         uHeight: 1, color: '#1e293b', qty: 6, cat: 'blank'   },
+];
+
+/* ============================================================
+   LAB STATE
+   rackSlots: Map<uNumber(1-42), deviceId|null>
+   The rack is addressed from U1 (top) to U42 (bottom).
+   A multi-U device occupies its start slot and the slots below it.
+   occupiedBy: Map<uNumber, {deviceId, instanceId, startU}>
+============================================================ */
+const STATE = {
+    // Map: uNumber -> { deviceId, instanceId, startU } or null
+    rack: {},            // keyed by startU of each placed instance
+    occupiedBy: {},      // keyed by every U slot → { deviceId, instanceId, startU }
+    instances: {},       // instanceId -> { deviceId, startU }
+    nextInstanceId: 1,
+
+    airflow: 'off',      // 'ftb' | 'btf' | 'off'
+
+    tempWarn: 75,
+    tempCrit: 85,
+    humidMin: 40,
+    humidMax: 60,
+    fireType: '',
+
+    psuMode: {},         // instanceId -> 'single' | 'dual'
+    calcCorrect: false,
+
+    selectedSlot: null,  // currently highlighted slot (for context)
+    menuInstanceId: null, // instance being managed via context menu
+};
+
+/* Keep a runtime count of remaining qty per device type */
+function getRemainingQty(deviceId) {
+    const def = DEVICES.find(d => d.id === deviceId);
+    if (!def) return 0;
+    const placed = Object.values(STATE.instances).filter(i => i.deviceId === deviceId).length;
+    return def.qty - placed;
+}
+
+/* ============================================================
+   SVG RACK BUILDER
+   Draws a 42U rack as an SVG. Each U slot is a clickable rect.
+   Multi-U devices fill multiple consecutive rects.
+============================================================ */
+const RACK = {
+    // Layout constants
+    SVG_WIDTH:  360,
+    U_HEIGHT:   18,     // pixels per U
+    RAIL_W:     28,     // left/right rail width
+    TOP_MARGIN: 36,     // space for top of rack frame
+    BOT_MARGIN: 20,
+    TOTAL_U:    42,
+
+    get svgHeight() {
+        return this.TOP_MARGIN + this.TOTAL_U * this.U_HEIGHT + this.BOT_MARGIN + 10;
+    },
+    get innerW() {
+        return this.SVG_WIDTH - this.RAIL_W * 2;
+    },
+    // Y position of top edge of a U slot (U1 = top of rack)
+    slotY(u) {
+        return this.TOP_MARGIN + (u - 1) * this.U_HEIGHT;
+    },
+};
+
+function buildRackSVG() {
+    const { SVG_WIDTH, U_HEIGHT, RAIL_W, TOP_MARGIN, BOT_MARGIN, TOTAL_U, svgHeight, innerW } = RACK;
+    const ns = 'http://www.w3.org/2000/svg';
+
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('width', SVG_WIDTH);
+    svg.setAttribute('height', svgHeight);
+    svg.setAttribute('viewBox', `0 0 ${SVG_WIDTH} ${svgHeight}`);
+    svg.setAttribute('id', 'rack-svg');
+    svg.style.display = 'block';
+
+    /* Background */
+    const bg = document.createElementNS(ns, 'rect');
+    bg.setAttribute('x', '0'); bg.setAttribute('y', '0');
+    bg.setAttribute('width', SVG_WIDTH); bg.setAttribute('height', svgHeight);
+    bg.setAttribute('fill', '#0d1117');
+    bg.setAttribute('rx', '6');
+    svg.appendChild(bg);
+
+    /* Rack frame — outer border */
+    const frame = document.createElementNS(ns, 'rect');
+    frame.setAttribute('x', '1'); frame.setAttribute('y', '1');
+    frame.setAttribute('width', SVG_WIDTH - 2); frame.setAttribute('height', svgHeight - 2);
+    frame.setAttribute('fill', 'none');
+    frame.setAttribute('stroke', '#334155');
+    frame.setAttribute('stroke-width', '2');
+    frame.setAttribute('rx', '5');
+    svg.appendChild(frame);
+
+    /* Rack top cap */
+    const topCap = document.createElementNS(ns, 'rect');
+    topCap.setAttribute('x', '1'); topCap.setAttribute('y', '1');
+    topCap.setAttribute('width', SVG_WIDTH - 2); topCap.setAttribute('height', TOP_MARGIN - 4);
+    topCap.setAttribute('fill', '#1e293b');
+    topCap.setAttribute('rx', '5');
+    svg.appendChild(topCap);
+
+    /* Rack title text */
+    const title = document.createElementNS(ns, 'text');
+    title.setAttribute('x', SVG_WIDTH / 2);
+    title.setAttribute('y', TOP_MARGIN / 2 + 4);
+    title.setAttribute('text-anchor', 'middle');
+    title.setAttribute('font-size', '10');
+    title.setAttribute('font-weight', 'bold');
+    title.setAttribute('fill', '#94a3b8');
+    title.setAttribute('font-family', 'monospace');
+    title.textContent = 'PINNACLE DYNAMICS — SERVER RACK A1';
+    svg.appendChild(title);
+
+    /* Left rail */
+    const leftRail = document.createElementNS(ns, 'rect');
+    leftRail.setAttribute('x', '3');
+    leftRail.setAttribute('y', TOP_MARGIN - 2);
+    leftRail.setAttribute('width', RAIL_W - 2);
+    leftRail.setAttribute('height', TOTAL_U * U_HEIGHT + 4);
+    leftRail.setAttribute('fill', '#1a2236');
+    leftRail.setAttribute('stroke', '#334155');
+    leftRail.setAttribute('stroke-width', '1');
+    svg.appendChild(leftRail);
+
+    /* Right rail */
+    const rightRail = document.createElementNS(ns, 'rect');
+    rightRail.setAttribute('x', SVG_WIDTH - RAIL_W + 1);
+    rightRail.setAttribute('y', TOP_MARGIN - 2);
+    rightRail.setAttribute('width', RAIL_W - 4);
+    rightRail.setAttribute('height', TOTAL_U * U_HEIGHT + 4);
+    rightRail.setAttribute('fill', '#1a2236');
+    rightRail.setAttribute('stroke', '#334155');
+    rightRail.setAttribute('stroke-width', '1');
+    svg.appendChild(rightRail);
+
+    /* Rail screw holes (decorative) — every 2U on left rail */
+    for (let u = 1; u <= TOTAL_U; u += 2) {
+        const y = RACK.slotY(u) + U_HEIGHT;
+        const screwL = document.createElementNS(ns, 'circle');
+        screwL.setAttribute('cx', String(RAIL_W / 2));
+        screwL.setAttribute('cy', String(y));
+        screwL.setAttribute('r', '2.5');
+        screwL.setAttribute('fill', '#0d1117');
+        screwL.setAttribute('stroke', '#475569');
+        screwL.setAttribute('stroke-width', '1');
+        svg.appendChild(screwL);
+
+        const screwR = document.createElementNS(ns, 'circle');
+        screwR.setAttribute('cx', String(SVG_WIDTH - RAIL_W / 2));
+        screwR.setAttribute('cy', String(y));
+        screwR.setAttribute('r', '2.5');
+        screwR.setAttribute('fill', '#0d1117');
+        screwR.setAttribute('stroke', '#475569');
+        screwR.setAttribute('stroke-width', '1');
+        svg.appendChild(screwR);
+    }
+
+    /* U slot group — holds all interactive slot rects */
+    const slotGroup = document.createElementNS(ns, 'g');
+    slotGroup.setAttribute('id', 'slot-group');
+    svg.appendChild(slotGroup);
+
+    /* Airflow overlay group — built separately so it renders on top */
+    const airflowGroup = document.createElementNS(ns, 'g');
+    airflowGroup.setAttribute('id', 'airflow-group');
+    svg.appendChild(airflowGroup);
+
+    /* Power / network line group */
+    const lineGroup = document.createElementNS(ns, 'g');
+    lineGroup.setAttribute('id', 'line-group');
+    svg.appendChild(lineGroup);
+
+    /* Bottom cap */
+    const botY = TOP_MARGIN + TOTAL_U * U_HEIGHT + 4;
+    const botCap = document.createElementNS(ns, 'rect');
+    botCap.setAttribute('x', '1'); botCap.setAttribute('y', String(botY));
+    botCap.setAttribute('width', SVG_WIDTH - 2);
+    botCap.setAttribute('height', BOT_MARGIN - 2);
+    botCap.setAttribute('fill', '#1e293b');
+    botCap.setAttribute('rx', '2');
+    svg.appendChild(botCap);
+
+    return svg;
+}
+
+/* Render or re-render all slot rectangles and device fills */
+function renderSlots() {
+    const ns = 'http://www.w3.org/2000/svg';
+    const { RAIL_W, U_HEIGHT, innerW } = RACK;
+    const slotGroup = document.getElementById('slot-group');
+    if (!slotGroup) return;
+
+    /* Clear existing slots */
+    while (slotGroup.firstChild) slotGroup.removeChild(slotGroup.firstChild);
+
+    /* Track which U slots are covered by multi-U devices so we
+       don't draw sub-slots over them */
+    const covered = {};  // u -> true
+
+    /* First pass: render placed devices */
+    Object.keys(STATE.instances).forEach(iid => {
+        const inst = STATE.instances[iid];
+        const def = DEVICES.find(d => d.id === inst.deviceId);
+        if (!def) return;
+        const startU = inst.startU;
+        const x = RAIL_W + 1;
+        const y = RACK.slotY(startU);
+        const height = def.uHeight * U_HEIGHT;
+        const w = innerW - 2;
+
+        /* Mark covered slots */
+        for (let u = startU; u < startU + def.uHeight; u++) {
+            covered[u] = iid;
+        }
+
+        /* Device background */
+        const devRect = document.createElementNS(ns, 'rect');
+        devRect.setAttribute('x', String(x));
+        devRect.setAttribute('y', String(y + 1));
+        devRect.setAttribute('width', String(w));
+        devRect.setAttribute('height', String(height - 2));
+        devRect.setAttribute('fill', def.color);
+        devRect.setAttribute('fill-opacity', '0.22');
+        devRect.setAttribute('stroke', def.color);
+        devRect.setAttribute('stroke-width', '1');
+        devRect.setAttribute('rx', '2');
+        devRect.style.cursor = 'pointer';
+        devRect.dataset.instanceId = iid;
+
+        /* Click -> context menu */
+        devRect.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showDeviceMenu(iid, e.clientX, e.clientY);
+        });
+        slotGroup.appendChild(devRect);
+
+        /* Subtle left accent bar */
+        const bar = document.createElementNS(ns, 'rect');
+        bar.setAttribute('x', String(x));
+        bar.setAttribute('y', String(y + 1));
+        bar.setAttribute('width', '4');
+        bar.setAttribute('height', String(height - 2));
+        bar.setAttribute('fill', def.color);
+        bar.setAttribute('rx', '2');
+        bar.style.cursor = 'pointer';
+        bar.dataset.instanceId = iid;
+        bar.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showDeviceMenu(iid, e.clientX, e.clientY);
+        });
+        slotGroup.appendChild(bar);
+
+        /* Device label */
+        const labelText = document.createElementNS(ns, 'text');
+        const labelY = y + height / 2 + 4;
+        labelText.setAttribute('x', String(x + w / 2));
+        labelText.setAttribute('y', String(labelY));
+        labelText.setAttribute('text-anchor', 'middle');
+        labelText.setAttribute('font-size', height >= 28 ? '10' : '8');
+        labelText.setAttribute('font-weight', '600');
+        labelText.setAttribute('fill', def.color);
+        labelText.setAttribute('font-family', 'monospace');
+        labelText.style.pointerEvents = 'none';
+        const instanceNum = getInstanceNumber(iid, inst.deviceId);
+        labelText.textContent = def.uHeight >= 2
+            ? `${def.name.toUpperCase()}${instanceNum > 1 ? ' #' + instanceNum : ''}`
+            : def.name.toUpperCase();
+        slotGroup.appendChild(labelText);
+
+        /* U-height indicator text (right side) */
+        const uLabel = document.createElementNS(ns, 'text');
+        uLabel.setAttribute('x', String(x + w - 6));
+        uLabel.setAttribute('y', String(labelY));
+        uLabel.setAttribute('text-anchor', 'end');
+        uLabel.setAttribute('font-size', '7');
+        uLabel.setAttribute('fill', 'rgba(255,255,255,0.3)');
+        uLabel.setAttribute('font-family', 'monospace');
+        uLabel.style.pointerEvents = 'none';
+        uLabel.textContent = `${def.uHeight}U`;
+        slotGroup.appendChild(uLabel);
+
+        /* Divider lines between sub-slots of multi-U device */
+        for (let sub = 1; sub < def.uHeight; sub++) {
+            const lineY = y + sub * U_HEIGHT;
+            const div = document.createElementNS(ns, 'line');
+            div.setAttribute('x1', String(x + 4));
+            div.setAttribute('y1', String(lineY));
+            div.setAttribute('x2', String(x + w));
+            div.setAttribute('y2', String(lineY));
+            div.setAttribute('stroke', def.color);
+            div.setAttribute('stroke-width', '0.5');
+            div.setAttribute('stroke-opacity', '0.3');
+            slotGroup.appendChild(div);
+        }
+    });
+
+    /* Second pass: render empty slot rows for uncovered U positions */
+    for (let u = 1; u <= RACK.TOTAL_U; u++) {
+        if (covered[u]) {
+            /* Still draw U number on rail for covered slots */
+            const numLabel = document.createElementNS(ns, 'text');
+            numLabel.setAttribute('x', String(RAIL_W - 4));
+            numLabel.setAttribute('y', String(RACK.slotY(u) + U_HEIGHT / 2 + 3));
+            numLabel.setAttribute('text-anchor', 'end');
+            numLabel.setAttribute('font-size', '6.5');
+            numLabel.setAttribute('fill', 'rgba(255,255,255,0.2)');
+            numLabel.setAttribute('font-family', 'monospace');
+            numLabel.textContent = String(u);
+            slotGroup.appendChild(numLabel);
+            continue;
+        }
+
+        const x = RAIL_W + 1;
+        const y = RACK.slotY(u);
+        const w = RACK.innerW - 2;
+
+        /* Empty slot rect — clickable */
+        const emptyRect = document.createElementNS(ns, 'rect');
+        emptyRect.setAttribute('x', String(x));
+        emptyRect.setAttribute('y', String(y + 1));
+        emptyRect.setAttribute('width', String(w));
+        emptyRect.setAttribute('height', String(U_HEIGHT - 2));
+        emptyRect.setAttribute('fill', '#111827');
+        emptyRect.setAttribute('stroke', 'rgba(255,255,255,0.05)');
+        emptyRect.setAttribute('stroke-width', '0.5');
+        emptyRect.setAttribute('rx', '1');
+        emptyRect.style.cursor = 'pointer';
+        emptyRect.dataset.slot = u;
+
+        emptyRect.addEventListener('mouseenter', function() {
+            this.setAttribute('fill', '#1e293b');
+        });
+        emptyRect.addEventListener('mouseleave', function() {
+            this.setAttribute('fill', '#111827');
+        });
+        emptyRect.addEventListener('click', function(e) {
+            e.stopPropagation();
+            showDeviceSelector(u, e.clientX, e.clientY);
+        });
+        slotGroup.appendChild(emptyRect);
+
+        /* U number label on left rail */
+        const numLabel = document.createElementNS(ns, 'text');
+        numLabel.setAttribute('x', String(RAIL_W - 4));
+        numLabel.setAttribute('y', String(y + U_HEIGHT / 2 + 3));
+        numLabel.setAttribute('text-anchor', 'end');
+        numLabel.setAttribute('font-size', '6.5');
+        numLabel.setAttribute('fill', 'rgba(255,255,255,0.25)');
+        numLabel.setAttribute('font-family', 'monospace');
+        numLabel.textContent = String(u);
+        slotGroup.appendChild(numLabel);
+    }
+
+    updateRackSummary();
+    renderConnections();
+    renderAirflow();
+}
+
+/* Returns instance number (1-indexed) among instances of same device type */
+function getInstanceNumber(iid, deviceId) {
+    const all = Object.keys(STATE.instances)
+        .filter(k => STATE.instances[k].deviceId === deviceId)
+        .sort((a, b) => Number(a) - Number(b));
+    return all.indexOf(iid) + 1;
+}
+
+/* ============================================================
+   DEVICE PLACEMENT
+============================================================ */
+function canPlace(deviceId, startU) {
+    const def = DEVICES.find(d => d.id === deviceId);
+    if (!def) return false;
+    if (startU + def.uHeight - 1 > RACK.TOTAL_U) return false;
+    for (let u = startU; u < startU + def.uHeight; u++) {
+        if (STATE.occupiedBy[u]) return false;
+    }
+    return true;
+}
+
+function placeDevice(deviceId, startU) {
+    if (!canPlace(deviceId, startU)) return false;
+    const def = DEVICES.find(d => d.id === deviceId);
+    if (!def) return false;
+    if (getRemainingQty(deviceId) <= 0) return false;
+
+    const iid = String(STATE.nextInstanceId++);
+    STATE.instances[iid] = { deviceId, startU };
+    for (let u = startU; u < startU + def.uHeight; u++) {
+        STATE.occupiedBy[u] = { deviceId, instanceId: iid, startU };
+    }
+
+    /* If it's a server, add PSU mode entry */
+    if (def.cat === 'server') {
+        STATE.psuMode[iid] = 'single';
+    }
+
+    renderSlots();
+    updatePaletteCards();
+    updatePSUList();
+    updateUPSLoad();
+    return true;
+}
+
+function removeDevice(iid) {
+    const inst = STATE.instances[iid];
+    if (!inst) return;
+    const def = DEVICES.find(d => d.id === inst.deviceId);
+    if (!def) return;
+
+    for (let u = inst.startU; u < inst.startU + def.uHeight; u++) {
+        delete STATE.occupiedBy[u];
+    }
+    delete STATE.instances[iid];
+    if (def.cat === 'server') delete STATE.psuMode[iid];
+
+    renderSlots();
+    updatePaletteCards();
+    updatePSUList();
+    updateUPSLoad();
+}
+
+/* ============================================================
+   DEVICE SELECTOR POPUP
+============================================================ */
+let _selectorSlot = null;
+
+function showDeviceSelector(slotU, clientX, clientY) {
+    _selectorSlot = slotU;
+    const popup = document.getElementById('device-selector');
+    const label = document.getElementById('ds-slot-label');
+    const optContainer = document.getElementById('ds-options');
+
+    label.textContent = `U${slotU}`;
+
+    /* Build options — only devices that can fit and have remaining qty */
+    optContainer.innerHTML = '';
+
+    const available = DEVICES.filter(d => {
+        if (getRemainingQty(d.id) <= 0) return false;
+        return canPlace(d.id, slotU);
+    });
+
+    if (available.length === 0) {
+        const msg = document.createElement('div');
+        msg.style.cssText = 'font-size:0.76rem;color:#64748b;padding:6px 0;';
+        msg.textContent = 'No devices fit here (insufficient space or fully placed).';
+        optContainer.appendChild(msg);
+    } else {
+        available.forEach(d => {
+            const opt = document.createElement('div');
+            opt.className = 'ds-option';
+            opt.innerHTML = `<span class="ds-swatch" style="background:${d.color}"></span>
+                <span>${d.name}</span>
+                <span class="ds-u">${d.uHeight}U</span>`;
+            opt.addEventListener('click', () => {
+                placeDevice(d.id, slotU);
+                hideDeviceSelector();
+            });
+            optContainer.appendChild(opt);
+        });
+    }
+
+    /* Position popup near click, constrained to viewport */
+    popup.style.display = 'block';
+    const pw = popup.offsetWidth || 200;
+    const ph = popup.offsetHeight || 200;
+    let left = clientX + 8;
+    let top = clientY + 8;
+    if (left + pw > window.innerWidth - 8) left = clientX - pw - 8;
+    if (top + ph > window.innerHeight - 8) top = clientY - ph - 8;
+    popup.style.left = left + 'px';
+    popup.style.top = top + 'px';
+
+    /* Update slot info panel */
+    updateSlotDetail(slotU, null);
+}
+
+function hideDeviceSelector() {
+    document.getElementById('device-selector').style.display = 'none';
+    _selectorSlot = null;
+}
+
+/* ============================================================
+   DEVICE CONTEXT MENU
+============================================================ */
+function showDeviceMenu(iid, clientX, clientY) {
+    const inst = STATE.instances[iid];
+    if (!inst) return;
+    const def = DEVICES.find(d => d.id === inst.deviceId);
+
+    STATE.menuInstanceId = iid;
+    const menu = document.getElementById('device-menu');
+    menu.style.display = 'block';
+
+    let left = clientX + 8;
+    let top = clientY + 8;
+    const mw = menu.offsetWidth || 140;
+    const mh = menu.offsetHeight || 70;
+    if (left + mw > window.innerWidth - 8) left = clientX - mw - 8;
+    if (top + mh > window.innerHeight - 8) top = clientY - mh - 8;
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+
+    updateSlotDetail(inst.startU, def ? def.name : '');
+}
+
+function hideDeviceMenu() {
+    document.getElementById('device-menu').style.display = 'none';
+    STATE.menuInstanceId = null;
+}
+
+document.getElementById('dm-remove').addEventListener('click', () => {
+    if (STATE.menuInstanceId) {
+        removeDevice(STATE.menuInstanceId);
+    }
+    hideDeviceMenu();
+});
+
+/* Close popups on outside click */
+document.addEventListener('click', () => {
+    hideDeviceSelector();
+    hideDeviceMenu();
+});
+document.getElementById('device-selector').addEventListener('click', e => e.stopPropagation());
+document.getElementById('device-menu').addEventListener('click', e => e.stopPropagation());
+document.getElementById('ds-cancel').addEventListener('click', hideDeviceSelector);
+
+/* ============================================================
+   PALETTE CARDS
+============================================================ */
+function buildPaletteCards() {
+    const container = document.getElementById('palette-cards');
+    container.innerHTML = '';
+    DEVICES.forEach(d => {
+        const card = document.createElement('div');
+        card.className = 'device-card';
+        card.id = `palette-${d.id}`;
+        card.innerHTML = `
+            <div class="dc-name">
+                <span class="dc-swatch" style="background:${d.color}"></span>
+                ${d.name}
+                <span class="dc-count" id="cnt-${d.id}">x${d.qty}</span>
+            </div>
+            <div class="dc-meta">${d.uHeight}U &mdash; ${d.cat}</div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function updatePaletteCards() {
+    DEVICES.forEach(d => {
+        const rem = getRemainingQty(d.id);
+        const cnt = document.getElementById(`cnt-${d.id}`);
+        if (cnt) cnt.textContent = `x${rem}`;
+        const card = document.getElementById(`palette-${d.id}`);
+        if (card) {
+            card.classList.toggle('exhausted', rem <= 0);
+        }
+    });
+}
+
+/* ============================================================
+   RACK SUMMARY
+============================================================ */
+function updateRackSummary() {
+    const usedU = Object.values(STATE.instances).reduce((acc, inst) => {
+        const def = DEVICES.find(d => d.id === inst.deviceId);
+        return acc + (def ? def.uHeight : 0);
+    }, 0);
+    const deviceCount = Object.keys(STATE.instances).length;
+    const requiredTotal = DEVICES.reduce((acc, d) => acc + d.qty, 0);
+
+    const sumUsed = document.getElementById('sum-used');
+    const sumFree = document.getElementById('sum-free');
+    const sumCount = document.getElementById('sum-count');
+    if (sumUsed) sumUsed.textContent = usedU + 'U';
+    if (sumFree) sumFree.textContent = (42 - usedU) + 'U';
+    if (sumCount) sumCount.textContent = deviceCount + ' / ' + requiredTotal;
+}
+
+function updateSlotDetail(slotU, deviceName) {
+    const el = document.getElementById('slot-detail');
+    if (!el) return;
+    if (deviceName) {
+        el.innerHTML = `<strong>U${slotU}</strong> &mdash; ${deviceName}`;
+    } else if (slotU) {
+        el.innerHTML = `<strong>U${slotU}</strong> &mdash; Empty slot. Click to place a device.`;
+    }
+}
+
+/* ============================================================
+   CONNECTIONS: power lines and network cables drawn as SVG paths
+============================================================ */
+function renderConnections() {
+    const lineGroup = document.getElementById('line-group');
+    if (!lineGroup) return;
+    while (lineGroup.firstChild) lineGroup.removeChild(lineGroup.firstChild);
+
+    const ns = 'http://www.w3.org/2000/svg';
+    const { RAIL_W, U_HEIGHT, innerW } = RACK;
+    const midX = RAIL_W + innerW / 2;
+
+    /* Find key devices */
+    const switchInst  = findFirstInstance('core-switch');
+    const patchInst   = findFirstInstance('patch-panel');
+    const upsInst     = findFirstInstance('ups');
+    const pduInst     = findFirstInstance('pdu');
+    const serverInsts = findAllInstances('server');
+
+    /* Network cable: patch panel -> switch (cyan) */
+    if (switchInst && patchInst) {
+        drawAnimLine(lineGroup, ns,
+            midX - 20, getSlotMidY(switchInst.startU, 2),
+            midX - 20, getSlotMidY(patchInst.startU, 1),
+            '#06b6d4', 'net-line');
+    }
+
+    /* Power lines: UPS + PDU -> each server (amber) */
+    if ((upsInst || pduInst) && serverInsts.length > 0) {
+        const powerSourceY = upsInst
+            ? getSlotMidY(upsInst.startU, 3)
+            : getSlotMidY(pduInst.startU, 1);
+        serverInsts.forEach((sInst, idx) => {
+            const offset = (idx - 1) * 6;
+            drawAnimLine(lineGroup, ns,
+                midX + 20 + offset, powerSourceY,
+                midX + 20 + offset, getSlotMidY(sInst.startU, 2),
+                '#f59e0b', 'power-line');
+        });
+    }
+}
+
+function findFirstInstance(deviceId) {
+    return Object.values(STATE.instances).find(i => i.deviceId === deviceId) || null;
+}
+
+function findAllInstances(deviceId) {
+    return Object.values(STATE.instances).filter(i => i.deviceId === deviceId);
+}
+
+function getSlotMidY(startU, uHeight) {
+    return RACK.slotY(startU) + (uHeight * RACK.U_HEIGHT) / 2;
+}
+
+function drawAnimLine(group, ns, x1, y1, x2, y2, color, cssClass) {
+    const path = document.createElementNS(ns, 'line');
+    path.setAttribute('x1', String(x1));
+    path.setAttribute('y1', String(y1));
+    path.setAttribute('x2', String(x2));
+    path.setAttribute('y2', String(y2));
+    path.setAttribute('stroke', color);
+    path.setAttribute('stroke-width', '1.5');
+    path.setAttribute('stroke-opacity', '0.65');
+    path.className.baseVal = cssClass;
+    group.appendChild(path);
+}
+
+/* ============================================================
+   AIRFLOW ARROWS
+============================================================ */
+function renderAirflow() {
+    const group = document.getElementById('airflow-group');
+    if (!group) return;
+    while (group.firstChild) group.removeChild(group.firstChild);
+    if (STATE.airflow === 'off') return;
+
+    const ns = 'http://www.w3.org/2000/svg';
+    const { RAIL_W, U_HEIGHT, innerW, TOTAL_U } = RACK;
+    const ftb = STATE.airflow === 'ftb';
+
+    /* Draw arrows every 4U across the rack interior */
+    for (let u = 2; u <= TOTAL_U; u += 4) {
+        const y = RACK.slotY(u) + U_HEIGHT / 2;
+
+        /* Cold side arrow (blue) */
+        const coldX = ftb ? RAIL_W + 14 : RAIL_W + innerW - 14;
+        const g = document.createElementNS(ns, 'g');
+        g.classList.add('airflow-arrow');
+        if (!ftb) g.classList.add('reverse');
+        g.style.animationDelay = `${(u / 4) * 0.2}s`;
+
+        const arrowColor = ftb ? '#38bdf8' : '#f87171';
+        const arr = createArrowGlyph(ns, coldX, y, ftb ? 1 : -1, arrowColor);
+        g.appendChild(arr);
+        group.appendChild(g);
+
+        /* Hot side arrow (red) */
+        const hotX = ftb ? RAIL_W + innerW - 14 : RAIL_W + 14;
+        const g2 = document.createElementNS(ns, 'g');
+        g2.classList.add('airflow-arrow');
+        if (!ftb) g2.classList.add('reverse');
+        g2.style.animationDelay = `${(u / 4) * 0.2 + 0.7}s`;
+
+        const hotColor = ftb ? '#f87171' : '#38bdf8';
+        const arr2 = createArrowGlyph(ns, hotX, y, ftb ? 1 : -1, hotColor);
+        g2.appendChild(arr2);
+        group.appendChild(g2);
+    }
+}
+
+function createArrowGlyph(ns, cx, cy, dir, color) {
+    /* Simple right-pointing or left-pointing chevron */
+    const poly = document.createElementNS(ns, 'polyline');
+    if (dir > 0) {
+        poly.setAttribute('points', `${cx - 5},${cy - 4} ${cx + 2},${cy} ${cx - 5},${cy + 4}`);
+    } else {
+        poly.setAttribute('points', `${cx + 5},${cy - 4} ${cx - 2},${cy} ${cx + 5},${cy + 4}`);
+    }
+    poly.setAttribute('fill', 'none');
+    poly.setAttribute('stroke', color);
+    poly.setAttribute('stroke-width', '1.5');
+    poly.setAttribute('stroke-linecap', 'round');
+    poly.setAttribute('stroke-linejoin', 'round');
+    poly.setAttribute('opacity', '0.7');
+    return poly;
+}
+
+/* Airflow button handlers */
+document.querySelectorAll('.airflow-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const dir = this.dataset.dir;
+        STATE.airflow = dir;
+        document.querySelectorAll('.airflow-btn').forEach(b => b.classList.remove('active'));
+        if (dir !== 'off') this.classList.add('active');
+        renderAirflow();
+    });
+});
+
+/* ============================================================
+   TAB SWITCHING
+============================================================ */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const target = this.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        this.classList.add('active');
+        const panel = document.getElementById('tab-' + target);
+        if (panel) panel.classList.add('active');
+    });
+});
+
+/* ============================================================
+   ENVIRONMENTAL TAB
+============================================================ */
+const FIRE_DESCRIPTIONS = {
+    'wet-pipe':    'Wet Pipe: Water-filled pipes that discharge immediately. NOT suitable for server rooms — water destroys equipment.',
+    'dry-pipe':    'Dry Pipe: Pipes filled with pressurized air; water only enters on activation. Slower response, reduces accidental discharge risk.',
+    'clean-agent': 'Clean Agent (FM-200 / Novec 1230): Discharges a non-conductive gas that suppresses fire without damaging equipment. Preferred for server rooms.',
+    'pre-action':  'Pre-Action: Requires two separate triggers before water releases. Low risk of accidental discharge — good for data centers with sensitive equipment.',
+};
+
+document.getElementById('fire-type').addEventListener('change', function() {
+    STATE.fireType = this.value;
+    const desc = document.getElementById('fire-desc');
+    desc.textContent = FIRE_DESCRIPTIONS[this.value] || '';
+});
+
+/* Simulated temperature — oscillates slightly for realism */
+let simTemp = 68;
+let simTempDir = 1;
+let simHumid = 45;
+
+function updateThermoDisplay() {
+    /* Gentle oscillation */
+    simTemp += simTempDir * (Math.random() * 0.4);
+    if (simTemp > 71) simTempDir = -1;
+    if (simTemp < 65) simTempDir = 1;
+
+    const warn = parseInt(document.getElementById('temp-warn').value, 10) || 75;
+    const crit = parseInt(document.getElementById('temp-crit').value, 10) || 85;
+
+    const display = document.getElementById('temp-display');
+    const status = document.getElementById('temp-status');
+    const fill = document.getElementById('thermo-fill');
+    const bulb = document.getElementById('thermo-bulb');
+
+    display.textContent = simTemp.toFixed(1) + ' F';
+
+    let color, statusText, statusColor;
+    if (simTemp >= crit) {
+        color = '#ef4444'; statusText = 'CRITICAL'; statusColor = '#ef4444';
+    } else if (simTemp >= warn) {
+        color = '#f59e0b'; statusText = 'Warning'; statusColor = '#f59e0b';
+    } else {
+        color = '#22c55e'; statusText = 'Normal'; statusColor = '#22c55e';
+    }
+
+    display.className = 'gauge-val' + (simTemp >= crit ? ' crit' : simTemp >= warn ? ' warn' : '');
+    if (status) { status.textContent = statusText; status.style.color = statusColor; }
+
+    /* Map temperature 55-95F to fill height 76 -> 0px from top of tube (y=12) */
+    if (fill && bulb) {
+        const minF = 55, maxF = 95;
+        const pct = Math.min(1, Math.max(0, (simTemp - minF) / (maxF - minF)));
+        const tubeTop = 12, tubeBot = 88;
+        const fillTop = tubeBot - pct * (tubeBot - tubeTop);
+        fill.setAttribute('y', String(fillTop));
+        fill.setAttribute('height', String(tubeBot - fillTop));
+        fill.setAttribute('fill', color);
+        bulb.setAttribute('fill', color);
+    }
+
+    /* Save threshold values to state */
+    STATE.tempWarn = warn;
+    STATE.tempCrit = crit;
+}
+
+/* Humidity bar animation */
+function updateHumidDisplay() {
+    simHumid += (Math.random() - 0.49) * 0.3;
+    simHumid = Math.min(65, Math.max(38, simHumid));
+
+    const bar = document.getElementById('humid-bar');
+    const disp = document.getElementById('humid-display');
+    if (bar) bar.style.width = simHumid.toFixed(1) + '%';
+    if (disp) disp.textContent = simHumid.toFixed(1) + '%';
+
+    STATE.humidMin = parseInt(document.getElementById('humid-min').value, 10) || 40;
+    STATE.humidMax = parseInt(document.getElementById('humid-max').value, 10) || 60;
+}
+
+setInterval(updateThermoDisplay, 1200);
+setInterval(updateHumidDisplay, 2000);
+
+/* ============================================================
+   POWER TAB
+============================================================ */
+function updatePSUList() {
+    const container = document.getElementById('psu-list');
+    if (!container) return;
+
+    const serverInsts = findAllInstances('server');
+    if (serverInsts.length === 0) {
+        container.innerHTML = '<div style="font-size:0.78rem;color:var(--text-muted);">Place servers in the rack first.</div>';
+        return;
+    }
+
+    container.innerHTML = '';
+    serverInsts.forEach((inst, idx) => {
+        const iid = Object.keys(STATE.instances).find(k =>
+            STATE.instances[k].deviceId === inst.deviceId && STATE.instances[k].startU === inst.startU
+        );
+        const mode = STATE.psuMode[iid] || 'single';
+        const row = document.createElement('div');
+        row.className = 'psu-row';
+        row.innerHTML = `
+            <span>Server #${idx + 1} (U${inst.startU})</span>
+            <div class="psu-toggle">
+                <div class="psu-opt ${mode === 'single' ? 'active' : ''}" data-iid="${iid}" data-mode="single">Single</div>
+                <div class="psu-opt ${mode === 'dual' ? 'active' : ''}" data-iid="${iid}" data-mode="dual">Dual</div>
+            </div>
+        `;
+        container.appendChild(row);
+    });
+
+    container.querySelectorAll('.psu-opt').forEach(opt => {
+        opt.addEventListener('click', function() {
+            const iid2 = this.dataset.iid;
+            const newMode = this.dataset.mode;
+            STATE.psuMode[iid2] = newMode;
+            updatePSUList();
+            updateUPSLoad();
+        });
+    });
+}
+
+function updateUPSLoad() {
+    /* 3 servers x 500W = 1500W total server load */
+    const serverCount = findAllInstances('server').length;
+    const loadW = serverCount * 500;
+    const capacityW = 2700;
+    const loadPct = Math.round((loadW / capacityW) * 100);
+
+    const loadDisp = document.getElementById('ups-load-disp');
+    const runtimeDisp = document.getElementById('ups-runtime');
+    if (loadDisp) loadDisp.textContent = `${loadW} W (${loadPct}%)`;
+
+    /* Runtime: 1 kWh @ 82% = 0.82 kWh = 820 Wh */
+    if (loadW > 0) {
+        const runtimeMin = Math.round((820 / loadW) * 60);
+        if (runtimeDisp) runtimeDisp.textContent = `~${runtimeMin} min`;
+    } else {
+        if (runtimeDisp) runtimeDisp.textContent = '-- min';
+    }
+}
+
+/* Runtime calculation check */
+document.getElementById('check-calc').addEventListener('click', function() {
+    const ans = parseInt(document.getElementById('runtime-ans').value, 10);
+    const fb = document.getElementById('calc-fb');
+    /* Correct answer: (820 Wh / 1500 W) x 60 = 32.8 min -> accept 32-34 */
+    const correct = !isNaN(ans) && ans >= 32 && ans <= 34;
+    STATE.calcCorrect = correct;
+    fb.className = 'calc-feedback ' + (correct ? 'ok' : 'err');
+    fb.textContent = correct
+        ? 'Correct! (820 Wh / 1500 W) x 60 = 32.8 min. The UPS sustains load for approximately 33 minutes.'
+        : `Not quite. Formula: (Watt-hours x 60) / Load. (820 x 60) / 1500 = 32.8 min. Your answer: ${isNaN(ans) ? 'invalid' : ans} min.`;
+});
+
+/* ============================================================
+   VERIFICATION LOGIC
+   10 checks, each returns { pass: bool, label: string, detail: string }
+============================================================ */
+function runVerification() {
+    const checks = [];
+
+    /* Helper to find device U position */
+    function getStartU(deviceId) {
+        const inst = findFirstInstance(deviceId);
+        return inst ? inst.startU : null;
+    }
+    function getAllStartU(deviceId) {
+        return findAllInstances(deviceId).map(i => i.startU);
+    }
+
+    /* CHECK 1: All required devices placed */
+    const required = { 'core-switch': 1, 'patch-panel': 1, 'cable-mgmt': 1, 'server': 3, 'ups': 1, 'pdu': 1 };
+    let allPlaced = true;
+    let missingList = [];
+    Object.keys(required).forEach(id => {
+        const count = findAllInstances(id).length;
+        if (count < required[id]) {
+            allPlaced = false;
+            const def = DEVICES.find(d => d.id === id);
+            missingList.push(`${def ? def.name : id} (need ${required[id]}, have ${count})`);
+        }
+    });
+    checks.push({
+        pass: allPlaced,
+        label: 'All required devices placed',
+        detail: allPlaced
+            ? 'Switch, patch panel, cable management, 3 servers, UPS, and PDU are all in the rack.'
+            : 'Missing: ' + missingList.join('; ') + '.'
+    });
+
+    /* CHECK 2: UPS in bottom zone (U38-U42) */
+    const upsU = getStartU('ups');
+    const upsAtBottom = upsU !== null && upsU >= 38;  /* 3U device must start at U38 or lower */
+    checks.push({
+        pass: upsAtBottom,
+        label: 'UPS positioned at bottom of rack (U38-42)',
+        detail: upsAtBottom
+            ? `UPS placed at U${upsU}-U${upsU + 2}. Heaviest equipment belongs at the bottom for rack stability.`
+            : upsU === null
+                ? 'UPS not placed.'
+                : `UPS is at U${upsU}-U${upsU + 2}. Move it to the bottom (U38-U42). Heavy equipment at the top raises the center of gravity and increases tipping risk.`
+    });
+
+    /* CHECK 3: PDU adjacent to UPS (within 2U) */
+    const pduU = getStartU('pdu');
+    const pduNearUps = upsU !== null && pduU !== null && Math.abs(pduU - (upsU + 2)) <= 2;
+    checks.push({
+        pass: pduNearUps,
+        label: 'PDU adjacent to UPS',
+        detail: pduNearUps
+            ? `PDU at U${pduU} is adjacent to UPS at U${upsU}. Keeps power distribution cabling short.`
+            : (pduU === null || upsU === null)
+                ? 'PDU or UPS not placed.'
+                : `PDU (U${pduU}) is not adjacent to UPS (U${upsU}-U${upsU + 2}). Place PDU within 2U of the UPS.`
+    });
+
+    /* CHECK 4: Servers in mid-rack (U15-U30) */
+    const serverUs = getAllStartU('server');
+    const serversInMid = serverUs.length === 3 && serverUs.every(u => u >= 15 && u + 1 <= 30);
+    checks.push({
+        pass: serversInMid,
+        label: 'All 3 servers in mid-rack zone (U15-U30)',
+        detail: serversInMid
+            ? `Servers at U${serverUs.join(', U')}. Mid-rack placement optimizes airflow and cable runs.`
+            : serverUs.length < 3
+                ? 'Fewer than 3 servers placed.'
+                : `Server positions: ${serverUs.map(u => 'U' + u).join(', ')}. All servers must be between U15-U30.`
+    });
+
+    /* CHECK 5: Patch panel within 2U of switch */
+    const switchU = getStartU('core-switch');
+    const patchU = getStartU('patch-panel');
+    const patchNearSwitch = switchU !== null && patchU !== null && Math.abs(patchU - switchU) <= 2;
+    checks.push({
+        pass: patchNearSwitch,
+        label: 'Patch panel within 2U of core switch',
+        detail: patchNearSwitch
+            ? `Patch panel (U${patchU}) is ${Math.abs(patchU - switchU)}U from switch (U${switchU}). Short cable runs reduce clutter.`
+            : (patchU === null || switchU === null)
+                ? 'Patch panel or core switch not placed.'
+                : `Patch panel (U${patchU}) is ${Math.abs(patchU - switchU)}U from switch (U${switchU}). Place within 2U of each other.`
+    });
+
+    /* CHECK 6: Cable management between patch panel and switch */
+    const cableMgmtU = getStartU('cable-mgmt');
+    let cableBetween = false;
+    if (cableMgmtU !== null && patchU !== null && switchU !== null) {
+        const lo = Math.min(patchU, switchU);
+        const hi = Math.max(patchU, switchU);
+        cableBetween = cableMgmtU > lo && cableMgmtU < hi;
+    }
+    checks.push({
+        pass: cableBetween,
+        label: 'Cable management between patch panel and switch',
+        detail: cableBetween
+            ? `Cable management (U${cableMgmtU}) sits between patch panel and switch — correct practice.`
+            : cableMgmtU === null
+                ? 'Cable management not placed.'
+                : `Cable management (U${cableMgmtU}) is not between the patch panel (U${patchU}) and switch (U${switchU}). Place it between them.`
+    });
+
+    /* CHECK 7: Airflow orientation selected */
+    checks.push({
+        pass: STATE.airflow !== 'off',
+        label: 'Airflow orientation configured',
+        detail: STATE.airflow !== 'off'
+            ? `Airflow set to ${STATE.airflow === 'ftb' ? 'Front-to-Back (standard cold/hot aisle)' : 'Back-to-Front'}.`
+            : 'Select an airflow orientation using the Front-to-Back or Back-to-Front buttons.'
+    });
+
+    /* CHECK 8: Environmental thresholds set correctly (warn < crit, warn >= 68, crit <= 95) */
+    const warnOk = STATE.tempWarn >= 68 && STATE.tempWarn <= 82;
+    const critOk = STATE.tempCrit >= 80 && STATE.tempCrit <= 95;
+    const threshOk = warnOk && critOk && STATE.tempWarn < STATE.tempCrit;
+    checks.push({
+        pass: threshOk,
+        label: 'Temperature thresholds in valid range',
+        detail: threshOk
+            ? `Warning: ${STATE.tempWarn}F, Critical: ${STATE.tempCrit}F. ASHRAE A2 spec recommends warning at 75-80F, critical at 85-95F.`
+            : `Current: Warning=${STATE.tempWarn}F, Critical=${STATE.tempCrit}F. Warning should be 68-82F, Critical 80-95F, and Warning must be below Critical.`
+    });
+
+    /* CHECK 9: Correct fire suppression type (clean agent or pre-action) */
+    const fireOk = STATE.fireType === 'clean-agent' || STATE.fireType === 'pre-action';
+    checks.push({
+        pass: fireOk,
+        label: 'Appropriate fire suppression type selected',
+        detail: fireOk
+            ? `${STATE.fireType === 'clean-agent' ? 'Clean Agent' : 'Pre-Action'} suppression selected. Both are safe for active server rooms.`
+            : STATE.fireType === ''
+                ? 'No fire suppression type selected. Go to the Environmental tab.'
+                : `${STATE.fireType === 'wet-pipe' ? 'Wet Pipe' : 'Dry Pipe'} is not appropriate for active server rooms. Select Clean Agent or Pre-Action.`
+    });
+
+    /* CHECK 10: Runtime calculation correct and at least one server on dual PSU */
+    const dualCount = Object.values(STATE.psuMode).filter(m => m === 'dual').length;
+    const powerOk = STATE.calcCorrect && dualCount >= 1;
+    checks.push({
+        pass: powerOk,
+        label: 'Power: runtime calculated and at least one server on dual PSU',
+        detail: powerOk
+            ? `Runtime calculation correct and ${dualCount} server(s) configured with dual PSU for redundancy.`
+            : !STATE.calcCorrect
+                ? 'Complete the runtime calculation on the Power tab.'
+                : 'Set at least one server to Dual PSU for redundancy on the Power tab.'
+    });
+
+    return checks;
+}
+
+/* Submit button handler */
+document.getElementById('submit-btn').addEventListener('click', function() {
+    const checks = runVerification();
+    const passed = checks.filter(c => c.pass).length;
+    const total = checks.length;
+
+    const resultsEl = document.getElementById('verify-results');
+    const checkList = document.getElementById('check-list');
+    const scoreVal = document.getElementById('score-val');
+    const scoreTitle = document.getElementById('score-title');
+    const scoreMsg = document.getElementById('score-msg');
+    const completeBtn = document.getElementById('complete-btn');
+
+    resultsEl.style.display = 'flex';
+    resultsEl.style.flexDirection = 'column';
+    resultsEl.style.gap = '16px';
+
+    scoreVal.textContent = `${passed}/${total}`;
+    scoreTitle.textContent = passed === total ? 'All Checks Passed!' : `${passed} of ${total} Checks Passed`;
+    scoreMsg.textContent = passed === total
+        ? 'Outstanding. Your server room configuration meets all best practices. Mark the lab complete.'
+        : 'Review the failed checks below and resubmit to improve your score.';
+
+    checkList.innerHTML = '';
+    checks.forEach(c => {
+        const item = document.createElement('div');
+        item.className = 'check-item ' + (c.pass ? 'pass' : 'fail');
+        item.innerHTML = `
+            <div class="check-icon ${c.pass ? 'ok' : 'no'}">${c.pass ? '+' : 'x'}</div>
+            <div class="check-text">
+                <strong>${c.label}</strong>
+                <span>${c.detail}</span>
+            </div>
+        `;
+        checkList.appendChild(item);
+    });
+
+    if (passed === total) {
+        completeBtn.style.display = 'block';
+    }
+
+    /* Scroll to results */
+    resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+/* Complete button */
+document.getElementById('complete-btn').addEventListener('click', function() {
+    this.disabled = true;
+    this.textContent = 'Saving...';
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('web', 'gui-ne04-server-room', { returnUrl: '../index.html' });
+    }
+});
+
+/* ============================================================
+   INITIALIZATION
+============================================================ */
+(function init() {
+    /* Mount SVG rack into its container */
+    const container = document.getElementById('rack-svg-container');
+    const svg = buildRackSVG();
+    container.appendChild(svg);
+
+    /* Build palette sidebar */
+    buildPaletteCards();
+
+    /* Initial slot render (all empty) */
+    renderSlots();
+
+    /* Start environmental simulations */
+    updateThermoDisplay();
+    updateHumidDisplay();
+    updateUPSLoad();
+})();
+</script>
+</body>
+</html>

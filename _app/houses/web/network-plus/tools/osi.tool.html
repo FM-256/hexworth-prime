@@ -1,0 +1,2343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSI Model Visualizer - Interactive Learning Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header h1 { font-size: 1.5em; color: #fff; }
+        .header h1 span { color: #7c6dd8; }
+        .back-btn {
+            background: rgba(124, 109, 216, 0.2);
+            color: #7c6dd8;
+            border: 1px solid #7c6dd8;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.9em;
+            transition: all 0.3s;
+        }
+        .back-btn:hover { background: #7c6dd8; color: #fff; }
+
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .tab-btn {
+            padding: 12px 25px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #a0a0a0;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1em;
+        }
+
+        .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+        }
+
+        .tab-btn.active {
+            background: rgba(124, 109, 216, 0.3);
+            color: #7c6dd8;
+            border-color: #7c6dd8;
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* OSI Layer Colors */
+        .layer-7-color { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        .layer-6-color { background: linear-gradient(135deg, #e67e22, #d35400); }
+        .layer-5-color { background: linear-gradient(135deg, #f1c40f, #f39c12); }
+        .layer-4-color { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+        .layer-3-color { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .layer-2-color { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+        .layer-1-color { background: linear-gradient(135deg, #34495e, #2c3e50); }
+
+        /* ===================== TAB 1: ENCAPSULATION ANIMATION ===================== */
+        .encap-container {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .side-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .stack-layer {
+            padding: 15px 20px;
+            border-radius: 10px;
+            color: white;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+            opacity: 0.5;
+        }
+
+        .stack-layer.active {
+            opacity: 1;
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .stack-layer .layer-num {
+            background: rgba(255, 255, 255, 0.3);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.9em;
+        }
+
+        /* Animation Area */
+        .animation-area {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            padding: 30px;
+            min-height: 500px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .animation-title {
+            text-align: center;
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .data-flow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .data-packet {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.5s ease;
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+
+        .data-packet.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .packet-segment {
+            padding: 10px 15px;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9em;
+            border-radius: 5px;
+            margin: 0 2px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .packet-data {
+            background: #e74c3c;
+            padding: 15px 30px;
+            border-radius: 10px;
+        }
+
+        /* Controls */
+        .encap-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .encap-btn {
+            padding: 12px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 25px;
+            color: white;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .encap-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .encap-btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Info Panel */
+        .info-panel {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .info-panel h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .info-panel p {
+            line-height: 1.6;
+            color: #b0b0b0;
+        }
+
+        /* ===================== TAB 2: LAYER EXPLORER ===================== */
+        .explorer-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 30px;
+        }
+
+        .layer-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .layer-select-btn {
+            padding: 18px 20px;
+            border-radius: 12px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 3px solid transparent;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .layer-select-btn:hover {
+            transform: translateX(10px);
+        }
+
+        .layer-select-btn.selected {
+            border-color: white;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        .layer-details {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            padding: 30px;
+        }
+
+        .layer-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .layer-icon {
+            font-size: 3em;
+            padding: 20px;
+            border-radius: 15px;
+        }
+
+        .layer-title h2 {
+            font-size: 2em;
+            margin-bottom: 5px;
+        }
+
+        .layer-title p {
+            color: #888;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .detail-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .detail-card h4 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+
+        .detail-card ul {
+            list-style: none;
+        }
+
+        .detail-card li {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .detail-card li:last-child {
+            border-bottom: none;
+        }
+
+        .protocol-tag {
+            background: rgba(102, 126, 234, 0.3);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+        }
+
+        .device-icon {
+            font-size: 1.5em;
+        }
+
+        /* PDU Badge */
+        .pdu-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        /* ── PDU Journey tab ─────────────────────────────────────────────── */
+
+        .journey-container {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* ── Scenario picker ── */
+        .journey-scenario-bar {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            padding: 20px 25px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .journey-scenario-bar span {
+            color: #888;
+            font-size: 0.9em;
+            white-space: nowrap;
+        }
+
+        .journey-scenario-btn {
+            padding: 8px 20px;
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 20px;
+            color: #909090;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+        }
+
+        .journey-scenario-btn:hover {
+            background: rgba(255, 255, 255, 0.13);
+            color: #e0e0e0;
+        }
+
+        /* Active scenario gets a cyan glow per spec */
+        .journey-scenario-btn.active {
+            background: rgba(0, 210, 220, 0.12);
+            border-color: rgba(0, 210, 220, 0.45);
+            color: #00d2dc;
+            box-shadow: 0 0 10px rgba(0, 210, 220, 0.2);
+        }
+
+        /* ── Layer pip strip ── */
+        .journey-layer-strip {
+            display: flex;
+            gap: 6px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .journey-layer-pip {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .journey-layer-pip .pip-dot {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.82em;
+            font-weight: bold;
+            color: rgba(255, 255, 255, 0.45);
+            border: 2px solid transparent;
+            transition: all 0.3s;
+            cursor: default;
+        }
+
+        .journey-layer-pip .pip-label {
+            font-size: 0.62em;
+            color: #484848;
+            transition: color 0.3s;
+            white-space: nowrap;
+        }
+
+        /* Active pip: full color, glow */
+        .journey-layer-pip.active .pip-dot {
+            color: white;
+            border-color: currentColor;
+            box-shadow: 0 0 14px currentColor;
+        }
+
+        .journey-layer-pip.active .pip-label {
+            color: #cccccc;
+        }
+
+        /* Visited (below current) pips dim down */
+        .journey-layer-pip.done .pip-dot {
+            opacity: 0.4;
+        }
+
+        /* ── Controls row ── */
+        .journey-controls-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .journey-step-counter {
+            font-size: 0.93em;
+            color: #808080;
+        }
+
+        .journey-step-counter strong {
+            color: #e0e0e0;
+        }
+
+        .journey-btn-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* ── PDU visualization panel (hero) ── */
+        .journey-pdu-panel {
+            background: rgba(0, 0, 0, 0.38);
+            border-radius: 16px;
+            padding: 28px 24px;
+        }
+
+        .journey-pdu-label {
+            font-size: 0.78em;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #484848;
+            margin-bottom: 18px;
+        }
+
+        /* PDU name badge row */
+        .journey-pdu-name {
+            font-size: 0.88em;
+            color: #808080;
+            margin-top: 14px;
+        }
+
+        .journey-pdu-name strong {
+            color: #e0e0e0;
+        }
+
+        /* ── Nested wrapper visualization ── */
+
+        /* Outermost wrapper resets */
+        .journey-nest-root {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        /*
+         * Each layer wrapper: left border in layer color, subtle bg tint.
+         * Wraps all inner layers inside it (latest layer = outermost box).
+         * New wrappers slide in with a scale+fade.
+         */
+        .pdu-wrapper {
+            border-radius: 10px;
+            padding: 14px 16px 14px 16px;
+            border-left: 4px solid transparent;
+            /* each level gets slightly darker bg via JS inline style */
+        }
+
+        /* Newly added wrapper pulses its border briefly */
+        .pdu-wrapper.pdu-wrapper-new {
+            animation: pdu-wrapper-appear 0.45s ease forwards, pdu-border-pulse 0.9s ease 0.45s;
+        }
+
+        @keyframes pdu-wrapper-appear {
+            from {
+                opacity: 0;
+                transform: scaleY(0.88) translateY(-8px);
+                transform-origin: top center;
+            }
+            to {
+                opacity: 1;
+                transform: scaleY(1) translateY(0);
+            }
+        }
+
+        @keyframes pdu-border-pulse {
+            0%   { filter: brightness(1.0); }
+            40%  { filter: brightness(2.2); }
+            100% { filter: brightness(1.0); }
+        }
+
+        /* Layer name header inside wrapper */
+        .pdu-wrapper-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .pdu-wrapper-layer-name {
+            font-size: 0.78em;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+        }
+
+        /* Header fields — monospace, small */
+        .pdu-wrapper-fields {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.78em;
+            color: #8a9aaa;
+            line-height: 1.7;
+            margin-bottom: 10px;
+            white-space: pre-wrap;
+        }
+
+        /* Inner content area (what wraps the next layer down) */
+        .pdu-inner {
+            /* inner spacing handled by child wrapper padding */
+        }
+
+        /* The innermost DATA block — dashed border, distinct style */
+        .pdu-data-block {
+            border: 1.5px dashed rgba(220, 74, 74, 0.45);
+            border-radius: 7px;
+            background: rgba(220, 74, 74, 0.07);
+            padding: 10px 14px;
+            font-size: 0.8em;
+            color: #c88888;
+            font-family: 'Courier New', Courier, monospace;
+            line-height: 1.6;
+        }
+
+        .pdu-data-block-label {
+            font-size: 0.72em;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: rgba(220, 74, 74, 0.5);
+            margin-bottom: 4px;
+        }
+
+        /* FCS trailer row (L2) */
+        .pdu-trailer-row {
+            margin-top: 8px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.78em;
+            color: #8a9aaa;
+        }
+
+        /* N/A layer indicator (ICMP layers 7-4) */
+        .pdu-na-block {
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px dashed rgba(255, 255, 255, 0.1);
+            padding: 10px 14px;
+            font-size: 0.82em;
+            color: #555;
+            font-style: italic;
+        }
+
+        /* Bits layer (L1) */
+        .journey-pdu-bits {
+            font-family: 'Courier New', monospace;
+            font-size: 0.82em;
+            color: #7a8a96;
+            background: rgba(90, 106, 122, 0.14);
+            border-radius: 8px;
+            padding: 16px 18px;
+            line-height: 1.9;
+            letter-spacing: 0.13em;
+            word-break: break-all;
+            border-left: 4px solid #5a6a7a;
+        }
+
+        /* ── Info panel ── */
+        .journey-info-panel {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            padding: 24px 28px;
+            border-left: 4px solid #555;
+            transition: border-color 0.35s;
+        }
+
+        .journey-info-header {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .journey-info-layer-num {
+            font-size: 2.2em;
+            font-weight: bold;
+            line-height: 1;
+            transition: color 0.35s;
+        }
+
+        .journey-info-layer-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #e0e0e0;
+        }
+
+        .journey-info-section {
+            margin-bottom: 16px;
+        }
+
+        .journey-info-section-title {
+            font-size: 0.72em;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #585858;
+            margin-bottom: 7px;
+        }
+
+        .journey-info-section ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .journey-info-section ul li {
+            padding: 3px 0 3px 14px;
+            color: #aaaaaa;
+            font-size: 0.91em;
+            line-height: 1.55;
+            position: relative;
+        }
+
+        .journey-info-section ul li::before {
+            content: "-";
+            position: absolute;
+            left: 0;
+            color: #484848;
+        }
+
+        /* Header field display — monospace block */
+        .journey-header-fields {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.83em;
+            color: #8a9aaa;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 7px;
+            padding: 10px 14px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+        }
+
+        /* PDU name badge */
+        .journey-pdu-badge {
+            display: inline-block;
+            padding: 4px 14px;
+            border-radius: 12px;
+            font-size: 0.82em;
+            font-weight: bold;
+            color: white;
+            margin-top: 2px;
+        }
+
+        /* Size impact note */
+        .journey-size-note {
+            font-size: 0.83em;
+            color: #888;
+        }
+
+        /* Analogy — gold-tinted box per spec */
+        .journey-analogy {
+            font-size: 0.86em;
+            color: #b8a060;
+            background: rgba(200, 168, 80, 0.08);
+            border: 1px solid rgba(200, 168, 80, 0.18);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-top: 14px;
+        }
+
+        .journey-analogy-label {
+            font-size: 0.72em;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #806040;
+            margin-bottom: 4px;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 700px) {
+            .journey-layer-strip {
+                gap: 3px;
+            }
+
+            .journey-layer-pip .pip-dot {
+                width: 27px;
+                height: 27px;
+                font-size: 0.72em;
+            }
+
+            .pdu-wrapper {
+                padding: 10px 10px 10px 10px;
+            }
+
+            .pdu-wrapper-fields {
+                font-size: 0.72em;
+            }
+
+            .journey-header-fields {
+                font-size: 0.76em;
+            }
+        }
+
+        /* ===================== TAB 4: QUIZ ===================== */
+        .quiz-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .quiz-progress {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .quiz-progress-bar {
+            flex: 1;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin: 0 20px;
+            overflow: hidden;
+        }
+
+        .quiz-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 10px;
+            transition: width 0.3s;
+        }
+
+        .quiz-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            padding: 40px;
+        }
+
+        .quiz-question {
+            font-size: 1.4em;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+
+        .quiz-options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .quiz-option {
+            padding: 18px 25px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .quiz-option:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(102, 126, 234, 0.5);
+        }
+
+        .quiz-option.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.2);
+        }
+
+        .quiz-option.correct {
+            border-color: #2ecc71;
+            background: rgba(46, 204, 113, 0.2);
+        }
+
+        .quiz-option.incorrect {
+            border-color: #e74c3c;
+            background: rgba(231, 76, 60, 0.2);
+        }
+
+        .option-letter {
+            width: 35px;
+            height: 35px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .quiz-feedback {
+            margin-top: 25px;
+            padding: 20px;
+            border-radius: 12px;
+            display: none;
+        }
+
+        .quiz-feedback.correct {
+            background: rgba(46, 204, 113, 0.2);
+            border: 1px solid rgba(46, 204, 113, 0.5);
+            display: block;
+        }
+
+        .quiz-feedback.incorrect {
+            background: rgba(231, 76, 60, 0.2);
+            border: 1px solid rgba(231, 76, 60, 0.5);
+            display: block;
+        }
+
+        .quiz-nav {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+
+        .quiz-score {
+            text-align: center;
+            font-size: 1.2em;
+        }
+
+        .quiz-score .score-big {
+            font-size: 4em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Responsive */
+        @media (max-width: 1000px) {
+            .encap-container {
+                grid-template-columns: 1fr;
+            }
+
+            .side-stack {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .stack-layer {
+                padding: 10px 15px;
+            }
+
+            .explorer-container {
+                grid-template-columns: 1fr;
+            }
+
+            .layer-selector {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .layer-select-btn {
+                padding: 10px 15px;
+            }
+
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .complete-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .complete-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(34, 197, 94, 0.4);
+        }
+
+        /* Guided Tutorial Overlay */
+        .tutorial-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); z-index: 9000; display: none; }
+        .tutorial-overlay.active { display: block; }
+        .tutorial-beacon { position: absolute; width: 24px; height: 24px; border-radius: 50%; background: #7c6dd8; z-index: 9002; cursor: pointer; animation: beacon-pulse 1.5s ease-in-out infinite; }
+        .tutorial-beacon::after { content: ''; position: absolute; inset: -8px; border-radius: 50%; border: 2px solid #7c6dd8; animation: beacon-ring 1.5s ease-in-out infinite; }
+        @keyframes beacon-pulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(124, 109, 216, 0.6); } 50% { transform: scale(1.2); box-shadow: 0 0 20px 8px rgba(124, 109, 216, 0.3); } }
+        @keyframes beacon-ring { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.8); opacity: 0; } }
+        .tutorial-tooltip { position: absolute; background: #0a0a14; border: 2px solid #7c6dd8; border-radius: 12px; padding: 16px 20px; max-width: 320px; z-index: 9003; color: #e2e8f0; box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
+        .tutorial-tooltip .tt-step { font-size: 0.7rem; color: #7c6dd8; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+        .tutorial-tooltip .tt-title { font-size: 1rem; font-weight: 700; color: #f1f5f9; margin-bottom: 8px; }
+        .tutorial-tooltip .tt-body { font-size: 0.85rem; color: #94a3b8; line-height: 1.5; margin-bottom: 12px; }
+        .tutorial-tooltip .tt-actions { display: flex; gap: 8px; justify-content: flex-end; }
+        .tutorial-tooltip .tt-btn { padding: 6px 16px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+        .tutorial-tooltip .tt-btn-next { background: #7c6dd8; color: #fff; }
+        .tutorial-tooltip .tt-btn-next:hover { background: #6a5bc7; }
+        .tutorial-tooltip .tt-btn-skip { background: transparent; color: #64748b; border: 1px solid rgba(255,255,255,0.1); }
+        .tutorial-tooltip .tt-btn-skip:hover { color: #94a3b8; }
+        .tutorial-highlight { position: relative; z-index: 9001 !important; box-shadow: 0 0 0 4px rgba(124, 109, 216, 0.5), 0 0 20px rgba(124, 109, 216, 0.3) !important; border-radius: 8px; }
+        .tutorial-replay { background: rgba(124,109,216,0.15); border: 1px solid rgba(124,109,216,0.4); color: #7c6dd8; padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; animation: tutorial-flash 2s ease-in-out infinite; letter-spacing: 0.02em; }
+        .tutorial-replay:hover { background: rgba(124,109,216,0.3); animation: none; }
+        @keyframes tutorial-flash { 0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(124,109,216,0); } 50% { opacity: 0.7; box-shadow: 0 0 12px 4px rgba(124,109,216,0.3); } }
+    </style>
+</head>
+<body>
+<div class="tutorial-overlay" id="tutorialOverlay"></div>
+<div class="tutorial-beacon" id="tutorialBeacon" style="display:none;"></div>
+<div class="tutorial-tooltip" id="tutorialTooltip" style="display:none;"></div>
+
+    <div class="header">
+        <h1>OSI Model <span>Visualizer</span></h1>
+        <a href="../index.html" class="back-btn">Back to Network+ Hub</a>
+    </div>
+
+    <nav class="tab-nav">
+        <button class="tab-btn active" onclick="showTab('encapsulation')">Encapsulation Animation</button>
+        <button class="tab-btn" onclick="showTab('explorer')">Layer Explorer</button>
+        <button class="tab-btn" onclick="showTab('journey')">PDU Journey</button>
+        <button class="tutorial-replay" id="tutorialReplay" onclick="startTutorial()" style="display:none;">Tutorial</button>
+    </nav>
+
+    <!-- TAB 1: ENCAPSULATION ANIMATION -->
+    <div id="encapsulation" class="tab-content active">
+        <div class="encap-container">
+            <!-- Sender Stack -->
+            <div class="side-stack">
+                <h2 style="text-align: center; margin-bottom: 15px; color: #667eea;">Sender</h2>
+                <div class="stack-layer layer-7-color" data-layer="7">
+                    <span>Application</span>
+                    <span class="layer-num">L7</span>
+                </div>
+                <div class="stack-layer layer-6-color" data-layer="6">
+                    <span>Presentation</span>
+                    <span class="layer-num">L6</span>
+                </div>
+                <div class="stack-layer layer-5-color" data-layer="5">
+                    <span>Session</span>
+                    <span class="layer-num">L5</span>
+                </div>
+                <div class="stack-layer layer-4-color" data-layer="4">
+                    <span>Transport</span>
+                    <span class="layer-num">L4</span>
+                </div>
+                <div class="stack-layer layer-3-color" data-layer="3">
+                    <span>Network</span>
+                    <span class="layer-num">L3</span>
+                </div>
+                <div class="stack-layer layer-2-color" data-layer="2">
+                    <span>Data Link</span>
+                    <span class="layer-num">L2</span>
+                </div>
+                <div class="stack-layer layer-1-color" data-layer="1">
+                    <span>Physical</span>
+                    <span class="layer-num">L1</span>
+                </div>
+            </div>
+
+            <!-- Animation Area -->
+            <div class="animation-area">
+                <h3 class="animation-title" id="encapTitle">Click "Start Encapsulation" to begin</h3>
+
+                <div class="data-flow" id="dataFlow">
+                    <!-- Data packets will be added here dynamically -->
+                </div>
+
+                <div class="encap-controls">
+                    <button class="encap-btn" id="startBtn" onclick="startEncapsulation()">Start Encapsulation</button>
+                    <button class="encap-btn" id="nextStepBtn" onclick="nextEncapStep()" disabled>Next Step</button>
+                    <button class="encap-btn" onclick="resetEncapsulation()">Reset</button>
+                </div>
+
+                <div class="info-panel" id="encapInfo">
+                    <h3>How Encapsulation Works</h3>
+                    <p>Data starts at the Application layer (L7) and travels down through each layer. At each layer, a header (and sometimes a trailer) is added to the data. This process is called <strong>encapsulation</strong>.</p>
+                </div>
+            </div>
+
+            <!-- Receiver Stack -->
+            <div class="side-stack">
+                <h3 style="text-align: center; margin-bottom: 15px; color: #667eea;">Receiver</h3>
+                <div class="stack-layer layer-7-color" data-layer="7">
+                    <span class="layer-num">L7</span>
+                    <span>Application</span>
+                </div>
+                <div class="stack-layer layer-6-color" data-layer="6">
+                    <span class="layer-num">L6</span>
+                    <span>Presentation</span>
+                </div>
+                <div class="stack-layer layer-5-color" data-layer="5">
+                    <span class="layer-num">L5</span>
+                    <span>Session</span>
+                </div>
+                <div class="stack-layer layer-4-color" data-layer="4">
+                    <span class="layer-num">L4</span>
+                    <span>Transport</span>
+                </div>
+                <div class="stack-layer layer-3-color" data-layer="3">
+                    <span class="layer-num">L3</span>
+                    <span>Network</span>
+                </div>
+                <div class="stack-layer layer-2-color" data-layer="2">
+                    <span class="layer-num">L2</span>
+                    <span>Data Link</span>
+                </div>
+                <div class="stack-layer layer-1-color" data-layer="1">
+                    <span class="layer-num">L1</span>
+                    <span>Physical</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: LAYER EXPLORER -->
+    <div id="explorer" class="tab-content">
+        <div class="explorer-container">
+            <div class="layer-selector">
+                <div class="layer-select-btn layer-7-color selected" onclick="selectLayer(7)">
+                    <span>Layer 7</span>
+                    <span>Application</span>
+                </div>
+                <div class="layer-select-btn layer-6-color" onclick="selectLayer(6)">
+                    <span>Layer 6</span>
+                    <span>Presentation</span>
+                </div>
+                <div class="layer-select-btn layer-5-color" onclick="selectLayer(5)">
+                    <span>Layer 5</span>
+                    <span>Session</span>
+                </div>
+                <div class="layer-select-btn layer-4-color" onclick="selectLayer(4)">
+                    <span>Layer 4</span>
+                    <span>Transport</span>
+                </div>
+                <div class="layer-select-btn layer-3-color" onclick="selectLayer(3)">
+                    <span>Layer 3</span>
+                    <span>Network</span>
+                </div>
+                <div class="layer-select-btn layer-2-color" onclick="selectLayer(2)">
+                    <span>Layer 2</span>
+                    <span>Data Link</span>
+                </div>
+                <div class="layer-select-btn layer-1-color" onclick="selectLayer(1)">
+                    <span>Layer 1</span>
+                    <span>Physical</span>
+                </div>
+            </div>
+
+            <div class="layer-details" id="layerDetails">
+                <!-- Content populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 3: PDU JOURNEY -->
+    <div id="journey" class="tab-content">
+        <div class="journey-container">
+
+            <!-- Scenario picker -->
+            <div class="journey-scenario-bar">
+                <span>Scenario:</span>
+                <button class="journey-scenario-btn active" id="scenario-http" onclick="selectScenario('http')">Web Request (HTTP)</button>
+                <button class="journey-scenario-btn" id="scenario-smtp" onclick="selectScenario('smtp')">Email (SMTP)</button>
+                <button class="journey-scenario-btn" id="scenario-icmp" onclick="selectScenario('icmp')">Ping (ICMP)</button>
+            </div>
+
+            <!-- Layer pip strip + controls row -->
+            <div style="background: rgba(0,0,0,0.3); border-radius: 16px; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px;">
+                <div class="journey-layer-strip" id="journeyLayerStrip">
+                    <!-- Built by JS -->
+                </div>
+                <div class="journey-controls-row">
+                    <div class="journey-step-counter" id="journeyStepCounter">
+                        <strong>Layer 7</strong> of 7 — Start at the Application layer and work down
+                    </div>
+                    <div class="journey-btn-group">
+                        <button class="encap-btn" id="journeyPrevBtn" onclick="prevLayer()" disabled>Previous</button>
+                        <button class="encap-btn" id="journeyNextBtn" onclick="nextLayer()">Next Layer</button>
+                        <button class="encap-btn" onclick="resetJourney()">Reset</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hero: nested PDU visualization panel -->
+            <div class="journey-pdu-panel">
+                <div class="journey-pdu-label">PDU Encapsulation — live structure at current layer</div>
+
+                <!-- Nested wrappers built by JS; shown for layers 7-2 -->
+                <div id="journeyNestRoot" class="journey-nest-root">
+                    <!-- Built by JS -->
+                </div>
+
+                <!-- Bit stream — shown only at Layer 1 -->
+                <div id="journeyPduBits" class="journey-pdu-bits" style="display:none;"></div>
+
+                <div class="journey-pdu-name" id="journeyPduName">PDU: <strong>Data</strong></div>
+            </div>
+
+            <!-- Info panel -->
+            <div class="journey-info-panel" id="journeyInfoPanel">
+                <div class="journey-info-header">
+                    <div class="journey-info-layer-num" id="journeyInfoLayerNum">7</div>
+                    <div class="journey-info-layer-name" id="journeyInfoLayerName">Application</div>
+                </div>
+                <div id="journeyInfoBody">
+                    <!-- Built by JS -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+
+    <script>
+        // ===================== LAYER DATA =====================
+        const layerData = {
+            7: {
+                name: "Application",
+                description: "Interface between network services and user applications",
+                pdu: "Data",
+                color: "#e74c3c",
+                protocols: ["HTTP/HTTPS (80/443)", "FTP (20/21)", "SMTP (25)", "DNS (53)", "SSH (22)", "Telnet (23)", "POP3 (110)", "IMAP (143)"],
+                devices: ["Proxy Server", "Application Firewall"],
+                functions: ["User interface to network", "Network services (email, web)", "Data representation for apps"],
+                analogy: "Writing the actual letter - the content you want to send"
+            },
+            6: {
+                name: "Presentation",
+                description: "Data formatting, encryption, and compression",
+                pdu: "Data",
+                color: "#e67e22",
+                protocols: ["SSL/TLS", "JPEG", "GIF", "PNG", "MPEG", "ASCII", "EBCDIC", "UTF-8"],
+                devices: ["Encryption devices"],
+                functions: ["Data encryption/decryption", "Data compression", "Character code translation", "Format conversion"],
+                analogy: "Translating your letter into a language the recipient understands"
+            },
+            5: {
+                name: "Session",
+                description: "Manages sessions between applications",
+                pdu: "Data",
+                color: "#f1c40f",
+                protocols: ["NetBIOS", "RPC", "PPTP", "SQL Sessions", "NFS"],
+                devices: ["Session managers"],
+                functions: ["Session establishment", "Session maintenance", "Session termination", "Checkpointing", "Recovery"],
+                analogy: "Dialing the phone number and keeping the line open during the conversation"
+            },
+            4: {
+                name: "Transport",
+                description: "End-to-end delivery with reliability and flow control",
+                pdu: "Segment",
+                color: "#2ecc71",
+                protocols: ["TCP (Reliable)", "UDP (Fast)", "SCTP"],
+                devices: ["Load Balancer", "Firewall (L4)"],
+                functions: ["Segmentation/reassembly", "Flow control", "Error recovery", "Port addressing", "Multiplexing"],
+                analogy: "Choosing between certified mail (TCP) or regular mail (UDP)"
+            },
+            3: {
+                name: "Network",
+                description: "Logical addressing and routing between networks",
+                pdu: "Packet",
+                color: "#3498db",
+                protocols: ["IPv4", "IPv6", "ICMP", "OSPF", "EIGRP", "BGP", "RIP"],
+                devices: ["Router", "Layer 3 Switch", "Firewall"],
+                functions: ["Logical addressing (IP)", "Routing", "Path determination", "Packet forwarding"],
+                analogy: "Adding the street address - where does this letter need to go?"
+            },
+            2: {
+                name: "Data Link",
+                description: "Node-to-node delivery on the same network",
+                pdu: "Frame",
+                color: "#9b59b6",
+                protocols: ["Ethernet (802.3)", "WiFi (802.11)", "PPP", "HDLC", "ARP"],
+                devices: ["Switch", "Bridge", "NIC", "Wireless AP"],
+                functions: ["Physical addressing (MAC)", "Framing", "Error detection (CRC)", "Media access control"],
+                analogy: "Putting the letter in an envelope with the local carrier's routing info"
+            },
+            1: {
+                name: "Physical",
+                description: "Transmission of raw bits over physical medium",
+                pdu: "Bits",
+                color: "#34495e",
+                protocols: ["Ethernet cables", "Fiber optics", "Wireless signals", "RS-232", "DSL"],
+                devices: ["Hub", "Repeater", "Cables", "NIC (physical)", "Modem"],
+                functions: ["Bit transmission", "Signal encoding", "Physical topology", "Data rate", "Synchronization"],
+                analogy: "The actual truck/plane carrying your letter from place to place"
+            }
+        };
+
+        // ===================== TAB NAVIGATION =====================
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // ===================== ENCAPSULATION ANIMATION =====================
+        let encapStep = 0;
+        const encapSteps = [
+            {
+                layer: 7,
+                title: "Layer 7: Application Data Created",
+                html: '<div class="packet-segment packet-data"><img src="/assets/images/icons/icon-email.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> DATA</div>',
+                info: "<h3>Layer 7: Application</h3><p>Your application (email client, web browser) creates the data. For example, you compose an email or request a webpage. The data is formatted according to the application protocol (SMTP, HTTP).</p>"
+            },
+            {
+                layer: 6,
+                title: "Layer 6: Data Formatted & Encrypted",
+                html: '<div class="packet-segment packet-data"><img src="/assets/images/icons/icon-email.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> DATA</div>',
+                info: "<h3>Layer 6: Presentation</h3><p>The data may be encrypted (SSL/TLS), compressed, or converted to a standard format. If you're using HTTPS, your data is now encrypted!</p>"
+            },
+            {
+                layer: 5,
+                title: "Layer 5: Session Established",
+                html: '<div class="packet-segment packet-data"><img src="/assets/images/icons/icon-email.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> DATA</div>',
+                info: "<h3>Layer 5: Session</h3><p>A session is established between your computer and the destination. This maintains the conversation and handles checkpointing for recovery.</p>"
+            },
+            {
+                layer: 4,
+                title: "Layer 4: TCP Header Added → Segment",
+                html: '<div class="packet-segment" style="background: #2ecc71;">TCP</div><div class="packet-segment packet-data"><img src="/assets/images/icons/icon-email.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> DATA</div>',
+                info: "<h3>Layer 4: Transport</h3><p>TCP adds a header with source port (random), destination port (25 for SMTP, 80 for HTTP), sequence numbers, and acknowledgment fields. Data + TCP Header = <strong>Segment</strong>.</p>"
+            },
+            {
+                layer: 3,
+                title: "Layer 3: IP Header Added → Packet",
+                html: '<div class="packet-segment" style="background: #3498db;">IP</div><div class="packet-segment" style="background: #2ecc71;">TCP</div><div class="packet-segment packet-data"><img src="/assets/images/icons/icon-email.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> DATA</div>',
+                info: "<h3>Layer 3: Network</h3><p>IP header is added with source IP address (your computer) and destination IP address (the server). Segment + IP Header = <strong>Packet</strong>.</p>"
+            },
+            {
+                layer: 2,
+                title: "Layer 2: Frame Header & Trailer Added → Frame",
+                html: '<div class="packet-segment" style="background: #9b59b6;">MAC</div><div class="packet-segment" style="background: #3498db;">IP</div><div class="packet-segment" style="background: #2ecc71;">TCP</div><div class="packet-segment packet-data"><img src="/assets/images/icons/icon-email.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> DATA</div><div class="packet-segment" style="background: #8e44ad;">FCS</div>',
+                info: "<h3>Layer 2: Data Link</h3><p>Ethernet frame header (source & destination MAC addresses) and trailer (FCS for error checking) are added. Packet + Frame Header + FCS = <strong>Frame</strong>.</p>"
+            },
+            {
+                layer: 1,
+                title: "Layer 1: Converted to Bits → Transmitted!",
+                html: '<div class="packet-segment" style="background: #34495e; font-family: monospace;">10110100 10101010 11001100...</div>',
+                info: "<h3>Layer 1: Physical</h3><p>The frame is converted to electrical signals (copper), light pulses (fiber), or radio waves (wireless) and transmitted over the physical medium. The bits travel to the next hop!</p>"
+            }
+        ];
+
+        function startEncapsulation() {
+            encapStep = 0;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('nextStepBtn').disabled = false;
+            document.getElementById('dataFlow').innerHTML = '';
+            updateEncapDisplay();
+        }
+
+        function nextEncapStep() {
+            encapStep++;
+            if (encapStep >= encapSteps.length) {
+                document.getElementById('nextStepBtn').disabled = true;
+                document.getElementById('encapTitle').textContent = "Encapsulation Complete! Data is now traveling over the network.";
+                return;
+            }
+            updateEncapDisplay();
+        }
+
+        function updateEncapDisplay() {
+            const step = encapSteps[encapStep];
+
+            // Update title
+            document.getElementById('encapTitle').textContent = step.title;
+
+            // Update info panel
+            document.getElementById('encapInfo').innerHTML = step.info;
+
+            // Add new packet visualization
+            const dataFlow = document.getElementById('dataFlow');
+            const packetDiv = document.createElement('div');
+            packetDiv.className = 'data-packet';
+            packetDiv.innerHTML = step.html;
+            dataFlow.innerHTML = '';
+            dataFlow.appendChild(packetDiv);
+
+            // Animate in
+            setTimeout(() => packetDiv.classList.add('visible'), 50);
+
+            // Highlight active layer
+            document.querySelectorAll('.stack-layer').forEach(layer => {
+                layer.classList.remove('active');
+                if (parseInt(layer.dataset.layer) === step.layer) {
+                    layer.classList.add('active');
+                }
+            });
+        }
+
+        function resetEncapsulation() {
+            encapStep = 0;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('nextStepBtn').disabled = true;
+            document.getElementById('dataFlow').innerHTML = '';
+            document.getElementById('encapTitle').textContent = 'Click "Start Encapsulation" to begin';
+            document.getElementById('encapInfo').innerHTML = '<h3>How Encapsulation Works</h3><p>Data starts at the Application layer (L7) and travels down through each layer. At each layer, a header (and sometimes a trailer) is added to the data. This process is called <strong>encapsulation</strong>.</p>';
+            document.querySelectorAll('.stack-layer').forEach(layer => layer.classList.remove('active'));
+        }
+
+        // ===================== LAYER EXPLORER =====================
+        function selectLayer(layerNum) {
+            const data = layerData[layerNum];
+
+            // Update button selection
+            document.querySelectorAll('.layer-select-btn').forEach(btn => btn.classList.remove('selected'));
+            document.querySelectorAll('.layer-select-btn')[7 - layerNum].classList.add('selected');
+
+            // Build details HTML
+            const html = `
+                <div class="layer-header">
+                    <div class="layer-icon layer-${layerNum}-color" style="color: white;">${layerNum}</div>
+                    <div class="layer-title">
+                        <h2>Layer ${layerNum}: ${data.name}</h2>
+                        <p>${data.description}</p>
+                    </div>
+                </div>
+
+                <div class="pdu-badge" style="background: ${data.color}; color: white;">
+                    PDU: ${data.pdu}
+                </div>
+
+                <div class="detail-grid">
+                    <div class="detail-card">
+                        <h4>Protocols</h4>
+                        <ul>
+                            ${data.protocols.map(p => `<li><span class="protocol-tag">${p}</span></li>`).join('')}
+                        </ul>
+                    </div>
+
+                    <div class="detail-card">
+                        <h4>Devices</h4>
+                        <ul>
+                            ${data.devices.map(d => `<li><span class="device-icon"><img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span> ${d}</li>`).join('')}
+                        </ul>
+                    </div>
+
+                    <div class="detail-card">
+                        <h4>Key Functions</h4>
+                        <ul>
+                            ${data.functions.map(f => `<li>• ${f}</li>`).join('')}
+                        </ul>
+                    </div>
+
+                    <div class="detail-card">
+                        <h4>Real-World Analogy</h4>
+                        <p style="color: #b0b0b0; line-height: 1.6;">${data.analogy}</p>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('layerDetails').innerHTML = html;
+        }
+
+        // ===================== PDU JOURNEY =====================
+
+        // Muted layer color palette — shared by pip strip, wrappers, and info panel
+        const JOURNEY_COLORS = {
+            7: '#dc4a4a',
+            6: '#d4783a',
+            5: '#c9a83a',
+            4: '#3ab577',
+            3: '#3a8fd4',
+            2: '#8a5cb5',
+            1: '#5a6a7a'
+        };
+
+        const LAYER_NAMES = {
+            7: 'Application',
+            6: 'Presentation',
+            5: 'Session',
+            4: 'Transport',
+            3: 'Network',
+            2: 'Data Link',
+            1: 'Physical'
+        };
+
+        // Per-scenario, per-layer data.
+        // Each layer has:
+        //   whatHappens  — string[] bullet points
+        //   headerFields — string[] of "Key: Value" lines shown in monospace
+        //   headerSummary — one-line description for the info panel "Header added" row
+        //   pduName      — name of the PDU at this layer
+        //   sizeNote     — brief byte impact note
+        //   analogy      — one-liner
+        //   na           — (optional) true when the layer is not used by this scenario
+        const JOURNEY_SCENARIOS = {
+            http: {
+                label: 'Web Request (HTTP)',
+                layers: {
+                    7: {
+                        whatHappens: [
+                            'Your browser creates an HTTP GET request targeting www.example.com.',
+                            'DNS resolves the hostname to 93.184.216.34 before this request is sent.',
+                            'Request headers specify the host, accepted content types, and user agent.'
+                        ],
+                        headerFields: [
+                            'GET /index.html HTTP/1.1',
+                            'Host: www.example.com',
+                            'User-Agent: Mozilla/5.0',
+                            'Accept: text/html,application/xhtml+xml',
+                            'Accept-Encoding: gzip, deflate, br',
+                            'Connection: keep-alive'
+                        ],
+                        headerSummary: 'HTTP request line + Host, User-Agent, Accept headers',
+                        pduName: 'Data',
+                        sizeNote: 'HTTP headers add roughly 300-800 bytes. Payload is your request body.',
+                        analogy: 'Writing the letter — the actual content you want to send'
+                    },
+                    6: {
+                        whatHappens: [
+                            'TLS 1.3 encrypts the HTTP data using AEAD cipher AES-256-GCM.',
+                            'A TLS record header is prepended with content type, version, and length.',
+                            'Character encoding is confirmed as UTF-8 before encryption.'
+                        ],
+                        headerFields: [
+                            'Content Type: 0x17 (Application Data)',
+                            'Protocol Version: TLS 1.3 (0x0304)',
+                            'Cipher: AES-256-GCM',
+                            'Length: [encrypted payload length]'
+                        ],
+                        headerSummary: 'TLS 1.3 record header — Content Type, Version, Length (5 bytes)',
+                        pduName: 'Data',
+                        sizeNote: 'TLS record header adds 5 bytes. Authentication tag adds 16 bytes.',
+                        analogy: 'Sealing the letter so only the recipient can read it — encryption applied here'
+                    },
+                    5: {
+                        whatHappens: [
+                            'A TCP session is established (or reused via keep-alive) with the web server.',
+                            'Session tracking ensures the connection stays alive through the full request-response cycle.',
+                            'In practice, session management for HTTP is handled within TCP — no distinct L5 header.'
+                        ],
+                        headerFields: [
+                            'Session: TCP connection (keep-alive)',
+                            'Session ID: tracked by TCP state machine',
+                            'Status: ESTABLISHED'
+                        ],
+                        headerSummary: 'Session tracked in TCP state — no distinct L5 header added',
+                        pduName: 'Data',
+                        sizeNote: 'No additional bytes from a distinct L5 header.',
+                        analogy: 'Keeping the phone line open during the entire conversation'
+                    },
+                    4: {
+                        whatHappens: [
+                            'TCP segments the data and assigns source port 49201 and destination port 443.',
+                            'Sequence numbers allow out-of-order segments to be reassembled at the receiver.',
+                            'Window size and ACK fields provide reliable, flow-controlled delivery.'
+                        ],
+                        headerFields: [
+                            'Protocol:   TCP',
+                            'Src Port:   49201',
+                            'Dst Port:   443 (HTTPS)',
+                            'Seq:        1001',
+                            'Ack:        0',
+                            'Flags:      SYN',
+                            'Window:     64240',
+                            'Checksum:   0xA4B3'
+                        ],
+                        headerSummary: 'TCP header — Src/Dst ports, Seq, Ack, Flags, Window (20 bytes min)',
+                        pduName: 'Segment',
+                        sizeNote: 'TCP header adds 20 bytes (minimum). Options field may add more.',
+                        analogy: 'Numbering every page of your letter so they arrive and reassemble in order'
+                    },
+                    3: {
+                        whatHappens: [
+                            'IP header is prepended with source IP 192.168.1.10 and destination IP 93.184.216.34.',
+                            'TTL is set to 128; Protocol field is set to 6 (TCP).',
+                            'The router reads the destination IP to make a forwarding decision at each hop.'
+                        ],
+                        headerFields: [
+                            'Version:    IPv4',
+                            'Src IP:     192.168.1.10',
+                            'Dst IP:     93.184.216.34',
+                            'TTL:        128',
+                            'Protocol:   6 (TCP)',
+                            'Checksum:   0x1C4A',
+                            'IHL:        20 bytes'
+                        ],
+                        headerSummary: 'IPv4 header — Src/Dst IP, TTL, Protocol, Checksum (20 bytes)',
+                        pduName: 'Packet',
+                        sizeNote: 'IPv4 header adds 20 bytes. Total size now growing to ~600+ bytes.',
+                        analogy: 'Writing the from-address and to-address on the outside of the envelope'
+                    },
+                    2: {
+                        whatHappens: [
+                            'Ethernet frame is created with your NIC MAC as source and the gateway MAC as destination.',
+                            'ARP resolved the gateway MAC if it was not already cached.',
+                            'FCS (CRC-32) trailer is appended for error detection on this local segment.'
+                        ],
+                        headerFields: [
+                            'Dst MAC:    00:11:22:33:44:55 (gateway)',
+                            'Src MAC:    AA:BB:CC:11:22:33 (your NIC)',
+                            'EtherType:  0x0800 (IPv4)',
+                            '--- (payload) ---',
+                            'FCS:        0xA1B2C3D4 (CRC-32)'
+                        ],
+                        headerSummary: 'Ethernet header (14 bytes) + FCS trailer (4 bytes)',
+                        pduName: 'Frame',
+                        sizeNote: 'Ethernet adds 18 bytes total (14 header + 4 FCS).',
+                        analogy: 'Putting the envelope in the local carrier\'s bag — MAC addressing is only valid on this segment'
+                    },
+                    1: {
+                        whatHappens: [
+                            'The frame is serialized and converted to electrical signals on Cat6 copper.',
+                            '4B/5B encoding is used on Gigabit Ethernet; signals travel at 1 Gbps.',
+                            'The NIC manages bit timing, synchronization, and the physical medium.'
+                        ],
+                        headerFields: [
+                            '10110100 11010010 01101001',
+                            '11001010 00110101 11100001',
+                            '01011010 00101110 10011101',
+                            '11010110 00111000 10100011',
+                            '...',
+                            'Medium:     Cat6 Copper',
+                            'Encoding:   4B/5B',
+                            'Speed:      1 Gbps'
+                        ],
+                        headerSummary: 'No header — frame serialized to raw bits on the physical medium',
+                        pduName: 'Bits',
+                        sizeNote: 'No added bytes — the complete frame is transmitted as a bit stream.',
+                        analogy: 'The truck carrying the mail — the physical medium moving electrons from point A to point B'
+                    }
+                }
+            },
+            smtp: {
+                label: 'Email (SMTP)',
+                layers: {
+                    7: {
+                        whatHappens: [
+                            'Your email client initiates an SMTP transaction to send Q3 Report.',
+                            'SMTP command sequence: EHLO, MAIL FROM, RCPT TO, DATA, QUIT.',
+                            'Message includes RFC 5322 headers: From, To, Subject, Date, MIME-Version.'
+                        ],
+                        headerFields: [
+                            'MAIL FROM: <user@company.com>',
+                            'RCPT TO:   <boss@company.com>',
+                            'Subject:   Q3 Report attached',
+                            'MIME-Version: 1.0',
+                            'Content-Type: multipart/mixed',
+                            'Date: Sat, 28 Mar 2026 09:00:00 +0000'
+                        ],
+                        headerSummary: 'SMTP envelope commands + RFC 5322 message headers',
+                        pduName: 'Data',
+                        sizeNote: 'SMTP headers add ~200-600 bytes depending on message metadata.',
+                        analogy: 'Writing the letter and filling out the postal form at the counter'
+                    },
+                    6: {
+                        whatHappens: [
+                            'STARTTLS upgrades the connection to TLS encryption on port 587.',
+                            'MIME encoding handles the attachment: Base64 content-transfer-encoding.',
+                            'UTF-8 encoding is applied for internationalized sender and recipient addresses.'
+                        ],
+                        headerFields: [
+                            'TLS Version:          TLS 1.3',
+                            'Cipher:               AES-256-GCM',
+                            'Content-Type:         multipart/mixed',
+                            'Content-Transfer:     base64',
+                            'Charset:              UTF-8'
+                        ],
+                        headerSummary: 'TLS 1.3 record + MIME Content-Type, Content-Transfer-Encoding',
+                        pduName: 'Data',
+                        sizeNote: 'TLS adds ~21 bytes. Base64 encoding expands attachment size by ~33%.',
+                        analogy: 'Sealing the letter in a tamper-evident envelope before handing it to the carrier'
+                    },
+                    5: {
+                        whatHappens: [
+                            'SMTP session established: client sends EHLO, server responds with capabilities.',
+                            'Session maintained through the full MAIL FROM -> RCPT TO -> DATA exchange.',
+                            'Session terminated with QUIT once the server acknowledges message receipt.'
+                        ],
+                        headerFields: [
+                            'Session:    SMTP EHLO handshake',
+                            'State:      ESTABLISHED',
+                            'Method:     TCP connection via port 587',
+                            'Phase:      DATA in progress'
+                        ],
+                        headerSummary: 'SMTP session state tracked in TCP — no distinct L5 header',
+                        pduName: 'Data',
+                        sizeNote: 'No distinct L5 bytes added.',
+                        analogy: 'The greeting, transaction, and farewell at the post office counter'
+                    },
+                    4: {
+                        whatHappens: [
+                            'TCP segments the SMTP DATA command and message body.',
+                            'Source port 52100, destination port 587 (SMTP submission).',
+                            'ACK flag set — this is an established, acknowledged TCP session.'
+                        ],
+                        headerFields: [
+                            'Protocol:   TCP',
+                            'Src Port:   52100',
+                            'Dst Port:   587 (submission)',
+                            'Seq:        3001',
+                            'Ack:        501',
+                            'Flags:      ACK',
+                            'Window:     65535',
+                            'Checksum:   0xB3C4'
+                        ],
+                        headerSummary: 'TCP header — ports 52100:587, Seq/Ack, ACK flag (20 bytes)',
+                        pduName: 'Segment',
+                        sizeNote: 'TCP header adds 20 bytes minimum.',
+                        analogy: 'Numbered pages so the mail room delivers them in the correct sequence'
+                    },
+                    3: {
+                        whatHappens: [
+                            'IP header: source 10.0.1.50 (workstation), destination 10.0.1.20 (mail server).',
+                            'TTL set to 64; Protocol field set to 6 (TCP).',
+                            'Both hosts on the same /24 subnet — packet may not leave the local network.'
+                        ],
+                        headerFields: [
+                            'Version:    IPv4',
+                            'Src IP:     10.0.1.50',
+                            'Dst IP:     10.0.1.20',
+                            'TTL:        64',
+                            'Protocol:   6 (TCP)',
+                            'Checksum:   0x3F8A',
+                            'IHL:        20 bytes'
+                        ],
+                        headerSummary: 'IPv4 header — 10.0.1.50 to 10.0.1.20, TTL 64 (20 bytes)',
+                        pduName: 'Packet',
+                        sizeNote: 'IPv4 header adds 20 bytes.',
+                        analogy: 'The postal sorting code — tells the network which city to route toward'
+                    },
+                    2: {
+                        whatHappens: [
+                            'Ethernet frame: source is workstation NIC, destination is the mail server MAC.',
+                            'Since both hosts are on the same subnet, the destination MAC is the server itself.',
+                            'FCS appended for error detection via CRC-32.'
+                        ],
+                        headerFields: [
+                            'Dst MAC:    BB:CC:DD:22:33:44 (mail server)',
+                            'Src MAC:    AA:BB:CC:11:22:33 (workstation)',
+                            'EtherType:  0x0800 (IPv4)',
+                            '--- (payload) ---',
+                            'FCS:        0xD4E5F6A7 (CRC-32)'
+                        ],
+                        headerSummary: 'Ethernet header (14 bytes) + FCS trailer (4 bytes)',
+                        pduName: 'Frame',
+                        sizeNote: 'Ethernet adds 18 bytes total.',
+                        analogy: 'The local carrier\'s route sheet — valid only on the local delivery segment'
+                    },
+                    1: {
+                        whatHappens: [
+                            'Frame converted to bits and transmitted as electrical signals on Cat5e copper.',
+                            '1000BASE-T uses PAM-5 signaling across all four wire pairs at 100 Mbps.',
+                            'Physical layer negotiates speed and duplex with the connected switch.'
+                        ],
+                        headerFields: [
+                            '11010011 10100110 00111001',
+                            '10010101 01100111 00010110',
+                            '01001101 11000010 10110100',
+                            '...',
+                            'Medium:     Cat5e Copper',
+                            'Encoding:   Manchester',
+                            'Speed:      100 Mbps'
+                        ],
+                        headerSummary: 'No header — frame transmitted as electrical signals at 100 Mbps',
+                        pduName: 'Bits',
+                        sizeNote: 'No added bytes — complete frame transmitted as a bit stream.',
+                        analogy: 'The mail van physically moving the letter between sorting facilities'
+                    }
+                }
+            },
+            icmp: {
+                label: 'Ping (ICMP)',
+                layers: {
+                    7: {
+                        na: true,
+                        whatHappens: [
+                            'You run: ping 8.8.8.8 at the command line.',
+                            'The OS generates an ICMP Echo Request — ICMP is a network-layer protocol, not application-layer.',
+                            'No application-layer header is added. The stack begins at Layer 3.'
+                        ],
+                        headerFields: [],
+                        headerSummary: 'N/A — ICMP bypasses the Application layer',
+                        pduName: 'Data',
+                        sizeNote: 'No L7 header. ICMP payload is typically 32-56 bytes of test data.',
+                        analogy: 'Sending a diagnostic signal, not a letter — there is no application content'
+                    },
+                    6: {
+                        na: true,
+                        whatHappens: [
+                            'ICMP ping uses no encryption or compression.',
+                            'No Presentation layer transformation occurs for standard ICMP.',
+                            'Data passes through to Layer 5 unchanged.'
+                        ],
+                        headerFields: [],
+                        headerSummary: 'N/A — no Presentation layer processing for ICMP',
+                        pduName: 'Data',
+                        sizeNote: 'No L6 bytes added.',
+                        analogy: 'A plain postcard with no envelope — no formatting or encoding needed'
+                    },
+                    5: {
+                        na: true,
+                        whatHappens: [
+                            'ICMP is connectionless — no session is established.',
+                            'Each Echo Request and Echo Reply is completely independent.',
+                            'No Session layer activity occurs for ICMP traffic.'
+                        ],
+                        headerFields: [],
+                        headerSummary: 'N/A — ICMP is stateless; no session layer involvement',
+                        pduName: 'Data',
+                        sizeNote: 'No L5 bytes added.',
+                        analogy: 'Knocking on a door with no appointment — no persistent conversation established'
+                    },
+                    4: {
+                        na: true,
+                        whatHappens: [
+                            'ICMP does not use TCP or UDP — it runs directly on top of IP.',
+                            'No Transport layer header is added.',
+                            'The ICMP header (Type, Code, Checksum, ID, Sequence) is embedded directly in the IP payload.'
+                        ],
+                        headerFields: [],
+                        headerSummary: 'N/A — ICMP uses no Transport layer protocol',
+                        pduName: 'Data',
+                        sizeNote: 'No L4 header. ICMP header (8 bytes) is embedded in the IP payload.',
+                        analogy: 'Mailing a single-page note in a stamped envelope — no page numbers needed'
+                    },
+                    3: {
+                        whatHappens: [
+                            'IP header: source 192.168.1.10, destination 8.8.8.8 (Google Public DNS).',
+                            'Protocol field set to 1 (ICMP) — not TCP or UDP.',
+                            'TTL set to 128; decremented at each router on the path to 8.8.8.8.'
+                        ],
+                        headerFields: [
+                            'Version:    IPv4',
+                            'Src IP:     192.168.1.10',
+                            'Dst IP:     8.8.8.8',
+                            'TTL:        128',
+                            'Protocol:   1 (ICMP)',
+                            'Checksum:   0x2C9A',
+                            'ICMP Type:  8 (Echo Request)',
+                            'ICMP Code:  0',
+                            'ICMP ID:    0x1A2B',
+                            'ICMP Seq:   1'
+                        ],
+                        headerSummary: 'IPv4 header (20 bytes) + ICMP Echo Request header (8 bytes)',
+                        pduName: 'Packet',
+                        sizeNote: 'IPv4 header is 20 bytes. ICMP header is 8 bytes. Total ICMP packet: ~76 bytes.',
+                        analogy: 'The destination address — the only addressing ICMP needs to reach its target'
+                    },
+                    2: {
+                        whatHappens: [
+                            'Ethernet frame: source MAC is your NIC, destination MAC is your gateway router.',
+                            'EtherType 0x0800 identifies the payload as IPv4.',
+                            'FCS appended for error detection on the local Ethernet segment.'
+                        ],
+                        headerFields: [
+                            'Dst MAC:    00:11:22:33:44:55 (gateway)',
+                            'Src MAC:    AA:BB:CC:11:22:33 (your NIC)',
+                            'EtherType:  0x0800 (IPv4)',
+                            '--- (payload) ---',
+                            'FCS:        0xF1A2B3C4 (CRC-32)'
+                        ],
+                        headerSummary: 'Ethernet header (14 bytes) + FCS trailer (4 bytes)',
+                        pduName: 'Frame',
+                        sizeNote: 'Ethernet adds 18 bytes. Final frame is ~94 bytes.',
+                        analogy: 'The last-mile delivery label — MAC addressing is only valid on this local segment'
+                    },
+                    1: {
+                        whatHappens: [
+                            'Frame serialized and converted to electrical signals on Cat6 copper.',
+                            'Round-trip time (RTT) is measured from bit transmission to bit reception of the reply.',
+                            'Typical RTT to 8.8.8.8 from a US host is 10-20 milliseconds.'
+                        ],
+                        headerFields: [
+                            '10110100 11010010 01101001',
+                            '11001010 00110101 11100001',
+                            '00110101 11100001 01011010',
+                            '...',
+                            'Medium:     Cat6 Copper',
+                            'Encoding:   4B/5B',
+                            'Speed:      1 Gbps',
+                            'RTT target: 8.8.8.8 ~10-20ms'
+                        ],
+                        headerSummary: 'No header — ~94-byte frame transmitted as bit stream; RTT measured here',
+                        pduName: 'Bits',
+                        sizeNote: 'No added bytes. RTT measures the time for bits to travel and return.',
+                        analogy: 'The speed of the postal service — you are literally measuring physical transit time'
+                    }
+                }
+            }
+        };
+
+        // Journey state
+        let journeyCurrentLayer = 7;
+        let journeyScenario = 'http';
+
+        // ── Build the nested PDU visualization ──────────────────────────────
+        //
+        // The "newest" (outermost) layer wraps all inner layers inside it.
+        // We render from the current layer downward, building nested divs.
+        //
+        // Layer visibility rules:
+        //   L7 (Application):  always the innermost; shows user data block
+        //   L6 (Presentation): wraps L7 — shows TLS/encoding info
+        //   L5 (Session):      wraps L6 — shows session info
+        //   L4 (Transport):    wraps L5 — shows TCP/UDP header fields
+        //   L3 (Network):      wraps L4 — shows IP header fields
+        //   L2 (Data Link):    wraps L3 — shows MAC header + FCS trailer
+        //   L1 (Physical):     replaces entire viz with bit stream display
+        //
+        // For ICMP, layers 7-4 render a grayed-out N/A block instead of fields.
+        //
+        function buildNestedPduViz(layerNum, scenario) {
+            const root = document.getElementById('journeyNestRoot');
+            const bitsDiv = document.getElementById('journeyPduBits');
+            const pduNameEl = document.getElementById('journeyPduName');
+            const scenarioData = JOURNEY_SCENARIOS[scenario];
+
+            root.innerHTML = '';
+
+            if (layerNum === 1) {
+                // Physical layer — show bit stream only
+                root.style.display = 'none';
+                bitsDiv.style.display = 'block';
+                bitsDiv.textContent =
+                    '10110100 11010010 01101001 11001010 00110101 11100001\n' +
+                    '01011010 00101110 10011101 11010110 00111000 10100011\n' +
+                    '01101100 11000101 10110010 01001011 11001001 00110110\n' +
+                    '10101100 01110010 11010001 00101011 11100100 01101010\n' +
+                    '...\n' +
+                    'Medium: Cat6 Copper  |  Encoding: 4B/5B  |  Speed: 1 Gbps';
+                pduNameEl.innerHTML = 'PDU: <strong>Bits</strong>';
+                return;
+            }
+
+            root.style.display = 'flex';
+            bitsDiv.style.display = 'none';
+
+            // Build nested HTML recursively. Layer `layerNum` is outermost (active);
+            // the recursion increments n toward 7 (innermost) then terminates with DATA block.
+            root.innerHTML = buildWrapperHTML(layerNum, layerNum, scenario);
+
+            // Apply the entrance animation to the outermost wrapper (the new one)
+            const outerWrapper = root.querySelector('.pdu-wrapper');
+            if (outerWrapper) {
+                outerWrapper.classList.add('pdu-wrapper-new');
+                // Remove the animation class after it runs so re-renders don't re-play it
+                outerWrapper.addEventListener('animationend', function handler() {
+                    outerWrapper.classList.remove('pdu-wrapper-new');
+                    outerWrapper.removeEventListener('animationend', handler);
+                });
+            }
+
+            // Update PDU name
+            const currentPdu = scenarioData.layers[layerNum].pduName;
+            pduNameEl.innerHTML = 'PDU: <strong>' + currentPdu + '</strong>';
+        }
+
+        // Recursively builds nested PDU wrapper HTML.
+        //
+        // Encapsulation direction: L2 is outermost (wraps everything), L7 is innermost (wraps DATA).
+        // So `n` starts at `activeLayer` (e.g. 2 when at the Data Link step) and increments
+        // toward 7, then terminates with the DATA block.
+        //
+        // Parameters:
+        //   n           — current layer being rendered (outermost call = activeLayer)
+        //   activeLayer — the layer the student has stepped to (controls which wrapper is "new")
+        //   scenario    — 'http' | 'smtp' | 'icmp'
+        //
+        function buildWrapperHTML(n, activeLayer, scenario) {
+            const color = JOURNEY_COLORS[n];
+            const rgb = hexToRgb(color);
+            const layerInfo = JOURNEY_SCENARIOS[scenario].layers[n];
+            const isActive = (n === activeLayer);
+            const isNa = (layerInfo.na === true);
+
+            // Background depth: outermost (n === activeLayer) is darkest; alpha decreases inward.
+            const depthLevel = n - activeLayer;          // 0 = outermost, increases toward L7
+            const bgAlpha = Math.max(0.04, 0.18 - depthLevel * 0.025);
+
+            // Header fields — outermost (active) shows all; inner wrappers abbreviated to 3 lines
+            const isInner = !isActive;
+            let fieldsHtml = '';
+            if (!isNa) {
+                const fields = layerInfo.headerFields;
+                if (fields && fields.length > 0) {
+                    const displayFields = isInner ? fields.slice(0, 3) : fields;
+                    const shortened = isInner && fields.length > 3;
+                    fieldsHtml = '<div class="pdu-wrapper-fields">' +
+                        escapeHtml(displayFields.join('\n')) +
+                        (shortened ? '\n...' : '') +
+                        '</div>';
+                }
+            } else {
+                fieldsHtml = '<div class="pdu-na-block">N/A — ICMP operates directly at Layer 3; this layer is not involved.</div>';
+            }
+
+            // FCS trailer sits at the bottom of the L2 wrapper only
+            const trailerHtml = (n === 2 && !isNa)
+                ? '<div class="pdu-trailer-row">FCS:  0xA1B2C3D4 (CRC-32 error check)</div>'
+                : '';
+
+            // Inner content: recurse toward L7, then terminate with the DATA block
+            let innerHtml = '';
+            if (n === 7) {
+                innerHtml = buildDataBlockHtml(scenario);
+            } else {
+                innerHtml = '<div class="pdu-inner">' + buildWrapperHTML(n + 1, activeLayer, scenario) + '</div>';
+            }
+
+            // N/A layers — compact grayed indicator; still recurse inward
+            if (isNa) {
+                return '<div class="pdu-wrapper" style="border-left-color:' + color + ';background:rgba(' + rgb + ',0.04);">' +
+                    '<div class="pdu-wrapper-header">' +
+                        '<span class="pdu-wrapper-layer-name" style="color:' + color + ';">L' + n + '  ' + LAYER_NAMES[n].toUpperCase() + '</span>' +
+                    '</div>' +
+                    fieldsHtml +
+                    innerHtml +
+                    '</div>';
+            }
+
+            return '<div class="pdu-wrapper" style="border-left-color:' + color + ';background:rgba(' + rgb + ',' + bgAlpha + ');">' +
+                '<div class="pdu-wrapper-header">' +
+                    '<span class="pdu-wrapper-layer-name" style="color:' + color + ';">' +
+                        'L' + n + '  ' + LAYER_NAMES[n].toUpperCase() +
+                        (getProtocolLabel(n, scenario) ? ' (' + getProtocolLabel(n, scenario) + ')' : '') +
+                    '</span>' +
+                '</div>' +
+                fieldsHtml +
+                innerHtml +
+                trailerHtml +
+                '</div>';
+        }
+
+        // Innermost data block — dashed red border, distinct style
+        function buildDataBlockHtml(scenario) {
+            const labels = {
+                http: '"Hello, server!"  (HTTP request body)',
+                smtp: '"Q3 Report attached"  (email message body)',
+                icmp: 'abcdefghijklmnopqrstuvwabcdefghi  (ICMP echo payload, 32 bytes)'
+            };
+            return '<div class="pdu-data-block">' +
+                '<div class="pdu-data-block-label">User Data</div>' +
+                escapeHtml(labels[scenario] || 'USER DATA') +
+                '</div>';
+        }
+
+        // Short protocol label for the wrapper header (e.g. "TCP", "IP", "Ethernet")
+        function getProtocolLabel(layerNum, scenario) {
+            const labels = {
+                http:  { 7: 'HTTP', 6: 'TLS 1.3', 5: 'TCP Session', 4: 'TCP', 3: 'IP', 2: 'Ethernet' },
+                smtp:  { 7: 'SMTP', 6: 'STARTTLS', 5: 'TCP Session', 4: 'TCP', 3: 'IP', 2: 'Ethernet' },
+                icmp:  { 7: 'N/A',  6: 'N/A',      5: 'N/A',         4: 'N/A', 3: 'ICMP/IP', 2: 'Ethernet' }
+            };
+            return (labels[scenario] && labels[scenario][layerNum]) || '';
+        }
+
+        // Minimal HTML escaping for text content inserted via innerHTML
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        // ── Info panel ──────────────────────────────────────────────────────
+
+        function buildInfoPanel(layerNum, scenario) {
+            const color = JOURNEY_COLORS[layerNum];
+            const name = LAYER_NAMES[layerNum];
+            const layerInfo = JOURNEY_SCENARIOS[scenario].layers[layerNum];
+
+            // Left border accent
+            const panel = document.getElementById('journeyInfoPanel');
+            panel.style.borderLeftColor = color;
+
+            // Layer number and name
+            const numEl = document.getElementById('journeyInfoLayerNum');
+            numEl.textContent = layerNum;
+            numEl.style.color = color;
+            document.getElementById('journeyInfoLayerName').textContent = name;
+
+            const bodyEl = document.getElementById('journeyInfoBody');
+
+            // What happened bullets
+            const bulletHTML = layerInfo.whatHappens.map(function(item) {
+                return '<li>' + escapeHtml(item) + '</li>';
+            }).join('');
+
+            // Header fields — monospace block
+            let headerFieldsHtml = '';
+            if (layerInfo.headerFields && layerInfo.headerFields.length > 0) {
+                headerFieldsHtml =
+                    '<div class="journey-header-fields">' +
+                    escapeHtml(layerInfo.headerFields.join('\n')) +
+                    '</div>';
+            } else {
+                headerFieldsHtml = '<div class="journey-header-fields" style="color:#484848;">' +
+                    escapeHtml(layerInfo.headerSummary) + '</div>';
+            }
+
+            bodyEl.innerHTML =
+                '<div class="journey-info-section">' +
+                    '<div class="journey-info-section-title">What happens here</div>' +
+                    '<ul>' + bulletHTML + '</ul>' +
+                '</div>' +
+                '<div class="journey-info-section">' +
+                    '<div class="journey-info-section-title">Header fields added</div>' +
+                    headerFieldsHtml +
+                '</div>' +
+                '<div class="journey-info-section">' +
+                    '<div class="journey-info-section-title">PDU name at this layer</div>' +
+                    '<span class="journey-pdu-badge" style="background:' + color + ';">' +
+                        escapeHtml(layerInfo.pduName) +
+                    '</span>' +
+                '</div>' +
+                '<div class="journey-info-section">' +
+                    '<div class="journey-info-section-title">Size impact</div>' +
+                    '<div class="journey-size-note">' + escapeHtml(layerInfo.sizeNote) + '</div>' +
+                '</div>' +
+                '<div class="journey-analogy">' +
+                    '<div class="journey-analogy-label">Analogy</div>' +
+                    escapeHtml(layerInfo.analogy) +
+                '</div>';
+        }
+
+        // ── Layer pip strip ─────────────────────────────────────────────────
+
+        function buildLayerStrip(activeLayer) {
+            const strip = document.getElementById('journeyLayerStrip');
+            strip.innerHTML = '';
+
+            for (let n = 7; n >= 1; n--) {
+                const pip = document.createElement('div');
+                pip.className = 'journey-layer-pip';
+                if (n === activeLayer) { pip.classList.add('active'); }
+                if (n > activeLayer) { pip.classList.add('done'); }
+
+                const dot = document.createElement('div');
+                dot.className = 'pip-dot';
+                const isActive = (n === activeLayer);
+                dot.style.background = 'rgba(' + hexToRgb(JOURNEY_COLORS[n]) + ', ' + (isActive ? '0.85' : '0.25') + ')';
+                if (isActive) {
+                    // Use CSS currentColor trick: set color on the element so the
+                    // border-color: currentColor and box-shadow in the CSS both pick it up.
+                    dot.style.color = JOURNEY_COLORS[n];
+                    dot.style.borderColor = JOURNEY_COLORS[n];
+                    dot.style.boxShadow = '0 0 14px ' + JOURNEY_COLORS[n] + '88';
+                }
+                dot.textContent = n;
+
+                const label = document.createElement('div');
+                label.className = 'pip-label';
+                label.textContent = LAYER_NAMES[n];
+
+                pip.appendChild(dot);
+                pip.appendChild(label);
+                strip.appendChild(pip);
+
+                // Separator arrow between pips
+                if (n > 1) {
+                    const arrow = document.createElement('div');
+                    arrow.style.cssText = 'color:#2a2a2a;font-size:0.75em;align-self:flex-start;margin-top:9px;user-select:none;';
+                    arrow.textContent = '>';
+                    strip.appendChild(arrow);
+                }
+            }
+        }
+
+        // ── Step counter ────────────────────────────────────────────────────
+
+        const JOURNEY_STEP_LABELS = {
+            7: 'Application layer — creating the request',
+            6: 'Presentation layer — encoding and encryption',
+            5: 'Session layer — managing the connection',
+            4: 'Transport layer — adding port and reliability headers',
+            3: 'Network layer — adding logical addressing (IP)',
+            2: 'Data Link layer — adding MAC addressing and framing',
+            1: 'Physical layer — converting to bits on the wire'
+        };
+
+        function updateStepCounter(layerNum) {
+            const el = document.getElementById('journeyStepCounter');
+            el.innerHTML = '<strong>Layer ' + layerNum + '</strong> of 7 — ' + JOURNEY_STEP_LABELS[layerNum];
+        }
+
+        function updateButtonStates(layerNum) {
+            document.getElementById('journeyPrevBtn').disabled = (layerNum === 7);
+            document.getElementById('journeyNextBtn').disabled = (layerNum === 1);
+        }
+
+        // ── Main render entry point ─────────────────────────────────────────
+
+        function renderJourneyState() {
+            buildLayerStrip(journeyCurrentLayer);
+            buildNestedPduViz(journeyCurrentLayer, journeyScenario);
+            buildInfoPanel(journeyCurrentLayer, journeyScenario);
+            updateStepCounter(journeyCurrentLayer);
+            updateButtonStates(journeyCurrentLayer);
+        }
+
+        function nextLayer() {
+            if (journeyCurrentLayer > 1) {
+                journeyCurrentLayer--;
+                renderJourneyState();
+            }
+        }
+
+        function prevLayer() {
+            if (journeyCurrentLayer < 7) {
+                journeyCurrentLayer++;
+                renderJourneyState();
+            }
+        }
+
+        function resetJourney() {
+            journeyCurrentLayer = 7;
+            renderJourneyState();
+        }
+
+        function selectScenario(name) {
+            journeyScenario = name;
+            document.querySelectorAll('.journey-scenario-btn').forEach(function(btn) {
+                btn.classList.remove('active');
+            });
+            var target = document.getElementById('scenario-' + name);
+            if (target) { target.classList.add('active'); }
+            renderJourneyState();
+        }
+
+        // ── Utility ────────────────────────────────────────────────────────
+
+        // Convert #rrggbb to "r, g, b" for use in rgba()
+        function hexToRgb(hex) {
+            var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            if (!result) { return '128, 128, 128'; }
+            return parseInt(result[1], 16) + ', ' + parseInt(result[2], 16) + ', ' + parseInt(result[3], 16);
+        }
+
+        // ===================== INITIALIZATION =====================
+        document.addEventListener('DOMContentLoaded', () => {
+            selectLayer(7);    // Load Layer 7 by default in Layer Explorer
+            renderJourneyState(); // Initialize PDU Journey at Layer 7
+        });
+    </script>
+<div style="text-align: center; padding: 30px;">
+    <button class="complete-btn" onclick="completeModule()">Mark Complete</button>
+</div>
+<script>
+function completeModule() {
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('web', 'web-osi-tool', { returnUrl: '../index.html' });
+    }
+}
+</script>
+<script>
+(function() {
+    var TUTORIAL_KEY = 'hexworth_tutorial_osi_v1';
+    var currentStep = 0;
+    var steps = [
+        {
+            target: '.tab-btn.active',
+            title: 'Welcome to the OSI Model Visualizer',
+            body: 'This interactive tool helps you understand the 7-layer OSI model through animations and exploration. Let\'s take a quick tour.',
+            position: 'below'
+        },
+        {
+            target: '.tab-btn:nth-child(1)',
+            title: 'Encapsulation Animation',
+            body: 'Watch data get encapsulated layer by layer as it travels down the OSI stack. Step through each layer to see headers being added.',
+            position: 'below',
+            tabSwitch: 'encapsulation'
+        },
+        {
+            target: '.tab-btn:nth-child(2)',
+            title: 'Layer Explorer',
+            body: 'Deep-dive into each OSI layer. See protocols, devices, PDU names, and real-world examples for every layer.',
+            position: 'below',
+            tabSwitch: 'explorer'
+        },
+        {
+            target: '.tab-btn:nth-child(3)',
+            title: 'PDU Journey',
+            body: 'Follow a packet on its journey through the OSI model. Pick a scenario and watch how data transforms at each layer.',
+            position: 'below',
+            tabSwitch: 'journey'
+        },
+        {
+            target: '.complete-btn',
+            title: 'Track Your Progress',
+            body: 'When you\'ve explored the tool, click Mark Complete to track it on the Network+ hub.',
+            position: 'above',
+            tabSwitch: 'encapsulation'
+        }
+    ];
+
+    function getTargetRect(selector) {
+        var el = document.querySelector(selector);
+        if (!el) return null;
+        return { el: el, rect: el.getBoundingClientRect() };
+    }
+
+    function showStep(idx) {
+        currentStep = idx;
+        var step = steps[idx];
+        if (!step) { endTutorial(); return; }
+        if (step.tabSwitch) {
+            var tabBtn = document.querySelector('.tab-btn[onclick*="' + step.tabSwitch + '"]');
+            if (tabBtn) tabBtn.click();
+        }
+        setTimeout(function() {
+            var info = getTargetRect(step.target);
+            if (!info) { nextStep(); return; }
+            var overlay = document.getElementById('tutorialOverlay');
+            var beacon = document.getElementById('tutorialBeacon');
+            var tooltip = document.getElementById('tutorialTooltip');
+            overlay.classList.add('active');
+            document.querySelectorAll('.tutorial-highlight').forEach(function(el) { el.classList.remove('tutorial-highlight'); });
+            info.el.classList.add('tutorial-highlight');
+            var r = info.rect;
+            beacon.style.display = 'block';
+            beacon.style.left = (r.left + r.width / 2 - 12) + 'px';
+            beacon.style.top = (r.top + r.height / 2 - 12) + 'px';
+            tooltip.style.display = 'block';
+            tooltip.innerHTML = '<div class="tt-step">Step ' + (idx + 1) + ' of ' + steps.length + '</div>' +
+                '<div class="tt-title">' + step.title + '</div>' +
+                '<div class="tt-body">' + step.body + '</div>' +
+                '<div class="tt-actions">' +
+                '<button class="tt-btn tt-btn-skip" onclick="skipTutorial()">Skip Tour</button>' +
+                '<button class="tt-btn tt-btn-next" onclick="nextStep()">' + (idx < steps.length - 1 ? 'Next' : 'Start Exploring') + '</button>' +
+                '</div>';
+            if (step.position === 'below') {
+                tooltip.style.left = Math.max(10, Math.min(r.left, window.innerWidth - 340)) + 'px';
+                tooltip.style.top = (r.bottom + 16) + 'px';
+            } else if (step.position === 'above') {
+                tooltip.style.left = Math.max(10, Math.min(r.left, window.innerWidth - 340)) + 'px';
+                tooltip.style.top = (r.top - tooltip.offsetHeight - 16) + 'px';
+            }
+            info.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(function() { tooltip.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 400);
+        }, 150);
+    }
+
+    function nextStep() {
+        if (currentStep < steps.length - 1) showStep(currentStep + 1);
+        else endTutorial();
+    }
+    function skipTutorial() { endTutorial(); }
+    function endTutorial() {
+        document.getElementById('tutorialOverlay').classList.remove('active');
+        document.getElementById('tutorialBeacon').style.display = 'none';
+        document.getElementById('tutorialTooltip').style.display = 'none';
+        document.querySelectorAll('.tutorial-highlight').forEach(function(el) { el.classList.remove('tutorial-highlight'); });
+        localStorage.setItem(TUTORIAL_KEY, 'done');
+        document.getElementById('tutorialReplay').style.display = 'block';
+        var firstTab = document.querySelector('.tab-btn:nth-child(1)');
+        if (firstTab) firstTab.click();
+    }
+    function startTutorial() { currentStep = 0; showStep(0); }
+    window.nextStep = nextStep;
+    window.skipTutorial = skipTutorial;
+    window.startTutorial = startTutorial;
+    document.addEventListener('DOMContentLoaded', function() {
+        if (!localStorage.getItem(TUTORIAL_KEY)) setTimeout(startTutorial, 800);
+        else document.getElementById('tutorialReplay').style.display = 'block';
+    });
+})();
+</script>
+</body>
+</html>

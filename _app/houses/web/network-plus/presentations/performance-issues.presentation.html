@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/PresentationA11y.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performance Issues | Network+ N10-009</title>
+    <style>
+        /* =====================================================
+           RESET & BASE
+           ===================================================== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* =====================================================
+           SLIDE SYSTEM
+           ===================================================== */
+        .slide {
+            display: none;
+            position: fixed;
+            inset: 0;
+            padding: 20px 28px 72px;
+            overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide-inner {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* =====================================================
+           PROGRESS BAR
+           ===================================================== */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: #c9a83a;
+            transition: width 0.4s ease;
+            z-index: 200;
+        }
+
+        /* =====================================================
+           NAVIGATION BAR
+           ===================================================== */
+        #nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            z-index: 200;
+            padding: 0 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15);
+            color: #c9a83a;
+            border-color: #c9a83a;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.back-btn {
+            font-size: 0.82rem;
+            padding: 8px 16px;
+        }
+
+        #slide-counter {
+            color: #64748b;
+            font-size: 0.82rem;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        #complete-btn {
+            display: none;
+            background: #c9a83a;
+            color: #000;
+            border: none;
+            padding: 9px 26px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+
+        #complete-btn:hover {
+            background: #e0bf55;
+            transform: translateY(-1px);
+        }
+
+        /* =====================================================
+           SHARED TYPOGRAPHY
+           ===================================================== */
+        .slide-meta {
+            font-size: 0.78rem;
+            color: #c9a83a;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .slide-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            text-align: center;
+            line-height: 1.25;
+        }
+
+        .slide-title .accent      { color: #c9a83a; }
+        .slide-title .accent-red  { color: #ef4444; }
+        .slide-title .accent-blue { color: #3a8fd4; }
+        .slide-title .accent-green { color: #3ab577; }
+
+        .slide-subtitle {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        /* =====================================================
+           SCENARIO STRIP
+           ===================================================== */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.07);
+            border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0;
+            padding: 10px 16px;
+            font-size: 0.88rem;
+            color: #fef3c7;
+            font-style: italic;
+        }
+
+        /* =====================================================
+           INFO BOXES
+           ===================================================== */
+        .box {
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.875rem;
+        }
+
+        .box-gold {
+            background: rgba(201, 168, 58, 0.08);
+            border: 1px solid rgba(201, 168, 58, 0.3);
+            color: #fef3c7;
+        }
+
+        .box-green {
+            background: rgba(58, 181, 119, 0.08);
+            border: 1px solid rgba(58, 181, 119, 0.35);
+            color: #d1fae5;
+        }
+
+        .box-red {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fee2e2;
+        }
+
+        .box-blue {
+            background: rgba(58, 143, 212, 0.08);
+            border: 1px solid rgba(58, 143, 212, 0.3);
+            color: #bae0ff;
+        }
+
+        .box-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+            opacity: 0.75;
+        }
+
+        /* =====================================================
+           TITLE SLIDE
+           ===================================================== */
+        .title-hero {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .big-title {
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: #f1f5f9;
+            line-height: 1.2;
+        }
+
+        .big-title .gold { color: #c9a83a; }
+        .big-title .red  { color: #ef4444; }
+
+        .title-meta-row {
+            display: flex;
+            gap: 28px;
+            justify-content: center;
+            margin-top: 6px;
+            font-size: 0.82rem;
+            color: #475569;
+        }
+
+        .title-meta-row span {
+            border-left: 2px solid #1e293b;
+            padding-left: 28px;
+        }
+
+        .title-meta-row span:first-child {
+            border-left: none;
+            padding-left: 0;
+        }
+
+        /* =====================================================
+           LAYOUT
+           ===================================================== */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            align-items: start;
+        }
+
+        .three-col {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        /* =====================================================
+           INFO CARDS
+           ===================================================== */
+        .info-card {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 8px;
+            padding: 12px 14px;
+            border-left: 3px solid #c9a83a;
+            font-size: 0.85rem;
+        }
+
+        .info-card .ic-title {
+            font-weight: 700;
+            color: #f1f5f9;
+            margin-bottom: 4px;
+            font-size: 0.88rem;
+        }
+
+        .info-card .ic-body {
+            color: #94a3b8;
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+
+        .info-card.ic-red   { border-left-color: #ef4444; }
+        .info-card.ic-green { border-left-color: #3ab577; }
+        .info-card.ic-blue  { border-left-color: #3a8fd4; }
+        .info-card.ic-cyan  { border-left-color: #06b6d4; }
+
+        /* =====================================================
+           TERMINAL BLOCKS
+           ===================================================== */
+        .terminal-block {
+            background: #0a0a0f;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            line-height: 1.6;
+        }
+
+        .t-cmd  { color: #c9a83a; }
+        .t-out  { color: #94a3b8; }
+        .t-good { color: #3ab577; }
+        .t-bad  { color: #ef4444; }
+        .t-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: #c9a83a;
+            margin-bottom: 4px;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        /* =====================================================
+           SUMMARY FACTS
+           ===================================================== */
+        .fact-row {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            font-size: 0.875rem;
+        }
+
+        .fact-num {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #c9a83a;
+            min-width: 22px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .fact-text { color: #cbd5e1; }
+
+        .fact-text code {
+            font-family: 'Courier New', monospace;
+            color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+
+        /* =====================================================
+           UTILITY
+           ===================================================== */
+        .section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: #475569;
+        }
+
+        /* =====================================================
+           RESPONSIVE
+           ===================================================== */
+        @media (max-height: 700px) {
+            .slide-inner { gap: 9px; }
+            .slide-title  { font-size: 1.4rem; }
+            .big-title    { font-size: 1.9rem; }
+        }
+
+        @media (max-width: 768px) {
+            .two-col   { grid-template-columns: 1fr; }
+            .three-col { grid-template-columns: 1fr; }
+            .slide-title { font-size: 1.3rem; }
+        }
+
+        /* =====================================================
+           SVG ANIMATION KEYFRAMES
+           ===================================================== */
+
+        /* Water flow through pipe */
+        @keyframes waterFlow {
+            from { stroke-dashoffset: 30; }
+            to   { stroke-dashoffset: 0; }
+        }
+
+        .water-flow {
+            stroke-dasharray: 8,4;
+            animation: waterFlow 1s linear infinite;
+        }
+
+        /* Packet drop flash */
+        @keyframes dropFlash {
+            0%,90%,100% { opacity: 0; }
+            92%,98%     { opacity: 1; }
+        }
+
+        .drop-indicator { animation: dropFlash 3s ease-in-out infinite; }
+
+        /* Jitter timeline */
+        @keyframes jitterBounce {
+            0%   { transform: translateY(0); }
+            25%  { transform: translateY(-8px); }
+            50%  { transform: translateY(3px); }
+            75%  { transform: translateY(-5px); }
+            100% { transform: translateY(0); }
+        }
+
+        .jitter-pkt {
+            animation: jitterBounce 1.8s ease-in-out infinite;
+        }
+
+        /* Queue build up */
+        @keyframes queueBuild {
+            0%   { width: 10px; fill: #3ab577; }
+            60%  { width: 50px; fill: #fbbf24; }
+            100% { width: 80px; fill: #ef4444; }
+        }
+
+        .queue-fill {
+            animation: queueBuild 3s ease-in-out infinite alternate;
+        }
+
+        /* QoS priority queue lane */
+        @keyframes voicePriority {
+            from { transform: translateX(0); }
+            to   { transform: translateX(240px); }
+        }
+
+        /* Stopwatch tick */
+        @keyframes clockTick {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+
+        .clock-hand {
+            animation: clockTick 2s linear infinite;
+            transform-origin: 50% 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div id="progress-bar" style="width:10%"></div>
+
+<!-- =====================================================================
+     SLIDE 1 — TITLE
+     ===================================================================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 10 &nbsp;|&nbsp; N10-009 Obj 5.4 &nbsp;|&nbsp; Troubleshooting</div>
+
+        <div class="title-hero">
+            <div class="big-title">
+                Network <span class="gold">Performance Issues</span>:<br>
+                Diagnosing the <span class="red">Congested</span> Network
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Three symptoms. One root cause. Your job is to find it.
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Users complain video calls are choppy, file transfers are slow, and the VoIP phones sound robotic.
+            Three different symptoms, one root cause: the network is congested. Bandwidth, throughput, latency, jitter,
+            and packet loss are the five metrics that explain every performance complaint — and every N10-009 scenario question.
+        </div>
+
+        <div class="title-meta-row">
+            <span>10 Slides</span>
+            <span>N10-009 Obj 5.4</span>
+            <span>Network Performance</span>
+            <span>Troubleshooting + Tools</span>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 2 — BANDWIDTH vs THROUGHPUT
+     ===================================================================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 10</div>
+        <div class="slide-title">Bandwidth vs <span class="accent">Throughput</span></div>
+        <div class="slide-subtitle">Bandwidth is the pipe's capacity. Throughput is how much actually flows. They are never the same.</div>
+
+        <!-- SVG: pipe analogy with restrictions -->
+        <svg width="760" height="145" viewBox="0 0 760 145" style="width:100%; background:rgba(255,255,255,0.02); border-radius:10px; border:1px solid rgba(255,255,255,0.07); max-height:145px;">
+
+            <!-- ===== TOP: Wide bandwidth pipe ===== -->
+            <text x="380" y="18" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#94a3b8" letter-spacing="2">BANDWIDTH = PIPE DIAMETER (Potential Capacity)</text>
+
+            <!-- Wide pipe walls -->
+            <line x1="30" y1="25" x2="730" y2="25" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+            <line x1="30" y1="55" x2="730" y2="55" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+            <!-- End caps -->
+            <line x1="30" y1="25" x2="30" y2="55" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+            <line x1="730" y1="25" x2="730" y2="55" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+            <!-- Label -->
+            <text x="380" y="43" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#c9a83a">1 Gbps Bandwidth</text>
+
+            <!-- Water flow (full bandwidth) -->
+            <line x1="35" y1="40" x2="725" y2="40" stroke="rgba(201,168,58,0.4)" stroke-width="14" class="water-flow"/>
+
+            <!-- ===== BOTTOM: Actual throughput with restrictions ===== -->
+            <text x="380" y="76" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#94a3b8" letter-spacing="2">THROUGHPUT = ACTUAL FLOW (Limited by Restrictions)</text>
+
+            <!-- Pipe with restrictions -->
+            <!-- Segment 1: wide -->
+            <line x1="30" y1="83" x2="200" y2="83" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+            <line x1="30" y1="113" x2="200" y2="113" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+            <line x1="30" y1="83" x2="30" y2="113" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+
+            <!-- Restriction 1: half size (congestion) -->
+            <polygon points="200,83 230,93 230,103 200,113" fill="rgba(239,68,68,0.3)" stroke="#ef4444" stroke-width="1.5"/>
+            <text x="215" y="100" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#f87171" transform="rotate(-90,215,100)">Congestion</text>
+
+            <!-- Segment 2: narrow -->
+            <line x1="230" y1="93" x2="380" y2="93" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+            <line x1="230" y1="103" x2="380" y2="103" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+
+            <!-- Restriction 2: expand, then another restriction -->
+            <polygon points="380,93 410,83 410,113 380,103" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+
+            <!-- Segment 3: wider again -->
+            <line x1="410" y1="83" x2="540" y2="83" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+            <line x1="410" y1="113" x2="540" y2="113" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+
+            <!-- Restriction 3: queue drop -->
+            <polygon points="540,83 560,90 560,106 540,113" fill="rgba(239,68,68,0.3)" stroke="#ef4444" stroke-width="1.5"/>
+            <text x="550" y="98" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#f87171" transform="rotate(-90,550,98)">Queue drop</text>
+
+            <!-- Segment 4 -->
+            <line x1="560" y1="90" x2="730" y2="90" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+            <line x1="560" y1="106" x2="730" y2="106" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+            <line x1="730" y1="90" x2="730" y2="106" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+
+            <!-- Actual throughput flow — thinner -->
+            <line x1="35" y1="98" x2="200" y2="98" stroke="rgba(58,181,119,0.5)" stroke-width="14" class="water-flow"/>
+            <!-- narrowed through restriction -->
+            <line x1="230" y1="98" x2="380" y2="98" stroke="rgba(201,168,58,0.5)" stroke-width="4" class="water-flow"/>
+            <!-- widened section -->
+            <line x1="410" y1="98" x2="540" y2="98" stroke="rgba(201,168,58,0.45)" stroke-width="8" class="water-flow"/>
+            <!-- after second drop -->
+            <line x1="560" y1="98" x2="725" y2="98" stroke="rgba(201,168,58,0.35)" stroke-width="5" class="water-flow"/>
+
+            <!-- Throughput label -->
+            <text x="645" y="120" text-anchor="middle" font-family="Segoe UI" font-size="9" fill="#ef4444">~350 Mbps actual</text>
+            <text x="645" y="131" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#64748b">35% of bandwidth</text>
+        </svg>
+
+        <div class="three-col">
+            <div class="info-card">
+                <div class="ic-title">Bandwidth</div>
+                <div class="ic-body">The theoretical maximum data rate of the link. Determined by the physical medium: 1 Gbps copper, 10 Gbps fiber, 100 Mbps cable. It is the pipe diameter — constant, unchanging, purchased from the carrier or determined by hardware. You cannot exceed it.</div>
+            </div>
+            <div class="info-card ic-red">
+                <div class="ic-title">Throughput</div>
+                <div class="ic-body">The actual measured data rate through the pipe, accounting for all restrictions: congestion, packet loss, retransmissions, protocol overhead, TCP flow control. Always less than bandwidth. The delta between bandwidth and throughput is where performance problems live.</div>
+            </div>
+            <div class="info-card ic-green">
+                <div class="ic-title">Goodput</div>
+                <div class="ic-body">A subset of throughput — the useful application data rate after removing protocol overhead, retransmissions, and duplicate ACKs. This is what the application actually receives. Choppy video calls = low goodput even if raw throughput is adequate.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 3 — LATENCY
+     ===================================================================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 10</div>
+        <div class="slide-title"><span class="accent">Latency</span>: The Speed of Your Connection</div>
+        <div class="slide-subtitle">Bandwidth tells you how much. Latency tells you how fast. A high-bandwidth, high-latency link is still slow for interactive use.</div>
+
+        <!-- SVG: packet with stopwatch, LAN vs WAN vs satellite comparison -->
+        <svg width="760" height="140" viewBox="0 0 760 140" style="width:100%; background:rgba(255,255,255,0.02); border-radius:10px; border:1px solid rgba(255,255,255,0.07); max-height:140px;">
+
+            <!-- Three rows: LAN, WAN, Satellite -->
+
+            <!-- LAN row -->
+            <text x="60" y="28" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#3ab577">LAN</text>
+            <text x="60" y="40" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#64748b">&lt;1 ms</text>
+
+            <!-- Packet traveling LAN -->
+            <rect x="100" y="20" width="14" height="10" rx="2" fill="#3ab577">
+                <animateMotion dur="0.5s" repeatCount="indefinite" path="M0,0 L520,0"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="0.5s" repeatCount="indefinite"/>
+            </rect>
+            <!-- Return packet LAN -->
+            <rect x="620" y="20" width="14" height="10" rx="2" fill="rgba(58,181,119,0.5)">
+                <animateMotion dur="0.5s" repeatCount="indefinite" begin="0.25s" path="M0,0 L-520,0"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="0.5s" repeatCount="indefinite" begin="0.25s"/>
+            </rect>
+
+            <line x1="100" y1="24" x2="640" y2="24" stroke="rgba(58,181,119,0.2)" stroke-width="1.5"/>
+            <line x1="100" y1="34" x2="640" y2="34" stroke="rgba(58,181,119,0.2)" stroke-width="1.5"/>
+
+            <rect x="100" y="17" width="20" height="20" rx="3" fill="rgba(58,181,119,0.12)" stroke="rgba(58,181,119,0.3)" stroke-width="1"/>
+            <text x="110" y="30" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#3ab577">A</text>
+            <rect x="630" y="17" width="20" height="20" rx="3" fill="rgba(58,181,119,0.12)" stroke="rgba(58,181,119,0.3)" stroke-width="1"/>
+            <text x="640" y="30" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#3ab577">B</text>
+
+            <text x="670" y="28" font-family="Segoe UI" font-size="8" fill="#3ab577">RTT &lt;1ms</text>
+            <text x="670" y="39" font-family="Segoe UI" font-size="7" fill="#64748b">Same building</text>
+
+            <!-- WAN row -->
+            <text x="60" y="73" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#c9a83a">WAN</text>
+            <text x="60" y="85" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#64748b">50ms</text>
+
+            <rect x="100" y="62" width="14" height="10" rx="2" fill="#c9a83a">
+                <animateMotion dur="2s" repeatCount="indefinite" path="M0,0 L520,0"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="2s" repeatCount="indefinite"/>
+            </rect>
+            <rect x="620" y="62" width="14" height="10" rx="2" fill="rgba(201,168,58,0.5)">
+                <animateMotion dur="2s" repeatCount="indefinite" begin="1s" path="M0,0 L-520,0"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="2s" repeatCount="indefinite" begin="1s"/>
+            </rect>
+
+            <line x1="100" y1="66" x2="640" y2="66" stroke="rgba(201,168,58,0.2)" stroke-width="1.5"/>
+            <line x1="100" y1="76" x2="640" y2="76" stroke="rgba(201,168,58,0.2)" stroke-width="1.5"/>
+
+            <rect x="100" y="59" width="20" height="20" rx="3" fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.3)" stroke-width="1"/>
+            <text x="110" y="72" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#c9a83a">A</text>
+            <rect x="630" y="59" width="20" height="20" rx="3" fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.3)" stroke-width="1"/>
+            <text x="640" y="72" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#c9a83a">B</text>
+
+            <text x="670" y="70" font-family="Segoe UI" font-size="8" fill="#c9a83a">RTT ~50ms</text>
+            <text x="670" y="81" font-family="Segoe UI" font-size="7" fill="#64748b">Cross-country</text>
+
+            <!-- Satellite row -->
+            <text x="60" y="118" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#ef4444">SAT</text>
+            <text x="60" y="130" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#64748b">600ms</text>
+
+            <rect x="100" y="107" width="14" height="10" rx="2" fill="#ef4444">
+                <animateMotion dur="5s" repeatCount="indefinite" path="M0,0 L520,0"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="5s" repeatCount="indefinite"/>
+            </rect>
+            <rect x="620" y="107" width="14" height="10" rx="2" fill="rgba(239,68,68,0.5)">
+                <animateMotion dur="5s" repeatCount="indefinite" begin="2.5s" path="M0,0 L-520,0"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="5s" repeatCount="indefinite" begin="2.5s"/>
+            </rect>
+
+            <line x1="100" y1="111" x2="640" y2="111" stroke="rgba(239,68,68,0.2)" stroke-width="1.5"/>
+            <line x1="100" y1="121" x2="640" y2="121" stroke="rgba(239,68,68,0.2)" stroke-width="1.5"/>
+
+            <rect x="100" y="104" width="20" height="20" rx="3" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+            <text x="110" y="117" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#ef4444">A</text>
+            <rect x="630" y="104" width="20" height="20" rx="3" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+            <text x="640" y="117" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#ef4444">B</text>
+
+            <!-- Satellite in orbit indicator -->
+            <ellipse cx="370" cy="90" rx="15" ry="9" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+            <text x="370" y="94" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#ef4444">SAT</text>
+            <line x1="100" y1="115" x2="370" y2="90" stroke="rgba(239,68,68,0.2)" stroke-width="1" stroke-dasharray="3,3"/>
+            <line x1="370" y1="90" x2="630" y2="115" stroke="rgba(239,68,68,0.2)" stroke-width="1" stroke-dasharray="3,3"/>
+
+            <text x="670" y="115" font-family="Segoe UI" font-size="8" fill="#ef4444">RTT ~600ms</text>
+            <text x="670" y="126" font-family="Segoe UI" font-size="7" fill="#64748b">GEO orbit</text>
+        </svg>
+
+        <div class="two-col">
+            <div class="info-card">
+                <div class="ic-title">Sources of Latency</div>
+                <div class="ic-body">
+                    <strong style="color:#c9a83a;">Propagation delay:</strong> speed of light in the medium (fundamental, irreducible).<br>
+                    <strong style="color:#c9a83a;">Processing delay:</strong> time for a router/switch to process the packet header.<br>
+                    <strong style="color:#c9a83a;">Queuing delay:</strong> time spent waiting in an interface queue — this is where congestion causes latency spikes.<br>
+                    <strong style="color:#c9a83a;">Serialization delay:</strong> time to place all bits on the wire (significant for slow links with large packets).
+                </div>
+            </div>
+            <div class="info-card ic-red">
+                <div class="ic-title">Why Latency Kills VoIP and Video</div>
+                <div class="ic-body">G.711 VoIP: acceptable one-way latency is &lt;150 ms (ITU G.114). Above 400 ms, conversations become unusable — people talk over each other. Video conferencing: above 150 ms RTT, the meeting experience degrades noticeably. High-bandwidth satellite links are useless for real-time comms because of 600 ms propagation delay alone.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 4 — JITTER
+     ===================================================================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 10</div>
+        <div class="slide-title"><span class="accent">Jitter</span>: When Packets Arrive at the Wrong Time</div>
+        <div class="slide-subtitle">Latency variation. Packets sent at even intervals, arriving at uneven intervals — that is jitter. VoIP phones sound robotic because of it.</div>
+
+        <!-- SVG: packet timing diagrams + jitter buffer -->
+        <svg width="760" height="155" viewBox="0 0 760 155" style="width:100%; background:rgba(255,255,255,0.02); border-radius:10px; border:1px solid rgba(255,255,255,0.07); max-height:155px;">
+
+            <!-- ===== SENDER: evenly spaced ===== -->
+            <text x="120" y="16" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#94a3b8">SENDER (evenly spaced 20ms apart)</text>
+
+            <!-- Sender timeline -->
+            <line x1="20" y1="30" x2="370" y2="30" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+
+            <!-- Sent packets: evenly spaced -->
+            <circle cx="60" cy="30" r="7" fill="#3ab577"/>
+            <text x="60" y="33" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#000">1</text>
+            <circle cx="120" cy="30" r="7" fill="#3ab577"/>
+            <text x="120" y="33" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#000">2</text>
+            <circle cx="180" cy="30" r="7" fill="#3ab577"/>
+            <text x="180" y="33" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#000">3</text>
+            <circle cx="240" cy="30" r="7" fill="#3ab577"/>
+            <text x="240" y="33" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#000">4</text>
+            <circle cx="300" cy="30" r="7" fill="#3ab577"/>
+            <text x="300" y="33" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#000">5</text>
+
+            <!-- Interval labels -->
+            <text x="90" y="48" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#64748b">20ms</text>
+            <text x="150" y="48" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#64748b">20ms</text>
+            <text x="210" y="48" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#64748b">20ms</text>
+            <text x="270" y="48" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#64748b">20ms</text>
+
+            <!-- ===== RECEIVER: HIGH JITTER ===== -->
+            <text x="120" y="68" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#ef4444">RECEIVER — HIGH JITTER (erratic arrival)</text>
+
+            <!-- Receiver timeline -->
+            <line x1="20" y1="82" x2="370" y2="82" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+
+            <!-- Received packets: irregular spacing -->
+            <circle cx="65" cy="82" r="7" fill="#ef4444" class="jitter-pkt"/>
+            <text x="65" y="85" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#fff">1</text>
+            <circle cx="88" cy="82" r="7" fill="#ef4444" class="jitter-pkt" style="animation-delay:0.3s;"/>
+            <text x="88" y="85" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#fff">2</text>
+            <circle cx="180" cy="82" r="7" fill="#ef4444" class="jitter-pkt" style="animation-delay:0.6s;"/>
+            <text x="180" y="85" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#fff">3</text>
+            <circle cx="195" cy="82" r="7" fill="#ef4444" class="jitter-pkt" style="animation-delay:0.9s;"/>
+            <text x="195" y="85" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#fff">4</text>
+            <circle cx="310" cy="82" r="7" fill="#ef4444" class="jitter-pkt" style="animation-delay:1.2s;"/>
+            <text x="310" y="85" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#fff">5</text>
+
+            <!-- Jitter arrows showing variation -->
+            <text x="76" y="100" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#ef4444">5ms gap</text>
+            <text x="134" y="100" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#ef4444">92ms gap</text>
+            <text x="187" y="100" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#ef4444">15ms gap</text>
+            <text x="252" y="100" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#ef4444">115ms gap</text>
+
+            <!-- DIVIDER -->
+            <line x1="380" y1="10" x2="380" y2="145" stroke="rgba(255,255,255,0.05)" stroke-width="1" stroke-dasharray="4,3"/>
+
+            <!-- ===== JITTER BUFFER ===== -->
+            <text x="570" y="16" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#94a3b8">JITTER BUFFER — Smoothing Solution</text>
+
+            <!-- Erratic input packets arriving -->
+            <text x="405" y="55" font-family="Segoe UI" font-size="8" fill="#ef4444">Erratic in:</text>
+            <circle cx="410" cy="70" r="5" fill="#ef4444">
+                <animateMotion dur="0.7s" repeatCount="indefinite" path="M0,0 L40,0"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="0.7s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="410" cy="70" r="5" fill="#ef4444">
+                <animateMotion dur="2.1s" repeatCount="indefinite" begin="0.3s" path="M0,0 L40,0"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="2.1s" repeatCount="indefinite" begin="0.3s"/>
+            </circle>
+            <circle cx="410" cy="70" r="5" fill="#ef4444">
+                <animateMotion dur="1.3s" repeatCount="indefinite" begin="0.9s" path="M0,0 L40,0"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="1.3s" repeatCount="indefinite" begin="0.9s"/>
+            </circle>
+
+            <!-- Jitter buffer box -->
+            <rect x="455" y="50" width="100" height="50" rx="5" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.5"/>
+            <text x="505" y="70" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#c9a83a">JITTER</text>
+            <text x="505" y="82" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#c9a83a">BUFFER</text>
+            <text x="505" y="96" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#94a3b8">20-150ms depth</text>
+
+            <!-- Even output -->
+            <text x="590" y="55" font-family="Segoe UI" font-size="8" fill="#3ab577">Even out:</text>
+            <circle cx="570" cy="70" r="5" fill="#3ab577">
+                <animateMotion dur="1.5s" repeatCount="indefinite" path="M0,0 L120,0"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="1.5s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="570" cy="70" r="5" fill="#3ab577">
+                <animateMotion dur="1.5s" repeatCount="indefinite" begin="0.5s" path="M0,0 L120,0"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="1.5s" repeatCount="indefinite" begin="0.5s"/>
+            </circle>
+            <circle cx="570" cy="70" r="5" fill="#3ab577">
+                <animateMotion dur="1.5s" repeatCount="indefinite" begin="1.0s" path="M0,0 L120,0"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="1.5s" repeatCount="indefinite" begin="1.0s"/>
+            </circle>
+
+            <text x="570" y="128" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#94a3b8">Trade-off: buffer adds latency</text>
+            <text x="570" y="140" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#64748b">Adaptive buffers adjust depth dynamically</text>
+        </svg>
+
+        <div class="three-col">
+            <div class="info-card">
+                <div class="ic-title">What Causes Jitter</div>
+                <div class="ic-body">Queue depth variations on congested links. Different routing paths per packet (asymmetric routing). CPU spikes on forwarding devices. Wireless channel contention and retransmissions. Any variable that changes the per-packet forwarding time introduces jitter.</div>
+            </div>
+            <div class="info-card ic-red">
+                <div class="ic-title">VoIP Impact</div>
+                <div class="ic-body">Acceptable jitter for VoIP: &lt;30 ms (ITU recommendation). Above 50 ms, speech becomes choppy and robotic. The phone's jitter buffer smooths arrivals but adds latency — a trade-off. When the jitter exceeds the buffer depth, packets play out of order or are dropped.</div>
+            </div>
+            <div class="info-card ic-green">
+                <div class="ic-title">Measuring Jitter</div>
+                <div class="ic-body">Wireshark: RTP stream analysis shows per-packet jitter. SolarWinds VoIP Monitor: real-time jitter alerts. iPerf3: <code style="font-family:Courier New; color:#c9a83a; font-size:0.9em;">iperf3 -u</code> (UDP mode) reports jitter and loss. Continuous testing during business hours reveals congestion correlation.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 5 — PACKET LOSS
+     ===================================================================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 10</div>
+        <div class="slide-title"><span class="accent-red">Packet Loss</span>: When Data Disappears</div>
+        <div class="slide-subtitle">TCP retransmits lost packets — causing slowdown. UDP silently drops them — causing degradation. The effect depends on the protocol.</div>
+
+        <!-- SVG: packets flowing, some disappear with red X -->
+        <svg width="760" height="140" viewBox="0 0 760 140" style="width:100%; background:rgba(255,255,255,0.02); border-radius:10px; border:1px solid rgba(255,255,255,0.07); max-height:140px;">
+
+            <!-- Source -->
+            <rect x="10" y="50" width="70" height="40" rx="4" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+            <text x="45" y="68" text-anchor="middle" font-family="Segoe UI" font-size="9" fill="#94a3b8">Source</text>
+            <text x="45" y="82" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#64748b">10.0.0.1</text>
+
+            <!-- Path with drop zone -->
+            <line x1="80" y1="70" x2="680" y2="70" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+
+            <!-- Packet 1 — arrives successfully -->
+            <rect x="0" y="63" width="18" height="14" rx="2" fill="#3ab577">
+                <animateMotion dur="4s" repeatCount="indefinite" path="M80,0 L680,0"/>
+                <animate attributeName="opacity" values="0;1;1;1;0" dur="4s" repeatCount="indefinite"/>
+            </rect>
+
+            <!-- Packet 2 — dropped -->
+            <rect x="0" y="63" width="18" height="14" rx="2" fill="#ef4444">
+                <animateMotion dur="4s" repeatCount="indefinite" begin="0.8s" path="M80,0 L330,0"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="4s" repeatCount="indefinite" begin="0.8s"/>
+            </rect>
+            <!-- Drop X at congestion point -->
+            <g class="drop-indicator">
+                <line x1="400" y1="56" x2="415" y2="84" stroke="#ef4444" stroke-width="3"/>
+                <line x1="415" y1="56" x2="400" y2="84" stroke="#ef4444" stroke-width="3"/>
+                <text x="408" y="98" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#ef4444">DROP</text>
+            </g>
+
+            <!-- Packet 3 — arrives -->
+            <rect x="0" y="63" width="18" height="14" rx="2" fill="#3ab577">
+                <animateMotion dur="4s" repeatCount="indefinite" begin="1.6s" path="M80,0 L680,0"/>
+                <animate attributeName="opacity" values="0;1;1;1;0" dur="4s" repeatCount="indefinite" begin="1.6s"/>
+            </rect>
+
+            <!-- Packet 4 — dropped -->
+            <rect x="0" y="63" width="18" height="14" rx="2" fill="#ef4444">
+                <animateMotion dur="4s" repeatCount="indefinite" begin="2.4s" path="M80,0 L350,0"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="4s" repeatCount="indefinite" begin="2.4s"/>
+            </rect>
+
+            <!-- Destination -->
+            <rect x="680" y="50" width="70" height="40" rx="4" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+            <text x="715" y="68" text-anchor="middle" font-family="Segoe UI" font-size="9" fill="#94a3b8">Dest</text>
+            <text x="715" y="82" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#64748b">10.0.0.2</text>
+
+            <!-- Congestion point label -->
+            <rect x="360" y="40" width="100" height="16" rx="3" fill="rgba(239,68,68,0.15)" stroke="rgba(239,68,68,0.3)"/>
+            <text x="410" y="51" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#f87171">Congested link</text>
+
+            <!-- TCP retransmission arrow (below) -->
+            <path d="M680 100 Q490 125 180 100" fill="none" stroke="rgba(201,168,58,0.4)" stroke-width="1.5" stroke-dasharray="4,3"/>
+            <polygon points="180,100 192,95 192,105" fill="rgba(201,168,58,0.7)"/>
+            <text x="430" y="118" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#c9a83a">TCP: NACK + Retransmit (adds latency, slows throughput)</text>
+
+            <!-- UDP no retransmit label -->
+            <text x="430" y="134" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#ef4444">UDP: No retransmit — packet gone. VoIP/video degrades silently.</text>
+        </svg>
+
+        <div class="three-col">
+            <div class="info-card">
+                <div class="ic-title">Causes of Packet Loss</div>
+                <div class="ic-body">Interface queue overflow (congestion). Physical errors — bad cable, damaged SFP, signal degradation. Memory exhaustion on switch or router. Wireless retransmission failure. Tail drop (packets dropped at tail of full queue). RED (Random Early Detection) — intentional pre-emptive drops to signal TCP to slow down.</div>
+            </div>
+            <div class="info-card ic-red">
+                <div class="ic-title">TCP vs UDP Behavior</div>
+                <div class="ic-body">TCP detects loss via ACK timeout or NACK, reduces congestion window (CWND), retransmits. Throughput drops but data arrives. Noticeable as slowness in file transfers.<br><br>UDP has no recovery mechanism. Lost packet = lost data. VoIP call drops a 20ms frame. Video call shows artifacts. File download over UDP would silently corrupt data.</div>
+            </div>
+            <div class="info-card ic-green">
+                <div class="ic-title">Acceptable Loss Thresholds</div>
+                <div class="ic-body">
+                    Data transfer: 0% ideally. Even 0.1% causes TCP slowdown.<br>
+                    VoIP: &lt;1% acceptable per ITU. Above 5%, intelligibility degrades significantly.<br>
+                    Video conference: &lt;0.5% for HD quality.<br>
+                    Measure with <code style="font-family:Courier New; color:#c9a83a; font-size:0.9em;">ping -n 100</code> or <code style="font-family:Courier New; color:#c9a83a; font-size:0.9em;">pathping</code>.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 6 — CONGESTION / BOTTLENECK
+     ===================================================================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 10</div>
+        <div class="slide-title">Congestion &amp; <span class="accent-red">Bottlenecks</span></div>
+        <div class="slide-subtitle">Multiple wide flows converging on one narrow link. The queue builds. Then it overflows. Then packets die.</div>
+
+        <!-- SVG: traffic converging on narrow link -->
+        <svg width="760" height="145" viewBox="0 0 760 145" style="width:100%; background:rgba(255,255,255,0.02); border-radius:10px; border:1px solid rgba(255,255,255,0.07); max-height:145px;">
+
+            <!-- Three input flows -->
+            <!-- Flow 1 -->
+            <line x1="10" y1="30" x2="200" y2="72" stroke="rgba(6,182,212,0.4)" stroke-width="8"/>
+            <text x="80" y="25" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#06b6d4">1 Gbps link</text>
+
+            <!-- Flow 2 -->
+            <line x1="10" y1="72" x2="200" y2="72" stroke="rgba(58,181,119,0.4)" stroke-width="8"/>
+            <text x="80" y="70" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#3ab577">1 Gbps link</text>
+
+            <!-- Flow 3 -->
+            <line x1="10" y1="114" x2="200" y2="72" stroke="rgba(201,168,58,0.4)" stroke-width="8"/>
+            <text x="80" y="125" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#c9a83a">1 Gbps link</text>
+
+            <!-- Animated packets on input flows -->
+            <circle cx="0" cy="30" r="5" fill="#06b6d4">
+                <animateMotion dur="1.5s" repeatCount="indefinite" path="M10,0 L200,42"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="1.5s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="0" cy="72" r="5" fill="#3ab577">
+                <animateMotion dur="1.5s" repeatCount="indefinite" begin="0.3s" path="M10,0 L200,0"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="1.5s" repeatCount="indefinite" begin="0.3s"/>
+            </circle>
+            <circle cx="0" cy="114" r="5" fill="#c9a83a">
+                <animateMotion dur="1.5s" repeatCount="indefinite" begin="0.6s" path="M10,0 L200,-42"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="1.5s" repeatCount="indefinite" begin="0.6s"/>
+            </circle>
+
+            <!-- Convergence point -->
+            <circle cx="200" cy="72" r="10" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+
+            <!-- Bottleneck link -->
+            <line x1="210" y1="72" x2="430" y2="72" stroke="rgba(239,68,68,0.5)" stroke-width="4"/>
+            <text x="320" y="60" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#ef4444">100 Mbps bottleneck</text>
+            <text x="320" y="88" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#fca5a5">3 Gbps in, 100 Mbps out</text>
+
+            <!-- Queue building up -->
+            <rect x="215" y="78" width="10" height="12" rx="2" fill="rgba(239,68,68,0.6)" class="queue-fill" style="animation-duration:2s;"/>
+
+            <!-- Queue box -->
+            <rect x="208" y="78" width="80" height="28" rx="3" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+            <text x="248" y="96" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#ef4444">Queue building</text>
+
+            <!-- Packets dropping out of queue -->
+            <circle cx="255" cy="78" r="4" fill="#ef4444" opacity="0.8">
+                <animate attributeName="cy" values="78;95;112;130" dur="2s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.8;0.5;0.2;0" dur="2s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="268" cy="78" r="3" fill="#ef4444" opacity="0.7">
+                <animate attributeName="cy" values="78;97;115;133" dur="2.3s" repeatCount="indefinite" begin="0.5s"/>
+                <animate attributeName="opacity" values="0.7;0.4;0.15;0" dur="2.3s" repeatCount="indefinite" begin="0.5s"/>
+            </circle>
+
+            <text x="260" y="130" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#ef4444">Packets dropped</text>
+
+            <!-- Output flow -->
+            <line x1="430" y1="72" x2="570" y2="72" stroke="rgba(239,68,68,0.4)" stroke-width="4"/>
+            <text x="500" y="60" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#f87171">Congested output</text>
+
+            <!-- Destination -->
+            <rect x="570" y="52" width="75" height="40" rx="4" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>
+            <text x="607" y="70" text-anchor="middle" font-family="Segoe UI" font-size="9" fill="#94a3b8">Dest</text>
+            <text x="607" y="83" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#64748b">Sees loss+jitter</text>
+
+            <!-- Solution label -->
+            <rect x="655" y="50" width="100" height="55" rx="5" fill="rgba(58,181,119,0.07)" stroke="rgba(58,181,119,0.25)" stroke-width="1.5"/>
+            <text x="705" y="66" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#3ab577">FIXES:</text>
+            <text x="705" y="79" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#94a3b8">Upgrade link</text>
+            <text x="705" y="91" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#94a3b8">Add QoS</text>
+            <text x="705" y="103" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#94a3b8">Traffic shaping</text>
+        </svg>
+
+        <div class="two-col">
+            <div class="info-card">
+                <div class="ic-title">Identifying the Bottleneck</div>
+                <div class="ic-body">Use <code style="font-family:Courier New; color:#c9a83a; font-size:0.9em;">pathping</code> or <code style="font-family:Courier New; color:#c9a83a; font-size:0.9em;">traceroute</code> to find which hop introduces latency. SNMP monitoring: interface utilization. The hop where utilization approaches 100% and latency spikes is the bottleneck. Check both directions — congestion is often asymmetric.</div>
+            </div>
+            <div class="info-card ic-green">
+                <div class="ic-title">Solutions</div>
+                <div class="ic-body">
+                    <strong style="color:#3ab577;">Link upgrade:</strong> permanent fix. 100 Mbps to 1 Gbps eliminates the current bottleneck.<br>
+                    <strong style="color:#c9a83a;">QoS:</strong> prioritize VoIP and video over bulk data. Does not add bandwidth but ensures critical traffic gets through first.<br>
+                    <strong style="color:#06b6d4;">Traffic shaping / policing:</strong> rate-limit bulk transfers (backups, updates) during business hours.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 7 — WIRELESS PERFORMANCE
+     ===================================================================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 10</div>
+        <div class="slide-title">Wireless <span class="accent">Performance Issues</span></div>
+        <div class="slide-subtitle">Wireless performance problems are often invisible until users complain. Signal, interference, and roaming misconfiguration are the usual suspects.</div>
+
+        <div style="display:flex; gap:16px; align-items:flex-start;">
+            <!-- SVG: interference waves -->
+            <svg width="280" height="190" viewBox="0 0 280 190" style="flex-shrink:0; background:rgba(255,255,255,0.02); border-radius:10px; border:1px solid rgba(255,255,255,0.07);">
+                <text x="140" y="18" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#94a3b8">CHANNEL INTERFERENCE</text>
+
+                <!-- AP 1 on channel 6 -->
+                <circle cx="70" cy="100" r="10" fill="rgba(58,181,119,0.2)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="70" y="104" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#3ab577">AP1</text>
+                <text x="70" y="120" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#64748b">Ch 6</text>
+
+                <!-- Signal waves AP1 -->
+                <ellipse cx="70" cy="100" rx="30" ry="18" fill="none" stroke="rgba(58,181,119,0.3)" stroke-width="1">
+                    <animate attributeName="rx" values="30;50;30" dur="2s" repeatCount="indefinite"/>
+                    <animate attributeName="ry" values="18;30;18" dur="2s" repeatCount="indefinite"/>
+                    <animate attributeName="stroke-opacity" values="0.3;0;0.3" dur="2s" repeatCount="indefinite"/>
+                </ellipse>
+                <ellipse cx="70" cy="100" rx="50" ry="30" fill="none" stroke="rgba(58,181,119,0.2)" stroke-width="1">
+                    <animate attributeName="rx" values="50;80;50" dur="2s" repeatCount="indefinite" begin="0.5s"/>
+                    <animate attributeName="ry" values="30;50;30" dur="2s" repeatCount="indefinite" begin="0.5s"/>
+                    <animate attributeName="stroke-opacity" values="0.2;0;0.2" dur="2s" repeatCount="indefinite" begin="0.5s"/>
+                </ellipse>
+
+                <!-- AP 2 overlapping on channel 6 -->
+                <circle cx="190" cy="100" r="10" fill="rgba(239,68,68,0.2)" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="190" y="104" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#ef4444">AP2</text>
+                <text x="190" y="120" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#ef4444">Ch 6 !</text>
+
+                <!-- Signal waves AP2 (overlapping = interference) -->
+                <ellipse cx="190" cy="100" rx="30" ry="18" fill="none" stroke="rgba(239,68,68,0.3)" stroke-width="1">
+                    <animate attributeName="rx" values="30;55;30" dur="2.2s" repeatCount="indefinite" begin="0.3s"/>
+                    <animate attributeName="ry" values="18;33;18" dur="2.2s" repeatCount="indefinite" begin="0.3s"/>
+                    <animate attributeName="stroke-opacity" values="0.3;0;0.3" dur="2.2s" repeatCount="indefinite" begin="0.3s"/>
+                </ellipse>
+
+                <!-- Collision zone -->
+                <ellipse cx="130" cy="100" rx="20" ry="15" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.25)" stroke-width="1" stroke-dasharray="3,2"/>
+                <text x="130" y="98" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#f87171">CCI</text>
+                <text x="130" y="108" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#ef4444">Zone</text>
+
+                <!-- Non-overlapping channels note -->
+                <text x="140" y="148" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#94a3b8">Non-overlapping 2.4 GHz:</text>
+                <text x="140" y="160" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#64748b">Ch 1, 6, 11</text>
+                <text x="140" y="172" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#64748b">5 GHz: 24+ non-overlapping</text>
+                <text x="140" y="183" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#3ab577">6 GHz (Wi-Fi 6E): 59 channels</text>
+            </svg>
+
+            <div style="display:flex; flex-direction:column; gap:8px; flex:1; min-width:0;">
+                <div class="three-col" style="gap:8px;">
+                    <div class="info-card ic-red">
+                        <div class="ic-title">Co-channel Interference (CCI)</div>
+                        <div class="ic-body">Two APs on the same channel in overlapping coverage areas. Devices must wait for the channel to be clear. Throughput halved or worse. Fix: channel planning — assign non-overlapping channels to adjacent APs.</div>
+                    </div>
+                    <div class="info-card ic-red">
+                        <div class="ic-title">Adjacent Channel Interference</div>
+                        <div class="ic-body">APs on channels 1 and 3 partially overlap in frequency. Signal bleeds between channels. Worse than CCI in some cases. Solution: use only channels 1, 6, 11 on 2.4 GHz. Use 5 GHz for dense environments.</div>
+                    </div>
+                    <div class="info-card ic-red">
+                        <div class="ic-title">Signal Degradation</div>
+                        <div class="ic-body">RSSI below -70 dBm: connectivity degrades. Below -80 dBm: connection drops. Physical obstacles: concrete walls attenuate 2.4 GHz by 10-15 dB. Microwave ovens, Bluetooth, baby monitors all cause 2.4 GHz interference.</div>
+                    </div>
+                </div>
+                <div class="two-col" style="gap:8px;">
+                    <div class="info-card ic-gold">
+                        <div class="ic-title">Client Disassociation</div>
+                        <div class="ic-body">Client refuses to roam from weak AP to strong AP ("sticky client"). Common when minimum RSSI threshold not configured on AP. Result: client stays connected at low data rates when a better AP is available nearby.</div>
+                    </div>
+                    <div class="info-card ic-blue">
+                        <div class="ic-title">Roaming Misconfiguration</div>
+                        <div class="ic-body">802.11r (Fast BSS Transition): reduces roaming handoff time from 200-400 ms to &lt;50 ms. 802.11k: neighbor AP reports so clients know where to roam. 802.11v: AP can steer clients. All three together = enterprise-grade seamless roaming.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 8 — QoS
+     ===================================================================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 10</div>
+        <div class="slide-title">QoS: <span class="accent-green">Priority Queuing</span> &amp; DSCP</div>
+        <div class="slide-subtitle">Quality of Service does not add bandwidth. It ensures that when bandwidth is scarce, the right traffic wins.</div>
+
+        <!-- SVG: priority queue animation -->
+        <svg width="760" height="145" viewBox="0 0 760 145" style="width:100%; background:rgba(255,255,255,0.02); border-radius:10px; border:1px solid rgba(255,255,255,0.07); max-height:145px;">
+
+            <!-- Input flows with DSCP marks -->
+            <!-- VoIP -->
+            <rect x="10" y="15" width="100" height="22" rx="3" fill="rgba(58,181,119,0.12)" stroke="rgba(58,181,119,0.3)" stroke-width="1"/>
+            <text x="60" y="30" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#3ab577">VoIP (EF DSCP 46)</text>
+            <circle cx="115" cy="26" r="6" fill="#3ab577">
+                <animateMotion dur="2.5s" repeatCount="indefinite" path="M0,0 L130,44"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="2.5s" repeatCount="indefinite"/>
+            </circle>
+
+            <!-- Video -->
+            <rect x="10" y="47" width="100" height="22" rx="3" fill="rgba(6,182,212,0.1)" stroke="rgba(6,182,212,0.25)" stroke-width="1"/>
+            <text x="60" y="62" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#06b6d4">Video (AF41 DSCP 34)</text>
+            <circle cx="115" cy="58" r="5" fill="#06b6d4">
+                <animateMotion dur="2.5s" repeatCount="indefinite" begin="0.4s" path="M0,0 L130,12"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="2.5s" repeatCount="indefinite" begin="0.4s"/>
+            </circle>
+
+            <!-- Data -->
+            <rect x="10" y="79" width="100" height="22" rx="3" fill="rgba(58,143,212,0.08)" stroke="rgba(58,143,212,0.2)" stroke-width="1"/>
+            <text x="60" y="94" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#3a8fd4">Data (CS0 DSCP 0)</text>
+            <circle cx="115" cy="90" r="4" fill="#3a8fd4">
+                <animateMotion dur="2.5s" repeatCount="indefinite" begin="0.8s" path="M0,0 L130,-20"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="2.5s" repeatCount="indefinite" begin="0.8s"/>
+            </circle>
+
+            <!-- Bulk -->
+            <rect x="10" y="111" width="100" height="22" rx="3" fill="rgba(100,116,139,0.08)" stroke="rgba(100,116,139,0.2)" stroke-width="1"/>
+            <text x="60" y="126" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#64748b">Bulk/Backup (CS1)</text>
+            <circle cx="115" cy="122" r="4" fill="#475569">
+                <animateMotion dur="2.5s" repeatCount="indefinite" begin="1.2s" path="M0,0 L130,-52"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="2.5s" repeatCount="indefinite" begin="1.2s"/>
+            </circle>
+
+            <!-- Priority queue box -->
+            <rect x="248" y="10" width="110" height="125" rx="6" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>
+            <text x="303" y="26" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#94a3b8">PRIORITY QUEUES</text>
+
+            <!-- Queue 1: Voice (high priority) -->
+            <rect x="256" y="32" width="94" height="22" rx="3" fill="rgba(58,181,119,0.15)" stroke="rgba(58,181,119,0.4)" stroke-width="1"/>
+            <text x="303" y="47" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#3ab577">Q1: Voice (EF)</text>
+            <!-- Packets in Q1 -->
+            <circle cx="263" cy="43" r="4" fill="#3ab577" opacity="0.9"/>
+            <circle cx="273" cy="43" r="4" fill="#3ab577" opacity="0.7"/>
+
+            <!-- Queue 2: Video -->
+            <rect x="256" y="58" width="94" height="22" rx="3" fill="rgba(6,182,212,0.1)" stroke="rgba(6,182,212,0.3)" stroke-width="1"/>
+            <text x="303" y="73" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#06b6d4">Q2: Video (AF4)</text>
+            <circle cx="263" cy="69" r="3.5" fill="#06b6d4" opacity="0.7"/>
+            <circle cx="272" cy="69" r="3.5" fill="#06b6d4" opacity="0.5"/>
+            <circle cx="281" cy="69" r="3.5" fill="#06b6d4" opacity="0.4"/>
+
+            <!-- Queue 3: Data -->
+            <rect x="256" y="84" width="94" height="22" rx="3" fill="rgba(58,143,212,0.08)" stroke="rgba(58,143,212,0.2)" stroke-width="1"/>
+            <text x="303" y="99" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#3a8fd4">Q3: Data (BE)</text>
+            <circle cx="263" cy="95" r="3" fill="#3a8fd4" opacity="0.5"/>
+            <circle cx="271" cy="95" r="3" fill="#3a8fd4" opacity="0.4"/>
+            <circle cx="279" cy="95" r="3" fill="#3a8fd4" opacity="0.3"/>
+            <circle cx="287" cy="95" r="3" fill="#3a8fd4" opacity="0.3"/>
+            <circle cx="295" cy="95" r="3" fill="#3a8fd4" opacity="0.2"/>
+
+            <!-- Queue 4: Bulk -->
+            <rect x="256" y="110" width="94" height="20" rx="3" fill="rgba(100,116,139,0.06)" stroke="rgba(100,116,139,0.15)" stroke-width="1"/>
+            <text x="303" y="124" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#475569">Q4: Bulk (CS1)</text>
+            <circle cx="263" cy="120" r="2.5" fill="#475569" opacity="0.4"/>
+            <circle cx="270" cy="120" r="2.5" fill="#475569" opacity="0.3"/>
+            <circle cx="277" cy="120" r="2.5" fill="#475569" opacity="0.2"/>
+            <circle cx="284" cy="120" r="2.5" fill="#475569" opacity="0.15"/>
+
+            <!-- Output scheduling: voice always first -->
+            <text x="380" y="16" font-family="Segoe UI" font-size="8" fill="#94a3b8">Scheduler: strict priority for Q1, WFQ for Q2-Q4</text>
+
+            <!-- Output packets: voice gets priority -->
+            <circle cx="0" cy="43" r="5" fill="#3ab577">
+                <animateMotion dur="1.2s" repeatCount="indefinite" path="M358,0 L520,0"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="1.2s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="0" cy="69" r="4" fill="#06b6d4">
+                <animateMotion dur="2s" repeatCount="indefinite" begin="0.4s" path="M358,0 L520,0"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="2s" repeatCount="indefinite" begin="0.4s"/>
+            </circle>
+            <circle cx="0" cy="95" r="3.5" fill="#3a8fd4">
+                <animateMotion dur="3s" repeatCount="indefinite" begin="0.8s" path="M358,0 L520,0"/>
+                <animate attributeName="opacity" values="0;1;1;0" dur="3s" repeatCount="indefinite" begin="0.8s"/>
+            </circle>
+
+            <!-- DSCP marking table -->
+            <rect x="545" y="10" width="210" height="130" rx="5" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)"/>
+            <text x="650" y="25" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#94a3b8">DSCP QUICK REFERENCE</text>
+            <text x="553" y="38" font-family="Courier New" font-size="7" fill="#3ab577">EF  (46) — Expedited Fwd — VoIP</text>
+            <text x="553" y="51" font-family="Courier New" font-size="7" fill="#06b6d4">AF41(34) — Assured Fwd   — Video</text>
+            <text x="553" y="64" font-family="Courier New" font-size="7" fill="#3a8fd4">AF21(18) — Assured Fwd   — Data</text>
+            <text x="553" y="77" font-family="Courier New" font-size="7" fill="#c9a83a">CS3 (24) — Class Select  — Signal</text>
+            <text x="553" y="90" font-family="Courier New" font-size="7" fill="#94a3b8">BE  (0)  — Best Effort   — Default</text>
+            <text x="553" y="103" font-family="Courier New" font-size="7" fill="#475569">CS1 (8)  — Low Priority  — Bulk</text>
+            <line x1="553" y1="110" x2="748" y2="110" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+            <text x="553" y="122" font-family="Segoe UI" font-size="7" fill="#64748b">DSCP value in IP header ToS field</text>
+            <text x="553" y="133" font-family="Segoe UI" font-size="7" fill="#64748b">Routers and switches read and honor</text>
+        </svg>
+
+        <div class="two-col">
+            <div class="info-card">
+                <div class="ic-title">How QoS Fixes the Scenario</div>
+                <div class="ic-body">Without QoS: a 500 MB file upload during a VoIP call competes equally for bandwidth. The large TCP transfer causes queue depth to grow, adding latency and jitter to voice packets. With QoS: VoIP packets are always served first from the priority queue, regardless of what else is in the queue.</div>
+            </div>
+            <div class="info-card ic-green">
+                <div class="ic-title">DSCP Marking vs Trusting</div>
+                <div class="ic-body">Edge devices (phones, cameras) mark their own DSCP values. QoS policy on switches and routers either trust those marks (internal endpoints) or reclassify/police them (external or untrusted). Phones typically mark EF. Rogue or misconfigured devices can abuse markings — police at the network edge.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 9 — DIAGNOSTIC COMMANDS
+     ===================================================================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 10</div>
+        <div class="slide-title">Diagnostic <span class="accent">Commands</span></div>
+        <div class="slide-subtitle">The right tool for each metric. Know the command, know what it measures, know how to read the output.</div>
+
+        <div class="two-col">
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="terminal-block">
+                    <div class="t-label">Latency — ping</div>
+                    <div class="t-cmd">C:\&gt; ping -n 100 8.8.8.8</div>
+                    <div class="t-out">Reply: bytes=32 time=<span class="t-good">8ms</span> TTL=117</div>
+                    <div class="t-out">Reply: bytes=32 time=<span class="t-good">9ms</span> TTL=117</div>
+                    <div class="t-out">Packets: Sent=100, Received=98, Lost=<span class="t-bad">2 (2%)</span></div>
+                    <div class="t-out">Min=7ms, Max=<span class="t-bad">142ms</span>, Avg=<span class="t-good">9ms</span></div>
+                    <div style="font-size:0.75rem; color:#475569; margin-top:4px; font-style:italic;">High Max vs Avg = latency spikes under load</div>
+                </div>
+
+                <div class="terminal-block">
+                    <div class="t-label">Hop-by-hop Loss — pathping</div>
+                    <div class="t-cmd">C:\&gt; pathping 10.5.0.1</div>
+                    <div class="t-out">Hop 1: 192.168.1.1 &nbsp;&nbsp; 0% loss &nbsp; 2ms</div>
+                    <div class="t-out">Hop 2: 10.1.0.1 &nbsp;&nbsp;&nbsp;&nbsp; <span class="t-bad">12% loss</span> &nbsp;5ms</div>
+                    <div class="t-out">Hop 3: 10.2.0.1 &nbsp;&nbsp;&nbsp;&nbsp; 0% loss &nbsp; 6ms</div>
+                    <div style="font-size:0.75rem; color:#475569; margin-top:4px; font-style:italic;">Loss at hop 2 = problem on that link or device</div>
+                </div>
+
+                <div class="terminal-block">
+                    <div class="t-label">Throughput — iperf3</div>
+                    <div class="t-cmd">$ iperf3 -c 10.5.0.100 -t 30</div>
+                    <div class="t-out">[ 5] 0.00-30.00 sec &nbsp;3.58 GBytes</div>
+                    <div class="t-out">&nbsp;&nbsp;&nbsp;&nbsp; Bandwidth: <span class="t-good">1.00 Gbits/sec</span></div>
+                    <div class="t-cmd">$ iperf3 -c 10.5.0.100 -u -b 1G</div>
+                    <div class="t-out">Jitter: <span class="t-bad">4.231 ms</span> &nbsp; Lost: <span class="t-bad">2.1%</span></div>
+                </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="terminal-block">
+                    <div class="t-label">Interface Statistics — show interface</div>
+                    <div class="t-cmd">SW1# show interface Gi0/1</div>
+                    <div class="t-out">GigabitEthernet0/1 is up</div>
+                    <div class="t-out">Input queue: <span class="t-bad">0/75/850/0</span> (drops)</div>
+                    <div class="t-out">Output drops: <span class="t-bad">1240</span></div>
+                    <div class="t-out">5 min input rate: <span class="t-bad">998,432,000 bits/sec</span></div>
+                    <div style="font-size:0.75rem; color:#475569; margin-top:4px; font-style:italic;">Output drops + 99.8% utilization = congestion</div>
+                </div>
+
+                <div class="terminal-block">
+                    <div class="t-label">Wireless Signal — netsh (Windows)</div>
+                    <div class="t-cmd">C:\&gt; netsh wlan show interfaces</div>
+                    <div class="t-out">SSID &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : CorpWiFi</div>
+                    <div class="t-out">Signal &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : <span class="t-bad">42%</span></div>
+                    <div class="t-out">Receive rate : <span class="t-bad">24 Mbps</span></div>
+                    <div class="t-out">Transmit rate: <span class="t-bad">24 Mbps</span></div>
+                    <div style="font-size:0.75rem; color:#475569; margin-top:4px; font-style:italic;">Low signal + low rate = sticky client or weak AP</div>
+                </div>
+
+                <div class="box box-gold" style="font-size:0.82rem;">
+                    <div class="box-label">Wireshark for Jitter Analysis</div>
+                    Capture RTP stream. Statistics &gt; VoIP Calls &gt; Stream Analysis. Shows per-packet jitter graph. Any spike above 30 ms correlates to robotic audio. Filter: <code style="font-family:Courier New; color:#c9a83a; font-size:0.9em;">rtp &amp;&amp; ip.src == 10.1.0.50</code>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 10 — SUMMARY + COMPLETE
+     ===================================================================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 10 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Performance Issues: <span class="accent">Scenario Resolved</span></div>
+
+        <div class="two-col">
+            <div style="display:flex; flex-direction:column; gap:7px;">
+                <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Bandwidth = pipe capacity (potential). Throughput = actual measured flow. Goodput = useful application data after overhead. Never the same number.</span></div>
+                <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">Latency = propagation + processing + queuing + serialization delay. VoIP requires &lt;150 ms one-way. Satellite latency (600 ms) is fundamentally incompatible with real-time voice.</span></div>
+                <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">Jitter = latency variation between consecutive packets. Causes robotic VoIP audio. Fixed by jitter buffer (adds latency, removes variation). Keep jitter &lt;30 ms for voice.</span></div>
+                <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">Packet loss: TCP retransmits (slowdown), UDP discards (degradation). VoIP: &lt;1% acceptable. Use <code>pathping</code> to identify which hop drops packets.</span></div>
+                <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">Congestion: multiple flows converging on a narrow link. Queue builds, packets drop, latency spikes. Fixes: link upgrade, QoS, traffic shaping.</span></div>
+                <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">Wireless: CCI (same channel), ACI (adjacent channel), low RSSI, sticky clients, missing 802.11r/k/v for roaming. Use 5 GHz / 6 GHz for dense deployments.</span></div>
+                <div class="fact-row"><span class="fact-num">7</span><span class="fact-text">QoS prioritizes traffic via DSCP: EF(46) = VoIP, AF41(34) = Video, CS0 = best effort. Strict priority queue ensures voice packets skip the line.</span></div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div style="background:rgba(201,168,58,0.07); border:1px solid rgba(201,168,58,0.3); border-radius:9px; padding:14px 18px; font-size:0.875rem; color:#fef3c7; line-height:1.65;">
+                    <strong style="color:#c9a83a;">Scenario resolved.</strong> <code style="font-family:Courier New; color:#c9a83a; font-size:0.9em;">pathping</code> showed 18% packet loss at the WAN edge router. <code style="font-family:Courier New; color:#c9a83a; font-size:0.9em;">show interface</code> on that router revealed 99.3% utilization and 4,200 output drops. The cause: a backup job scheduled to run at 9am was saturating the 100 Mbps WAN link.
+                    <br><br>
+                    Fix applied: QoS policy marking backup traffic CS1, VoIP EF. Backup job rescheduled to midnight. WAN link upgraded from 100 Mbps to 500 Mbps. Video calls, file transfers, and VoIP now operate without interference.
+                </div>
+
+                <div class="box box-gold" style="font-size:0.82rem;">
+                    <div class="box-label">N10-009 Obj 5.4 Coverage</div>
+                    Bandwidth, throughput, goodput, latency (propagation/queuing/processing), jitter, jitter buffer, packet loss (TCP vs UDP), congestion, bottleneck, wireless interference (CCI/ACI), signal degradation, sticky clients, roaming (802.11r/k/v), QoS, DSCP, EF/AF/CS markings, diagnostic tools (ping, pathping, iperf3, Wireshark, show interface).
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     NAVIGATION BAR
+     ===================================================================== -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">Back to Course</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="changeSlide(-1)" disabled>Previous</button>
+    <span id="slide-counter">1 / 10</span>
+    <button class="nav-btn" id="next-btn" onclick="changeSlide(1)">Next</button>
+    <button id="complete-btn">Mark Complete</button>
+</nav>
+
+<script>
+    /* =====================================================
+       SLIDE NAVIGATION ENGINE
+       ===================================================== */
+    const TOTAL_SLIDES = 10;
+    const MODULE_ID    = 'web-performance-issues';
+    let currentSlide   = 1;
+
+    function changeSlide(direction) {
+        const previous = document.getElementById('slide-' + currentSlide);
+        currentSlide = Math.max(1, Math.min(TOTAL_SLIDES, currentSlide + direction));
+        const next = document.getElementById('slide-' + currentSlide);
+
+        if (previous) previous.classList.remove('active');
+        if (next)     next.classList.add('active');
+
+        const pct = (currentSlide / TOTAL_SLIDES) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+        document.getElementById('slide-counter').textContent = currentSlide + ' / ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+
+    /* =====================================================
+       COMPLETE BUTTON
+       ===================================================== */
+    document.getElementById('complete-btn').addEventListener('click', function () {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', MODULE_ID, { returnUrl: '../index.html' });
+        }
+        this.textContent = 'Completed!';
+        this.style.background = '#e0bf55';
+        this.disabled = true;
+    });
+
+    /* =====================================================
+       KEYBOARD NAVIGATION
+       ===================================================== */
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+            if (currentSlide < TOTAL_SLIDES) changeSlide(1);
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+            if (currentSlide > 1) changeSlide(-1);
+        }
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STP | Network+ N10-009</title>
+    <style>
+        /* =====================================================
+           RESET & BASE
+           ===================================================== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* =====================================================
+           SLIDE SYSTEM — viewport-locked, no overflow
+           ===================================================== */
+        .slide {
+            display: none;
+            position: fixed;
+            inset: 0;
+            padding: 20px 28px 72px;
+            overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Inner wrapper — constrains content width */
+        .slide-inner {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* =====================================================
+           PROGRESS BAR
+           ===================================================== */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: #8a5cb5;
+            transition: width 0.4s ease;
+            z-index: 200;
+        }
+
+        /* =====================================================
+           NAVIGATION BAR — fixed bottom
+           ===================================================== */
+        #nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            z-index: 200;
+            padding: 0 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(138, 92, 181, 0.2);
+            color: #8a5cb5;
+            border-color: #8a5cb5;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.back-btn {
+            font-size: 0.82rem;
+            padding: 8px 16px;
+        }
+
+        #slide-counter {
+            color: #64748b;
+            font-size: 0.82rem;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        #complete-btn {
+            display: none;
+            background: #3ab577;
+            color: #000;
+            border: none;
+            padding: 9px 26px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+
+        #complete-btn:hover {
+            background: #4fcf8a;
+            transform: translateY(-1px);
+        }
+
+        /* =====================================================
+           SHARED SLIDE TYPOGRAPHY
+           ===================================================== */
+        .slide-meta {
+            font-size: 0.78rem;
+            color: #8a5cb5;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .slide-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            text-align: center;
+            line-height: 1.25;
+        }
+
+        .slide-title .accent { color: #8a5cb5; }
+
+        .slide-subtitle {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        /* =====================================================
+           SCENARIO STRIP
+           ===================================================== */
+        .scenario-strip {
+            background: rgba(138, 92, 181, 0.07);
+            border-left: 3px solid #8a5cb5;
+            border-radius: 0 8px 8px 0;
+            padding: 10px 16px;
+            font-size: 0.88rem;
+            color: #d4b8f0;
+            font-style: italic;
+        }
+
+        /* =====================================================
+           BOXES
+           ===================================================== */
+        .box {
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.875rem;
+        }
+
+        .box-purple {
+            background: rgba(138, 92, 181, 0.07);
+            border: 1px solid rgba(138, 92, 181, 0.3);
+            color: #d4b8f0;
+        }
+
+        .box-green {
+            background: rgba(58, 181, 119, 0.08);
+            border: 1px solid rgba(58, 181, 119, 0.35);
+            color: #d1fae5;
+        }
+
+        .box-red {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fee2e2;
+        }
+
+        .box-gold {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            color: #fef3c7;
+        }
+
+        .box-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+            opacity: 0.75;
+        }
+
+        /* =====================================================
+           CARD GRIDS
+           ===================================================== */
+        .card-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        .card-grid-2 { grid-template-columns: 1fr 1fr; }
+        .card-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+        .card-grid-4 { grid-template-columns: repeat(4, 1fr); }
+        .card-grid-5 { grid-template-columns: repeat(5, 1fr); }
+
+        .card {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 8px;
+            padding: 11px 14px;
+            border-left: 3px solid #8a5cb5;
+            font-size: 0.85rem;
+        }
+
+        .card-title {
+            font-weight: 700;
+            color: #8a5cb5;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 4px;
+        }
+
+        .card-body {
+            color: #94a3b8;
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-green .card-title { color: #3ab577; }
+        .card.c-gold  { border-left-color: #fbbf24; }
+        .card.c-gold  .card-title { color: #fbbf24; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-red   .card-title { color: #ef4444; }
+        .card.c-blue  { border-left-color: #3a8fd4; }
+        .card.c-blue  .card-title { color: #3a8fd4; }
+
+        /* =====================================================
+           PORT STATE FLOW
+           ===================================================== */
+        .state-flow {
+            display: flex;
+            align-items: center;
+            gap: 0;
+        }
+
+        .state-node {
+            flex: 1;
+            text-align: center;
+            padding: 9px 5px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+        }
+
+        .state-node.sn-block {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+        }
+
+        .state-node.sn-listen {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.25);
+        }
+
+        .state-node.sn-learn {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+
+        .state-node.sn-forward {
+            background: rgba(58, 181, 119, 0.1);
+            border: 1px solid rgba(58, 181, 119, 0.3);
+        }
+
+        .state-node.sn-disable {
+            background: rgba(100, 116, 139, 0.08);
+            border: 1px solid rgba(100, 116, 139, 0.2);
+        }
+
+        .sn-label {
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 2px;
+        }
+
+        .sn-block   .sn-label { color: #ef4444; }
+        .sn-listen  .sn-label { color: #fbbf24; }
+        .sn-learn   .sn-label { color: #fbbf24; }
+        .sn-forward .sn-label { color: #3ab577; }
+        .sn-disable .sn-label { color: #64748b; }
+
+        .sn-desc {
+            color: #64748b;
+            font-size: 0.68rem;
+            line-height: 1.3;
+        }
+
+        .sn-timer {
+            font-family: 'Courier New', monospace;
+            color: #8a5cb5;
+            font-size: 0.7rem;
+            margin-top: 3px;
+        }
+
+        .state-arrow {
+            color: #334155;
+            font-size: 0.8rem;
+            padding: 0 4px;
+            flex-shrink: 0;
+        }
+
+        /* =====================================================
+           TABLE
+           ===================================================== */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.83rem;
+        }
+
+        .data-table th {
+            background: rgba(138, 92, 181, 0.1);
+            color: #8a5cb5;
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .data-table td {
+            padding: 7px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: #94a3b8;
+        }
+
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table tr:hover td { background: rgba(138, 92, 181, 0.03); }
+
+        .td-accent { color: #8a5cb5; font-weight: 600; }
+        .td-green  { color: #3ab577; font-weight: 600; }
+        .td-mono   { font-family: 'Courier New', monospace; color: #e2e8f0; }
+
+        /* =====================================================
+           CODE BLOCK
+           ===================================================== */
+        .code-block {
+            background: #070710;
+            border: 1px solid rgba(138, 92, 181, 0.15);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            color: #e2e8f0;
+            white-space: pre;
+        }
+
+        .code-block .c-comment { color: #475569; }
+        .code-block .c-cmd     { color: #8a5cb5; }
+        .code-block .c-val     { color: #3ab577; }
+
+        /* =====================================================
+           TITLE SLIDE
+           ===================================================== */
+        .title-hero {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .big-title {
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: #f1f5f9;
+            line-height: 1.2;
+        }
+
+        .big-title .purple { color: #8a5cb5; }
+
+        .title-meta-row {
+            display: flex;
+            gap: 28px;
+            justify-content: center;
+            margin-top: 6px;
+            font-size: 0.82rem;
+            color: #475569;
+        }
+
+        .title-meta-row span {
+            border-left: 2px solid #1e293b;
+            padding-left: 28px;
+        }
+
+        .title-meta-row span:first-child {
+            border-left: none;
+            padding-left: 0;
+        }
+
+        /* =====================================================
+           SUMMARY FACTS
+           ===================================================== */
+        .summary-facts {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .fact-row {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            font-size: 0.875rem;
+        }
+
+        .fact-num {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #8a5cb5;
+            min-width: 22px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .fact-text {
+            color: #cbd5e1;
+        }
+
+        .fact-text code {
+            font-family: 'Courier New', monospace;
+            color: #8a5cb5;
+            background: rgba(138, 92, 181, 0.1);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+
+        .summary-scenario {
+            background: rgba(138, 92, 181, 0.06);
+            border: 1px solid rgba(138, 92, 181, 0.25);
+            border-radius: 9px;
+            padding: 14px 18px;
+            font-size: 0.875rem;
+            color: #d4b8f0;
+            line-height: 1.65;
+        }
+
+        .summary-scenario strong { color: #8a5cb5; }
+
+        /* =====================================================
+           UTILITY
+           ===================================================== */
+        .section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: #475569;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        /* =====================================================
+           RESPONSIVE
+           ===================================================== */
+        @media (max-height: 700px) {
+            .slide-inner { gap: 9px; }
+            .slide-title { font-size: 1.4rem; }
+            .big-title   { font-size: 1.9rem; }
+            .card-grid   { gap: 6px; }
+        }
+
+        @media (max-width: 768px) {
+            .card-grid-3 { grid-template-columns: 1fr; }
+            .card-grid-4 { grid-template-columns: repeat(2, 1fr); }
+            .card-grid-5 { grid-template-columns: repeat(3, 1fr); }
+            .card-grid-2 { grid-template-columns: 1fr; }
+            .state-flow  { flex-wrap: wrap; }
+        }
+
+        /* =====================================================
+           SVG DIAGRAM WRAPPERS — animated topology diagrams
+           ===================================================== */
+        .svg-diagram {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .svg-diagram svg {
+            max-width: 100%;
+            height: auto;
+            overflow: visible;
+        }
+
+        /* Glow filter base — referenced by animated packets */
+        .pkt-purple { filter: drop-shadow(0 0 4px rgba(138, 92, 181, 0.85)); }
+        .pkt-green  { filter: drop-shadow(0 0 4px rgba(58, 181, 119, 0.85)); }
+        .pkt-red    { filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.9)); }
+        .pkt-gold   { filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.85)); }
+    </style>
+</head>
+<body>
+
+<!-- Progress bar across very top -->
+<div id="progress-bar" style="width:10%"></div>
+
+<!-- =====================================================================
+     SLIDE 1 — TITLE
+     ===================================================================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 10 &nbsp;|&nbsp; N10-009 Obj 1.2 &nbsp;|&nbsp; Layer 2 Switching</div>
+
+        <div class="title-hero">
+            <div class="big-title">
+                <span class="purple">STP</span>:<br>
+                Spanning Tree Protocol
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Layer 2 loop prevention. The reason your redundant uplinks don't destroy the network.
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            You add a second uplink to your core switch for redundancy. Suddenly the entire network grinds to a halt.
+            The switches are forwarding the same broadcast frames in circles, filling every buffer, consuming all
+            bandwidth. This is a broadcast storm — and STP exists to prevent exactly this.
+        </div>
+
+        <div class="title-meta-row">
+            <span>10 Slides</span>
+            <span>N10-009 Obj 1.2</span>
+            <span>Layer 2 — Data Link</span>
+            <span>802.1D + 802.1w</span>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 2 — THE LOOP PROBLEM (broadcast storm)
+     ===================================================================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 10</div>
+        <div class="slide-title">The <span class="accent">Loop Problem</span></div>
+        <div class="slide-subtitle">Ethernet has no TTL. A frame caught in a loop runs forever — until the network collapses.</div>
+
+        <div class="card-grid card-grid-3">
+            <div class="card c-red">
+                <div class="card-title">Broadcast Storm</div>
+                <div class="card-body">
+                    Switch A receives a broadcast and forwards it out all ports. Switch B forwards it back to Switch A.
+                    Switch A forwards it again. The frames multiply exponentially. Bandwidth saturates in seconds.
+                    CPUs peg at 100%. The network is unusable.
+                </div>
+            </div>
+            <div class="card c-red">
+                <div class="card-title">MAC Table Instability</div>
+                <div class="card-body">
+                    The same MAC address arrives on multiple ports as looped frames come in from different directions.
+                    Switches keep rewriting their MAC tables trying to track the source. Known as MAC flapping —
+                    no stable path can be learned.
+                </div>
+            </div>
+            <div class="card c-red">
+                <div class="card-title">Duplicate Frame Delivery</div>
+                <div class="card-body">
+                    Upper-layer protocols receive multiple copies of the same frame. TCP resets connections.
+                    Applications crash. Even after the loop is broken physically, recovery takes time because
+                    buffers are still full of queued duplicates.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Why Redundancy Without STP Is Dangerous</div>
+            You added the second uplink for redundancy — a good idea in principle. But without STP,
+            two paths between switches means a loop exists. The moment a broadcast hits that loop,
+            the storm begins. STP's job is to allow the redundant link to exist while logically
+            blocking one path to eliminate the loop.
+        </div>
+
+        <!-- SVG: Broadcast storm — 1 frame multiplies to 8, then STP blocks one link -->
+        <div class="svg-diagram">
+            <svg viewBox="0 0 560 120" width="560" height="120" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <filter id="glow-red">
+                        <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+                        <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <filter id="glow-purple">
+                        <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                        <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <filter id="glow-green">
+                        <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                        <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <!-- Paths for storm packets traveling the triangle -->
+                    <path id="storm-ab" d="M 90,60 L 230,28"/>
+                    <path id="storm-bc" d="M 250,28 L 310,28"/>
+                    <path id="storm-ca" d="M 330,60 L 110,60"/>
+                    <path id="storm-ab2" d="M 90,62 L 230,32"/>
+                    <path id="storm-bc2" d="M 250,32 L 310,32"/>
+                    <path id="storm-ca2" d="M 330,64 L 110,64"/>
+                    <!-- Blocked link path for STP indicator -->
+                    <path id="link-blocked" d="M 330,60 L 110,60"/>
+                </defs>
+
+                <!-- ── Phase label ── -->
+                <text x="4" y="13" font-size="7.5" fill="#475569" font-family="monospace" letter-spacing="0.05em">BROADCAST STORM</text>
+
+                <!-- ── Triangle topology — SW-A top-left, SW-B top-right, SW-C bottom-center ── -->
+                <!-- SW-A ↔ SW-B link (top) -->
+                <line x1="90" y1="28" x2="310" y2="28" stroke="#334155" stroke-width="2"/>
+                <!-- SW-A ↔ SW-C link (left-down) -->
+                <line x1="74" y1="38" x2="74" y2="82" stroke="#334155" stroke-width="2"/>
+                <!-- SW-B ↔ SW-C link (right-down) -->
+                <line x1="326" y1="38" x2="326" y2="82" stroke="#334155" stroke-width="2"/>
+                <!-- SW-C horizontal bottom -->
+                <line x1="90" y1="96" x2="310" y2="96" stroke="#334155" stroke-width="2"/>
+
+                <!-- Switch nodes -->
+                <!-- SW-A -->
+                <circle cx="74" cy="28" r="16" fill="#1e293b" stroke="#8a5cb5" stroke-width="1.5"/>
+                <text x="74" y="31" text-anchor="middle" font-size="7" fill="#8a5cb5" font-weight="700">SW-A</text>
+                <!-- SW-B -->
+                <circle cx="326" cy="28" r="16" fill="#1e293b" stroke="#8a5cb5" stroke-width="1.5"/>
+                <text x="326" y="31" text-anchor="middle" font-size="7" fill="#8a5cb5" font-weight="700">SW-B</text>
+                <!-- SW-C -->
+                <circle cx="200" cy="96" r="16" fill="#1e293b" stroke="#8a5cb5" stroke-width="1.5"/>
+                <text x="200" y="99" text-anchor="middle" font-size="7" fill="#8a5cb5" font-weight="700">SW-C</text>
+
+                <!-- ── Storm packets — multiply 1→2→4→8 on loop ── -->
+                <!-- Wave 1: single packet A→B -->
+                <circle r="4" fill="#ef4444" filter="url(#glow-red)" opacity="0.9">
+                    <animateMotion dur="1.2s" begin="0.2s" repeatCount="indefinite" rotate="auto">
+                        <mpath href="#storm-ab"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="1.2s" begin="0.2s" repeatCount="indefinite"/>
+                </circle>
+
+                <!-- Wave 2: two packets -->
+                <circle r="4" fill="#ef4444" filter="url(#glow-red)" opacity="0">
+                    <animateMotion dur="1.2s" begin="1.1s" repeatCount="indefinite" rotate="auto">
+                        <mpath href="#storm-bc"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="1.2s" begin="1.1s" repeatCount="indefinite"/>
+                </circle>
+                <circle r="4" fill="#ef4444" filter="url(#glow-red)" opacity="0">
+                    <animateMotion dur="1.2s" begin="1.4s" repeatCount="indefinite" rotate="auto">
+                        <mpath href="#storm-ca"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="1.2s" begin="1.4s" repeatCount="indefinite"/>
+                </circle>
+
+                <!-- Wave 3: four packets — faster, denser -->
+                <circle r="3.5" fill="#ef4444" filter="url(#glow-red)" opacity="0">
+                    <animateMotion dur="0.9s" begin="2.2s" repeatCount="indefinite" rotate="auto">
+                        <mpath href="#storm-ab2"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="0.9s" begin="2.2s" repeatCount="indefinite"/>
+                </circle>
+                <circle r="3.5" fill="#ef4444" filter="url(#glow-red)" opacity="0">
+                    <animateMotion dur="0.9s" begin="2.5s" repeatCount="indefinite" rotate="auto">
+                        <mpath href="#storm-bc2"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="0.9s" begin="2.5s" repeatCount="indefinite"/>
+                </circle>
+                <circle r="3.5" fill="#ef4444" filter="url(#glow-red)" opacity="0">
+                    <animateMotion dur="0.9s" begin="2.8s" repeatCount="indefinite" rotate="auto">
+                        <mpath href="#storm-ca2"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="0.9s" begin="2.8s" repeatCount="indefinite"/>
+                </circle>
+
+                <!-- ── STP intervention divider ── -->
+                <line x1="390" y1="10" x2="390" y2="110" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="3,3"/>
+                <text x="396" y="13" font-size="7.5" fill="#475569" font-family="monospace" letter-spacing="0.05em">STP ACTIVE</text>
+
+                <!-- Same topology, right side — one link blocked -->
+                <line x1="440" y1="28" x2="536" y2="28" stroke="#334155" stroke-width="2"/>
+                <line x1="424" y1="38" x2="424" y2="82" stroke="#334155" stroke-width="2"/>
+                <line x1="536" y1="38" x2="536" y2="82" stroke="#334155" stroke-width="2"/>
+                <!-- Bottom link — BLOCKED, shown red dashed -->
+                <line x1="440" y1="96" x2="520" y2="96" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,3" opacity="0.6"/>
+                <!-- Blocked symbol -->
+                <text x="476" y="109" text-anchor="middle" font-size="7" fill="#ef4444" font-weight="700">BLOCKED</text>
+
+                <!-- Right-side switch nodes -->
+                <circle cx="424" cy="28" r="16" fill="#1e293b" stroke="#8a5cb5" stroke-width="1.5"/>
+                <text x="424" y="31" text-anchor="middle" font-size="7" fill="#8a5cb5" font-weight="700">SW-A</text>
+                <circle cx="536" cy="28" r="16" fill="#1e293b" stroke="#8a5cb5" stroke-width="1.5"/>
+                <text x="536" y="31" text-anchor="middle" font-size="7" fill="#8a5cb5" font-weight="700">SW-B</text>
+                <circle cx="480" cy="96" r="16" fill="#1e293b" stroke="#8a5cb5" stroke-width="1.5"/>
+                <text x="480" y="99" text-anchor="middle" font-size="7" fill="#8a5cb5" font-weight="700">SW-C</text>
+
+                <!-- Single clean packet flowing A→B (no storm) -->
+                <circle r="4" fill="#3ab577" filter="url(#glow-green)">
+                    <animateMotion dur="1.8s" begin="0s" repeatCount="indefinite">
+                        <mpath href="#storm-ab"/>
+                    </animateMotion>
+                    <animateTransform attributeName="transform" type="translate" values="350,0;350,0" additive="sum"/>
+                    <animate attributeName="cx" from="440" to="536" dur="1.8s" begin="0s" repeatCount="indefinite"/>
+                    <animate attributeName="cy" values="28;28" dur="1.8s" begin="0s" repeatCount="indefinite"/>
+                </circle>
+                <!-- Simpler green packet using animateMotion with offset transform -->
+                <g transform="translate(350,0)">
+                    <circle r="4" fill="#3ab577" filter="url(#glow-green)" opacity="0.9">
+                        <animateMotion dur="1.8s" begin="0s" repeatCount="indefinite">
+                            <mpath href="#storm-ab"/>
+                        </animateMotion>
+                        <animate attributeName="opacity" values="0;1;1;0" dur="1.8s" begin="0s" repeatCount="indefinite"/>
+                    </circle>
+                </g>
+            </svg>
+        </div>
+
+        <div class="scenario-strip">
+            Your second uplink created a physical loop between Switch A and Switch B. STP detects it,
+            blocks one port on one switch, and the storm stops. If the active link fails, STP
+            automatically unblocks the standby — redundancy without the storm.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 3 — HOW STP WORKS (802.1D, root bridge election)
+     ===================================================================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 10</div>
+        <div class="slide-title">How STP Works — <span class="accent">Root Bridge Election</span></div>
+        <div class="slide-subtitle">STP builds a loop-free tree by electing one root and calculating shortest paths back to it.</div>
+
+        <div class="card-grid card-grid-2">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="box box-purple">
+                    <div class="box-label">Step 1 — Elect a Root Bridge</div>
+                    Every switch broadcasts Bridge Protocol Data Units (BPDUs) advertising its Bridge ID.
+                    Bridge ID = Priority (2 bytes) + MAC address (6 bytes).
+                    The switch with the <strong>lowest Bridge ID wins</strong> and becomes the Root Bridge.
+                    Default priority is 32768 (+ VLAN ID in PVST+).
+                    If all switches have the same priority, the lowest MAC wins.
+                </div>
+                <div class="box box-purple">
+                    <div class="box-label">Step 2 — Select Root Ports</div>
+                    Every non-root switch selects the port with the lowest path cost to the Root Bridge
+                    as its Root Port. This is the one port that points "toward" the root.
+                    Each non-root switch has exactly one Root Port.
+                </div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="box box-purple">
+                    <div class="box-label">Step 3 — Select Designated Ports</div>
+                    On each network segment, one port is elected Designated Port — the one closest to
+                    the root on that segment. All ports on the Root Bridge are Designated Ports.
+                    The Designated Port forwards traffic toward the rest of the network.
+                </div>
+                <div class="box box-red">
+                    <div class="box-label">Step 4 — Block Everything Else</div>
+                    Any port that is neither a Root Port nor a Designated Port is placed in Blocking state.
+                    This is how the loop is broken. The port still receives BPDUs (to detect topology changes)
+                    but does not forward data frames. Your second uplink is now safely blocked.
+                </div>
+            </div>
+        </div>
+
+        <!-- SVG: Root Bridge Election — 3 switches exchange BPDUs, lowest ID wins crown -->
+        <div class="svg-diagram">
+            <svg viewBox="0 0 560 108" width="560" height="108" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <filter id="glow-p2">
+                        <feGaussianBlur stdDeviation="2.5" result="cb"/>
+                        <feMerge><feMergeNode in="cb"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <filter id="glow-crown">
+                        <feGaussianBlur stdDeviation="3.5" result="cb"/>
+                        <feMerge><feMergeNode in="cb"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <!-- BPDU paths: SW-B → SW-A and SW-C → SW-A -->
+                    <path id="bpdu-ba" d="M 320,54 L 180,54"/>
+                    <path id="bpdu-ca" d="M 460,54 L 320,54"/>
+                    <path id="bpdu-ba2" d="M 320,50 L 180,50"/>
+                    <path id="bpdu-ca2" d="M 460,50 L 320,50"/>
+                    <path id="bpdu-ba3" d="M 320,58 L 180,58"/>
+                </defs>
+
+                <!-- Link lines -->
+                <line x1="164" y1="54" x2="304" y2="54" stroke="#334155" stroke-width="2"/>
+                <line x1="336" y1="54" x2="444" y2="54" stroke="#334155" stroke-width="2"/>
+
+                <!-- Bridge ID labels above each switch -->
+                <text x="164" y="12" text-anchor="middle" font-size="7.5" fill="#64748b" font-family="monospace">Priority: 4096</text>
+                <text x="164" y="21" text-anchor="middle" font-size="7.5" fill="#64748b" font-family="monospace">MAC: 00:1A:...</text>
+                <text x="320" y="12" text-anchor="middle" font-size="7.5" fill="#64748b" font-family="monospace">Priority: 32768</text>
+                <text x="320" y="21" text-anchor="middle" font-size="7.5" fill="#64748b" font-family="monospace">MAC: 00:2B:...</text>
+                <text x="460" y="12" text-anchor="middle" font-size="7.5" fill="#64748b" font-family="monospace">Priority: 32768</text>
+                <text x="460" y="21" text-anchor="middle" font-size="7.5" fill="#64748b" font-family="monospace">MAC: 00:3C:...</text>
+
+                <!-- Switch circles -->
+                <!-- SW-A — ROOT (glows purple after election) -->
+                <circle cx="164" cy="54" r="16" fill="#1e293b" stroke-width="2">
+                    <animate attributeName="stroke" values="#8a5cb5;#c084fc;#8a5cb5" dur="2.4s" begin="3s" repeatCount="indefinite"/>
+                </circle>
+                <circle cx="164" cy="54" r="20" fill="none" stroke="#8a5cb5" stroke-width="1" opacity="0">
+                    <animate attributeName="opacity" values="0;0;0.6;0.2;0" dur="2.4s" begin="3s" repeatCount="indefinite"/>
+                    <animate attributeName="r" values="16;22;26;22;16" dur="2.4s" begin="3s" repeatCount="indefinite"/>
+                </circle>
+                <text x="164" y="57" text-anchor="middle" font-size="7.5" fill="#8a5cb5" font-weight="700">SW-A</text>
+
+                <!-- Crown on root bridge — appears after election -->
+                <g opacity="0">
+                    <animate attributeName="opacity" values="0;0;1;1" dur="3.5s" begin="2.8s" fill="freeze"/>
+                    <!-- Crown shape (simplified as text glyph + arc) -->
+                    <text x="164" y="33" text-anchor="middle" font-size="13" fill="#fbbf24" filter="url(#glow-crown)">&#9813;</text>
+                    <text x="164" y="78" text-anchor="middle" font-size="6.5" fill="#fbbf24" font-weight="700" letter-spacing="0.04em">ROOT BRIDGE</text>
+                </g>
+
+                <!-- SW-B -->
+                <circle cx="320" cy="54" r="16" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+                <text x="320" y="57" text-anchor="middle" font-size="7.5" fill="#64748b" font-weight="700">SW-B</text>
+
+                <!-- SW-C -->
+                <circle cx="460" cy="54" r="16" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+                <text x="460" y="57" text-anchor="middle" font-size="7.5" fill="#64748b" font-weight="700">SW-C</text>
+
+                <!-- BPDU packets flowing left (toward root) — purple dots -->
+                <!-- B→A packet 1 -->
+                <circle r="4" fill="#8a5cb5" filter="url(#glow-p2)" opacity="0">
+                    <animate attributeName="opacity" values="0;1;1;0" dur="1.1s" begin="0.3s" repeatCount="3"/>
+                    <animateMotion dur="1.1s" begin="0.3s" repeatCount="3">
+                        <mpath href="#bpdu-ba"/>
+                    </animateMotion>
+                </circle>
+                <!-- B→A packet 2 (staggered) -->
+                <circle r="4" fill="#8a5cb5" filter="url(#glow-p2)" opacity="0">
+                    <animate attributeName="opacity" values="0;1;1;0" dur="1.1s" begin="0.9s" repeatCount="3"/>
+                    <animateMotion dur="1.1s" begin="0.9s" repeatCount="3">
+                        <mpath href="#bpdu-ba2"/>
+                    </animateMotion>
+                </circle>
+                <!-- C→B packet -->
+                <circle r="4" fill="#8a5cb5" filter="url(#glow-p2)" opacity="0">
+                    <animate attributeName="opacity" values="0;1;1;0" dur="1.1s" begin="0.5s" repeatCount="3"/>
+                    <animateMotion dur="1.1s" begin="0.5s" repeatCount="3">
+                        <mpath href="#bpdu-ca"/>
+                    </animateMotion>
+                </circle>
+                <!-- C→B second packet -->
+                <circle r="4" fill="#8a5cb5" filter="url(#glow-p2)" opacity="0">
+                    <animate attributeName="opacity" values="0;1;1;0" dur="1.1s" begin="1.2s" repeatCount="3"/>
+                    <animateMotion dur="1.1s" begin="1.2s" repeatCount="3">
+                        <mpath href="#bpdu-ca2"/>
+                    </animateMotion>
+                </circle>
+
+                <!-- Label: BPDUs flowing -->
+                <text x="243" y="46" text-anchor="middle" font-size="6.5" fill="#475569" font-family="monospace">BPDUs</text>
+                <text x="393" y="46" text-anchor="middle" font-size="6.5" fill="#475569" font-family="monospace">BPDUs</text>
+            </svg>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>STP path cost</strong> is based on link speed: 10 Mbps = 100, 100 Mbps = 19, 1 Gbps = 4, 10 Gbps = 2.
+            Lower cost is preferred. Tiebreaker: lowest Bridge ID, then lowest port ID.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 4 — PORT ROLES
+     ===================================================================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 10</div>
+        <div class="slide-title">STP Port <span class="accent">Roles</span></div>
+        <div class="slide-subtitle">Every STP port has a role. Know what each one does and how it is selected.</div>
+
+        <div class="card-grid card-grid-3">
+            <div class="card c-green">
+                <div class="card-title">Root Port</div>
+                <div class="card-body">
+                    One per non-root switch. The port with the best (lowest cost) path back to the Root Bridge.
+                    Always in Forwarding state. If the Root Port fails, STP recalculates.
+                    The Root Bridge itself has no Root Port — it IS the root.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-title">Designated Port</div>
+                <div class="card-body">
+                    One per network segment. Forwards traffic on that segment toward the rest of the tree.
+                    All ports on the Root Bridge are Designated. On non-root switches,
+                    the Designated Port is the one closest to the root on that link.
+                    Always in Forwarding state.
+                </div>
+            </div>
+            <div class="card c-red">
+                <div class="card-title">Non-Designated (Blocked) Port</div>
+                <div class="card-body">
+                    Any port that is not a Root Port or Designated Port. Placed in Blocking state.
+                    Does not forward data frames. Still receives BPDUs to monitor topology.
+                    This is the port that prevents the loop — your second uplink ends up here.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-purple" style="font-size:0.83rem;">
+            <div class="box-label">Role Selection Tiebreakers (in order)</div>
+            1. Lowest Root Path Cost &nbsp;|&nbsp;
+            2. Lowest Sender Bridge ID &nbsp;|&nbsp;
+            3. Lowest Sender Port ID (port priority + port number).
+            These tiebreakers are applied in sequence whenever two ports compete for the same role.
+        </div>
+
+        <div class="scenario-strip">
+            Switch A connects to Switch B via two physical links. STP elects one as the Designated Path —
+            both switches forward on it. The other link's port on one switch becomes the blocked port.
+            No loop. Full redundancy waiting in reserve.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 5 — PORT STATES (blocking/listening/learning/forwarding)
+     ===================================================================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 10</div>
+        <div class="slide-title">STP Port <span class="accent">States</span></div>
+        <div class="slide-subtitle">Ports don't jump straight to forwarding — they step through states to avoid micro-loops during convergence.</div>
+
+        <div class="state-flow">
+            <div class="state-node sn-disable">
+                <div class="sn-label">Disabled</div>
+                <div class="sn-desc">Admin shut or not connected. No BPDU activity.</div>
+            </div>
+            <div class="state-arrow">&#8594;</div>
+            <div class="state-node sn-block">
+                <div class="sn-label">Blocking</div>
+                <div class="sn-desc">Receives BPDUs. Does not forward data or learn MACs.</div>
+                <div class="sn-timer">Up to 20s (Max Age)</div>
+            </div>
+            <div class="state-arrow">&#8594;</div>
+            <div class="state-node sn-listen">
+                <div class="sn-label">Listening</div>
+                <div class="sn-desc">Sends and receives BPDUs. Elects root / roles. No data, no MAC learning.</div>
+                <div class="sn-timer">15s (Forward Delay)</div>
+            </div>
+            <div class="state-arrow">&#8594;</div>
+            <div class="state-node sn-learn">
+                <div class="sn-label">Learning</div>
+                <div class="sn-desc">Builds MAC table from frames. Still no data forwarding.</div>
+                <div class="sn-timer">15s (Forward Delay)</div>
+            </div>
+            <div class="state-arrow">&#8594;</div>
+            <div class="state-node sn-forward">
+                <div class="sn-label">Forwarding</div>
+                <div class="sn-desc">Forwards data frames. MAC table active. Normal operation.</div>
+            </div>
+        </div>
+
+        <!-- SVG: animated dot traversing Blocking→Listening→Learning→Forwarding -->
+        <div class="svg-diagram" style="margin-top:2px;">
+            <svg viewBox="0 0 560 44" width="560" height="44" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <filter id="glow-dot">
+                        <feGaussianBlur stdDeviation="2" result="cb"/>
+                        <feMerge><feMergeNode in="cb"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <!-- Travel path: left-to-right through 5 state nodes -->
+                    <!-- Nodes roughly at x=46, 138, 230, 322, 414 (center of each state-node equivalent) -->
+                    <path id="state-path" d="M 46,22 L 138,22 L 230,22 L 322,22 L 414,22"/>
+                </defs>
+
+                <!-- State boxes — mirroring the HTML state-flow above -->
+                <!-- Disabled -->
+                <rect x="4" y="6" width="82" height="30" rx="4" fill="rgba(100,116,139,0.08)" stroke="rgba(100,116,139,0.2)" stroke-width="1"/>
+                <text x="45" y="18" text-anchor="middle" font-size="7" fill="#64748b" font-weight="700" letter-spacing="0.03em">DISABLED</text>
+                <text x="45" y="27" text-anchor="middle" font-size="6" fill="#475569">Admin off</text>
+
+                <!-- Blocking — lights up red at t=0 -->
+                <rect x="96" y="6" width="82" height="30" rx="4" stroke-width="1">
+                    <animate attributeName="fill" values="rgba(239,68,68,0.08);rgba(239,68,68,0.25);rgba(239,68,68,0.08)" dur="7.5s" begin="0.4s" repeatCount="indefinite"/>
+                    <animate attributeName="stroke" values="rgba(239,68,68,0.25);rgba(239,68,68,0.7);rgba(239,68,68,0.25)" dur="7.5s" begin="0.4s" repeatCount="indefinite"/>
+                </rect>
+                <text x="137" y="17" text-anchor="middle" font-size="7" fill="#ef4444" font-weight="700" letter-spacing="0.03em">BLOCKING</text>
+                <text x="137" y="26" text-anchor="middle" font-size="6" fill="#64748b">Max Age 20s</text>
+                <text x="137" y="33" text-anchor="middle" font-size="5.5" fill="#8a5cb5" font-family="monospace">recv BPDUs</text>
+
+                <!-- Listening — lights up gold at t=2s -->
+                <rect x="188" y="6" width="82" height="30" rx="4" stroke-width="1">
+                    <animate attributeName="fill" values="rgba(251,191,36,0.08);rgba(251,191,36,0.08);rgba(251,191,36,0.25);rgba(251,191,36,0.08)" dur="7.5s" begin="0.4s" repeatCount="indefinite" keyTimes="0;0.27;0.4;1"/>
+                    <animate attributeName="stroke" values="rgba(251,191,36,0.25);rgba(251,191,36,0.25);rgba(251,191,36,0.7);rgba(251,191,36,0.25)" dur="7.5s" begin="0.4s" repeatCount="indefinite" keyTimes="0;0.27;0.4;1"/>
+                </rect>
+                <text x="229" y="17" text-anchor="middle" font-size="7" fill="#fbbf24" font-weight="700" letter-spacing="0.03em">LISTENING</text>
+                <text x="229" y="26" text-anchor="middle" font-size="6" fill="#64748b">15s delay</text>
+                <text x="229" y="33" text-anchor="middle" font-size="5.5" fill="#8a5cb5" font-family="monospace">elect roles</text>
+
+                <!-- Learning — lights up gold at t=4s -->
+                <rect x="280" y="6" width="82" height="30" rx="4" stroke-width="1">
+                    <animate attributeName="fill" values="rgba(251,191,36,0.08);rgba(251,191,36,0.08);rgba(251,191,36,0.08);rgba(251,191,36,0.25);rgba(251,191,36,0.08)" dur="7.5s" begin="0.4s" repeatCount="indefinite" keyTimes="0;0.27;0.53;0.67;1"/>
+                    <animate attributeName="stroke" values="rgba(251,191,36,0.25);rgba(251,191,36,0.25);rgba(251,191,36,0.25);rgba(251,191,36,0.7);rgba(251,191,36,0.25)" dur="7.5s" begin="0.4s" repeatCount="indefinite" keyTimes="0;0.27;0.53;0.67;1"/>
+                </rect>
+                <text x="321" y="17" text-anchor="middle" font-size="7" fill="#fbbf24" font-weight="700" letter-spacing="0.03em">LEARNING</text>
+                <text x="321" y="26" text-anchor="middle" font-size="6" fill="#64748b">15s delay</text>
+                <text x="321" y="33" text-anchor="middle" font-size="5.5" fill="#8a5cb5" font-family="monospace">build MACs</text>
+
+                <!-- Forwarding — lights up green at t=6s -->
+                <rect x="372" y="6" width="82" height="30" rx="4" stroke-width="1">
+                    <animate attributeName="fill" values="rgba(58,181,119,0.1);rgba(58,181,119,0.1);rgba(58,181,119,0.1);rgba(58,181,119,0.1);rgba(58,181,119,0.3);rgba(58,181,119,0.1)" dur="7.5s" begin="0.4s" repeatCount="indefinite" keyTimes="0;0.27;0.53;0.67;0.87;1"/>
+                    <animate attributeName="stroke" values="rgba(58,181,119,0.3);rgba(58,181,119,0.3);rgba(58,181,119,0.3);rgba(58,181,119,0.3);rgba(58,181,119,0.85);rgba(58,181,119,0.3)" dur="7.5s" begin="0.4s" repeatCount="indefinite" keyTimes="0;0.27;0.53;0.67;0.87;1"/>
+                </rect>
+                <text x="413" y="17" text-anchor="middle" font-size="7" fill="#3ab577" font-weight="700" letter-spacing="0.03em">FORWARDING</text>
+                <text x="413" y="26" text-anchor="middle" font-size="6" fill="#64748b">Data flows</text>
+                <text x="413" y="33" text-anchor="middle" font-size="5.5" fill="#3ab577" font-family="monospace">active port</text>
+
+                <!-- Arrows between states -->
+                <text x="91" y="25" font-size="9" fill="#334155">&#8594;</text>
+                <text x="183" y="25" font-size="9" fill="#334155">&#8594;</text>
+                <text x="275" y="25" font-size="9" fill="#334155">&#8594;</text>
+                <text x="367" y="25" font-size="9" fill="#334155">&#8594;</text>
+
+                <!-- Animated dot traversing the path — total cycle 7.5s -->
+                <circle r="4" fill="#8a5cb5" filter="url(#glow-dot)">
+                    <animateMotion dur="7.5s" begin="0.4s" repeatCount="indefinite"
+                        keyPoints="0;0.24;0.24;0.52;0.52;0.76;0.76;1;1"
+                        keyTimes="0;0.24;0.28;0.52;0.56;0.76;0.80;0.96;1"
+                        calcMode="linear">
+                        <mpath href="#state-path"/>
+                    </animateMotion>
+                </circle>
+            </svg>
+        </div>
+
+        <div class="card-grid card-grid-2" style="margin-top:4px;">
+            <div class="box box-gold">
+                <div class="box-label">Why the Delays?</div>
+                The Listening and Learning phases exist to prevent temporary loops during topology changes.
+                If a port jumped straight to Forwarding, it might forward frames on a path that another switch
+                hasn't blocked yet, creating a brief loop. The 30-second delay (15+15) is the price of safety.
+            </div>
+            <div class="box box-red">
+                <div class="box-label">STP Convergence Time (802.1D)</div>
+                A blocked port activating after a failure takes:
+                Max Age (20s) to detect the Root Bridge is gone + Listening (15s) + Learning (15s) =
+                <strong>approximately 50 seconds</strong> before traffic flows on the backup link.
+                This is why RSTP was created.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 6 — STP TIMERS
+     ===================================================================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 10</div>
+        <div class="slide-title">STP <span class="accent">Timers</span></div>
+        <div class="slide-subtitle">Three timers control how fast 802.1D STP reacts. They are set on the Root Bridge and propagated via BPDUs.</div>
+
+        <div class="card-grid card-grid-3">
+            <div class="card">
+                <div class="card-title">Hello Timer</div>
+                <div class="card-body">
+                    Default: <strong>2 seconds</strong><br>
+                    How often the Root Bridge sends BPDU "heartbeats."
+                    Non-root switches forward these BPDUs downstream.
+                    If a switch stops receiving BPDUs within Max Age, it assumes the Root Bridge (or the path to it) has failed.
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Forward Delay</div>
+                <div class="card-body">
+                    Default: <strong>15 seconds</strong><br>
+                    Time spent in each of Listening and Learning states.
+                    Applied twice during the transition from Blocking to Forwarding (15s + 15s = 30 seconds total transition).
+                    Prevents forwarding before the topology is fully stable.
+                </div>
+            </div>
+            <div class="card c-red">
+                <div class="card-title">Max Age</div>
+                <div class="card-body">
+                    Default: <strong>20 seconds</strong><br>
+                    How long a switch stores a BPDU before discarding it.
+                    If no BPDU arrives within Max Age, the switch assumes a topology failure and begins transitioning
+                    its blocked ports toward Forwarding. This starts the 30-second transition timer.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Total 802.1D Recovery Time</div>
+            Worst-case path: Max Age (20s) + Listening (15s) + Learning (15s) = <strong>50 seconds</strong>
+            from failure detection to data forwarding on the backup link.
+            In a modern data center, 50 seconds of downtime is unacceptable — which is why RSTP replaced it.
+        </div>
+
+        <div class="box box-purple" style="font-size:0.83rem;">
+            <strong>Timers are configured only on the Root Bridge</strong> and propagated through BPDUs.
+            Do not configure STP timers on non-root switches — changes are ignored and create inconsistency.
+            The formula <em>Max Age &ge; 2 x (Hello + 1)</em> must hold to avoid topology instability.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 7 — RSTP (802.1w) — faster convergence
+     ===================================================================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 10</div>
+        <div class="slide-title"><span class="accent">RSTP</span> — Rapid Spanning Tree (802.1w)</div>
+        <div class="slide-subtitle">RSTP replaced 802.1D in IEEE 802.1D-2004. Convergence under 6 seconds vs. 30-50 seconds.</div>
+
+        <div class="card-grid card-grid-2">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="section-label">How RSTP Achieves Speed</div>
+                <div class="card">
+                    <div class="card-title">Proposal / Agreement</div>
+                    <div class="card-body">
+                        RSTP uses a handshake mechanism. When a link comes up, the switch proposes to be Designated.
+                        The neighbor agrees (or disagrees) immediately — no waiting for timers.
+                        Ports can move to Forwarding within milliseconds on a point-to-point link.
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Reduced Port States</div>
+                    <div class="card-body">
+                        802.1D had 5 states. RSTP has 3: <strong>Discarding</strong> (merges Disabled + Blocking + Listening),
+                        <strong>Learning</strong>, and <strong>Forwarding</strong>.
+                        Simpler state machine = faster transitions.
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="section-label">New Port Roles in RSTP</div>
+                <div class="card c-green">
+                    <div class="card-title">Alternate Port</div>
+                    <div class="card-body">
+                        RSTP version of the blocked port. It is a pre-calculated backup to the Root Port.
+                        If the Root Port fails, the Alternate Port transitions to Forwarding immediately —
+                        no proposal/agreement needed. This is sub-second recovery.
+                    </div>
+                </div>
+                <div class="card c-green">
+                    <div class="card-title">Backup Port</div>
+                    <div class="card-body">
+                        A redundant port on the same segment as the Designated Port on the same switch.
+                        Less common in practice. Transitions quickly if the Designated Port fails.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SVG: RSTP failover — active link fails (red), alternate port instantly activates (green) -->
+        <div class="svg-diagram">
+            <svg viewBox="0 0 560 96" width="560" height="96" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <filter id="glow-g3">
+                        <feGaussianBlur stdDeviation="2" result="cb"/>
+                        <feMerge><feMergeNode in="cb"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <filter id="glow-r3">
+                        <feGaussianBlur stdDeviation="2.5" result="cb"/>
+                        <feMerge><feMergeNode in="cb"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <!-- Primary link: Root → SW-B top path -->
+                    <path id="rstp-primary" d="M 156,40 L 284,40"/>
+                    <!-- Alternate link: Root → SW-B bottom path -->
+                    <path id="rstp-alt" d="M 156,56 L 284,56"/>
+                    <!-- Rerouted traffic path (green, after failover) -->
+                    <path id="rstp-reroute" d="M 156,56 L 284,56"/>
+                </defs>
+
+                <!-- Phase label -->
+                <text x="4" y="11" font-size="7.5" fill="#475569" font-family="monospace" letter-spacing="0.05em">PHASE 1: ACTIVE</text>
+
+                <!-- Left topology: normal operation -->
+                <!-- Root Bridge -->
+                <circle cx="80" cy="48" r="16" fill="#1e293b" stroke="#fbbf24" stroke-width="2"/>
+                <text x="80" y="51" text-anchor="middle" font-size="6.5" fill="#fbbf24" font-weight="700">ROOT</text>
+                <text x="80" y="71" text-anchor="middle" font-size="6" fill="#64748b">Root Bridge</text>
+
+                <!-- SW-B (non-root) -->
+                <circle cx="300" cy="48" r="16" fill="#1e293b" stroke="#8a5cb5" stroke-width="1.5"/>
+                <text x="300" y="51" text-anchor="middle" font-size="7" fill="#8a5cb5" font-weight="700">SW-B</text>
+
+                <!-- Primary uplink (active — green) -->
+                <line x1="96" y1="40" x2="284" y2="40" stroke="#3ab577" stroke-width="2.5" opacity="0.9">
+                    <!-- Flashes red then disappears to show failure -->
+                    <animate attributeName="stroke" values="#3ab577;#3ab577;#3ab577;#ef4444;#ef4444;rgba(239,68,68,0)" dur="5s" begin="1.5s" repeatCount="indefinite" keyTimes="0;0.3;0.45;0.55;0.65;0.75"/>
+                    <animate attributeName="opacity" values="0.9;0.9;0.9;0.9;0.9;0.15;0.15;0.15" dur="5s" begin="1.5s" repeatCount="indefinite" keyTimes="0;0.3;0.45;0.55;0.65;0.75;0.85;1"/>
+                </line>
+                <!-- X mark on failed link -->
+                <text x="192" y="34" text-anchor="middle" font-size="10" fill="#ef4444" font-weight="700" opacity="0">
+                    <animate attributeName="opacity" values="0;0;0;0.9;0.9;0.9;0" dur="5s" begin="1.5s" repeatCount="indefinite" keyTimes="0;0.45;0.55;0.65;0.75;0.9;1"/>
+                </text>
+                <text x="192" y="36" text-anchor="middle" font-size="8" fill="#ef4444" font-weight="900" opacity="0">
+                    &#xD7;
+                    <animate attributeName="opacity" values="0;0;0;0;1;1;0" dur="5s" begin="1.5s" repeatCount="indefinite" keyTimes="0;0.45;0.5;0.6;0.65;0.9;1"/>
+                </text>
+
+                <!-- Alternate uplink (initially gray/dashed = blocked) -->
+                <line x1="96" y1="56" x2="284" y2="56" stroke-width="2" stroke-dasharray="5,4">
+                    <!-- Transitions from gray blocked → solid green when primary fails -->
+                    <animate attributeName="stroke" values="#334155;#334155;#334155;#334155;#3ab577;#3ab577" dur="5s" begin="1.5s" repeatCount="indefinite" keyTimes="0;0.5;0.6;0.68;0.72;1"/>
+                    <animate attributeName="stroke-dasharray" values="5,4;5,4;5,4;5,4;0,0;0,0" dur="5s" begin="1.5s" repeatCount="indefinite" keyTimes="0;0.5;0.6;0.68;0.72;1"/>
+                    <animate attributeName="stroke-width" values="1.5;1.5;1.5;1.5;2.5;2.5" dur="5s" begin="1.5s" repeatCount="indefinite" keyTimes="0;0.5;0.6;0.68;0.72;1"/>
+                </line>
+
+                <!-- ALTERNATE label -->
+                <text x="192" y="68" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="monospace">ALT PORT</text>
+                <text x="192" y="76" text-anchor="middle" font-size="6" fill="#475569">instant failover</text>
+
+                <!-- Active traffic packet on primary link (disappears on failure) -->
+                <circle r="4" fill="#3ab577" filter="url(#glow-g3)" opacity="0">
+                    <animateMotion dur="1.2s" begin="0s" repeatCount="4">
+                        <mpath href="#rstp-primary"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="1.2s" begin="0s" repeatCount="4"/>
+                </circle>
+
+                <!-- Traffic rerouted on alternate path (appears after failover) -->
+                <circle r="4" fill="#3ab577" filter="url(#glow-g3)" opacity="0">
+                    <animateMotion dur="1.2s" begin="4.4s" repeatCount="indefinite">
+                        <mpath href="#rstp-alt"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="1.2s" begin="4.4s" repeatCount="indefinite"/>
+                </circle>
+
+                <!-- Divider -->
+                <line x1="360" y1="8" x2="360" y2="90" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="3,3"/>
+                <text x="366" y="11" font-size="7.5" fill="#475569" font-family="monospace" letter-spacing="0.05em">802.1D COMPARISON</text>
+
+                <!-- 802.1D slow convergence bar -->
+                <rect x="368" y="20" width="180" height="14" rx="2" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.25)" stroke-width="1"/>
+                <text x="375" y="30" font-size="6.5" fill="#ef4444" font-family="monospace">802.1D: ~50 seconds to converge</text>
+                <rect x="368" y="20" width="4" height="14" rx="2" fill="#ef4444" opacity="0.5">
+                    <animate attributeName="width" values="4;180;4" dur="6s" begin="0s" repeatCount="indefinite"/>
+                </rect>
+
+                <!-- RSTP fast convergence bar -->
+                <rect x="368" y="44" width="180" height="14" rx="2" fill="rgba(58,181,119,0.08)" stroke="rgba(58,181,119,0.25)" stroke-width="1"/>
+                <text x="375" y="54" font-size="6.5" fill="#3ab577" font-family="monospace">RSTP: sub-second failover</text>
+                <rect x="368" y="44" width="4" height="14" rx="2" fill="#3ab577" opacity="0.6">
+                    <animate attributeName="width" values="4;40;4" dur="1.2s" begin="0s" repeatCount="indefinite"/>
+                </rect>
+
+                <text x="368" y="76" font-size="6.5" fill="#475569" font-family="monospace">Alternate Port pre-calculated</text>
+                <text x="368" y="85" font-size="6.5" fill="#475569" font-family="monospace">No timer wait — instant switch</text>
+            </svg>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>802.1D vs RSTP convergence:</strong> 802.1D = up to 50 seconds. RSTP = typically under 6 seconds,
+            sub-second on point-to-point links with an Alternate Port available.
+            RSTP is backward compatible — an RSTP switch connected to an 802.1D switch falls back to 802.1D behavior.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 8 — PortFast and BPDU Guard
+     ===================================================================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 10</div>
+        <div class="slide-title"><span class="accent">PortFast</span> and BPDU Guard</div>
+        <div class="slide-subtitle">End-device ports do not need STP convergence. PortFast skips it — BPDU Guard enforces the rule.</div>
+
+        <div class="card-grid card-grid-2">
+            <div class="card c-green">
+                <div class="card-title">PortFast</div>
+                <div class="card-body">
+                    Immediately transitions a port to Forwarding — skipping Listening and Learning states entirely.
+                    Eliminates the 30-second delay for devices that connect and expect instant network access (PCs,
+                    printers, servers, IP phones). Only configure on ports connected to end devices, never on
+                    ports connected to other switches.
+                    <br><br>
+                    Command: <code style="font-family:monospace; color:#8a5cb5;">spanning-tree portfast</code>
+                </div>
+            </div>
+            <div class="card c-red">
+                <div class="card-title">BPDU Guard</div>
+                <div class="card-body">
+                    Shuts down a PortFast-enabled port the moment it receives a BPDU. Since BPDUs come from
+                    switches — not end devices — receiving one on a PortFast port means someone connected
+                    a switch where only an end device should be. The port goes err-disabled immediately,
+                    preventing any loop from forming.
+                    <br><br>
+                    Command: <code style="font-family:monospace; color:#8a5cb5;">spanning-tree bpduguard enable</code>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-grid card-grid-2">
+            <div class="box box-gold">
+                <div class="box-label">Why Use Both Together</div>
+                PortFast alone is a loop risk if someone plugs a switch into that port.
+                BPDU Guard catches that mistake and disables the port before a loop forms.
+                Always deploy BPDU Guard on every PortFast port. They are designed to work as a pair.
+            </div>
+            <div class="box box-red">
+                <div class="box-label">Err-Disabled Recovery</div>
+                When BPDU Guard triggers, the port enters err-disabled state. To recover:
+                remove the offending switch, then run
+                <code style="font-family:monospace; color:#8a5cb5;">shutdown</code> followed by
+                <code style="font-family:monospace; color:#8a5cb5;">no shutdown</code> on the interface.
+                Or configure automatic recovery: <code style="font-family:monospace; color:#8a5cb5;">errdisable recovery cause bpduguard</code>.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 9 — COMMON STP ISSUES + show spanning-tree
+     ===================================================================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 10</div>
+        <div class="slide-title">Common Issues &amp; <span class="accent">Troubleshooting</span></div>
+        <div class="slide-subtitle">STP problems cause complete outages, slow networks, or silent traffic drops. Know the symptoms.</div>
+
+        <div class="card-grid card-grid-2">
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="card c-red">
+                    <div class="card-title">Unintended Root Bridge</div>
+                    <div class="card-body">A new switch with a lower default priority or lower MAC becomes the Root Bridge, forcing all traffic through a suboptimal path. Fix: manually set priority on the intended root to 4096 (or use <code style="font-family:monospace; color:#8a5cb5;">spanning-tree vlan 1 root primary</code>).</div>
+                </div>
+                <div class="card c-red">
+                    <div class="card-title">STP Not Running</div>
+                    <div class="card-body">If STP is disabled (common on some managed switches or after misconfiguration) and a physical loop exists, a broadcast storm follows immediately. Symptom: all ports saturated, switch CPU maxed, users report total outage.</div>
+                </div>
+                <div class="card c-red">
+                    <div class="card-title">Topology Change Flapping</div>
+                    <div class="card-body">A flapping link generates continuous Topology Change Notifications, forcing MAC table flushes across the domain. Every flush causes flooding until MACs are re-learned. Symptom: intermittent slowness, high broadcast rate.</div>
+                </div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="section-label" style="margin-bottom:2px;">Key Verification Commands</div>
+                <div class="code-block"><span class="c-comment">! Full STP status for VLAN 1</span>
+<span class="c-cmd">show spanning-tree</span> <span class="c-val">vlan 1</span>
+
+<span class="c-comment">! Which switch is the root, all VLANs</span>
+<span class="c-cmd">show spanning-tree summary</span>
+
+<span class="c-comment">! Port roles and states on this switch</span>
+<span class="c-cmd">show spanning-tree</span> <span class="c-val">detail</span>
+
+<span class="c-comment">! Check for err-disabled ports</span>
+<span class="c-cmd">show interfaces status err-disabled</span>
+
+<span class="c-comment">! Verify PortFast / BPDU Guard on port</span>
+<span class="c-cmd">show spanning-tree interface</span> <span class="c-val">Gi0/1</span> <span class="c-val">detail</span></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 10 — SUMMARY + COMPLETE
+     ===================================================================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 10 &nbsp;|&nbsp; N10-009 Obj 1.2</div>
+        <div class="slide-title">The Network That Didn't Storm</div>
+
+        <div class="summary-scenario">
+            You added a second uplink and the broadcast storm started. STP was doing its job on the original link —
+            but the new link created a loop that STP hadn't processed yet. Once STP converged, it elected the
+            <strong>Root Bridge</strong>, assigned <strong>Root Ports</strong> and <strong>Designated Ports</strong>,
+            and placed one port in <strong>Blocking state</strong>. The storm stopped. The backup path is there
+            if the primary fails — STP will unblock it. You kept your redundancy and your network.
+        </div>
+
+        <div class="section-label">7 Facts to Carry Out of This Presentation</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">STP (802.1D) prevents Layer 2 loops by blocking redundant paths. RSTP (802.1w) is the faster modern standard.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Root Bridge = lowest Bridge ID (priority + MAC). Default priority: <code>32768</code>. Lower wins.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Port roles: <code>Root Port</code> (toward root) | <code>Designated Port</code> (per segment) | <code>Blocked</code> (loop prevention).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">802.1D states: Blocking &rarr; Listening (15s) &rarr; Learning (15s) &rarr; Forwarding. Total transition up to 50s.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Timers: Hello = <code>2s</code>, Forward Delay = <code>15s</code>, Max Age = <code>20s</code>. Set only on Root Bridge.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">PortFast skips Listening/Learning on end-device ports. Always pair with BPDU Guard to block rogue switches.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">RSTP convergence: under 6 seconds. Sub-second when an Alternate Port is pre-calculated in the topology table.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     NAVIGATION BAR
+     ===================================================================== -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Network+ Hub</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 10</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<!-- =====================================================================
+     PRESENTATION LOGIC
+     ===================================================================== -->
+<script>
+    /* State */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 10;
+
+    /* Navigate to a specific slide number (1-indexed) */
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update progress bar */
+        const pct = (currentSlide / TOTAL_SLIDES) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+
+        /* Update counter */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Update nav button states */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show complete button only on final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            goToSlide(currentSlide + 1);
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            goToSlide(currentSlide - 1);
+        }
+    });
+
+    /* Initialize */
+    goToSlide(1);
+</script>
+
+<!-- Module completion -->
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'web-stp', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

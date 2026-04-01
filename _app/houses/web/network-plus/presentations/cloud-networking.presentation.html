@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Networking &amp; Virtualization | Network+ N10-009</title>
+    <style>
+        /* =====================================================
+           RESET & BASE
+           ===================================================== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* =====================================================
+           SLIDE SYSTEM
+           ===================================================== */
+        .slide {
+            display: none;
+            position: fixed;
+            inset: 0;
+            padding: 20px 28px 72px;
+            overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide-inner {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* =====================================================
+           PROGRESS BAR
+           ===================================================== */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: #0ea5e9;
+            transition: width 0.4s ease;
+            z-index: 200;
+        }
+
+        /* =====================================================
+           NAVIGATION BAR
+           ===================================================== */
+        #nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            z-index: 200;
+            padding: 0 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(14, 165, 233, 0.15);
+            color: #0ea5e9;
+            border-color: #0ea5e9;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.back-btn {
+            font-size: 0.82rem;
+            padding: 8px 16px;
+        }
+
+        #slide-counter {
+            color: #64748b;
+            font-size: 0.82rem;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        #complete-btn {
+            display: none;
+            background: #3ab577;
+            color: #000;
+            border: none;
+            padding: 9px 26px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+
+        #complete-btn:hover {
+            background: #4fcf8a;
+            transform: translateY(-1px);
+        }
+
+        /* =====================================================
+           SLIDE CONTENT
+           ===================================================== */
+        .slide-meta {
+            font-size: 0.78rem;
+            color: #0ea5e9;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .slide-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            text-align: center;
+            line-height: 1.25;
+        }
+
+        .slide-title .accent { color: #0ea5e9; }
+
+        .slide-subtitle {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        .scenario-strip {
+            background: rgba(14, 165, 233, 0.08);
+            border-left: 3px solid #0ea5e9;
+            border-radius: 0 8px 8px 0;
+            padding: 10px 16px;
+            font-size: 0.88rem;
+            color: #bae6fd;
+            font-style: italic;
+        }
+
+        .box {
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.875rem;
+        }
+
+        .box-cyan {
+            background: rgba(14, 165, 233, 0.08);
+            border: 1px solid rgba(14, 165, 233, 0.3);
+            color: #bae6fd;
+        }
+
+        .box-green {
+            background: rgba(58, 181, 119, 0.08);
+            border: 1px solid rgba(58, 181, 119, 0.35);
+            color: #d1fae5;
+        }
+
+        .box-red {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fee2e2;
+        }
+
+        .box-gold {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            color: #fef3c7;
+        }
+
+        .box-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+            opacity: 0.75;
+        }
+
+        /* Title slide */
+        .title-hero {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .title-hero .big-title {
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: #f1f5f9;
+            line-height: 1.2;
+        }
+
+        .title-hero .big-title .accent { color: #0ea5e9; }
+
+        .title-meta-row {
+            display: flex;
+            gap: 28px;
+            justify-content: center;
+            margin-top: 6px;
+            font-size: 0.82rem;
+            color: #475569;
+        }
+
+        .title-meta-row span {
+            border-left: 2px solid #1e293b;
+            padding-left: 28px;
+        }
+
+        .title-meta-row span:first-child {
+            border-left: none;
+            padding-left: 0;
+        }
+
+        /* Grids */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .card-grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 8px;
+            padding: 12px 14px;
+            border-left: 3px solid #0ea5e9;
+        }
+
+        .card:hover {
+            background: rgba(255, 255, 255, 0.07);
+        }
+
+        .card .card-label {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            margin-bottom: 4px;
+        }
+
+        .card .card-desc {
+            font-size: 0.82rem;
+            color: #94a3b8;
+            line-height: 1.4;
+        }
+
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #fbbf24; }
+        .card.c-cyan   { border-left-color: #0ea5e9; }
+
+        .section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: #475569;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .summary-facts {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .fact-row {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            font-size: 0.875rem;
+        }
+
+        .fact-num {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #0ea5e9;
+            min-width: 22px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .fact-text {
+            color: #cbd5e1;
+        }
+
+        .fact-text code {
+            font-family: 'Courier New', monospace;
+            color: #0ea5e9;
+            background: rgba(14, 165, 233, 0.08);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+
+        /* Responsive */
+        @media (max-height: 700px) {
+            .slide-inner { gap: 9px; }
+            .slide-title { font-size: 1.4rem; }
+            .title-hero .big-title { font-size: 1.9rem; }
+            .card-grid { gap: 6px; }
+        }
+
+        @media (max-width: 768px) {
+            .card-grid { grid-template-columns: 1fr; }
+            .card-grid-2 { grid-template-columns: 1fr; }
+            .slide-title { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="progress-bar" style="width:12.5%"></div>
+
+<!-- =====================================================================
+     SLIDE 1 - TITLE
+     ===================================================================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 8 &nbsp;|&nbsp; N10-009 Obj 1.8 &nbsp;|&nbsp; Cloud Concepts</div>
+
+        <div class="title-hero">
+            <div class="big-title">
+                Cloud Networking &amp;<br>
+                <span class="accent">Virtualization</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                The network moves to the cloud, but the fundamentals stay the same.
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Your company just announced a migration from on-prem data centers to AWS. The CTO asks you to explain the networking implications
+            to the team. VPCs, security groups, NAT gateways -- you need to speak cloud networking fluently by the end of this meeting.
+        </div>
+
+        <div class="title-meta-row">
+            <span>8 Slides</span>
+            <span>N10-009 Obj 1.8</span>
+            <span>Cloud Infrastructure</span>
+            <span>Concepts + Context</span>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 2 - NFV & VIRTUALIZED NETWORKING
+     ===================================================================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 8</div>
+        <div class="slide-title">Network Functions <span class="accent">Virtualization</span> (NFV)</div>
+        <div class="slide-subtitle">Replace dedicated hardware appliances with software running on standard servers.</div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Traditional Approach</div>
+                <div class="card-desc">Physical firewall, physical load balancer, physical router -- each a separate box in the rack, each with its own management plane and power draw.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">NFV Approach</div>
+                <div class="card-desc">Those same functions run as virtual appliances on commodity hardware. Deploy a firewall in minutes instead of weeks. Scale by spinning up another VM.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Hypervisor Role</div>
+                <div class="card-desc">The hypervisor (Type 1: ESXi, Hyper-V; Type 2: VirtualBox) abstracts the hardware. Virtual switches (vSwitch) handle Layer 2 inside the host.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Key Distinction</div>
+            <strong>NFV</strong> virtualizes network appliances (firewalls, routers, load balancers).
+            <strong>SDN</strong> (Software-Defined Networking) separates the control plane from the data plane, letting a central controller program forwarding rules across the network.
+            They are complementary, not the same thing.
+        </div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            You tell the team: "We will not be shipping physical firewalls to AWS. We will deploy virtual appliances that behave identically, but we can clone them across regions in seconds."
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 3 - VPC & SUBNETS
+     ===================================================================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 8</div>
+        <div class="slide-title">VPC: Your <span class="accent">Private Cloud Network</span></div>
+        <div class="slide-subtitle">A Virtual Private Cloud is an isolated network segment within a cloud provider's infrastructure.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">VPC Fundamentals</div>
+                <div class="card-desc">You define the IP range (CIDR block), create subnets, attach route tables, and control all traffic flow. It is your data center in the cloud -- logically isolated from every other customer.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Public vs Private Subnets</div>
+                <div class="card-desc">Public subnets have a route to an Internet Gateway -- instances can reach the Internet directly. Private subnets have no direct Internet route; they reach out through a NAT Gateway.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">NAT Gateway</div>
+            Allows instances in private subnets to initiate outbound connections (software updates, API calls) without being directly reachable from the Internet. One-way door: traffic goes out, responses come back, but no unsolicited inbound traffic is permitted.
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            <strong>VPC Peering</strong> connects two VPCs so they can route traffic directly between each other using private IP addresses. No Internet exposure. Works across accounts and even across regions.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 4 - SECURITY GROUPS & NACLs
+     ===================================================================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 8</div>
+        <div class="slide-title">Cloud <span class="accent">Firewalls</span>: Security Groups &amp; NACLs</div>
+        <div class="slide-subtitle">Two layers of traffic control, each with different behavior.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Security Groups (Instance-Level)</div>
+                <div class="card-desc">
+                    Stateful firewall applied to individual instances.
+                    If you allow inbound port 443, the return traffic is automatically allowed.
+                    Default: deny all inbound, allow all outbound.
+                    Rules are allow-only -- you cannot write explicit deny rules.
+                </div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Network ACLs (Subnet-Level)</div>
+                <div class="card-desc">
+                    Stateless firewall applied at the subnet boundary.
+                    You must explicitly allow both inbound and outbound traffic.
+                    Default: allow all traffic in both directions.
+                    Rules support both allow and deny, processed in order by rule number.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Stateful vs Stateless -- Why It Matters</div>
+            <strong>Stateful</strong> (Security Groups): Tracks connections. If outbound is allowed, the reply is automatically permitted.
+            <strong>Stateless</strong> (NACLs): Every packet is evaluated independently. You must write rules for both directions or traffic will be dropped.
+        </div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            A junior admin opens port 443 in the NACL inbound rules but forgets the outbound rule for ephemeral ports. The web server accepts connections but cannot reply. Security Groups would have handled this automatically.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 5 - CLOUD CONNECTIVITY
+     ===================================================================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 8</div>
+        <div class="slide-title">Connecting <span class="accent">On-Prem to Cloud</span></div>
+        <div class="slide-subtitle">How your existing data center reaches cloud resources securely.</div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Site-to-Site VPN</div>
+                <div class="card-desc">IPSec tunnel over the public Internet. Encrypted, quick to set up, lower cost. Bandwidth limited by your ISP. Latency varies.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Direct Connect / ExpressRoute</div>
+                <div class="card-desc">Dedicated private circuit from your data center to the cloud provider. Consistent latency, higher bandwidth (1-100 Gbps). Does not traverse the Internet. Higher cost, longer provisioning.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Transit Gateway</div>
+                <div class="card-desc">Hub-and-spoke model connecting multiple VPCs and on-prem networks through a single gateway. Simplifies routing when you have dozens of VPCs.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            <div class="box-label">Exam Tip</div>
+            If the question says "consistent, low-latency, private connection" -- the answer is Direct Connect (AWS) or ExpressRoute (Azure). If it says "quick, encrypted, over the Internet" -- the answer is site-to-site VPN.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 6 - DEPLOYMENT MODELS
+     ===================================================================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 8</div>
+        <div class="slide-title">Cloud <span class="accent">Deployment Models</span></div>
+        <div class="slide-subtitle">Where your infrastructure lives determines your security posture and flexibility.</div>
+
+        <div class="card-grid">
+            <div class="card c-cyan">
+                <div class="card-label">Public Cloud</div>
+                <div class="card-desc">Resources hosted by a third-party provider (AWS, Azure, GCP). Multi-tenant by design. You share physical hardware with other customers, but your VPC is logically isolated. Pay-as-you-go pricing.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Private Cloud</div>
+                <div class="card-desc">Dedicated infrastructure for a single organization. Can be on-premises or hosted. Full control over hardware, security, and compliance. Higher cost, lower flexibility.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Hybrid Cloud</div>
+                <div class="card-desc">Combination of public and private. Sensitive workloads stay on-prem or in private cloud; elastic workloads burst to public cloud. Connected via VPN or Direct Connect.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Community Cloud</div>
+                <div class="card-desc">Shared by organizations with common concerns (compliance, security requirements). Example: government agencies sharing FedRAMP-compliant infrastructure.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Multitenancy</div>
+                <div class="card-desc">Multiple customers share the same physical infrastructure but are logically isolated. The hypervisor and cloud provider's network enforce separation. This is the foundation of public cloud economics.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">IaaS / PaaS / SaaS</div>
+                <div class="card-desc">IaaS: you manage the OS up. PaaS: you manage the app and data. SaaS: you manage nothing -- just use it. Each model shifts more responsibility to the provider.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 7 - SCALABILITY & ELASTICITY
+     ===================================================================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 8</div>
+        <div class="slide-title">Scalability &amp; <span class="accent">Elasticity</span></div>
+        <div class="slide-subtitle">They sound similar but serve different purposes on the exam.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-cyan">
+                <div class="card-label">Scalability</div>
+                <div class="card-desc">
+                    The ability to handle increased load by adding resources.
+                    <strong>Vertical scaling (scale up):</strong> Bigger instance -- more CPU, more RAM.
+                    <strong>Horizontal scaling (scale out):</strong> More instances behind a load balancer.
+                    Scaling is typically a deliberate, planned action.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Elasticity</div>
+                <div class="card-desc">
+                    Automatic scaling based on demand.
+                    Resources expand during peak load and contract during idle periods.
+                    Auto-scaling groups, serverless functions, and container orchestration all provide elasticity.
+                    You only pay for what you use.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Distinction</div>
+            <strong>Scalability</strong> = CAN your system handle more load?
+            <strong>Elasticity</strong> = Does it AUTOMATICALLY adjust to match current demand?
+            A system can be scalable without being elastic (manual scaling). Elasticity implies automation.
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            <strong>Load Balancing:</strong> Distributes traffic across multiple instances. Cloud providers offer Layer 4 (TCP/UDP) and Layer 7 (HTTP/HTTPS) load balancers. Health checks automatically remove unhealthy instances from the pool.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 8 - SUMMARY
+     ===================================================================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 8 &nbsp;|&nbsp; N10-009 Obj 1.8</div>
+        <div class="slide-title">Cloud Networking -- <span class="accent">Key Takeaways</span></div>
+
+        <div class="scenario-strip">
+            You walk into the migration meeting and explain: "Our VPC gives us an isolated network. Public subnets face the Internet through an Internet Gateway. Private subnets reach out via NAT Gateway. Security Groups handle instance-level stateful filtering. We connect back to HQ with a site-to-site VPN now, and Direct Connect when the contract is ready."
+        </div>
+
+        <div class="section-label">5 Facts to Carry Out of This Presentation</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><strong>NFV</strong> replaces physical appliances with virtual ones. <strong>SDN</strong> separates control plane from data plane. They are complementary.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">A <strong>VPC</strong> is your isolated network in the cloud. Public subnets route to an Internet Gateway. Private subnets use a <strong>NAT Gateway</strong> for outbound-only access.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>Security Groups</strong> are stateful (instance-level). <strong>NACLs</strong> are stateless (subnet-level). Know the difference.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>Direct Connect</strong> = dedicated private link. <strong>Site-to-site VPN</strong> = encrypted tunnel over the Internet. Direct Connect is more consistent; VPN is faster to deploy.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>Scalability</strong> = can handle more. <strong>Elasticity</strong> = automatically adjusts. Public/Private/Hybrid/Community are the four deployment models.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     NAVIGATION BAR
+     ===================================================================== -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Network+ Hub</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 8</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<!-- =====================================================================
+     PRESENTATION LOGIC
+     ===================================================================== -->
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 8;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'web-cloud-networking', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

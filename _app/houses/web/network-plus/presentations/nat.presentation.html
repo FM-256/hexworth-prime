@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NAT &amp; PAT | Network+ N10-009</title>
+    <style>
+        /* =====================================================
+           RESET & BASE
+           ===================================================== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden; /* No scrolling — slides are viewport-fit */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* =====================================================
+           SLIDE SYSTEM — viewport-locked, no overflow
+           ===================================================== */
+        .slide {
+            display: none;
+            position: fixed;
+            inset: 0;
+            padding: 20px 28px 72px; /* bottom clearance for nav bar */
+            overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Inner wrapper — constrains content width */
+        .slide-inner {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* =====================================================
+           PROGRESS BAR
+           ===================================================== */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: #c9a83a;
+            transition: width 0.4s ease;
+            z-index: 200;
+        }
+
+        /* =====================================================
+           NAVIGATION BAR — fixed bottom
+           ===================================================== */
+        #nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            z-index: 200;
+            padding: 0 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.2);
+            color: #c9a83a;
+            border-color: #c9a83a;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.back-btn {
+            font-size: 0.82rem;
+            padding: 8px 16px;
+        }
+
+        #slide-counter {
+            color: #64748b;
+            font-size: 0.82rem;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        #complete-btn {
+            display: none;
+            background: #c9a83a;
+            color: #000;
+            border: none;
+            padding: 9px 26px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+
+        #complete-btn:hover {
+            background: #dbbe5a;
+            transform: translateY(-1px);
+        }
+
+        /* =====================================================
+           SLIDE HEADER
+           ===================================================== */
+        .slide-meta {
+            font-size: 0.78rem;
+            color: #c9a83a;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .slide-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            text-align: center;
+            line-height: 1.25;
+        }
+
+        .slide-title .accent      { color: #c9a83a; }
+        .slide-title .accent-cyan { color: #06b6d4; }
+        .slide-title .accent-red  { color: #ef4444; }
+
+        .slide-subtitle {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        /* =====================================================
+           SCENARIO STRIP
+           ===================================================== */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08);
+            border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0;
+            padding: 10px 16px;
+            font-size: 0.88rem;
+            color: #fde68a;
+            font-style: italic;
+        }
+
+        /* =====================================================
+           INFO BOXES
+           ===================================================== */
+        .box {
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.875rem;
+        }
+
+        .box-gold {
+            background: rgba(201, 168, 58, 0.08);
+            border: 1px solid rgba(201, 168, 58, 0.35);
+            color: #fef3c7;
+        }
+
+        .box-cyan {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            color: #cffafe;
+        }
+
+        .box-green {
+            background: rgba(58, 181, 119, 0.08);
+            border: 1px solid rgba(58, 181, 119, 0.35);
+            color: #d1fae5;
+        }
+
+        .box-red {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fee2e2;
+        }
+
+        .box-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+            opacity: 0.75;
+        }
+
+        /* =====================================================
+           CONCEPT CARDS
+           ===================================================== */
+        .concept-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .concept-grid.three-col {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .c-card {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 8px;
+            padding: 12px 14px;
+            border-left: 3px solid transparent;
+        }
+
+        .c-card.gold   { border-left-color: #c9a83a; }
+        .c-card.cyan   { border-left-color: #06b6d4; }
+        .c-card.green  { border-left-color: #3ab577; }
+        .c-card.red    { border-left-color: #ef4444; }
+        .c-card.blue   { border-left-color: #60a5fa; }
+
+        .c-card:hover { background: rgba(255, 255, 255, 0.07); }
+
+        .c-card .cc-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 4px;
+        }
+
+        .c-card.gold  .cc-label { color: #c9a83a; }
+        .c-card.cyan  .cc-label { color: #06b6d4; }
+        .c-card.green .cc-label { color: #3ab577; }
+        .c-card.red   .cc-label { color: #ef4444; }
+        .c-card.blue  .cc-label { color: #60a5fa; }
+
+        .c-card .cc-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            margin-bottom: 4px;
+        }
+
+        .c-card .cc-body {
+            font-size: 0.82rem;
+            color: #94a3b8;
+            line-height: 1.45;
+        }
+
+        /* =====================================================
+           NAT TRANSLATION DIAGRAM
+           ===================================================== */
+        .nat-flow {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            flex-wrap: wrap;
+        }
+
+        .nat-box {
+            border-radius: 6px;
+            padding: 8px 12px;
+            text-align: center;
+            min-width: 130px;
+        }
+
+        .nat-box .nb-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #64748b;
+            margin-bottom: 3px;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .nat-box .nb-addr { font-weight: 700; }
+
+        .nat-inside  { background: rgba(201,168,58,0.1); border: 1px solid rgba(201,168,58,0.4); }
+        .nat-inside  .nb-addr { color: #fde68a; }
+
+        .nat-router  { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.15); }
+        .nat-router  .nb-addr { color: #94a3b8; }
+
+        .nat-outside { background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.3); }
+        .nat-outside .nb-addr { color: #67e8f9; }
+
+        .nat-arrow { color: #475569; font-size: 1.1rem; }
+
+        /* =====================================================
+           PAT TABLE
+           ===================================================== */
+        .pat-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+            font-family: 'Courier New', monospace;
+        }
+
+        .pat-table th, .pat-table td {
+            border: 1px solid rgba(255,255,255,0.07);
+            padding: 7px 10px;
+        }
+
+        .pat-table thead th {
+            background: rgba(201, 168, 58, 0.1);
+            color: #c9a83a;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .pat-table tbody td { color: #94a3b8; }
+        .pat-table tbody td.hl { color: #fde68a; }
+        .pat-table tbody td.hl-out { color: #67e8f9; }
+
+        /* =====================================================
+           TERMINAL BLOCK
+           ===================================================== */
+        .terminal-block {
+            background: #0a0a0f;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            line-height: 1.6;
+        }
+
+        .terminal-block .t-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: #c9a83a;
+            margin-bottom: 4px;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .t-cmd  { color: #c9a83a; }
+        .t-out  { color: #94a3b8; }
+        .t-hi   { color: #fde68a; font-weight: 700; }
+        .t-note { color: #475569; font-style: italic; font-family: 'Segoe UI', sans-serif; font-size: 0.77rem; }
+
+        /* =====================================================
+           ADDRESS TERM GRID
+           ===================================================== */
+        .term-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .term-card {
+            border-radius: 7px;
+            padding: 9px 11px;
+        }
+
+        .term-card.tc-gold {
+            background: rgba(201, 168, 58, 0.1);
+            border: 1px solid rgba(201, 168, 58, 0.35);
+        }
+
+        .term-card.tc-cyan {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .term-card .tc-term {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 4px;
+        }
+
+        .term-card.tc-gold .tc-term { color: #c9a83a; }
+        .term-card.tc-cyan .tc-term { color: #06b6d4; }
+
+        .term-card .tc-def {
+            font-size: 0.79rem;
+            color: #94a3b8;
+            line-height: 1.4;
+        }
+
+        .term-card .tc-example {
+            font-family: 'Courier New', monospace;
+            font-size: 0.77rem;
+            margin-top: 4px;
+            padding: 3px 6px;
+            border-radius: 3px;
+        }
+
+        .term-card.tc-gold .tc-example { color: #fde68a; background: rgba(201,168,58,0.1); }
+        .term-card.tc-cyan .tc-example { color: #67e8f9; background: rgba(6,182,212,0.08); }
+
+        /* =====================================================
+           SUMMARY
+           ===================================================== */
+        .summary-facts {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .fact-row {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            font-size: 0.875rem;
+        }
+
+        .fact-num {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #c9a83a;
+            min-width: 22px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .fact-text { color: #cbd5e1; }
+
+        .fact-text code {
+            font-family: 'Courier New', monospace;
+            color: #e4c46a;
+            background: rgba(201, 168, 58, 0.1);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+
+        .summary-scenario {
+            background: rgba(201, 168, 58, 0.07);
+            border: 1px solid rgba(201, 168, 58, 0.3);
+            border-radius: 9px;
+            padding: 14px 18px;
+            font-size: 0.875rem;
+            color: #fde68a;
+            line-height: 1.65;
+        }
+
+        .summary-scenario strong { color: #c9a83a; }
+
+        /* =====================================================
+           UTILITY
+           ===================================================== */
+        .section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: #475569;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        /* =====================================================
+           RESPONSIVE
+           ===================================================== */
+        @media (max-height: 700px) {
+            .slide-inner { gap: 9px; }
+            .slide-title { font-size: 1.4rem; }
+        }
+
+        @media (max-width: 768px) {
+            .concept-grid { grid-template-columns: 1fr; }
+            .concept-grid.three-col { grid-template-columns: 1fr 1fr; }
+            .term-grid { grid-template-columns: repeat(2, 1fr); }
+            .nat-flow { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Progress bar across very top -->
+<div id="progress-bar" style="width:10%"></div>
+
+<!-- =====================================================================
+     SLIDE 1 — TITLE
+     ===================================================================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 10 &nbsp;|&nbsp; N10-009 Obj 1.4 &nbsp;|&nbsp; Layer 3</div>
+
+        <div style="text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;">
+            <div style="font-size:2.4rem; font-weight:800; color:#f1f5f9; line-height:1.2;">
+                NAT &amp; PAT:<br>
+                <span style="color:#c9a83a;">200 Devices,</span> One Public IP
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                How private networks reach the Internet without burning public addresses.
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Your office has 200 devices but only 1 public IP from your ISP. NAT translates each device's private address
+            to that single public IP on the way out — and keeps track of who said what so replies get back to the right device.
+        </div>
+
+        <div style="display:flex; gap:28px; justify-content:center; margin-top:6px; font-size:0.82rem; color:#475569;">
+            <span>10 Slides</span>
+            <span style="border-left:2px solid #1e293b; padding-left:28px;">N10-009 Obj 1.4</span>
+            <span style="border-left:2px solid #1e293b; padding-left:28px;">Layer 3 / IPv4</span>
+            <span style="border-left:2px solid #1e293b; padding-left:28px;">Concepts + Config</span>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 2 — WHY NAT EXISTS
+     ===================================================================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 10</div>
+        <div class="slide-title">Why NAT Exists — <span class="accent">IPv4 Exhaustion</span></div>
+        <div class="slide-subtitle">IPv4 only has about 4.3 billion addresses. The Internet ran out. NAT is the workaround.</div>
+
+        <div class="concept-grid">
+            <div class="c-card gold">
+                <div class="cc-label">The Problem</div>
+                <div class="cc-title">4.3 billion addresses, 8 billion people</div>
+                <div class="cc-body">
+                    IPv4 uses 32 bits — 2^32 = 4,294,967,296 unique addresses. With billions of internet-connected
+                    devices, the public address pool was exhausted. IANA allocated the last IPv4 blocks to regional
+                    registries in 2011. New public IPs are now rare and expensive.
+                </div>
+            </div>
+            <div class="c-card cyan">
+                <div class="cc-label">The Solution — RFC 1918</div>
+                <div class="cc-title">Private address ranges</div>
+                <div class="cc-body">
+                    RFC 1918 reserves three address blocks for private use — not routable on the public Internet.
+                    Any organization can use them internally without registration. NAT translates between private
+                    and public addresses at the network edge.
+                </div>
+            </div>
+        </div>
+
+        <div class="concept-grid three-col">
+            <div class="c-card gold">
+                <div class="cc-label">Class A Private</div>
+                <div class="cc-title">10.0.0.0 /8</div>
+                <div class="cc-body">10.0.0.0 – 10.255.255.255. Over 16 million addresses. Common in large enterprises and cloud VPCs.</div>
+            </div>
+            <div class="c-card gold">
+                <div class="cc-label">Class B Private</div>
+                <div class="cc-title">172.16.0.0 /12</div>
+                <div class="cc-body">172.16.0.0 – 172.31.255.255. Over 1 million addresses. Used by Docker, some corporate networks.</div>
+            </div>
+            <div class="c-card gold">
+                <div class="cc-label">Class C Private</div>
+                <div class="cc-title">192.168.0.0 /16</div>
+                <div class="cc-body">192.168.0.0 – 192.168.255.255. Over 65,000 addresses. Default in home routers and small offices.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            These private addresses are non-routable on the Internet. Routers will drop packets with private source
+            or destination addresses. NAT is the bridge between the private internal world and the public Internet.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 3 — STATIC NAT
+     ===================================================================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 10</div>
+        <div class="slide-title">Static NAT — <span class="accent">1:1 Mapping</span></div>
+        <div class="slide-subtitle">One private IP permanently mapped to one public IP. Used for servers that must be reachable from the Internet.</div>
+
+        <div class="nat-flow">
+            <div class="nat-box nat-inside">
+                <div class="nb-label">Inside Local</div>
+                <div class="nb-addr">192.168.1.10</div>
+                <div style="font-size:0.7rem; color:#8892a8; margin-top:2px;">Web Server</div>
+            </div>
+            <div class="nat-arrow">&#8594;</div>
+            <div class="nat-box nat-router">
+                <div class="nb-label">NAT Router</div>
+                <div class="nb-addr">Translates</div>
+                <div style="font-size:0.7rem; color:#8892a8; margin-top:2px;">static mapping</div>
+            </div>
+            <div class="nat-arrow">&#8594;</div>
+            <div class="nat-box nat-outside">
+                <div class="nb-label">Inside Global</div>
+                <div class="nb-addr">203.0.113.5</div>
+                <div style="font-size:0.7rem; color:#8892a8; margin-top:2px;">Public IP (always same)</div>
+            </div>
+            <div class="nat-arrow">&#8594;</div>
+            <div class="nat-box nat-outside" style="border-color:rgba(58,181,119,0.4);">
+                <div class="nb-label">Outside</div>
+                <div class="nb-addr">Internet</div>
+            </div>
+        </div>
+
+        <div class="concept-grid">
+            <div class="c-card gold">
+                <div class="cc-label">Use Cases</div>
+                <div class="cc-title">When you need 1:1</div>
+                <div class="cc-body">
+                    Hosting a public-facing web server, mail server, or any service that external users initiate connections to.
+                    The public IP must be consistent — DNS points to it. The mapping is permanent and bidirectional.
+                </div>
+            </div>
+            <div class="c-card red">
+                <div class="cc-label">Limitations</div>
+                <div class="cc-title">Still consumes one public IP per device</div>
+                <div class="cc-body">
+                    Every device with a static NAT entry needs its own dedicated public IP. This does not conserve addresses.
+                    For 200 internal devices, you would need 200 public IPs — the original problem is not solved.
+                    Static NAT is for specific servers, not general outbound Internet access.
+                </div>
+            </div>
+        </div>
+
+        <div class="terminal-block">
+            <div class="t-label">Cisco IOS — Static NAT Config</div>
+            <div class="t-cmd">R1(config)# ip nat inside source static 192.168.1.10 203.0.113.5</div>
+            <div class="t-cmd">R1(config)# interface gi0/0</div>
+            <div class="t-cmd">R1(config-if)# ip nat inside</div>
+            <div class="t-cmd">R1(config)# interface gi0/1</div>
+            <div class="t-cmd">R1(config-if)# ip nat outside</div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 4 — DYNAMIC NAT
+     ===================================================================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 10</div>
+        <div class="slide-title">Dynamic NAT — <span class="accent">Pool-Based</span></div>
+        <div class="slide-subtitle">A pool of public IPs shared among internal devices on a first-come, first-served basis.</div>
+
+        <div class="concept-grid">
+            <div class="c-card gold">
+                <div class="cc-label">How It Works</div>
+                <div class="cc-title">First available public IP from the pool</div>
+                <div class="cc-body">
+                    You define a pool of public IP addresses. When an inside device initiates an outbound connection,
+                    the router assigns the next available public IP from the pool. The mapping exists only for the
+                    duration of the connection. When it ends, the public IP returns to the pool for reuse.
+                </div>
+            </div>
+            <div class="c-card red">
+                <div class="cc-label">The Problem</div>
+                <div class="cc-title">Pool exhaustion</div>
+                <div class="cc-body">
+                    If 200 devices try to connect simultaneously and the pool only has 10 IPs, 190 devices fail.
+                    Dynamic NAT still requires one public IP per concurrent session. This is why PAT (NAT overload)
+                    replaced it for most use cases — PAT allows thousands of sessions from a single IP.
+                </div>
+            </div>
+        </div>
+
+        <div class="terminal-block">
+            <div class="t-label">Cisco IOS — Dynamic NAT Config</div>
+            <div class="t-cmd">R1(config)# ip nat pool MYPOOL 203.0.113.10 203.0.113.20 netmask 255.255.255.0</div>
+            <div class="t-cmd">R1(config)# access-list 1 permit 192.168.1.0 0.0.0.255</div>
+            <div class="t-cmd">R1(config)# ip nat inside source list 1 pool MYPOOL</div>
+            <div class="t-note">This maps the 192.168.1.0/24 subnet to public IPs .10 through .20 in the pool</div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Dynamic vs Static:</strong> Static NAT is permanent and bidirectional (external hosts can initiate connections).
+            Dynamic NAT mappings are temporary and usually unidirectional — external hosts cannot initiate connections
+            to a dynamically assigned address because the mapping may not exist yet.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 5 — PAT / NAT OVERLOAD
+     ===================================================================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 10</div>
+        <div class="slide-title">PAT — <span class="accent">NAT Overload</span></div>
+        <div class="slide-subtitle">Port Address Translation: many internal devices share one public IP, differentiated by source port numbers.</div>
+
+        <div class="pat-table" style="overflow:auto; border-radius:8px; border:1px solid rgba(255,255,255,0.07);">
+            <table class="pat-table">
+                <thead>
+                    <tr>
+                        <th>Inside Local (private)</th>
+                        <th>Inside Local Port</th>
+                        <th>Inside Global (public)</th>
+                        <th>Inside Global Port</th>
+                        <th>Destination</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="hl">192.168.1.10</td>
+                        <td>51200</td>
+                        <td class="hl-out">203.0.113.1</td>
+                        <td class="hl-out">1024</td>
+                        <td>93.184.216.34:443</td>
+                    </tr>
+                    <tr>
+                        <td class="hl">192.168.1.11</td>
+                        <td>51200</td>
+                        <td class="hl-out">203.0.113.1</td>
+                        <td class="hl-out">1025</td>
+                        <td>93.184.216.34:443</td>
+                    </tr>
+                    <tr>
+                        <td class="hl">192.168.1.12</td>
+                        <td>52100</td>
+                        <td class="hl-out">203.0.113.1</td>
+                        <td class="hl-out">1026</td>
+                        <td>8.8.8.8:53</td>
+                    </tr>
+                    <tr>
+                        <td class="hl">192.168.1.200</td>
+                        <td>49801</td>
+                        <td class="hl-out">203.0.113.1</td>
+                        <td class="hl-out">1027</td>
+                        <td>1.1.1.1:443</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            All four inside devices share the same public IP <strong style="color:#fde68a;">203.0.113.1</strong>.
+            The router differentiates them by assigning a unique outside port number per session. When a reply arrives, the router looks up
+            the outside port in its translation table to identify which inside device gets the packet.
+        </div>
+
+        <div class="terminal-block">
+            <div class="t-label">Cisco IOS — PAT Config (overload keyword)</div>
+            <div class="t-cmd">R1(config)# access-list 1 permit 192.168.1.0 0.0.0.255</div>
+            <div class="t-cmd">R1(config)# ip nat inside source list 1 interface gi0/1 overload</div>
+            <div class="t-note">The "overload" keyword enables PAT — many-to-one using the outside interface IP</div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 6 — PORT FORWARDING
+     ===================================================================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 10</div>
+        <div class="slide-title">Port Forwarding — <span class="accent">Inbound NAT</span></div>
+        <div class="slide-subtitle">PAT is outbound-only. Port forwarding punches a hole inward for external-initiated connections.</div>
+
+        <div class="nat-flow">
+            <div class="nat-box nat-outside" style="border-color:rgba(58,181,119,0.4);">
+                <div class="nb-label">External Client</div>
+                <div class="nb-addr">98.1.2.3</div>
+            </div>
+            <div class="nat-arrow">&#8594;</div>
+            <div class="nat-box nat-outside">
+                <div class="nb-label">Public IP : Port</div>
+                <div class="nb-addr">203.0.113.1:80</div>
+            </div>
+            <div class="nat-arrow">&#8594;</div>
+            <div class="nat-box nat-router">
+                <div class="nb-label">NAT Router</div>
+                <div class="nb-addr">Rewrites dst</div>
+            </div>
+            <div class="nat-arrow">&#8594;</div>
+            <div class="nat-box nat-inside">
+                <div class="nb-label">Inside Server</div>
+                <div class="nb-addr">192.168.1.10:80</div>
+            </div>
+        </div>
+
+        <div class="concept-grid">
+            <div class="c-card gold">
+                <div class="cc-label">How Port Forwarding Works</div>
+                <div class="cc-title">Destination NAT (DNAT)</div>
+                <div class="cc-body">
+                    The router is configured to forward incoming traffic on a specific public IP and port to an
+                    internal private IP and port. External clients connect to the public address; the router
+                    transparently redirects the connection to the internal server. The server's private IP is never exposed.
+                </div>
+            </div>
+            <div class="c-card cyan">
+                <div class="cc-label">Common Use Cases</div>
+                <div class="cc-title">Services behind PAT</div>
+                <div class="cc-body">
+                    Home gaming consoles (port 3074), Minecraft servers (port 25565), internal web servers (port 80/443),
+                    remote desktop access (port 3389), SSH access to home lab (port 22). Any service that needs
+                    to be reachable from the Internet but lives behind a PAT device.
+                </div>
+            </div>
+        </div>
+
+        <div class="terminal-block">
+            <div class="t-label">Cisco IOS — Static Port Forwarding (forward public :80 to internal :80)</div>
+            <div class="t-cmd">R1(config)# ip nat inside source static tcp 192.168.1.10 80 203.0.113.1 80</div>
+            <div class="t-note">Inbound TCP to public 203.0.113.1:80 is forwarded to private 192.168.1.10:80</div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 7 — NAT TERMINOLOGY (Inside/Outside Local/Global)
+     ===================================================================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 10</div>
+        <div class="slide-title">NAT Address <span class="accent">Terminology</span></div>
+        <div class="slide-subtitle">Four terms that the exam tests precisely. Get these right and translation tables become readable.</div>
+
+        <div class="term-grid">
+            <div class="term-card tc-gold">
+                <div class="tc-term">Inside Local</div>
+                <div class="tc-def">The private IP address of an inside host — as configured on the device itself.</div>
+                <div class="tc-example">192.168.1.10</div>
+            </div>
+            <div class="term-card tc-gold">
+                <div class="tc-term">Inside Global</div>
+                <div class="tc-def">The public IP address that represents an inside host to the outside world — after NAT translation.</div>
+                <div class="tc-example">203.0.113.1</div>
+            </div>
+            <div class="term-card tc-cyan">
+                <div class="tc-term">Outside Local</div>
+                <div class="tc-def">The IP address of an outside host as seen from the inside network. Usually the same as outside global unless NAT on the outside is also configured.</div>
+                <div class="tc-example">8.8.8.8</div>
+            </div>
+            <div class="term-card tc-cyan">
+                <div class="tc-term">Outside Global</div>
+                <div class="tc-def">The actual public IP address assigned to the outside host on the Internet. Typically the same as outside local in simple NAT designs.</div>
+                <div class="tc-example">8.8.8.8</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Memory anchor:</strong> "Inside" = your network. "Outside" = the Internet side. "Local" = what the address looks like from your perspective.
+            "Global" = what the address looks like on the public Internet. The most important pair for the exam:
+            <strong style="color:#fde68a;">Inside Local</strong> (private IP you configured) and <strong style="color:#fde68a;">Inside Global</strong> (public IP after translation).
+        </div>
+
+        <div class="terminal-block">
+            <div class="t-label">show ip nat translations — reading the table</div>
+            <div class="t-cmd">R1# show ip nat translations</div>
+            <div class="t-out">Pro  Inside global       Inside local      Outside local     Outside global</div>
+            <div class="t-hi">tcp  203.0.113.1:1024   192.168.1.10:51200  8.8.8.8:53       8.8.8.8:53</div>
+            <div class="t-hi">tcp  203.0.113.1:1025   192.168.1.11:51200  93.184.216.34:443 93.184.216.34:443</div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 8 — NAT TRAVERSAL CHALLENGES
+     ===================================================================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 10</div>
+        <div class="slide-title">NAT Traversal <span class="accent-red">Challenges</span></div>
+        <div class="slide-subtitle">NAT breaks protocols that embed IP addresses in their payload. These require special handling.</div>
+
+        <div class="concept-grid three-col">
+            <div class="c-card red">
+                <div class="cc-label">VoIP / SIP</div>
+                <div class="cc-title">IP in the payload</div>
+                <div class="cc-body">
+                    SIP embeds the caller's IP address in the SIP message body. NAT rewrites the IP header
+                    but not the payload — the embedded address stays private and becomes unreachable.
+                    Solution: ALG (Application Layer Gateway) on the NAT device, or STUN.
+                </div>
+            </div>
+            <div class="c-card red">
+                <div class="cc-label">IPsec VPN</div>
+                <div class="cc-title">Integrity check fails</div>
+                <div class="cc-body">
+                    IPsec ESP authenticates the entire packet. When NAT changes the source IP, the integrity
+                    check fails and the VPN drops the connection. Solution: NAT-T (NAT Traversal) encapsulates
+                    ESP packets inside UDP 4500 so NAT can rewrite the outer UDP header without touching ESP.
+                </div>
+            </div>
+            <div class="c-card gold">
+                <div class="cc-label">Online Gaming / P2P</div>
+                <div class="cc-title">Peer-to-peer connection setup</div>
+                <div class="cc-body">
+                    Multiplayer games need direct peer connections. Behind NAT, peers cannot initiate connections
+                    to each other. Solution: NAT traversal techniques like UDP hole-punching, STUN (Session
+                    Traversal Utilities for NAT), or TURN (relay). Strict NAT causes connectivity issues.
+                </div>
+            </div>
+        </div>
+
+        <div class="concept-grid">
+            <div class="c-card cyan">
+                <div class="cc-label">NAT64</div>
+                <div class="cc-title">IPv6 to IPv4 translation</div>
+                <div class="cc-body">
+                    A transition mechanism that allows IPv6-only clients to communicate with IPv4 servers.
+                    The NAT64 device translates IPv6 packets to IPv4 and maintains a mapping — similar to standard
+                    NAT but bridging address family versions. DNS64 synthesizes AAAA records from A records.
+                </div>
+            </div>
+            <div class="c-card gold">
+                <div class="cc-label">ALG — Application Layer Gateway</div>
+                <div class="cc-title">Protocol-aware NAT helper</div>
+                <div class="cc-body">
+                    An ALG inspects application payloads and rewrites embedded IP addresses to match what NAT
+                    did at the IP header level. Common ALGs: SIP ALG, FTP ALG. Can sometimes cause issues if
+                    the application already implements its own NAT traversal — disable when needed.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 9 — NAT64 + TROUBLESHOOTING
+     ===================================================================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 10</div>
+        <div class="slide-title">Troubleshooting NAT</div>
+        <div class="slide-subtitle">The translation table is your primary diagnostic tool — it shows every active mapping.</div>
+
+        <div class="terminal-block">
+            <div class="t-label">show ip nat translations — full output</div>
+            <div class="t-cmd">R1# show ip nat translations</div>
+            <div>&nbsp;</div>
+            <div class="t-out">Pro  Inside global          Inside local        Outside local       Outside global</div>
+            <div class="t-hi">tcp  203.0.113.1:1024       192.168.1.10:51200  8.8.8.8:53         8.8.8.8:53</div>
+            <div class="t-hi">tcp  203.0.113.1:1025       192.168.1.11:51200  93.184.216.34:443  93.184.216.34:443</div>
+            <div class="t-hi">--- 203.0.113.5             192.168.1.20        ---                ---</div>
+            <div class="t-note">Last entry is a static NAT (no port — 1:1 mapping for 192.168.1.20)</div>
+        </div>
+
+        <div class="section-label" style="margin-top:2px;">Common Problems &amp; Root Causes</div>
+
+        <div class="concept-grid three-col">
+            <div class="c-card red">
+                <div class="cc-label">Symptom</div>
+                <div class="cc-title">Inside hosts cannot reach Internet</div>
+                <div class="cc-body">NAT inside/outside interfaces not assigned, or ACL in the NAT rule does not match the source subnet. Check with <code style="font-family:monospace; color:#ef4444;">show ip nat statistics</code> — look at misses count.</div>
+            </div>
+            <div class="c-card gold">
+                <div class="cc-label">Symptom</div>
+                <div class="cc-title">Port forward not working</div>
+                <div class="cc-body">Firewall rule blocking inbound traffic before NAT processes it, or the static port forward entry is incorrect. Check both the NAT table and the ACL/firewall rule. Confirm the inside server is actually listening on that port.</div>
+            </div>
+            <div class="c-card cyan">
+                <div class="cc-label">Commands</div>
+                <div class="cc-title">Diagnose flow</div>
+                <div class="cc-body">
+                    <code style="font-family:monospace; color:#06b6d4;">show ip nat translations verbose</code> — adds timing and hit counts per entry.<br>
+                    <code style="font-family:monospace; color:#06b6d4;">debug ip nat</code> — real-time translation events (use sparingly in production).<br>
+                    <code style="font-family:monospace; color:#06b6d4;">clear ip nat translation *</code> — flush the table to force re-translation.
+                </div>
+            </div>
+        </div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            Device reports "No Internet." Check <code style="font-family:monospace; color:#c9a83a;">show ip nat translations</code>. If entries appear, NAT is working — the problem is upstream.
+            If no entries appear for that source IP, the ACL or interface NAT assignment is missing.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 10 — SUMMARY + COMPLETE
+     ===================================================================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 10 &nbsp;|&nbsp; N10-009 Obj 1.4</div>
+        <div class="slide-title">200 Devices, One IP — NAT Makes It Work</div>
+
+        <div class="summary-scenario">
+            All 200 devices in your office reach the Internet through a single public IP.
+            PAT (<strong>NAT overload</strong>) assigns each outbound session a unique source port, tracks the mapping,
+            and delivers replies to the correct internal device. For the one server that needs to be reachable from outside,
+            you added a static NAT entry. For troubleshooting, <strong>show ip nat translations</strong>
+            tells you everything: what internal address mapped to what public address, which port, and when.
+        </div>
+
+        <div class="section-label">5 Facts to Carry Out of This Presentation</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Static NAT = 1:1 permanent mapping. Dynamic NAT = pool of public IPs. PAT = many:1 using port numbers. PAT is what home routers use.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">RFC 1918 private ranges: <code>10.0.0.0/8</code>, <code>172.16.0.0/12</code>, <code>192.168.0.0/16</code>. Not routable on the public Internet.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Inside Local = private IP on the device. Inside Global = public IP after translation. Know both for the translation table output.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">NAT breaks protocols that embed IPs in their payload: VoIP (SIP), IPsec (use NAT-T / UDP 4500), and some gaming/P2P applications.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Troubleshoot with <code>show ip nat translations</code> (active mappings) and <code>show ip nat statistics</code> (hit/miss counters).</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     NAVIGATION BAR
+     ===================================================================== -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Network+ Hub</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 10</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<!-- =====================================================================
+     PRESENTATION LOGIC
+     ===================================================================== -->
+<script>
+    /* State */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 10;
+
+    /* Navigate to a specific slide number (1-indexed) */
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update progress bar */
+        const pct = (currentSlide / TOTAL_SLIDES) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+
+        /* Update counter */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Update nav button states */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show/hide complete button on final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            goToSlide(currentSlide + 1);
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            goToSlide(currentSlide - 1);
+        }
+    });
+
+    /* Initialize on load */
+    goToSlide(1);
+</script>
+
+<!-- Module completion -->
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'web-nat', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

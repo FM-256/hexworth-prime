@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSPF | Network+ N10-009</title>
+    <style>
+        /* =====================================================
+           RESET & BASE
+           ===================================================== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* =====================================================
+           SLIDE SYSTEM — viewport-locked, no overflow
+           ===================================================== */
+        .slide {
+            display: none;
+            position: fixed;
+            inset: 0;
+            padding: 20px 28px 72px;
+            overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Inner wrapper — constrains content width */
+        .slide-inner {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* =====================================================
+           PROGRESS BAR
+           ===================================================== */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: #3a8fd4;
+            transition: width 0.4s ease;
+            z-index: 200;
+        }
+
+        /* =====================================================
+           NAVIGATION BAR — fixed bottom
+           ===================================================== */
+        #nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            z-index: 200;
+            padding: 0 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(58, 143, 212, 0.2);
+            color: #3a8fd4;
+            border-color: #3a8fd4;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.back-btn {
+            font-size: 0.82rem;
+            padding: 8px 16px;
+        }
+
+        #slide-counter {
+            color: #64748b;
+            font-size: 0.82rem;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        #complete-btn {
+            display: none;
+            background: #3ab577;
+            color: #000;
+            border: none;
+            padding: 9px 26px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+
+        #complete-btn:hover {
+            background: #4fcf8a;
+            transform: translateY(-1px);
+        }
+
+        /* =====================================================
+           SHARED SLIDE TYPOGRAPHY
+           ===================================================== */
+        .slide-meta {
+            font-size: 0.78rem;
+            color: #3a8fd4;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .slide-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            text-align: center;
+            line-height: 1.25;
+        }
+
+        .slide-title .accent { color: #3a8fd4; }
+
+        .slide-subtitle {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        /* =====================================================
+           SCENARIO STRIP
+           ===================================================== */
+        .scenario-strip {
+            background: rgba(58, 143, 212, 0.08);
+            border-left: 3px solid #3a8fd4;
+            border-radius: 0 8px 8px 0;
+            padding: 10px 16px;
+            font-size: 0.88rem;
+            color: #bae0f7;
+            font-style: italic;
+        }
+
+        /* =====================================================
+           BOXES
+           ===================================================== */
+        .box {
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.875rem;
+        }
+
+        .box-blue {
+            background: rgba(58, 143, 212, 0.08);
+            border: 1px solid rgba(58, 143, 212, 0.3);
+            color: #bae0f7;
+        }
+
+        .box-green {
+            background: rgba(58, 181, 119, 0.08);
+            border: 1px solid rgba(58, 181, 119, 0.35);
+            color: #d1fae5;
+        }
+
+        .box-red {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fee2e2;
+        }
+
+        .box-gold {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            color: #fef3c7;
+        }
+
+        .box-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+            opacity: 0.75;
+        }
+
+        /* =====================================================
+           CARD GRIDS
+           ===================================================== */
+        .card-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        .card-grid-2 { grid-template-columns: 1fr 1fr; }
+        .card-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+        .card-grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+        .card {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 8px;
+            padding: 11px 14px;
+            border-left: 3px solid #3a8fd4;
+            font-size: 0.85rem;
+        }
+
+        .card-title {
+            font-weight: 700;
+            color: #3a8fd4;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 4px;
+        }
+
+        .card-body {
+            color: #94a3b8;
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-green .card-title { color: #3ab577; }
+        .card.c-gold  { border-left-color: #fbbf24; }
+        .card.c-gold  .card-title { color: #fbbf24; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-red   .card-title { color: #ef4444; }
+
+        /* =====================================================
+           TABLE
+           ===================================================== */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.83rem;
+        }
+
+        .data-table th {
+            background: rgba(58, 143, 212, 0.12);
+            color: #3a8fd4;
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .data-table td {
+            padding: 7px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: #94a3b8;
+        }
+
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table tr:hover td { background: rgba(58, 143, 212, 0.04); }
+
+        .td-accent { color: #3a8fd4; font-weight: 600; }
+        .td-mono   { font-family: 'Courier New', monospace; color: #e2e8f0; }
+
+        /* =====================================================
+           CODE BLOCK
+           ===================================================== */
+        .code-block {
+            background: #070710;
+            border: 1px solid rgba(58, 143, 212, 0.15);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            color: #e2e8f0;
+            white-space: pre;
+        }
+
+        .code-block .c-comment { color: #475569; }
+        .code-block .c-cmd     { color: #3a8fd4; }
+        .code-block .c-val     { color: #3ab577; }
+
+        /* =====================================================
+           TITLE SLIDE SPECIFICS
+           ===================================================== */
+        .title-hero {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .big-title {
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: #f1f5f9;
+            line-height: 1.2;
+        }
+
+        .big-title .blue { color: #3a8fd4; }
+
+        .title-meta-row {
+            display: flex;
+            gap: 28px;
+            justify-content: center;
+            margin-top: 6px;
+            font-size: 0.82rem;
+            color: #475569;
+        }
+
+        .title-meta-row span {
+            border-left: 2px solid #1e293b;
+            padding-left: 28px;
+        }
+
+        .title-meta-row span:first-child {
+            border-left: none;
+            padding-left: 0;
+        }
+
+        /* =====================================================
+           NEIGHBOR STATES FLOW
+           ===================================================== */
+        .state-flow {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            flex-wrap: nowrap;
+        }
+
+        .state-node {
+            flex: 1;
+            text-align: center;
+            padding: 8px 4px;
+            background: rgba(58, 143, 212, 0.07);
+            border: 1px solid rgba(58, 143, 212, 0.2);
+            border-radius: 6px;
+            font-size: 0.78rem;
+        }
+
+        .state-node .sn-label {
+            font-weight: 700;
+            color: #3a8fd4;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .state-node .sn-desc {
+            color: #64748b;
+            font-size: 0.7rem;
+            margin-top: 2px;
+            line-height: 1.3;
+        }
+
+        .state-node.sn-full {
+            background: rgba(58, 181, 119, 0.1);
+            border-color: rgba(58, 181, 119, 0.3);
+        }
+
+        .state-node.sn-full .sn-label { color: #3ab577; }
+
+        .state-arrow {
+            color: #334155;
+            font-size: 0.8rem;
+            padding: 0 4px;
+            flex-shrink: 0;
+        }
+
+        /* =====================================================
+           SUMMARY FACTS
+           ===================================================== */
+        .summary-facts {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .fact-row {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            font-size: 0.875rem;
+        }
+
+        .fact-num {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #3a8fd4;
+            min-width: 22px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .fact-text {
+            color: #cbd5e1;
+        }
+
+        .fact-text code {
+            font-family: 'Courier New', monospace;
+            color: #3a8fd4;
+            background: rgba(58, 143, 212, 0.1);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+
+        .summary-scenario {
+            background: rgba(58, 143, 212, 0.07);
+            border: 1px solid rgba(58, 143, 212, 0.3);
+            border-radius: 9px;
+            padding: 14px 18px;
+            font-size: 0.875rem;
+            color: #bae0f7;
+            line-height: 1.65;
+        }
+
+        .summary-scenario strong { color: #3a8fd4; }
+
+        /* =====================================================
+           UTILITY
+           ===================================================== */
+        .section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: #475569;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        /* =====================================================
+           RESPONSIVE
+           ===================================================== */
+        @media (max-height: 700px) {
+            .slide-inner { gap: 9px; }
+            .slide-title { font-size: 1.4rem; }
+            .big-title   { font-size: 1.9rem; }
+            .card-grid   { gap: 6px; }
+        }
+
+        @media (max-width: 768px) {
+            .card-grid-3 { grid-template-columns: 1fr; }
+            .card-grid-4 { grid-template-columns: repeat(2, 1fr); }
+            .card-grid-2 { grid-template-columns: 1fr; }
+            .state-flow  { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Progress bar across very top -->
+<div id="progress-bar" style="width:10%"></div>
+
+<!-- =====================================================================
+     SLIDE 1 — TITLE
+     ===================================================================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 10 &nbsp;|&nbsp; N10-009 Obj 1.1 &nbsp;|&nbsp; Dynamic Routing</div>
+
+        <div class="title-hero">
+            <div class="big-title">
+                <span class="blue">OSPF</span>:<br>
+                Open Shortest Path First
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Link-state routing. Dijkstra's algorithm. The enterprise standard.
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Your company has 3 offices connected by routers. Static routes worked for 2 offices, but the third just came
+            online and nothing is reachable. You could add more static routes — or you could let OSPF discover
+            paths dynamically and fix itself when the topology changes.
+        </div>
+
+        <div class="title-meta-row">
+            <span>10 Slides</span>
+            <span>N10-009 Obj 1.1</span>
+            <span>Layer 3 — Network</span>
+            <span>Concepts + Config</span>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 2 — WHY DYNAMIC ROUTING (static doesn't scale)
+     ===================================================================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 10</div>
+        <div class="slide-title">Why <span class="accent">Dynamic</span> Routing?</div>
+        <div class="slide-subtitle">Static routes require manual updates. That breaks at scale.</div>
+
+        <div class="card-grid card-grid-2">
+            <div class="card c-red">
+                <div class="card-title">Static Routes — The Problem</div>
+                <div class="card-body">
+                    Every path must be configured by hand on every router. When the third office comes online,
+                    you add routes on every device that needs to reach it. When a link fails, traffic stops
+                    until you manually reroute. 3 offices is manageable. 30 is not.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-title">Dynamic Routing — The Fix</div>
+                <div class="card-body">
+                    Routers discover neighbors, exchange topology information, and calculate best paths
+                    automatically. When a link fails, they recalculate and reroute without human
+                    intervention. The network heals itself.
+                </div>
+            </div>
+        </div>
+
+        <div class="data-table" style="border-radius:8px; overflow:hidden;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Factor</th>
+                        <th>Static</th>
+                        <th>Dynamic (OSPF)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Configuration</td><td>Manual per router</td><td class="td-accent">Automatic discovery</td></tr>
+                    <tr><td>Failure response</td><td>Traffic drops until fixed by hand</td><td class="td-accent">Reconverges in seconds</td></tr>
+                    <tr><td>Scale</td><td>Breaks beyond small networks</td><td class="td-accent">Designed for enterprise</td></tr>
+                    <tr><td>CPU overhead</td><td>None</td><td>SPF calculations on change</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="scenario-strip">
+            Office 3 just connected. With static routes, you touch every router by hand. With OSPF,
+            the routers announce the new network and update each other within seconds.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 3 — OSPF OVERVIEW (link-state, SPF algorithm)
+     ===================================================================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 10</div>
+        <div class="slide-title">OSPF Overview</div>
+        <div class="slide-subtitle">Link-state protocol. Every router builds a complete map of the network.</div>
+
+        <div class="card-grid card-grid-3">
+            <div class="card">
+                <div class="card-title">Link-State</div>
+                <div class="card-body">
+                    Each router floods information about its own links to every other router.
+                    Every router ends up with an identical map — the Link-State Database (LSDB).
+                    No one guesses. Everyone knows the full topology.
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Dijkstra SPF</div>
+                <div class="card-body">
+                    With the LSDB, each router runs Dijkstra's Shortest Path First algorithm —
+                    placing itself at the root and calculating the lowest-cost path to every
+                    destination. That result populates the routing table.
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Key Numbers</div>
+                <div class="card-body">
+                    Protocol: IP 89 (not TCP/UDP)<br>
+                    Admin Distance: 110<br>
+                    Multicast: 224.0.0.5 (all OSPF)<br>
+                    Multicast: 224.0.0.6 (DR/BDR only)<br>
+                    Standard: RFC 2328 (OSPFv2)
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Contrast with Distance-Vector (RIP, EIGRP)</div>
+            Distance-vector protocols share routing tables with neighbors — routers only know what their
+            neighbors tell them. Link-state protocols share topology data — every router builds the map
+            itself and calculates its own paths. Link-state converges faster and scales further.
+        </div>
+
+        <!-- SVG: SPF Dijkstra calculation on a 4-router topology -->
+        <div style="display:flex; justify-content:center; margin-top:6px;">
+            <svg id="spf-svg" viewBox="0 0 480 160" width="480" height="160" style="overflow:visible;">
+                <defs>
+                    <filter id="spf-glow" x="-40%" y="-40%" width="180%" height="180%">
+                        <feGaussianBlur stdDeviation="3" result="blur"/>
+                        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <!-- Path definitions for packet motion -->
+                    <path id="spf-p-ab" d="M 80,80 L 200,40" fill="none"/>
+                    <path id="spf-p-ac" d="M 80,80 L 200,120" fill="none"/>
+                    <path id="spf-p-bd" d="M 200,40 L 360,80" fill="none"/>
+                    <path id="spf-p-cd" d="M 200,120 L 360,80" fill="none"/>
+                    <path id="spf-p-bc" d="M 200,40 L 200,120" fill="none"/>
+                </defs>
+
+                <!-- Link lines — default dim, light up during SPF -->
+                <line id="spf-l-ab" x1="80" y1="80" x2="200" y2="40" stroke="#334155" stroke-width="2"/>
+                <line id="spf-l-ac" x1="80" y1="80" x2="200" y2="120" stroke="#334155" stroke-width="2"/>
+                <line id="spf-l-bd" x1="200" y1="40" x2="360" y2="80" stroke="#334155" stroke-width="2"/>
+                <line id="spf-l-cd" x1="200" y1="120" x2="360" y2="80" stroke="#334155" stroke-width="2"/>
+                <line id="spf-l-bc" x1="200" y1="40" x2="200" y2="120" stroke="#334155" stroke-width="2"/>
+
+                <!-- Cost labels -->
+                <text x="128" y="48" fill="#64748b" font-size="10" text-anchor="middle">cost 5</text>
+                <text x="128" y="118" fill="#64748b" font-size="10" text-anchor="middle">cost 10</text>
+                <text x="290" y="50" fill="#64748b" font-size="10" text-anchor="middle">cost 5</text>
+                <text x="290" y="122" fill="#64748b" font-size="10" text-anchor="middle">cost 10</text>
+                <text x="208" y="84" fill="#64748b" font-size="10" text-anchor="middle">cost 3</text>
+
+                <!-- Router nodes -->
+                <circle id="spf-r-a" cx="80" cy="80" r="18" fill="#1e293b" stroke="#3a8fd4" stroke-width="2"/>
+                <text x="80" y="84" fill="#e2e8f0" font-size="11" font-weight="bold" text-anchor="middle">R1</text>
+
+                <circle id="spf-r-b" cx="200" cy="40" r="18" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+                <text x="200" y="44" fill="#e2e8f0" font-size="11" font-weight="bold" text-anchor="middle">R2</text>
+
+                <circle id="spf-r-c" cx="200" cy="120" r="18" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+                <text x="200" y="124" fill="#e2e8f0" font-size="11" font-weight="bold" text-anchor="middle">R3</text>
+
+                <circle id="spf-r-d" cx="360" cy="80" r="18" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+                <text x="360" y="84" fill="#e2e8f0" font-size="11" font-weight="bold" text-anchor="middle">R4</text>
+
+                <!-- Source label -->
+                <text x="80" y="108" fill="#3a8fd4" font-size="9" text-anchor="middle">SPF root</text>
+
+                <!-- Calculation step label -->
+                <text id="spf-step-label" x="240" y="154" fill="#94a3b8" font-size="10" text-anchor="middle">Dijkstra running...</text>
+
+                <!-- Animated packet along shortest path R1→R2→R4 -->
+                <circle r="4" fill="#22d3ee" opacity="0">
+                    <animate attributeName="opacity" values="0;1;1;0" dur="0.4s" begin="spf-anim-1.begin+0.5s" fill="freeze"/>
+                    <animateMotion dur="1.2s" begin="spf-anim-1.begin+0.5s" fill="freeze" repeatCount="indefinite">
+                        <mpath href="#spf-p-ab"/>
+                    </animateMotion>
+                </circle>
+                <circle r="4" fill="#22d3ee" opacity="0">
+                    <animate attributeName="opacity" values="0;1;1;0" dur="0.4s" begin="spf-anim-1.begin+2.0s" fill="freeze"/>
+                    <animateMotion dur="1.2s" begin="spf-anim-1.begin+2.0s" fill="freeze" repeatCount="indefinite">
+                        <mpath href="#spf-p-bd"/>
+                    </animateMotion>
+                </circle>
+
+                <!-- Trigger animation (invisible rect) -->
+                <rect id="spf-anim-1" width="0" height="0">
+                    <animate attributeName="width" from="0" to="1" dur="0.1s" begin="0s" fill="freeze"/>
+                </rect>
+            </svg>
+        </div>
+
+        <script>
+        /* SPF animation controller: lights up links in order as Dijkstra evaluates them,
+           then highlights the winning shortest path in green */
+        (function() {
+            var steps = [
+                { link: 'spf-l-ab', color: '#3a8fd4', cost: 'Step 1: Evaluate R1→R2 (cost 5)' },
+                { link: 'spf-l-ac', color: '#3a8fd4', cost: 'Step 2: Evaluate R1→R3 (cost 10)' },
+                { link: 'spf-l-bc', color: '#fbbf24', cost: 'Step 3: Evaluate R2→R3 shortcut (cost 3)' },
+                { link: 'spf-l-bd', color: '#3a8fd4', cost: 'Step 4: Evaluate R2→R4 (cost 10)' },
+                { link: 'spf-l-cd', color: '#3a8fd4', cost: 'Step 5: Evaluate R3→R4 (cost 18)' },
+            ];
+            var finalPath = ['spf-l-ab', 'spf-l-bd'];
+            var label = document.getElementById('spf-step-label');
+            var delay = 0;
+
+            function resetLinks() {
+                ['spf-l-ab','spf-l-ac','spf-l-bd','spf-l-cd','spf-l-bc'].forEach(function(id) {
+                    var el = document.getElementById(id);
+                    if (el) { el.setAttribute('stroke', '#334155'); el.setAttribute('stroke-width', '2'); }
+                });
+            }
+
+            function runStep(i) {
+                if (i >= steps.length) {
+                    /* Highlight final shortest path in green */
+                    finalPath.forEach(function(id) {
+                        var el = document.getElementById(id);
+                        if (el) {
+                            el.setAttribute('stroke', '#22c55e');
+                            el.setAttribute('stroke-width', '3.5');
+                        }
+                    });
+                    if (label) label.textContent = 'Shortest path: R1→R2→R4 (total cost 10)';
+                    if (label) label.setAttribute('fill', '#22c55e');
+                    /* Reset and loop */
+                    setTimeout(function() {
+                        resetLinks();
+                        if (label) { label.textContent = 'Dijkstra running...'; label.setAttribute('fill','#94a3b8'); }
+                        setTimeout(function() { runStep(0); }, 600);
+                    }, 3200);
+                    return;
+                }
+                var s = steps[i];
+                var el = document.getElementById(s.link);
+                if (el) { el.setAttribute('stroke', s.color); el.setAttribute('stroke-width', '2.5'); }
+                if (label) label.textContent = s.cost;
+                setTimeout(function() { runStep(i + 1); }, 700);
+            }
+
+            /* Start after a short delay to let the slide render */
+            setTimeout(function() { runStep(0); }, 800);
+        })();
+        </script>
+
+        <div class="scenario-strip">
+            When Office 3 connects, its router floods a Link-State Advertisement to the entire OSPF domain.
+            Every router receives it, updates its LSDB, and runs SPF. All three offices can reach each other
+            within seconds — no static route changes required.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 4 — OSPF AREAS (Area 0 backbone, router types)
+     ===================================================================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 10</div>
+        <div class="slide-title">OSPF Areas &amp; <span class="accent">Router Types</span></div>
+        <div class="slide-subtitle">Areas limit LSA flooding. Area 0 is the mandatory backbone.</div>
+
+        <div class="card-grid card-grid-2">
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="section-label">Area Types</div>
+                <div class="card">
+                    <div class="card-title">Area 0 — Backbone</div>
+                    <div class="card-body">All other areas must connect to Area 0 directly or via a virtual link. All inter-area traffic passes through it.</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Non-Backbone Areas</div>
+                    <div class="card-body">Area 1, 2, etc. Reduce SPF scope and LSA flooding. Each area runs SPF independently — changes in Area 1 don't trigger SPF recalculation in Area 2.</div>
+                </div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <div class="section-label">Router Types</div>
+                <div class="card c-green">
+                    <div class="card-title">ABR — Area Border Router</div>
+                    <div class="card-body">Sits on the boundary between two areas. Maintains one LSDB per area and passes summarized routes between them.</div>
+                </div>
+                <div class="card c-gold">
+                    <div class="card-title">ASBR — AS Boundary Router</div>
+                    <div class="card-body">Connects OSPF to another routing domain (BGP, EIGRP, static). Redistributes external routes into OSPF as Type 5 LSAs.</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">DR / BDR — Designated Router</div>
+                    <div class="card-body">Elected on multi-access segments (Ethernet). Reduces adjacency count from O(n2) to O(n). BDR takes over if DR fails.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>DR election:</strong> Highest OSPF priority wins (default 1, range 0-255). Priority 0 = never DR.
+            Tiebreaker: highest Router ID. Election is non-preemptive — an existing DR keeps its role until it fails.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 5 — NEIGHBOR ADJACENCY (Hello packets, states)
+     ===================================================================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 10</div>
+        <div class="slide-title">Neighbor Adjacency — <span class="accent">Hello Packets</span></div>
+        <div class="slide-subtitle">OSPF neighbors must reach Full state before exchanging routes.</div>
+
+        <div class="state-flow">
+            <div class="state-node">
+                <div class="sn-label">Down</div>
+                <div class="sn-desc">No Hellos received</div>
+            </div>
+            <div class="state-arrow">&#8594;</div>
+            <div class="state-node">
+                <div class="sn-label">Init</div>
+                <div class="sn-desc">Hello received, not bidirectional</div>
+            </div>
+            <div class="state-arrow">&#8594;</div>
+            <div class="state-node">
+                <div class="sn-label">2-Way</div>
+                <div class="sn-desc">Bidirectional — DR/BDR election here</div>
+            </div>
+            <div class="state-arrow">&#8594;</div>
+            <div class="state-node">
+                <div class="sn-label">ExStart</div>
+                <div class="sn-desc">Master / Slave negotiation</div>
+            </div>
+            <div class="state-arrow">&#8594;</div>
+            <div class="state-node">
+                <div class="sn-label">Exchange</div>
+                <div class="sn-desc">DBD packets — LSDB summaries</div>
+            </div>
+            <div class="state-arrow">&#8594;</div>
+            <div class="state-node">
+                <div class="sn-label">Loading</div>
+                <div class="sn-desc">LSR / LSU — filling gaps</div>
+            </div>
+            <div class="state-arrow">&#8594;</div>
+            <div class="state-node sn-full">
+                <div class="sn-label">Full</div>
+                <div class="sn-desc">LSDBs synchronized</div>
+            </div>
+        </div>
+
+        <div class="card-grid card-grid-2" style="margin-top:4px;">
+            <div class="box box-blue">
+                <div class="box-label">Hello Packet — What Must Match</div>
+                Hello Interval (default 10s broadcast / 30s NBMA), Dead Interval (4x Hello),
+                Area ID, Authentication, Subnet mask (on broadcast networks), Stub area flag.
+                Mismatch on any of these = no adjacency.
+            </div>
+            <div class="box box-red">
+                <div class="box-label">Common Adjacency Failures</div>
+                MTU mismatch stalls at ExStart/Exchange state. Mismatched timers keep the
+                neighbor at Init. ACLs blocking protocol 89 or 224.0.0.5 prevent Hellos entirely.
+                Passive interface on both ends = silent failure.
+            </div>
+        </div>
+
+        <!-- SVG: Two routers exchanging Hello packets — animated dots, states light up -->
+        <div style="display:flex; justify-content:center; margin-top:4px;">
+            <svg id="adj-svg" viewBox="0 0 480 110" width="480" height="110" style="overflow:visible;">
+                <defs>
+                    <filter id="adj-glow-blue" x="-60%" y="-60%" width="220%" height="220%">
+                        <feGaussianBlur stdDeviation="4" result="blur"/>
+                        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <filter id="adj-glow-green" x="-60%" y="-60%" width="220%" height="220%">
+                        <feGaussianBlur stdDeviation="5" result="blur"/>
+                        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <!-- Forward and return paths for Hello packets -->
+                    <path id="adj-path-fwd" d="M 110,50 L 370,50" fill="none"/>
+                    <path id="adj-path-rev" d="M 370,58 L 110,58" fill="none"/>
+                </defs>
+
+                <!-- Connecting line -->
+                <line x1="110" y1="54" x2="370" y2="54" stroke="#1e3a5f" stroke-width="2" stroke-dasharray="6,4"/>
+
+                <!-- Router A -->
+                <rect x="20" y="20" width="90" height="68" rx="8" fill="#1e293b" stroke="#3a8fd4" stroke-width="2" id="adj-ra"/>
+                <text x="65" y="45" fill="#3a8fd4" font-size="11" font-weight="bold" text-anchor="middle">Router A</text>
+                <text x="65" y="62" fill="#94a3b8" font-size="9" text-anchor="middle">10.0.0.1</text>
+                <text id="adj-ra-state" x="65" y="78" fill="#475569" font-size="9" text-anchor="middle">Down</text>
+
+                <!-- Router B -->
+                <rect x="370" y="20" width="90" height="68" rx="8" fill="#1e293b" stroke="#475569" stroke-width="2" id="adj-rb"/>
+                <text x="415" y="45" fill="#e2e8f0" font-size="11" font-weight="bold" text-anchor="middle">Router B</text>
+                <text x="415" y="62" fill="#94a3b8" font-size="9" text-anchor="middle">10.0.0.2</text>
+                <text id="adj-rb-state" x="415" y="78" fill="#475569" font-size="9" text-anchor="middle">Down</text>
+
+                <!-- Hello label going forward -->
+                <text id="adj-hello-fwd-lbl" x="240" y="38" fill="#22d3ee" font-size="9" text-anchor="middle" opacity="0">Hello</text>
+                <!-- Hello label going reverse -->
+                <text id="adj-hello-rev-lbl" x="240" y="74" fill="#fbbf24" font-size="9" text-anchor="middle" opacity="0">Hello</text>
+
+                <!-- Animated Hello packet — forward -->
+                <circle id="adj-dot-fwd" r="5" fill="#22d3ee" opacity="0" filter="url(#adj-glow-blue)">
+                    <animateMotion id="adj-fwd-motion" dur="1.4s" begin="indefinite" fill="freeze">
+                        <mpath href="#adj-path-fwd"/>
+                    </animateMotion>
+                    <animate id="adj-fwd-show" attributeName="opacity" values="0;1;1;0" dur="1.4s" begin="indefinite" fill="freeze"/>
+                </circle>
+
+                <!-- Animated Hello packet — return -->
+                <circle id="adj-dot-rev" r="5" fill="#fbbf24" opacity="0" filter="url(#adj-glow-blue)">
+                    <animateMotion id="adj-rev-motion" dur="1.4s" begin="indefinite" fill="freeze">
+                        <mpath href="#adj-path-rev"/>
+                    </animateMotion>
+                    <animate id="adj-rev-show" attributeName="opacity" values="0;1;1;0" dur="1.4s" begin="indefinite" fill="freeze"/>
+                </circle>
+
+                <!-- Step label at bottom -->
+                <text id="adj-phase-label" x="240" y="100" fill="#94a3b8" font-size="10" text-anchor="middle">Waiting for Hello...</text>
+            </svg>
+        </div>
+
+        <script>
+        /* Neighbor adjacency animator: fires Hello packets back and forth and advances
+           both routers through Down → Init → 2-Way → Full state labels */
+        (function() {
+            var phases = [
+                {
+                    label: 'Router A sends Hello → Router B',
+                    raState: 'Down', rbState: 'Down',
+                    raColor: '#3a8fd4', rbColor: '#475569',
+                    fireFwd: true, fireRev: false,
+                    showFwdLbl: true, showRevLbl: false,
+                    delay: 1200
+                },
+                {
+                    label: 'Router B sees Hello → moves to Init',
+                    raState: 'Down', rbState: 'Init',
+                    raColor: '#3a8fd4', rbColor: '#f59e0b',
+                    fireFwd: false, fireRev: false,
+                    showFwdLbl: false, showRevLbl: false,
+                    delay: 900
+                },
+                {
+                    label: 'Router B replies → Router A sees its own RID',
+                    raState: 'Init', rbState: 'Init',
+                    raColor: '#f59e0b', rbColor: '#f59e0b',
+                    fireFwd: false, fireRev: true,
+                    showFwdLbl: false, showRevLbl: true,
+                    delay: 1400
+                },
+                {
+                    label: 'Bidirectional exchange confirmed → 2-Way',
+                    raState: '2-Way', rbState: '2-Way',
+                    raColor: '#a78bfa', rbColor: '#a78bfa',
+                    fireFwd: false, fireRev: false,
+                    showFwdLbl: false, showRevLbl: false,
+                    delay: 1000
+                },
+                {
+                    label: 'Exchanging LSDB summaries (ExStart → Exchange → Loading)',
+                    raState: 'Exchange', rbState: 'Exchange',
+                    raColor: '#fb923c', rbColor: '#fb923c',
+                    fireFwd: true, fireRev: true,
+                    showFwdLbl: true, showRevLbl: true,
+                    delay: 1500
+                },
+                {
+                    label: 'LSDBs synchronized — Full adjacency reached',
+                    raState: 'Full', rbState: 'Full',
+                    raColor: '#22c55e', rbColor: '#22c55e',
+                    fireFwd: false, fireRev: false,
+                    showFwdLbl: false, showRevLbl: false,
+                    delay: 2200
+                }
+            ];
+
+            var ra = document.getElementById('adj-ra');
+            var rb = document.getElementById('adj-rb');
+            var raState = document.getElementById('adj-ra-state');
+            var rbState = document.getElementById('adj-rb-state');
+            var phaseLabel = document.getElementById('adj-phase-label');
+            var fwdLbl = document.getElementById('adj-hello-fwd-lbl');
+            var revLbl = document.getElementById('adj-hello-rev-lbl');
+            var dotFwd = document.getElementById('adj-dot-fwd');
+            var dotRev = document.getElementById('adj-dot-rev');
+
+            function firePacket(dot, motionId, showId) {
+                /* Restart SMIL animations by cloning and replacing the element */
+                var parent = dot.parentNode;
+                var clone = dot.cloneNode(true);
+                parent.replaceChild(clone, dot);
+                /* Re-grab references after clone */
+                if (motionId === 'adj-fwd-motion') dotFwd = clone;
+                else dotRev = clone;
+
+                var motion = clone.querySelector('[id="' + motionId + '"], animateMotion');
+                var show = clone.querySelector('[id="' + showId + '"], animate');
+                /* Trigger via begin attribute reset */
+                clone.querySelectorAll('animate, animateMotion').forEach(function(a) {
+                    a.beginElement();
+                });
+            }
+
+            function applyPhase(p) {
+                if (ra) ra.setAttribute('stroke', p.raColor);
+                if (rb) rb.setAttribute('stroke', p.rbColor);
+                if (raState) { raState.textContent = p.raState; raState.setAttribute('fill', p.raColor); }
+                if (rbState) { rbState.textContent = p.rbState; rbState.setAttribute('fill', p.rbColor); }
+                if (phaseLabel) phaseLabel.textContent = p.label;
+
+                if (fwdLbl) fwdLbl.setAttribute('opacity', p.showFwdLbl ? '1' : '0');
+                if (revLbl) revLbl.setAttribute('opacity', p.showRevLbl ? '1' : '0');
+
+                if (p.fireFwd) {
+                    var fwd = document.getElementById('adj-dot-fwd');
+                    if (fwd) fwd.querySelectorAll('animate, animateMotion').forEach(function(a) { a.beginElement(); });
+                }
+                if (p.fireRev) {
+                    var rev = document.getElementById('adj-dot-rev');
+                    if (rev) rev.querySelectorAll('animate, animateMotion').forEach(function(a) { a.beginElement(); });
+                }
+            }
+
+            var idx = 0;
+            function nextPhase() {
+                applyPhase(phases[idx]);
+                var d = phases[idx].delay;
+                idx = (idx + 1) % phases.length;
+                setTimeout(nextPhase, d);
+            }
+
+            setTimeout(nextPhase, 600);
+        })();
+        </script>
+
+        <div class="scenario-strip">
+            Office 3's router sends Hello packets on all OSPF interfaces. The headquarters router replies.
+            They progress through the states and hit Full. Now their LSDBs are identical and SPF runs.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 6 — OSPF COST METRIC
+     ===================================================================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 10</div>
+        <div class="slide-title">OSPF Cost — <span class="accent">Reference Bandwidth / Interface BW</span></div>
+        <div class="slide-subtitle">Lower cost = preferred path. OSPF sums cost across every outbound interface along a path.</div>
+
+        <div class="box box-blue" style="text-align:center; font-size:0.95rem;">
+            <strong>Cost = Reference Bandwidth / Interface Bandwidth</strong>
+            &nbsp;&nbsp;&nbsp;Default reference: 100 Mbps
+        </div>
+
+        <table class="data-table" style="border-radius:8px; overflow:hidden;">
+            <thead>
+                <tr>
+                    <th>Interface</th>
+                    <th>Bandwidth</th>
+                    <th>Default Cost</th>
+                    <th>Problem?</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>Serial (T1)</td><td>1.544 Mbps</td><td class="td-mono">64</td><td>No — distinguishable</td></tr>
+                <tr><td>Ethernet</td><td>10 Mbps</td><td class="td-mono">10</td><td>No</td></tr>
+                <tr><td>Fast Ethernet</td><td>100 Mbps</td><td class="td-mono">1</td><td class="td-accent">Yes — same as GigE</td></tr>
+                <tr><td>Gigabit Ethernet</td><td>1 Gbps</td><td class="td-mono">1</td><td class="td-accent">Yes — same as 10GigE</td></tr>
+                <tr><td>10 GigE</td><td>10 Gbps</td><td class="td-mono">1</td><td class="td-accent">Yes — same as FE</td></tr>
+            </tbody>
+        </table>
+
+        <div class="box box-gold">
+            <div class="box-label">The Modern Fix</div>
+            On any network with GigE or faster links, adjust the reference bandwidth so costs are
+            distinguishable. Example: set to 10,000 Mbps (10 Gbps) so GigE = 10, 10GigE = 1.
+            Command: <code style="font-family:monospace; color:#3a8fd4;">auto-cost reference-bandwidth 10000</code>
+            (in Mbps). Must be consistent across all OSPF routers.
+        </div>
+
+        <div class="card-grid card-grid-2" style="margin-top:4px;">
+            <div class="box box-blue" style="font-size:0.83rem;">
+                <strong>Path cost</strong> = sum of outbound interface costs along the path.
+                If two paths tie, OSPF load-balances across both (up to 4 equal-cost paths by default).
+            </div>
+            <div class="box box-green" style="font-size:0.83rem;">
+                <strong>Override manually:</strong>
+                <code style="font-family:monospace; color:#3a8fd4;">ip ospf cost [value]</code>
+                on an interface. Useful when bandwidth doesn't reflect actual path preference.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 7 — LSA TYPES
+     ===================================================================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 10</div>
+        <div class="slide-title">LSA Types — <span class="accent">What Gets Flooded</span></div>
+        <div class="slide-subtitle">Link-State Advertisements carry the topology. Each type has a specific scope.</div>
+
+        <div class="card-grid card-grid-3">
+            <div class="card">
+                <div class="card-title">Type 1 — Router LSA</div>
+                <div class="card-body">Generated by every router. Lists all of that router's links and their costs. Flooded within its own area only.</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Type 2 — Network LSA</div>
+                <div class="card-body">Generated by the DR on multi-access (Ethernet) segments. Lists all routers attached to that network. Stays within the area.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-title">Type 3 — Summary LSA</div>
+                <div class="card-body">Generated by ABRs. Carries inter-area route summaries into other areas. This is how Office 1 learns about Office 3's subnets.</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Type 4 — ASBR Summary</div>
+                <div class="card-body">Generated by ABRs. Describes how to reach an ASBR (the router that connects OSPF to an external routing domain).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-title">Type 5 — External LSA</div>
+                <div class="card-body">Generated by ASBRs. Carries routes redistributed into OSPF from outside (BGP, static, EIGRP). Flooded across the entire OSPF domain.</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Type 7 — NSSA External</div>
+                <div class="card-body">Like Type 5, but used inside a Not-So-Stubby Area (NSSA) that blocks Type 5 LSAs. ABR converts Type 7 to Type 5 at the area boundary.</div>
+            </div>
+        </div>
+
+        <!-- SVG: LSA flood wave — origin router → neighbors → their neighbors -->
+        <div style="display:flex; justify-content:center; margin-top:6px;">
+            <svg id="lsa-svg" viewBox="0 0 480 115" width="480" height="115" style="overflow:visible;">
+                <defs>
+                    <filter id="lsa-glow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="3.5" result="blur"/>
+                        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <!-- Packet paths from origin to tier-1 neighbors -->
+                    <path id="lsa-p-ob"  d="M 100,57 L 210,30" fill="none"/>
+                    <path id="lsa-p-oc"  d="M 100,57 L 210,84" fill="none"/>
+                    <!-- Packet paths from tier-1 to tier-2 neighbors -->
+                    <path id="lsa-p-bd"  d="M 210,30 L 330,15" fill="none"/>
+                    <path id="lsa-p-be"  d="M 210,30 L 330,50" fill="none"/>
+                    <path id="lsa-p-cf"  d="M 210,84 L 330,65" fill="none"/>
+                    <path id="lsa-p-cg"  d="M 210,84 L 330,100" fill="none"/>
+                    <!-- Packet paths from tier-2 to area edge -->
+                    <path id="lsa-p-dh"  d="M 330,15 L 430,30" fill="none"/>
+                    <path id="lsa-p-gh"  d="M 330,100 L 430,85" fill="none"/>
+                </defs>
+
+                <!-- Links — dim by default, activate during flood -->
+                <line id="lsa-l-ob"  x1="100" y1="57" x2="210" y2="30"  stroke="#1e3a5f" stroke-width="1.5"/>
+                <line id="lsa-l-oc"  x1="100" y1="57" x2="210" y2="84"  stroke="#1e3a5f" stroke-width="1.5"/>
+                <line id="lsa-l-bd"  x1="210" y1="30" x2="330" y2="15"  stroke="#1e3a5f" stroke-width="1.5"/>
+                <line id="lsa-l-be"  x1="210" y1="30" x2="330" y2="50"  stroke="#1e3a5f" stroke-width="1.5"/>
+                <line id="lsa-l-cf"  x1="210" y1="84" x2="330" y2="65"  stroke="#1e3a5f" stroke-width="1.5"/>
+                <line id="lsa-l-cg"  x1="210" y1="84" x2="330" y2="100" stroke="#1e3a5f" stroke-width="1.5"/>
+                <line id="lsa-l-dh"  x1="330" y1="15" x2="430" y2="30"  stroke="#1e3a5f" stroke-width="1.5"/>
+                <line id="lsa-l-gh"  x1="330" y1="100" x2="430" y2="85" stroke="#1e3a5f" stroke-width="1.5"/>
+
+                <!-- Origin router (detects topology change) -->
+                <circle id="lsa-r-o"  cx="100" cy="57"  r="16" fill="#1e293b" stroke="#f87171" stroke-width="2"/>
+                <text x="100" y="61"  fill="#f87171" font-size="10" font-weight="bold" text-anchor="middle">R1</text>
+
+                <!-- Tier-1 neighbors -->
+                <circle id="lsa-r-b"  cx="210" cy="30"  r="14" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+                <text x="210" y="34"  fill="#e2e8f0" font-size="10" text-anchor="middle">R2</text>
+                <circle id="lsa-r-c"  cx="210" cy="84"  r="14" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+                <text x="210" y="88"  fill="#e2e8f0" font-size="10" text-anchor="middle">R3</text>
+
+                <!-- Tier-2 neighbors -->
+                <circle id="lsa-r-d"  cx="330" cy="15"  r="12" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+                <text x="330" y="19"  fill="#94a3b8" font-size="9" text-anchor="middle">R4</text>
+                <circle id="lsa-r-e"  cx="330" cy="50"  r="12" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+                <text x="330" y="54"  fill="#94a3b8" font-size="9" text-anchor="middle">R5</text>
+                <circle id="lsa-r-f"  cx="330" cy="65"  r="12" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+                <text x="330" y="69"  fill="#94a3b8" font-size="9" text-anchor="middle">R6</text>
+                <circle id="lsa-r-g"  cx="330" cy="100" r="12" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+                <text x="330" y="104" fill="#94a3b8" font-size="9" text-anchor="middle">R7</text>
+
+                <!-- Tier-3 edge -->
+                <circle id="lsa-r-h"  cx="430" cy="57"  r="11" fill="#1e293b" stroke="#1e3a5f" stroke-width="1.5"/>
+                <text x="430" y="61"  fill="#64748b" font-size="9" text-anchor="middle">R8</text>
+
+                <!-- Flood status label -->
+                <text id="lsa-status" x="240" y="114" fill="#94a3b8" font-size="10" text-anchor="middle">Link change detected...</text>
+            </svg>
+        </div>
+
+        <script>
+        /* LSA flood animator: progressive wave from origin router outward through the area.
+           Each tier of routers lights up as the LSA arrives, simulating reliable flooding. */
+        (function() {
+            var waves = [
+                {
+                    status: 'R1 detects topology change — generates LSA',
+                    routers: [{ id: 'lsa-r-o', color: '#ef4444' }],
+                    links: [],
+                    packets: []
+                },
+                {
+                    status: 'R1 floods LSA to neighbors R2 and R3',
+                    routers: [
+                        { id: 'lsa-r-b', color: '#3a8fd4' },
+                        { id: 'lsa-r-c', color: '#3a8fd4' }
+                    ],
+                    links: ['lsa-l-ob', 'lsa-l-oc'],
+                    packets: ['lsa-p-ob', 'lsa-p-oc']
+                },
+                {
+                    status: 'R2 and R3 forward LSA to THEIR neighbors',
+                    routers: [
+                        { id: 'lsa-r-d', color: '#a78bfa' },
+                        { id: 'lsa-r-e', color: '#a78bfa' },
+                        { id: 'lsa-r-f', color: '#a78bfa' },
+                        { id: 'lsa-r-g', color: '#a78bfa' }
+                    ],
+                    links: ['lsa-l-bd', 'lsa-l-be', 'lsa-l-cf', 'lsa-l-cg'],
+                    packets: ['lsa-p-bd', 'lsa-p-be', 'lsa-p-cf', 'lsa-p-cg']
+                },
+                {
+                    status: 'Entire area updated — every router has the new LSA',
+                    routers: [{ id: 'lsa-r-h', color: '#22c55e' }],
+                    links: ['lsa-l-dh', 'lsa-l-gh'],
+                    packets: ['lsa-p-dh', 'lsa-p-gh']
+                }
+            ];
+
+            var svg = document.getElementById('lsa-svg');
+            var statusEl = document.getElementById('lsa-status');
+
+            function resetAll() {
+                ['lsa-r-b','lsa-r-c','lsa-r-d','lsa-r-e','lsa-r-f','lsa-r-g','lsa-r-h'].forEach(function(id) {
+                    var el = document.getElementById(id);
+                    if (el) el.setAttribute('stroke', id.indexOf('-h') > -1 ? '#1e3a5f' : (id.indexOf('-d') > -1 || id.indexOf('-e') > -1 || id.indexOf('-f') > -1 || id.indexOf('-g') > -1 ? '#334155' : '#475569'));
+                });
+                ['lsa-l-ob','lsa-l-oc','lsa-l-bd','lsa-l-be','lsa-l-cf','lsa-l-cg','lsa-l-dh','lsa-l-gh'].forEach(function(id) {
+                    var el = document.getElementById(id);
+                    if (el) { el.setAttribute('stroke', '#1e3a5f'); el.setAttribute('stroke-width', '1.5'); }
+                });
+                var r1 = document.getElementById('lsa-r-o');
+                if (r1) r1.setAttribute('stroke', '#f87171');
+                if (statusEl) { statusEl.textContent = 'Link change detected...'; statusEl.setAttribute('fill','#94a3b8'); }
+            }
+
+            function spawnPacket(pathId) {
+                if (!svg) return;
+                var dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+                dot.setAttribute('r', '4');
+                dot.setAttribute('fill', '#22d3ee');
+                dot.setAttribute('filter', 'url(#lsa-glow)');
+                dot.setAttribute('opacity', '1');
+
+                var motion = document.createElementNS('http://www.w3.org/2000/svg','animateMotion');
+                motion.setAttribute('dur', '0.9s');
+                motion.setAttribute('fill', 'freeze');
+                var mpath = document.createElementNS('http://www.w3.org/2000/svg','mpath');
+                mpath.setAttributeNS('http://www.w3.org/1999/xlink','href','#' + pathId);
+                motion.appendChild(mpath);
+
+                var fade = document.createElementNS('http://www.w3.org/2000/svg','animate');
+                fade.setAttribute('attributeName','opacity');
+                fade.setAttribute('values','1;1;0');
+                fade.setAttribute('dur','0.9s');
+                fade.setAttribute('fill','freeze');
+
+                dot.appendChild(motion);
+                dot.appendChild(fade);
+                svg.appendChild(dot);
+                motion.beginElement();
+                fade.beginElement();
+
+                setTimeout(function() { if (dot.parentNode) dot.parentNode.removeChild(dot); }, 1000);
+            }
+
+            function playWave(wIdx) {
+                if (wIdx >= waves.length) {
+                    statusEl.setAttribute('fill','#22c55e');
+                    setTimeout(function() { resetAll(); setTimeout(function() { playWave(0); }, 500); }, 2500);
+                    return;
+                }
+                var w = waves[wIdx];
+                if (statusEl) statusEl.textContent = w.status;
+
+                w.routers.forEach(function(r) {
+                    var el = document.getElementById(r.id);
+                    if (el) el.setAttribute('stroke', r.color);
+                });
+                w.links.forEach(function(id) {
+                    var el = document.getElementById(id);
+                    if (el) { el.setAttribute('stroke', '#22d3ee'); el.setAttribute('stroke-width', '2'); }
+                });
+                w.packets.forEach(function(pathId) { spawnPacket(pathId); });
+
+                setTimeout(function() { playWave(wIdx + 1); }, 1100);
+            }
+
+            setTimeout(function() { playWave(0); }, 700);
+        })();
+        </script>
+
+        <div class="box box-blue" style="font-size:0.83rem;">
+            <strong>Exam focus:</strong> Type 1 and 2 stay within the area. Type 3 crosses area boundaries via ABRs.
+            Type 5 floods the whole domain (except stub areas). Know which types stub areas block.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 8 — OSPF CONFIGURATION (Cisco IOS)
+     ===================================================================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 10</div>
+        <div class="slide-title">OSPF Configuration — <span class="accent">Cisco IOS</span></div>
+        <div class="slide-subtitle">Three offices, three routers. Enable OSPF and advertise networks into Area 0.</div>
+
+        <div class="card-grid card-grid-2">
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">Basic Setup (all three routers)</div>
+                <div class="code-block"><span class="c-comment">! Enable OSPF process 1</span>
+<span class="c-cmd">router ospf 1</span>
+<span class="c-comment">! Set stable Router ID (use loopback IP)</span>
+<span class="c-cmd">router-id</span> <span class="c-val">1.1.1.1</span>
+<span class="c-comment">! Advertise local networks — wildcard mask</span>
+<span class="c-cmd">network</span> <span class="c-val">10.1.0.0 0.0.0.255</span> area 0
+<span class="c-cmd">network</span> <span class="c-val">10.0.12.0 0.0.0.3</span> area 0
+<span class="c-comment">! Adjust reference BW for modern links</span>
+<span class="c-cmd">auto-cost reference-bandwidth</span> <span class="c-val">10000</span>
+<span class="c-comment">! Silence OSPF on user-facing ports</span>
+<span class="c-cmd">passive-interface</span> <span class="c-val">GigabitEthernet0/1</span></div>
+            </div>
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">Verification</div>
+                <div class="code-block"><span class="c-comment">! Check neighbor state — must be FULL</span>
+<span class="c-cmd">show ip ospf neighbor</span>
+
+<span class="c-comment">! Verify routes learned via OSPF (O)</span>
+<span class="c-cmd">show ip route ospf</span>
+
+<span class="c-comment">! Inspect LSDB contents</span>
+<span class="c-cmd">show ip ospf database</span>
+
+<span class="c-comment">! Interface cost and hello/dead timers</span>
+<span class="c-cmd">show ip ospf interface</span> <span class="c-val">Gi0/0</span></div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Router ID stability matters:</strong> OSPF uses the Router ID to identify LSAs. If the Router ID
+            changes (because a high-IP interface went down), OSPF reconverges unnecessarily.
+            Always pin it with <code style="font-family:monospace; color:#3a8fd4;">router-id</code> or a loopback interface.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 9 — CONVERGENCE + OSPF vs RIP
+     ===================================================================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 10</div>
+        <div class="slide-title">Convergence &amp; <span class="accent">OSPF vs RIP</span></div>
+        <div class="slide-subtitle">Convergence is how fast all routers agree on the topology after a change.</div>
+
+        <div class="card-grid card-grid-2">
+            <div class="box box-blue">
+                <div class="box-label">OSPF Convergence</div>
+                When a link fails, the adjacent router floods an updated LSA immediately.
+                Every router receives it, updates its LSDB, and re-runs SPF.
+                Convergence typically completes in <strong>under 10 seconds</strong> on a well-tuned network.
+                With BFD (Bidirectional Forwarding Detection) added, failure detection drops to milliseconds.
+            </div>
+            <div class="box box-red">
+                <div class="box-label">RIP Convergence</div>
+                RIP sends full routing table updates every <strong>30 seconds</strong>.
+                A failed route isn't declared dead until the holddown timer expires (180 seconds default).
+                Total convergence can take <strong>3-5 minutes</strong>. Unacceptable for production networks.
+                Also limited to 15 hops — OSPF has no hop limit.
+            </div>
+        </div>
+
+        <table class="data-table" style="border-radius:8px; overflow:hidden;">
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>OSPF</th>
+                    <th>RIP v2</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>Type</td><td class="td-accent">Link-state</td><td>Distance-vector</td></tr>
+                <tr><td>Algorithm</td><td class="td-accent">Dijkstra SPF</td><td>Bellman-Ford</td></tr>
+                <tr><td>Metric</td><td class="td-accent">Cost (bandwidth)</td><td>Hop count (max 15)</td></tr>
+                <tr><td>Convergence</td><td class="td-accent">Seconds</td><td>Minutes</td></tr>
+                <tr><td>Admin distance</td><td class="td-accent">110</td><td>120</td></tr>
+                <tr><td>Update method</td><td class="td-accent">Event-triggered LSA flood</td><td>Periodic full table (30s)</td></tr>
+                <tr><td>Scalability</td><td class="td-accent">Enterprise / WAN</td><td>Small networks only</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 10 — SUMMARY + COMPLETE
+     ===================================================================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 10 &nbsp;|&nbsp; N10-009 Obj 1.1</div>
+        <div class="slide-title">OSPF in Three Offices</div>
+
+        <div class="summary-scenario">
+            Office 3 came online. Static routes on every router would have required manual changes across the
+            entire network — and would have broken again on the next topology change. OSPF solved it automatically:
+            routers sent <strong>Hello packets</strong>, formed <strong>Full adjacencies</strong>, flooded
+            <strong>LSAs</strong>, built identical <strong>LSDBs</strong>, and ran <strong>Dijkstra SPF</strong>
+            to populate routing tables. All three offices can now reach each other — and if any link fails,
+            the network reconverges in seconds without a single manual command.
+        </div>
+
+        <div class="section-label">7 Facts to Carry Out of This Presentation</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">OSPF is a <strong>link-state</strong> protocol. Protocol 89. Admin distance 110. Standard: RFC 2328.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Algorithm: <strong>Dijkstra SPF</strong>. Metric: <strong>cost</strong> = reference BW / interface BW. Default reference = 100 Mbps.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">All areas must connect to <strong>Area 0</strong> (backbone). ABRs bridge areas. ASBRs connect to external routing domains.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Neighbors progress: Down &rarr; Init &rarr; 2-Way &rarr; ExStart &rarr; Exchange &rarr; Loading &rarr; <code>Full</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Hello parameters must match: interval, dead interval, area ID, authentication, subnet mask (broadcast).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">DR/BDR elected on Ethernet: highest priority wins (default 1). Tiebreaker: highest Router ID. Non-preemptive.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Key commands: <code>show ip ospf neighbor</code>, <code>show ip route ospf</code>, <code>show ip ospf database</code>.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     NAVIGATION BAR
+     ===================================================================== -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Network+ Hub</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 10</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<!-- =====================================================================
+     PRESENTATION LOGIC
+     ===================================================================== -->
+<script>
+    /* State */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 10;
+
+    /* Navigate to a specific slide number (1-indexed) */
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update progress bar */
+        const pct = (currentSlide / TOTAL_SLIDES) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+
+        /* Update counter */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Update nav button states */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show complete button only on final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            goToSlide(currentSlide + 1);
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            goToSlide(currentSlide - 1);
+        }
+    });
+
+    /* Initialize */
+    goToSlide(1);
+</script>
+
+<!-- Module completion -->
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'web-ospf', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

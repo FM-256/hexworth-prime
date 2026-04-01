@@ -1,0 +1,1596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLANs &amp; Trunking | Network+ N10-009</title>
+    <style>
+        /* =====================================================
+           RESET & BASE
+           ===================================================== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden; /* No scrolling — slides are viewport-fit */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* =====================================================
+           SLIDE SYSTEM — viewport-locked, no overflow
+           ===================================================== */
+        .slide {
+            display: none;
+            position: fixed;
+            inset: 0;
+            padding: 20px 28px 72px; /* bottom clearance for nav bar */
+            overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Inner wrapper — constrains content width */
+        .slide-inner {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* =====================================================
+           PROGRESS BAR
+           ===================================================== */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: #8a5cb5;
+            transition: width 0.4s ease;
+            z-index: 200;
+        }
+
+        /* =====================================================
+           NAVIGATION BAR — fixed bottom
+           ===================================================== */
+        #nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            z-index: 200;
+            padding: 0 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(138, 92, 181, 0.2);
+            color: #b084d8;
+            border-color: #8a5cb5;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.back-btn {
+            font-size: 0.82rem;
+            padding: 8px 16px;
+        }
+
+        #slide-counter {
+            color: #64748b;
+            font-size: 0.82rem;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        #complete-btn {
+            display: none;
+            background: #8a5cb5;
+            color: #fff;
+            border: none;
+            padding: 9px 26px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+
+        #complete-btn:hover {
+            background: #a378d4;
+            transform: translateY(-1px);
+        }
+
+        /* =====================================================
+           SLIDE HEADER — shared across all slides
+           ===================================================== */
+        .slide-meta {
+            font-size: 0.78rem;
+            color: #8a5cb5;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .slide-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            text-align: center;
+            line-height: 1.25;
+        }
+
+        .slide-title .accent { color: #8a5cb5; }
+        .slide-title .accent-cyan { color: #06b6d4; }
+
+        .slide-subtitle {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        /* =====================================================
+           SCENARIO STRIP
+           ===================================================== */
+        .scenario-strip {
+            background: rgba(138, 92, 181, 0.08);
+            border-left: 3px solid #8a5cb5;
+            border-radius: 0 8px 8px 0;
+            padding: 10px 16px;
+            font-size: 0.88rem;
+            color: #d4b8f0;
+            font-style: italic;
+        }
+
+        /* =====================================================
+           INFO BOXES
+           ===================================================== */
+        .box {
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.875rem;
+        }
+
+        .box-purple {
+            background: rgba(138, 92, 181, 0.08);
+            border: 1px solid rgba(138, 92, 181, 0.35);
+            color: #e9d5ff;
+        }
+
+        .box-cyan {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            color: #cffafe;
+        }
+
+        .box-green {
+            background: rgba(58, 181, 119, 0.08);
+            border: 1px solid rgba(58, 181, 119, 0.35);
+            color: #d1fae5;
+        }
+
+        .box-red {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fee2e2;
+        }
+
+        .box-gold {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            color: #fef3c7;
+        }
+
+        .box-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+            opacity: 0.75;
+        }
+
+        /* =====================================================
+           CONCEPT GRID — two-column cards
+           ===================================================== */
+        .concept-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .concept-grid.three-col {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .c-card {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 8px;
+            padding: 12px 14px;
+            border-left: 3px solid transparent;
+        }
+
+        .c-card.purple { border-left-color: #8a5cb5; }
+        .c-card.cyan   { border-left-color: #06b6d4; }
+        .c-card.green  { border-left-color: #3ab577; }
+        .c-card.gold   { border-left-color: #fbbf24; }
+        .c-card.red    { border-left-color: #ef4444; }
+
+        .c-card:hover { background: rgba(255, 255, 255, 0.07); }
+
+        .c-card .cc-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+
+        .c-card.purple .cc-label { color: #8a5cb5; }
+        .c-card.cyan   .cc-label { color: #06b6d4; }
+        .c-card.green  .cc-label { color: #3ab577; }
+        .c-card.gold   .cc-label { color: #fbbf24; }
+        .c-card.red    .cc-label { color: #ef4444; }
+
+        .c-card .cc-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            margin-bottom: 4px;
+        }
+
+        .c-card .cc-body {
+            font-size: 0.82rem;
+            color: #94a3b8;
+            line-height: 1.45;
+        }
+
+        /* =====================================================
+           DIAGRAM — switch layout visual
+           ===================================================== */
+        .switch-diagram {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            justify-content: center;
+        }
+
+        .sw-box {
+            background: rgba(255, 255, 255, 0.04);
+            border: 2px solid rgba(138, 92, 181, 0.4);
+            border-radius: 10px;
+            padding: 14px 18px;
+            text-align: center;
+            min-width: 180px;
+        }
+
+        .sw-box .sw-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+
+        .sw-box .sw-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #8a5cb5;
+            margin-bottom: 10px;
+        }
+
+        .port-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .port-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            padding: 5px 9px;
+            font-size: 0.79rem;
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            border-left: 2px solid transparent;
+        }
+
+        .port-item.vlan10 { border-left-color: #8a5cb5; }
+        .port-item.vlan20 { border-left-color: #3ab577; }
+        .port-item.trunk  { border-left-color: #fbbf24; }
+
+        .port-item .pi-num  { font-family: 'Courier New', monospace; color: #06b6d4; font-weight: 700; }
+        .port-item .pi-vlan { color: #94a3b8; font-size: 0.75rem; }
+
+        /* =====================================================
+           TAG DIAGRAM — 802.1Q frame
+           ===================================================== */
+        .frame-diagram {
+            display: flex;
+            gap: 3px;
+            align-items: stretch;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .frame-field {
+            padding: 10px 12px;
+            text-align: center;
+            font-size: 0.79rem;
+            font-family: 'Courier New', monospace;
+            flex: 1;
+        }
+
+        .frame-field .ff-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #64748b;
+            margin-bottom: 3px;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .frame-field .ff-val {
+            font-weight: 700;
+        }
+
+        .ff-dst  { background: rgba(255,255,255,0.04); color: #94a3b8; }
+        .ff-src  { background: rgba(255,255,255,0.04); color: #94a3b8; }
+        .ff-tag  { background: rgba(138, 92, 181, 0.18); border: 1px solid rgba(138,92,181,0.4); color: #d4b8f0; }
+        .ff-type { background: rgba(255,255,255,0.04); color: #94a3b8; }
+        .ff-data { background: rgba(255,255,255,0.04); color: #64748b; flex: 3; }
+        .ff-fcs  { background: rgba(255,255,255,0.04); color: #64748b; }
+
+        /* =====================================================
+           MODE MATRIX — LACP compatibility-style table
+           ===================================================== */
+        .mode-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+
+        .mode-table th, .mode-table td {
+            border: 1px solid rgba(255,255,255,0.07);
+            padding: 8px 12px;
+            text-align: center;
+        }
+
+        .mode-table thead th {
+            background: rgba(138, 92, 181, 0.1);
+            color: #8a5cb5;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .mode-table tbody th {
+            background: rgba(255,255,255,0.03);
+            color: #94a3b8;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .cell-yes  { background: rgba(58, 181, 119, 0.1); color: #86efac; font-weight: 700; }
+        .cell-no   { background: rgba(239, 68, 68, 0.07); color: #fca5a5; }
+        .cell-dep  { background: rgba(251, 191, 36, 0.08); color: #fde68a; }
+
+        /* =====================================================
+           TERMINAL BLOCK
+           ===================================================== */
+        .terminal-block {
+            background: #0a0a0f;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            line-height: 1.6;
+        }
+
+        .terminal-block .t-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: #8a5cb5;
+            margin-bottom: 4px;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .t-cmd   { color: #3ab577; }
+        .t-out   { color: #94a3b8; }
+        .t-hi    { color: #8a5cb5; font-weight: 700; }
+        .t-note  { color: #475569; font-style: italic; font-family: 'Segoe UI', sans-serif; font-size: 0.77rem; }
+
+        /* =====================================================
+           COMMAND CHIPS
+           ===================================================== */
+        .cmd-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .cmd-chip {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            padding: 5px 12px;
+            font-family: 'Courier New', monospace;
+            color: #8a5cb5;
+            border: 1px solid rgba(138, 92, 181, 0.3);
+            font-size: 0.8rem;
+        }
+
+        .cmd-note {
+            font-size: 0.78rem;
+            color: #475569;
+        }
+
+        /* =====================================================
+           SUMMARY SECTION
+           ===================================================== */
+        .summary-facts {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .fact-row {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            font-size: 0.875rem;
+        }
+
+        .fact-num {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #8a5cb5;
+            min-width: 22px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .fact-text { color: #cbd5e1; }
+
+        .fact-text code {
+            font-family: 'Courier New', monospace;
+            color: #b084d8;
+            background: rgba(138, 92, 181, 0.1);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+
+        .summary-scenario {
+            background: rgba(138, 92, 181, 0.07);
+            border: 1px solid rgba(138, 92, 181, 0.3);
+            border-radius: 9px;
+            padding: 14px 18px;
+            font-size: 0.875rem;
+            color: #d4b8f0;
+            line-height: 1.65;
+        }
+
+        .summary-scenario strong { color: #8a5cb5; }
+
+        /* =====================================================
+           UTILITY
+           ===================================================== */
+        .section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: #475569;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        /* =====================================================
+           RESPONSIVE
+           ===================================================== */
+        @media (max-height: 700px) {
+            .slide-inner { gap: 9px; }
+            .slide-title { font-size: 1.4rem; }
+            .concept-grid { gap: 6px; }
+        }
+
+        @media (max-width: 768px) {
+            .concept-grid { grid-template-columns: 1fr; }
+            .concept-grid.three-col { grid-template-columns: 1fr 1fr; }
+            .switch-diagram { flex-direction: column; align-items: center; }
+            .frame-diagram { flex-wrap: wrap; }
+        }
+
+        /* =====================================================
+           SVG DIAGRAM WRAPPERS — animated topology diagrams
+           ===================================================== */
+        .svg-diagram {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .svg-diagram svg {
+            max-width: 100%;
+            height: auto;
+            overflow: visible;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Progress bar across very top -->
+<div id="progress-bar" style="width:10%"></div>
+
+<!-- =====================================================================
+     SLIDE 1 — TITLE
+     ===================================================================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 10 &nbsp;|&nbsp; N10-009 Obj 2.3 &nbsp;|&nbsp; Layer 2</div>
+
+        <div style="text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;">
+            <div style="font-size:2.4rem; font-weight:800; color:#f1f5f9; line-height:1.2;">
+                VLANs &amp; Trunking:<br>
+                <span style="color:#8a5cb5;">Logical Separation</span> on Physical Hardware
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                One switch. Multiple broadcast domains. Zero extra hardware.
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            HR and Engineering share the same physical switch. HR complains they are seeing Engineering's broadcast traffic.
+            VLANs fix this by creating logical segmentation without touching a single cable.
+        </div>
+
+        <div style="display:flex; gap:28px; justify-content:center; margin-top:6px; font-size:0.82rem; color:#475569;">
+            <span>10 Slides</span>
+            <span style="border-left:2px solid #1e293b; padding-left:28px;">N10-009 Obj 2.3</span>
+            <span style="border-left:2px solid #1e293b; padding-left:28px;">Layer 2 Switching</span>
+            <span style="border-left:2px solid #1e293b; padding-left:28px;">Concepts + Config</span>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 2 — THE PROBLEM VLANs SOLVE
+     ===================================================================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 10</div>
+        <div class="slide-title">The Problem: Broadcast Domains</div>
+        <div class="slide-subtitle">Without VLANs, every device on a switch is in the same broadcast domain.</div>
+
+        <div class="switch-diagram">
+            <div>
+                <div class="sw-box" style="border-color: rgba(239,68,68,0.4);">
+                    <div class="sw-label">No VLANs — one flat network</div>
+                    <div class="sw-title" style="color:#ef4444;">All ports in VLAN 1</div>
+                    <div class="port-row">
+                        <div class="port-item" style="border-left-color:#ef4444;"><span class="pi-num">Fa0/1</span><span class="pi-vlan">HR-PC1</span></div>
+                        <div class="port-item" style="border-left-color:#ef4444;"><span class="pi-num">Fa0/2</span><span class="pi-vlan">HR-PC2</span></div>
+                        <div class="port-item" style="border-left-color:#ef4444;"><span class="pi-num">Fa0/3</span><span class="pi-vlan">ENG-PC1</span></div>
+                        <div class="port-item" style="border-left-color:#ef4444;"><span class="pi-num">Fa0/4</span><span class="pi-vlan">ENG-PC2</span></div>
+                    </div>
+                </div>
+                <div class="box box-red" style="margin-top:8px; font-size:0.79rem;">
+                    Every broadcast (ARP, DHCP) hits every port. HR can see Engineering's traffic noise.
+                </div>
+            </div>
+
+            <div style="font-size:1.4rem; color:#475569; align-self:center;">&#8594;</div>
+
+            <div>
+                <div class="sw-box">
+                    <div class="sw-label">With VLANs — segmented</div>
+                    <div class="sw-title">Two broadcast domains</div>
+                    <div class="port-row">
+                        <div class="port-item vlan10"><span class="pi-num">Fa0/1</span><span class="pi-vlan">VLAN 10 — HR</span></div>
+                        <div class="port-item vlan10"><span class="pi-num">Fa0/2</span><span class="pi-vlan">VLAN 10 — HR</span></div>
+                        <div class="port-item vlan20"><span class="pi-num">Fa0/3</span><span class="pi-vlan">VLAN 20 — ENG</span></div>
+                        <div class="port-item vlan20"><span class="pi-num">Fa0/4</span><span class="pi-vlan">VLAN 20 — ENG</span></div>
+                    </div>
+                </div>
+                <div class="box box-green" style="margin-top:8px; font-size:0.79rem;">
+                    Broadcasts stay inside each VLAN. HR and Engineering are isolated at Layer 2.
+                </div>
+            </div>
+        </div>
+
+        <!-- SVG: broadcast fan-out — flat network vs VLANs -->
+        <div class="svg-diagram">
+            <svg viewBox="0 0 560 92" width="560" height="92" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <filter id="glow-y">
+                        <feGaussianBlur stdDeviation="2.5" result="cb"/>
+                        <feMerge><feMergeNode in="cb"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <filter id="glow-p4">
+                        <feGaussianBlur stdDeviation="2" result="cb"/>
+                        <feMerge><feMergeNode in="cb"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <!-- Flat network: paths from switch (x=100,y=46) to 6 devices -->
+                    <path id="bc-d1" d="M 100,46 L 44,14"/>
+                    <path id="bc-d2" d="M 100,46 L 76,14"/>
+                    <path id="bc-d3" d="M 100,46 L 108,14"/>
+                    <path id="bc-d4" d="M 100,46 L 140,14"/>
+                    <path id="bc-d5" d="M 100,46 L 44,78"/>
+                    <path id="bc-d6" d="M 100,46 L 156,78"/>
+                    <!-- VLAN network: paths from switch (x=380,y=46) — only 3 devices in same VLAN light up -->
+                    <path id="vbc-d1" d="M 380,46 L 324,14"/>
+                    <path id="vbc-d2" d="M 380,46 L 356,14"/>
+                    <path id="vbc-d3" d="M 380,46 L 388,14"/>
+                    <!-- dim/non-responsive VLAN 20 devices -->
+                    <path id="vbc-d4" d="M 380,46 L 420,14"/>
+                    <path id="vbc-d5" d="M 380,46 L 324,78"/>
+                    <path id="vbc-d6" d="M 380,46 L 436,78"/>
+                </defs>
+
+                <!-- Section labels -->
+                <text x="100" y="7" text-anchor="middle" font-size="7.5" fill="#ef4444" font-family="monospace" letter-spacing="0.04em">NO VLANs — FLAT</text>
+                <text x="380" y="7" text-anchor="middle" font-size="7.5" fill="#8a5cb5" font-family="monospace" letter-spacing="0.04em">WITH VLANs</text>
+
+                <!-- Divider -->
+                <line x1="240" y1="4" x2="240" y2="90" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="3,3"/>
+
+                <!-- ── FLAT NETWORK (left) ── -->
+                <!-- Link lines -->
+                <line x1="100" y1="46" x2="44" y2="20" stroke="#334155" stroke-width="1.2"/>
+                <line x1="100" y1="46" x2="76" y2="20" stroke="#334155" stroke-width="1.2"/>
+                <line x1="100" y1="46" x2="108" y2="20" stroke="#334155" stroke-width="1.2"/>
+                <line x1="100" y1="46" x2="140" y2="20" stroke="#334155" stroke-width="1.2"/>
+                <line x1="100" y1="46" x2="44" y2="72" stroke="#334155" stroke-width="1.2"/>
+                <line x1="100" y1="46" x2="156" y2="72" stroke="#334155" stroke-width="1.2"/>
+
+                <!-- Switch -->
+                <rect x="82" y="38" width="36" height="16" rx="4" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+                <text x="100" y="49" text-anchor="middle" font-size="6.5" fill="#ef4444" font-weight="700">SW</text>
+
+                <!-- Devices (6 circles) -->
+                <circle cx="44"  cy="14" r="7" fill="#1e293b" stroke="#ef4444" stroke-width="1.2"/>
+                <circle cx="76"  cy="14" r="7" fill="#1e293b" stroke="#ef4444" stroke-width="1.2"/>
+                <circle cx="108" cy="14" r="7" fill="#1e293b" stroke="#ef4444" stroke-width="1.2"/>
+                <circle cx="140" cy="14" r="7" fill="#1e293b" stroke="#ef4444" stroke-width="1.2"/>
+                <circle cx="44"  cy="78" r="7" fill="#1e293b" stroke="#ef4444" stroke-width="1.2"/>
+                <circle cx="156" cy="78" r="7" fill="#1e293b" stroke="#ef4444" stroke-width="1.2"/>
+
+                <!-- Broadcast packet to ALL 6 devices — yellow dot fans out -->
+                <circle r="3.5" fill="#fbbf24" filter="url(#glow-y)" opacity="0">
+                    <animateMotion dur="0.7s" begin="0.5s" repeatCount="indefinite"><mpath href="#bc-d1"/></animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="0.7s" begin="0.5s" repeatCount="indefinite"/>
+                </circle>
+                <circle r="3.5" fill="#fbbf24" filter="url(#glow-y)" opacity="0">
+                    <animateMotion dur="0.7s" begin="0.6s" repeatCount="indefinite"><mpath href="#bc-d2"/></animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="0.7s" begin="0.6s" repeatCount="indefinite"/>
+                </circle>
+                <circle r="3.5" fill="#fbbf24" filter="url(#glow-y)" opacity="0">
+                    <animateMotion dur="0.7s" begin="0.7s" repeatCount="indefinite"><mpath href="#bc-d3"/></animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="0.7s" begin="0.7s" repeatCount="indefinite"/>
+                </circle>
+                <circle r="3.5" fill="#fbbf24" filter="url(#glow-y)" opacity="0">
+                    <animateMotion dur="0.7s" begin="0.8s" repeatCount="indefinite"><mpath href="#bc-d4"/></animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="0.7s" begin="0.8s" repeatCount="indefinite"/>
+                </circle>
+                <circle r="3.5" fill="#fbbf24" filter="url(#glow-y)" opacity="0">
+                    <animateMotion dur="0.7s" begin="0.9s" repeatCount="indefinite"><mpath href="#bc-d5"/></animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="0.7s" begin="0.9s" repeatCount="indefinite"/>
+                </circle>
+                <circle r="3.5" fill="#fbbf24" filter="url(#glow-y)" opacity="0">
+                    <animateMotion dur="0.7s" begin="1.0s" repeatCount="indefinite"><mpath href="#bc-d6"/></animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="0.7s" begin="1.0s" repeatCount="indefinite"/>
+                </circle>
+
+                <!-- ── VLAN NETWORK (right) ── -->
+                <!-- VLAN 10 links (purple — active) -->
+                <line x1="380" y1="46" x2="324" y2="20" stroke="#8a5cb5" stroke-width="1.5" opacity="0.7"/>
+                <line x1="380" y1="46" x2="356" y2="20" stroke="#8a5cb5" stroke-width="1.5" opacity="0.7"/>
+                <line x1="380" y1="46" x2="388" y2="20" stroke="#8a5cb5" stroke-width="1.5" opacity="0.7"/>
+                <!-- VLAN 20 links (dim) -->
+                <line x1="380" y1="46" x2="420" y2="20" stroke="#1e293b" stroke-width="1.5"/>
+                <line x1="380" y1="46" x2="324" y2="72" stroke="#1e293b" stroke-width="1.5"/>
+                <line x1="380" y1="46" x2="436" y2="72" stroke="#1e293b" stroke-width="1.5"/>
+
+                <!-- Switch -->
+                <rect x="362" y="38" width="36" height="16" rx="4" fill="#1e293b" stroke="#8a5cb5" stroke-width="1.5"/>
+                <text x="380" y="49" text-anchor="middle" font-size="6.5" fill="#8a5cb5" font-weight="700">SW</text>
+
+                <!-- VLAN 10 devices (lit purple) -->
+                <circle cx="324" cy="14" r="7" fill="#1e293b" stroke="#8a5cb5" stroke-width="1.5"/>
+                <circle cx="356" cy="14" r="7" fill="#1e293b" stroke="#8a5cb5" stroke-width="1.5"/>
+                <circle cx="388" cy="14" r="7" fill="#1e293b" stroke="#8a5cb5" stroke-width="1.5"/>
+                <text x="356" y="6" text-anchor="middle" font-size="6" fill="#8a5cb5">VLAN 10</text>
+
+                <!-- VLAN 20 devices (dim) -->
+                <circle cx="420" cy="14" r="7" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+                <circle cx="324" cy="78" r="7" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+                <circle cx="436" cy="78" r="7" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+                <text x="420" y="6" text-anchor="middle" font-size="6" fill="#475569">VLAN 20</text>
+
+                <!-- Broadcast only to VLAN 10 devices — purple dots to 3 only -->
+                <circle r="3.5" fill="#8a5cb5" filter="url(#glow-p4)" opacity="0">
+                    <animateMotion dur="0.75s" begin="0.5s" repeatCount="indefinite"><mpath href="#vbc-d1"/></animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="0.75s" begin="0.5s" repeatCount="indefinite"/>
+                </circle>
+                <circle r="3.5" fill="#8a5cb5" filter="url(#glow-p4)" opacity="0">
+                    <animateMotion dur="0.75s" begin="0.65s" repeatCount="indefinite"><mpath href="#vbc-d2"/></animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="0.75s" begin="0.65s" repeatCount="indefinite"/>
+                </circle>
+                <circle r="3.5" fill="#8a5cb5" filter="url(#glow-p4)" opacity="0">
+                    <animateMotion dur="0.75s" begin="0.8s" repeatCount="indefinite"><mpath href="#vbc-d3"/></animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="0.75s" begin="0.8s" repeatCount="indefinite"/>
+                </circle>
+                <!-- VLAN 20 devices stay dark — no packets reach them -->
+            </svg>
+        </div>
+
+        <div class="box box-purple" style="font-size:0.83rem;">
+            <strong>Key concept:</strong> A VLAN is a logical broadcast domain. Devices in different VLANs cannot communicate
+            directly — they need a Layer 3 device (router or L3 switch) to route between them.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 3 — ACCESS vs TRUNK PORTS
+     ===================================================================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 10</div>
+        <div class="slide-title">Access Ports vs <span class="accent">Trunk Ports</span></div>
+        <div class="slide-subtitle">Two port types with completely different jobs.</div>
+
+        <div class="concept-grid">
+            <div class="c-card purple">
+                <div class="cc-label">Access Port</div>
+                <div class="cc-title">Connects end devices</div>
+                <div class="cc-body">
+                    An access port belongs to exactly one VLAN. Traffic leaving the port is untagged —
+                    the end device (PC, printer, phone) has no awareness of VLANs. The switch does the tagging
+                    internally. If a device sends a broadcast, it stays within that VLAN only.
+                </div>
+            </div>
+            <div class="c-card gold">
+                <div class="cc-label">Trunk Port</div>
+                <div class="cc-title">Carries multiple VLANs</div>
+                <div class="cc-body">
+                    A trunk port carries traffic for multiple VLANs simultaneously. Frames are tagged
+                    with the 802.1Q tag so the receiving device knows which VLAN they belong to. Trunks
+                    are used between switches, and between switches and routers or L3 switches.
+                </div>
+            </div>
+        </div>
+
+        <div class="switch-diagram" style="justify-content:flex-start; gap:14px;">
+            <div style="flex:1; min-width:0;">
+                <div class="sw-box" style="width:100%; text-align:left;">
+                    <div class="sw-label">Switch A</div>
+                    <div class="port-row">
+                        <div class="port-item vlan10"><span class="pi-num">Fa0/1</span><span class="pi-vlan">Access — VLAN 10 (HR)</span></div>
+                        <div class="port-item vlan20"><span class="pi-num">Fa0/2</span><span class="pi-vlan">Access — VLAN 20 (ENG)</span></div>
+                        <div class="port-item trunk"><span class="pi-num">Gi0/1</span><span class="pi-vlan">Trunk — VLAN 10, 20</span></div>
+                    </div>
+                </div>
+            </div>
+            <div style="font-size:1.1rem; color:#fbbf24; align-self:center; font-family:monospace;">&#10231; Trunk</div>
+            <div style="flex:1; min-width:0;">
+                <div class="sw-box" style="width:100%; text-align:left;">
+                    <div class="sw-label">Switch B</div>
+                    <div class="port-row">
+                        <div class="port-item vlan10"><span class="pi-num">Fa0/3</span><span class="pi-vlan">Access — VLAN 10 (HR)</span></div>
+                        <div class="port-item vlan20"><span class="pi-num">Fa0/4</span><span class="pi-vlan">Access — VLAN 20 (ENG)</span></div>
+                        <div class="port-item trunk"><span class="pi-num">Gi0/1</span><span class="pi-vlan">Trunk — VLAN 10, 20</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SVG: Access port (untagged cyan dot) vs Trunk port (tagged gold dot with label) -->
+        <div class="svg-diagram">
+            <svg viewBox="0 0 560 72" width="560" height="72" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <filter id="glow-c5">
+                        <feGaussianBlur stdDeviation="2" result="cb"/>
+                        <feMerge><feMergeNode in="cb"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <filter id="glow-g5">
+                        <feGaussianBlur stdDeviation="2" result="cb"/>
+                        <feMerge><feMergeNode in="cb"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <!-- Access path: PC → Switch (left side) -->
+                    <path id="access-path" d="M 60,22 L 196,22"/>
+                    <!-- Trunk path: Switch A → Switch B (right side) -->
+                    <path id="trunk-path" d="M 296,50 L 500,50"/>
+                </defs>
+
+                <!-- ── ACCESS PORT path (top) ── -->
+                <text x="4" y="11" font-size="7" fill="#06b6d4" font-family="monospace" letter-spacing="0.04em">ACCESS PORT — untagged</text>
+
+                <!-- PC device -->
+                <circle cx="44" cy="22" r="12" fill="#1e293b" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="44" y="25" text-anchor="middle" font-size="6.5" fill="#06b6d4" font-weight="700">PC</text>
+
+                <!-- Link line (access) -->
+                <line x1="56" y1="22" x2="196" y2="22" stroke="#334155" stroke-width="1.5"/>
+
+                <!-- Switch A -->
+                <rect x="196" y="14" width="40" height="16" rx="4" fill="#1e293b" stroke="#8a5cb5" stroke-width="1.5"/>
+                <text x="216" y="25" text-anchor="middle" font-size="6.5" fill="#8a5cb5" font-weight="700">SW-A</text>
+
+                <!-- Access port label -->
+                <text x="128" y="17" text-anchor="middle" font-size="6.5" fill="#475569" font-family="monospace">untagged frame</text>
+
+                <!-- Animated untagged cyan packet -->
+                <circle r="4" fill="#06b6d4" filter="url(#glow-c5)" opacity="0">
+                    <animateMotion dur="1.4s" begin="0.3s" repeatCount="indefinite">
+                        <mpath href="#access-path"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="1.4s" begin="0.3s" repeatCount="indefinite"/>
+                </circle>
+                <!-- Second staggered packet -->
+                <circle r="4" fill="#06b6d4" filter="url(#glow-c5)" opacity="0">
+                    <animateMotion dur="1.4s" begin="1.1s" repeatCount="indefinite">
+                        <mpath href="#access-path"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="1.4s" begin="1.1s" repeatCount="indefinite"/>
+                </circle>
+
+                <!-- ── TRUNK PORT path (bottom) ── -->
+                <text x="4" y="43" font-size="7" fill="#fbbf24" font-family="monospace" letter-spacing="0.04em">TRUNK PORT — 802.1Q tagged</text>
+
+                <!-- Switch A (trunk side) -->
+                <rect x="256" y="42" width="40" height="16" rx="4" fill="#1e293b" stroke="#8a5cb5" stroke-width="1.5"/>
+                <text x="276" y="53" text-anchor="middle" font-size="6.5" fill="#8a5cb5" font-weight="700">SW-A</text>
+
+                <!-- Trunk link line -->
+                <line x1="296" y1="50" x2="500" y2="50" stroke="#fbbf24" stroke-width="1.8" opacity="0.5"/>
+
+                <!-- Switch B -->
+                <rect x="500" y="42" width="40" height="16" rx="4" fill="#1e293b" stroke="#8a5cb5" stroke-width="1.5"/>
+                <text x="520" y="53" text-anchor="middle" font-size="6.5" fill="#8a5cb5" font-weight="700">SW-B</text>
+
+                <text x="398" y="43" text-anchor="middle" font-size="6.5" fill="#475569" font-family="monospace">802.1Q tagged</text>
+
+                <!-- Tagged gold packet with "tag" label following it -->
+                <g opacity="0">
+                    <animate attributeName="opacity" values="0;1;1;0" dur="1.6s" begin="0.2s" repeatCount="indefinite"/>
+                    <circle r="4" fill="#fbbf24" filter="url(#glow-g5)">
+                        <animateMotion dur="1.6s" begin="0.2s" repeatCount="indefinite">
+                            <mpath href="#trunk-path"/>
+                        </animateMotion>
+                    </circle>
+                    <!-- Tag label trailing the packet -->
+                    <text font-size="5.5" fill="#fbbf24" font-family="monospace" font-weight="700">
+                        [10]
+                        <animateMotion dur="1.6s" begin="0.2s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear">
+                            <mpath href="#trunk-path"/>
+                        </animateMotion>
+                        <animateTransform attributeName="transform" type="translate" values="5,-8;5,-8" additive="sum"/>
+                    </text>
+                </g>
+                <!-- Second tagged packet staggered -->
+                <g opacity="0">
+                    <animate attributeName="opacity" values="0;1;1;0" dur="1.6s" begin="1.0s" repeatCount="indefinite"/>
+                    <circle r="4" fill="#fbbf24" filter="url(#glow-g5)">
+                        <animateMotion dur="1.6s" begin="1.0s" repeatCount="indefinite">
+                            <mpath href="#trunk-path"/>
+                        </animateMotion>
+                    </circle>
+                    <text font-size="5.5" fill="#fbbf24" font-family="monospace" font-weight="700">
+                        [20]
+                        <animateMotion dur="1.6s" begin="1.0s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear">
+                            <mpath href="#trunk-path"/>
+                        </animateMotion>
+                        <animateTransform attributeName="transform" type="translate" values="5,-8;5,-8" additive="sum"/>
+                    </text>
+                </g>
+
+                <!-- Legend -->
+                <circle cx="4" cy="65" r="3.5" fill="#06b6d4"/>
+                <text x="12" y="68" font-size="6.5" fill="#06b6d4">Untagged (access)</text>
+                <circle cx="110" cy="65" r="3.5" fill="#fbbf24"/>
+                <text x="118" y="68" font-size="6.5" fill="#fbbf24">Tagged with VLAN ID (trunk)</text>
+            </svg>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Exam tip:</strong> Access ports assign devices to a VLAN. Trunk ports extend VLANs across network devices.
+            A misconfigured access port on the wrong VLAN is one of the most common switch troubleshooting issues.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 4 — 802.1Q TAGGING
+     ===================================================================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 10</div>
+        <div class="slide-title">802.1Q — The <span class="accent">4-Byte Tag</span></div>
+        <div class="slide-subtitle">How does a switch know which VLAN a frame belongs to on a trunk link?</div>
+
+        <div class="frame-diagram">
+            <div class="frame-field ff-dst"><div class="ff-label">Dst MAC</div><div class="ff-val">6 bytes</div></div>
+            <div class="frame-field ff-src"><div class="ff-label">Src MAC</div><div class="ff-val">6 bytes</div></div>
+            <div class="frame-field ff-tag"><div class="ff-label">802.1Q Tag</div><div class="ff-val">4 bytes</div></div>
+            <div class="frame-field ff-type"><div class="ff-label">EtherType</div><div class="ff-val">2 bytes</div></div>
+            <div class="frame-field ff-data"><div class="ff-label">Payload</div><div class="ff-val">46–1500 bytes</div></div>
+            <div class="frame-field ff-fcs"><div class="ff-label">FCS</div><div class="ff-val">4 bytes</div></div>
+        </div>
+
+        <div class="concept-grid three-col">
+            <div class="c-card purple">
+                <div class="cc-label">TPID — 0x8100</div>
+                <div class="cc-title">Tag Protocol ID</div>
+                <div class="cc-body">2-byte identifier that signals this is an 802.1Q-tagged frame. Receiving devices look for this value.</div>
+            </div>
+            <div class="c-card cyan">
+                <div class="cc-label">PCP — 3 bits</div>
+                <div class="cc-title">Priority Code Point</div>
+                <div class="cc-body">Quality of Service bits (0-7). Voice VLAN traffic is marked high priority here to reduce jitter.</div>
+            </div>
+            <div class="c-card gold">
+                <div class="cc-label">VID — 12 bits</div>
+                <div class="cc-title">VLAN Identifier</div>
+                <div class="cc-body">12 bits = 4096 possible VLAN IDs (0 and 4095 reserved). Valid range: 1–4094. This is the core VLAN number.</div>
+            </div>
+        </div>
+
+        <!-- SVG: 802.1Q tag insertion on trunk — frame grows as it enters trunk, shrinks on exit -->
+        <div class="svg-diagram">
+            <svg viewBox="0 0 560 68" width="560" height="68" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <filter id="glow-p6">
+                        <feGaussianBlur stdDeviation="2" result="cb"/>
+                        <feMerge><feMergeNode in="cb"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <!-- Stage 1: access port to SW-A -->
+                    <path id="tag-p1" d="M 52,34 L 148,34"/>
+                    <!-- Stage 2: trunk link SW-A to SW-B -->
+                    <path id="tag-p2" d="M 220,34 L 340,34"/>
+                    <!-- Stage 3: SW-B to destination access port -->
+                    <path id="tag-p3" d="M 412,34 L 508,34"/>
+                </defs>
+
+                <!-- Stage labels -->
+                <text x="100" y="8" text-anchor="middle" font-size="6.5" fill="#475569" font-family="monospace">access port (untagged)</text>
+                <text x="280" y="8" text-anchor="middle" font-size="6.5" fill="#fbbf24" font-family="monospace">trunk link (tagged)</text>
+                <text x="460" y="8" text-anchor="middle" font-size="6.5" fill="#475569" font-family="monospace">access port (tag stripped)</text>
+
+                <!-- Source PC -->
+                <circle cx="36" cy="34" r="12" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+                <text x="36" y="37" text-anchor="middle" font-size="6" fill="#64748b" font-weight="700">PC</text>
+                <text x="36" y="49" text-anchor="middle" font-size="5.5" fill="#475569">VLAN 10</text>
+
+                <!-- Link 1 (untagged) -->
+                <line x1="48" y1="34" x2="148" y2="34" stroke="#334155" stroke-width="1.5"/>
+
+                <!-- SW-A -->
+                <rect x="148" y="24" width="72" height="20" rx="4" fill="#1e293b" stroke="#8a5cb5" stroke-width="1.5"/>
+                <text x="184" y="37" text-anchor="middle" font-size="6.5" fill="#8a5cb5" font-weight="700">SW-A</text>
+                <!-- Tag insertion indicator -->
+                <text x="184" y="54" text-anchor="middle" font-size="5.5" fill="#fbbf24" font-family="monospace">inserts tag</text>
+
+                <!-- Trunk link (gold, thicker) -->
+                <line x1="220" y1="34" x2="340" y2="34" stroke="#fbbf24" stroke-width="2.5" opacity="0.6"/>
+
+                <!-- SW-B -->
+                <rect x="340" y="24" width="72" height="20" rx="4" fill="#1e293b" stroke="#8a5cb5" stroke-width="1.5"/>
+                <text x="376" y="37" text-anchor="middle" font-size="6.5" fill="#8a5cb5" font-weight="700">SW-B</text>
+                <!-- Tag removal indicator -->
+                <text x="376" y="54" text-anchor="middle" font-size="5.5" fill="#475569" font-family="monospace">strips tag</text>
+
+                <!-- Link 3 (untagged again) -->
+                <line x1="412" y1="34" x2="508" y2="34" stroke="#334155" stroke-width="1.5"/>
+
+                <!-- Destination PC -->
+                <circle cx="522" cy="34" r="12" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+                <text x="522" y="37" text-anchor="middle" font-size="6" fill="#64748b" font-weight="700">PC</text>
+                <text x="522" y="49" text-anchor="middle" font-size="5.5" fill="#475569">VLAN 10</text>
+
+                <!-- Stage 1: small untagged frame traversing access link -->
+                <g opacity="0">
+                    <animate attributeName="opacity" values="0;1;1;0" dur="1.0s" begin="0.3s" repeatCount="indefinite"/>
+                    <rect width="12" height="7" rx="1.5" fill="#475569" y="-3.5">
+                        <animateMotion dur="1.0s" begin="0.3s" repeatCount="indefinite">
+                            <mpath href="#tag-p1"/>
+                        </animateMotion>
+                    </rect>
+                </g>
+
+                <!-- Stage 2: TAGGED frame — wider, purple glow — traversing trunk -->
+                <g opacity="0">
+                    <animate attributeName="opacity" values="0;1;1;0" dur="1.3s" begin="1.6s" repeatCount="indefinite"/>
+                    <!-- Base frame body -->
+                    <rect width="16" height="7" rx="1.5" fill="#334155" y="-3.5">
+                        <animateMotion dur="1.3s" begin="1.6s" repeatCount="indefinite">
+                            <mpath href="#tag-p2"/>
+                        </animateMotion>
+                    </rect>
+                    <!-- 802.1Q tag highlight (purple segment within frame) -->
+                    <rect width="5" height="7" rx="1" fill="#8a5cb5" y="-3.5" filter="url(#glow-p6)">
+                        <animateMotion dur="1.3s" begin="1.6s" repeatCount="indefinite">
+                            <mpath href="#tag-p2"/>
+                        </animateMotion>
+                        <animateTransform attributeName="transform" type="translate" values="4,0;4,0" additive="sum"/>
+                    </rect>
+                    <!-- [10] tag label above packet -->
+                    <text font-size="5.5" fill="#8a5cb5" font-family="monospace" font-weight="700" y="-7">
+                        [10]
+                        <animateMotion dur="1.3s" begin="1.6s" repeatCount="indefinite">
+                            <mpath href="#tag-p2"/>
+                        </animateMotion>
+                    </text>
+                </g>
+
+                <!-- Stage 3: small untagged frame again (tag stripped) -->
+                <g opacity="0">
+                    <animate attributeName="opacity" values="0;1;1;0" dur="1.0s" begin="3.2s" repeatCount="indefinite"/>
+                    <rect width="12" height="7" rx="1.5" fill="#475569" y="-3.5">
+                        <animateMotion dur="1.0s" begin="3.2s" repeatCount="indefinite">
+                            <mpath href="#tag-p3"/>
+                        </animateMotion>
+                    </rect>
+                </g>
+            </svg>
+        </div>
+
+        <div class="scenario-strip">
+            When HR-PC1 sends a frame to HR-PC3 on a different switch: the originating switch inserts the 802.1Q tag
+            (VLAN 10) before sending it across the trunk. The receiving switch reads the tag, strips it, and delivers
+            the untagged frame to the correct access port in VLAN 10.
+        </div>
+
+        <div class="box box-purple" style="font-size:0.83rem;">
+            The 4-byte tag is inserted between the Source MAC and EtherType fields. This makes the frame slightly larger
+            than a standard Ethernet frame — which is why older devices that do not understand 802.1Q see tagged frames as oversized.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 5 — NATIVE VLAN & VOICE VLAN
+     ===================================================================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 10</div>
+        <div class="slide-title">Native VLAN &amp; <span class="accent">Voice VLAN</span></div>
+        <div class="slide-subtitle">Two special VLAN assignments with distinct purposes.</div>
+
+        <div class="concept-grid">
+            <div class="c-card gold">
+                <div class="cc-label">Native VLAN</div>
+                <div class="cc-title">Untagged traffic on a trunk</div>
+                <div class="cc-body">
+                    The native VLAN is the one VLAN on a trunk link whose traffic travels <strong style="color:#fbbf24;">untagged</strong>.
+                    Default is VLAN 1. Both sides of a trunk must agree on the native VLAN or a native VLAN mismatch error occurs
+                    and traffic is misdelivered. Best practice: change native VLAN away from 1 to an unused VLAN to prevent VLAN hopping attacks.
+                </div>
+            </div>
+            <div class="c-card cyan">
+                <div class="cc-label">Voice VLAN</div>
+                <div class="cc-title">QoS separation for VoIP</div>
+                <div class="cc-body">
+                    An access port can carry both a data VLAN and a voice VLAN simultaneously. The IP phone connects to
+                    the switch port; the PC connects to the phone's built-in switch. Voice frames are 802.1Q-tagged with the
+                    voice VLAN ID and CoS (Class of Service) priority set to 5 to minimize jitter.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            <div class="box-label">Security: VLAN Hopping Attack</div>
+            An attacker can send double-tagged frames — an outer tag matching the native VLAN (stripped by the first switch)
+            and an inner tag for a target VLAN. This "hops" the attacker into a VLAN they should not reach.
+            Mitigation: change the native VLAN to an unused ID, disable DTP, and do not put user devices on the native VLAN.
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Exam tip:</strong> Native VLAN mismatch is a trunk misconfiguration that causes CDP/LLDP warnings and unexpected
+            traffic delivery. Confirm with <code style="font-family:monospace; color:#fbbf24;">show interfaces trunk</code> — the native VLAN column must match on both sides.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 6 — VLAN DATABASE & CREATION
+     ===================================================================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 10</div>
+        <div class="slide-title">Creating VLANs — <span class="accent">Config &amp; Database</span></div>
+        <div class="slide-subtitle">VLANs must exist in the switch database before you can assign ports to them.</div>
+
+        <div class="concept-grid" style="grid-template-columns: 1fr 1fr;">
+            <div>
+                <div class="terminal-block">
+                    <div class="t-label">Create VLAN + Assign Access Port</div>
+                    <div class="t-cmd">SW1# conf t</div>
+                    <div class="t-cmd">SW1(config)# vlan 10</div>
+                    <div class="t-cmd">SW1(config-vlan)# name HR</div>
+                    <div class="t-cmd">SW1(config-vlan)# exit</div>
+                    <div class="t-cmd">SW1(config)# vlan 20</div>
+                    <div class="t-cmd">SW1(config-vlan)# name Engineering</div>
+                    <div class="t-cmd">SW1(config-vlan)# exit</div>
+                    <div class="t-cmd">SW1(config)# interface fa0/1</div>
+                    <div class="t-cmd">SW1(config-if)# switchport mode access</div>
+                    <div class="t-cmd">SW1(config-if)# switchport access vlan 10</div>
+                </div>
+            </div>
+            <div>
+                <div class="terminal-block">
+                    <div class="t-label">Configure Trunk Port</div>
+                    <div class="t-cmd">SW1(config)# interface gi0/1</div>
+                    <div class="t-cmd">SW1(config-if)# switchport trunk encapsulation dot1q</div>
+                    <div class="t-cmd">SW1(config-if)# switchport mode trunk</div>
+                    <div class="t-cmd">SW1(config-if)# switchport trunk allowed vlan 10,20</div>
+                    <div class="t-cmd">SW1(config-if)# switchport trunk native vlan 99</div>
+                    <div>&nbsp;</div>
+                    <div class="t-note">Verify:</div>
+                    <div class="t-cmd">SW1# show vlan brief</div>
+                    <div class="t-cmd">SW1# show interfaces trunk</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-purple" style="font-size:0.83rem;">
+            <strong>VLAN database:</strong> On Cisco switches, VLANs 1–1005 are stored in <code style="font-family:monospace; color:#b084d8;">flash:vlan.dat</code>.
+            Extended range VLANs (1006–4094) require VTP transparent mode or VTP version 3 and are stored in running-config.
+            If you delete <code style="font-family:monospace; color:#b084d8;">vlan.dat</code>, all standard VLANs are wiped.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 7 — INTER-VLAN ROUTING
+     ===================================================================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 10</div>
+        <div class="slide-title">Inter-VLAN Routing — <span class="accent">Layer 3 Required</span></div>
+        <div class="slide-subtitle">Devices in different VLANs cannot talk without routing. Two ways to provide it.</div>
+
+        <div class="concept-grid">
+            <div class="c-card purple">
+                <div class="cc-label">Router-on-a-Stick (ROAS)</div>
+                <div class="cc-title">One physical link, multiple sub-interfaces</div>
+                <div class="cc-body">
+                    A single trunk link runs from the switch to a router. The router creates logical sub-interfaces
+                    (one per VLAN), each configured with an IP address that becomes the default gateway for that VLAN.
+                    The router routes between VLANs in software. Simple to configure but the single uplink can become a bottleneck.
+                </div>
+            </div>
+            <div class="c-card cyan">
+                <div class="cc-label">SVI — Layer 3 Switch</div>
+                <div class="cc-title">Switched Virtual Interface</div>
+                <div class="cc-body">
+                    A Layer 3 switch creates an SVI (a virtual interface) for each VLAN. Each SVI gets an IP address and
+                    acts as the default gateway for that VLAN. Routing happens in hardware (ASICs) — much faster than ROAS.
+                    This is the enterprise standard. Requires <code style="font-family:monospace; color:#06b6d4;">ip routing</code> enabled on the switch.
+                </div>
+            </div>
+        </div>
+
+        <!-- SVG: Inter-VLAN routing — frame travels V10 → SW → Router (de-encap/re-encap) → SW → V20 -->
+        <div class="svg-diagram">
+            <svg viewBox="0 0 560 76" width="560" height="76" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <filter id="glow-iv">
+                        <feGaussianBlur stdDeviation="2" result="cb"/>
+                        <feMerge><feMergeNode in="cb"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <!-- Path: VLAN10-PC → Switch (left) -->
+                    <path id="iv-p1" d="M 52,38 L 148,38"/>
+                    <!-- Path: Switch → Router (up) -->
+                    <path id="iv-p2" d="M 210,30 L 280,30"/>
+                    <!-- Path: Router → Switch (down) -->
+                    <path id="iv-p3" d="M 280,46 L 210,46"/>
+                    <!-- Path: Switch → VLAN20-PC (right) -->
+                    <path id="iv-p4" d="M 272,38 L 368,38"/>
+                    <!-- Full path for single green dot: combined motion via JS-free SVG -->
+                    <path id="iv-full" d="M 52,38 L 148,38 L 210,30 L 280,30 L 280,46 L 210,46 L 272,38 L 368,38"/>
+                </defs>
+
+                <!-- VLAN 10 PC -->
+                <circle cx="36" cy="38" r="12" fill="#1e293b" stroke="#8a5cb5" stroke-width="1.5"/>
+                <text x="36" y="41" text-anchor="middle" font-size="6" fill="#8a5cb5" font-weight="700">V10</text>
+                <text x="36" y="57" text-anchor="middle" font-size="5.5" fill="#475569">PC</text>
+
+                <!-- Link PC → Switch -->
+                <line x1="48" y1="38" x2="148" y2="38" stroke="#8a5cb5" stroke-width="1.5" opacity="0.5"/>
+
+                <!-- Switch (center-left) -->
+                <rect x="148" y="28" width="64" height="20" rx="4" fill="#1e293b" stroke="#8a5cb5" stroke-width="1.5"/>
+                <text x="180" y="41" text-anchor="middle" font-size="6.5" fill="#8a5cb5" font-weight="700">SWITCH</text>
+
+                <!-- Trunk link Switch → Router -->
+                <line x1="212" y1="30" x2="280" y2="30" stroke="#fbbf24" stroke-width="1.8" opacity="0.6"/>
+                <!-- Return link Router → Switch -->
+                <line x1="280" y1="46" x2="212" y2="46" stroke="#3ab577" stroke-width="1.8" opacity="0.6"/>
+
+                <!-- Router (router-on-a-stick) -->
+                <circle cx="296" cy="38" r="16" fill="#1e293b" stroke="#fbbf24" stroke-width="1.8"/>
+                <text x="296" y="41" text-anchor="middle" font-size="6.5" fill="#fbbf24" font-weight="700">ROAS</text>
+                <!-- De-encap / re-encap pulse at router -->
+                <circle cx="296" cy="38" r="20" fill="none" stroke="#fbbf24" stroke-width="1" opacity="0">
+                    <animate attributeName="opacity" values="0;0;0;0.7;0.3;0" dur="4.5s" begin="0.3s" repeatCount="indefinite" keyTimes="0;0.42;0.5;0.55;0.65;1"/>
+                    <animate attributeName="r" values="16;16;16;22;26;16" dur="4.5s" begin="0.3s" repeatCount="indefinite" keyTimes="0;0.42;0.5;0.55;0.65;1"/>
+                </circle>
+                <text x="296" y="62" text-anchor="middle" font-size="5.5" fill="#64748b">gi0/0.10 / .20</text>
+
+                <!-- Link Switch → VLAN20-PC -->
+                <line x1="272" y1="38" x2="368" y2="38" stroke="#3ab577" stroke-width="1.5" opacity="0.5"/>
+
+                <!-- VLAN 20 PC -->
+                <circle cx="384" cy="38" r="12" fill="#1e293b" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="384" y="41" text-anchor="middle" font-size="6" fill="#3ab577" font-weight="700">V20</text>
+                <text x="384" y="57" text-anchor="middle" font-size="5.5" fill="#475569">PC</text>
+
+                <!-- Labels -->
+                <text x="100" y="27" text-anchor="middle" font-size="5.5" fill="#8a5cb5" font-family="monospace">VLAN 10</text>
+                <text x="246" y="24" text-anchor="middle" font-size="5.5" fill="#fbbf24" font-family="monospace">trunk [10]</text>
+                <text x="246" y="57" text-anchor="middle" font-size="5.5" fill="#3ab577" font-family="monospace">trunk [20]</text>
+                <text x="320" y="27" text-anchor="middle" font-size="5.5" fill="#3ab577" font-family="monospace">VLAN 20</text>
+
+                <!-- Animated frame: purple (VLAN10) → router → green (VLAN20) -->
+                <!-- Leg 1: PC → Switch (purple) -->
+                <circle r="4" fill="#8a5cb5" filter="url(#glow-iv)" opacity="0">
+                    <animateMotion dur="0.8s" begin="0.3s" repeatCount="indefinite" keyTimes="0;1">
+                        <mpath href="#iv-p1"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="0.8s" begin="0.3s" repeatCount="indefinite"/>
+                    <!-- repeat cycle: 4.5s total -->
+                </circle>
+                <!-- Leg 2: Switch → Router (purple, tagged) -->
+                <circle r="4" fill="#8a5cb5" filter="url(#glow-iv)" opacity="0">
+                    <animateMotion dur="0.7s" begin="1.1s" repeatCount="indefinite">
+                        <mpath href="#iv-p2"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="0.7s" begin="1.1s" repeatCount="indefinite"/>
+                </circle>
+                <!-- Leg 3: Router → Switch (green, re-encapsulated as VLAN 20) -->
+                <circle r="4" fill="#3ab577" filter="url(#glow-iv)" opacity="0">
+                    <animateMotion dur="0.7s" begin="2.0s" repeatCount="indefinite">
+                        <mpath href="#iv-p3"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="0.7s" begin="2.0s" repeatCount="indefinite"/>
+                </circle>
+                <!-- Leg 4: Switch → VLAN20 PC (green) -->
+                <circle r="4" fill="#3ab577" filter="url(#glow-iv)" opacity="0">
+                    <animateMotion dur="0.8s" begin="2.7s" repeatCount="indefinite">
+                        <mpath href="#iv-p4"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" dur="0.8s" begin="2.7s" repeatCount="indefinite"/>
+                </circle>
+
+                <!-- Layer 3 routing indicator text at router -->
+                <text x="296" y="8" text-anchor="middle" font-size="6" fill="#fbbf24" font-family="monospace" opacity="0">
+                    L3 route
+                    <animate attributeName="opacity" values="0;0;0;0.9;0.9;0" dur="4.5s" begin="0.3s" repeatCount="indefinite" keyTimes="0;0.38;0.45;0.52;0.62;1"/>
+                </text>
+            </svg>
+        </div>
+
+        <div class="concept-grid">
+            <div class="terminal-block">
+                <div class="t-label">Router-on-a-Stick config (router side)</div>
+                <div class="t-cmd">R1(config)# interface gi0/0.10</div>
+                <div class="t-cmd">R1(config-subif)# encapsulation dot1q 10</div>
+                <div class="t-cmd">R1(config-subif)# ip address 10.10.10.1 255.255.255.0</div>
+                <div class="t-cmd">R1(config)# interface gi0/0.20</div>
+                <div class="t-cmd">R1(config-subif)# encapsulation dot1q 20</div>
+                <div class="t-cmd">R1(config-subif)# ip address 10.10.20.1 255.255.255.0</div>
+            </div>
+            <div class="terminal-block">
+                <div class="t-label">SVI config (L3 switch)</div>
+                <div class="t-cmd">SW1(config)# ip routing</div>
+                <div class="t-cmd">SW1(config)# interface vlan 10</div>
+                <div class="t-cmd">SW1(config-if)# ip address 10.10.10.1 255.255.255.0</div>
+                <div class="t-cmd">SW1(config-if)# no shutdown</div>
+                <div class="t-cmd">SW1(config)# interface vlan 20</div>
+                <div class="t-cmd">SW1(config-if)# ip address 10.10.20.1 255.255.255.0</div>
+                <div class="t-cmd">SW1(config-if)# no shutdown</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 8 — VTP OVERVIEW
+     ===================================================================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 10</div>
+        <div class="slide-title">VTP — <span class="accent">VLAN Trunking Protocol</span></div>
+        <div class="slide-subtitle">Cisco-proprietary protocol to propagate VLAN database changes across a domain.</div>
+
+        <div class="concept-grid three-col">
+            <div class="c-card purple">
+                <div class="cc-label">Server Mode</div>
+                <div class="cc-title">Creates and propagates</div>
+                <div class="cc-body">
+                    Can create, modify, and delete VLANs. Sends VTP advertisements to all switches in the domain.
+                    Changes here replicate everywhere. Default mode on Cisco switches.
+                </div>
+            </div>
+            <div class="c-card cyan">
+                <div class="cc-label">Client Mode</div>
+                <div class="cc-title">Receives and forwards</div>
+                <div class="cc-body">
+                    Cannot create or delete VLANs locally. Synchronizes its VLAN database from VTP advertisements
+                    received from a server. Forwards advertisements to other switches.
+                </div>
+            </div>
+            <div class="c-card gold">
+                <div class="cc-label">Transparent Mode</div>
+                <div class="cc-title">Local only — forwards</div>
+                <div class="cc-body">
+                    Does not participate in VTP synchronization. Maintains its own VLAN database independently.
+                    Forwards VTP advertisements from other switches without applying them. Safest for extended VLANs.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            <div class="box-label">VTP Risk — The Revision Number Bomb</div>
+            VTP uses a revision number to determine which database is authoritative. If you add a switch that previously
+            had a higher revision number to your domain, it can <strong>overwrite your entire VLAN database</strong> and take down the network.
+            Always reset the revision number (change VTP domain or set transparent mode) before adding a used switch.
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Modern practice:</strong> Many engineers avoid VTP entirely and manage VLANs manually or via automation.
+            VTP version 3 adds MD5 authentication and primary server concept, which reduces the revision bomb risk.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 9 — TROUBLESHOOTING
+     ===================================================================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 10</div>
+        <div class="slide-title">Troubleshooting VLANs &amp; Trunks</div>
+        <div class="slide-subtitle">Two commands answer almost every VLAN troubleshooting question.</div>
+
+        <div class="concept-grid">
+            <div class="terminal-block">
+                <div class="t-label">show vlan brief — verify VLAN assignment</div>
+                <div class="t-cmd">SW1# show vlan brief</div>
+                <div>&nbsp;</div>
+                <div class="t-out">VLAN Name         Status    Ports</div>
+                <div class="t-out">---- ------------ --------- -------------------</div>
+                <div class="t-out">1    default      active    Fa0/5, Fa0/6</div>
+                <div class="t-hi">10   HR           active    Fa0/1, Fa0/2</div>
+                <div class="t-hi">20   Engineering  active    Fa0/3, Fa0/4</div>
+                <div class="t-out">1002 fddi-default act/unsup</div>
+                <div class="t-note">Fa0/5 and Fa0/6 still on VLAN 1 — unassigned ports default here</div>
+            </div>
+            <div class="terminal-block">
+                <div class="t-label">show interfaces trunk — verify trunk state</div>
+                <div class="t-cmd">SW1# show interfaces trunk</div>
+                <div>&nbsp;</div>
+                <div class="t-out">Port   Mode   Encapsulation  Status   Native vlan</div>
+                <div class="t-hi">Gi0/1  on     802.1q         trunking 99</div>
+                <div>&nbsp;</div>
+                <div class="t-out">Port   VLANs allowed on trunk</div>
+                <div class="t-hi">Gi0/1  10,20</div>
+                <div>&nbsp;</div>
+                <div class="t-out">Port   VLANs in spanning tree forwarding state</div>
+                <div class="t-hi">Gi0/1  10,20</div>
+            </div>
+        </div>
+
+        <div class="section-label">Common Issues &amp; Root Causes</div>
+
+        <div class="concept-grid three-col">
+            <div class="c-card red">
+                <div class="cc-label">Symptom</div>
+                <div class="cc-title">Device cannot communicate</div>
+                <div class="cc-body">Access port assigned to wrong VLAN. Check <code style="font-family:monospace; color:#ef4444;">show vlan brief</code> — confirm the port is listed under the correct VLAN.</div>
+            </div>
+            <div class="c-card gold">
+                <div class="cc-label">Symptom</div>
+                <div class="cc-title">VLAN traffic not crossing switches</div>
+                <div class="cc-body">VLAN not in the allowed list on the trunk. Run <code style="font-family:monospace; color:#fbbf24;">show interfaces trunk</code> and add the VLAN with <code style="font-family:monospace; color:#fbbf24;">switchport trunk allowed vlan add X</code>.</div>
+            </div>
+            <div class="c-card purple">
+                <div class="cc-label">Symptom</div>
+                <div class="cc-title">Native VLAN mismatch warning</div>
+                <div class="cc-body">CDP reports mismatched native VLANs on a trunk. Both sides must use the same native VLAN ID. Check both switches and align them.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 10 — SUMMARY + COMPLETE
+     ===================================================================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 10 &nbsp;|&nbsp; N10-009 Obj 2.3</div>
+        <div class="slide-title">VLANs: Logical Walls on Physical Wire</div>
+
+        <div class="summary-scenario">
+            HR stopped seeing Engineering's broadcasts. You created VLAN 10 (HR) and VLAN 20 (Engineering),
+            assigned the right access ports, and configured a trunk between the switches. For inter-VLAN routing,
+            you set up SVIs on the L3 switch — <strong>ip routing</strong> enabled, one IP per VLAN acting as
+            the default gateway. The physical switch never changed. Only the software configuration did.
+        </div>
+
+        <div class="section-label">5 Facts to Carry Out of This Presentation</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">VLANs create separate broadcast domains on the same physical switch — no extra hardware needed.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Access ports belong to one VLAN (untagged). Trunk ports carry multiple VLANs using <code>802.1Q</code> 4-byte tags.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Inter-VLAN routing requires Layer 3: router-on-a-stick (sub-interfaces) or an L3 switch with SVIs and <code>ip routing</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Native VLAN travels untagged on trunks. Mismatch = CDP warning + misdelivered traffic. Change from default VLAN 1.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Troubleshoot with <code>show vlan brief</code> (port assignments) and <code>show interfaces trunk</code> (trunk state, native VLAN, allowed VLANs).</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     NAVIGATION BAR
+     ===================================================================== -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Network+ Hub</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 10</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<!-- =====================================================================
+     PRESENTATION LOGIC
+     ===================================================================== -->
+<script>
+    /* State */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 10;
+
+    /* Navigate to a specific slide number (1-indexed) */
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update progress bar */
+        const pct = (currentSlide / TOTAL_SLIDES) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+
+        /* Update counter */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Update nav button states */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show/hide complete button on final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            goToSlide(currentSlide + 1);
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            goToSlide(currentSlide - 1);
+        }
+    });
+
+    /* Initialize on load */
+    goToSlide(1);
+</script>
+
+<!-- Module completion -->
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'web-vlan', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

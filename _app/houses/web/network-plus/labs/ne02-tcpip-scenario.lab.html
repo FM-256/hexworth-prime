@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NE-02 TCP/IP Scenario Lab | Network+</title>
+    <style>
+        :root {
+            --cyan: #06b6d4;
+            --cyan-dim: #0891b2;
+            --cyan-glow: rgba(6, 182, 212, 0.25);
+            --cyan-faint: rgba(6, 182, 212, 0.08);
+            --bg-primary: #090910;
+            --bg-secondary: #0f0f1a;
+            --bg-tertiary: #161625;
+            --bg-card: #12121e;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-dim: #64748b;
+            --border: #1e293b;
+            --green: #22c55e;
+            --green-dim: rgba(34, 197, 94, 0.15);
+            --red: #ef4444;
+            --red-dim: rgba(239, 68, 68, 0.15);
+            --amber: #f59e0b;
+            --amber-dim: rgba(245, 158, 11, 0.12);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .lab-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Navigation */
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--cyan);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+        .back-link:hover {
+            color: #67e8f9;
+            transform: translateX(-5px);
+        }
+
+        /* Header */
+        .lab-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+            border-radius: 16px;
+            border: 1px solid var(--cyan-dim);
+            box-shadow: 0 0 30px var(--cyan-glow);
+        }
+        .lab-header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--cyan), #67e8f9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .lab-header .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+        .lab-header .meta {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            margin-top: 0.75rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        .lab-header .meta span {
+            background: var(--bg-primary);
+            padding: 4px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+
+        /* Scenario brief */
+        .scenario-brief {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--amber);
+            border-radius: 0 10px 10px 0;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .scenario-brief h3 {
+            color: var(--amber);
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .scenario-brief p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Progress bar */
+        .progress-bar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding: 0.75rem 1rem;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+        .progress-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        .progress-track {
+            flex: 1;
+            height: 8px;
+            background: var(--bg-primary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--cyan-dim), var(--cyan));
+            border-radius: 4px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+        .progress-count {
+            font-size: 0.85rem;
+            color: var(--cyan);
+            font-weight: 600;
+            min-width: 40px;
+            text-align: right;
+        }
+
+        /* Step cards */
+        .step-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            transition: border-color 0.3s ease;
+        }
+        .step-card.correct {
+            border-color: var(--green);
+        }
+        .step-card.incorrect {
+            border-color: var(--red);
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem 1.25rem;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            user-select: none;
+        }
+        .step-header:hover {
+            background: #1c1c30;
+        }
+        .step-num {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: var(--cyan-faint);
+            border: 1px solid var(--cyan-dim);
+            color: var(--cyan);
+            font-weight: 700;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+        .step-card.correct .step-num {
+            background: var(--green-dim);
+            border-color: var(--green);
+            color: var(--green);
+        }
+        .step-title {
+            flex: 1;
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+        .step-layer {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: var(--cyan-faint);
+            color: var(--cyan);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+        }
+        .step-toggle {
+            color: var(--text-dim);
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+        }
+        .step-card.open .step-toggle {
+            transform: rotate(180deg);
+        }
+
+        .step-body {
+            display: none;
+            padding: 1.25rem;
+        }
+        .step-card.open .step-body {
+            display: block;
+        }
+
+        /* Evidence panel */
+        .evidence-panel {
+            background: #0a0a14;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+        .evidence-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            background: #111120;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            border-bottom: 1px solid var(--border);
+        }
+        .evidence-content {
+            padding: 0.75rem 1rem;
+            font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        .evidence-content .highlight {
+            color: var(--red);
+            font-weight: 600;
+        }
+        .evidence-content .ok {
+            color: var(--green);
+        }
+        .evidence-content .warn {
+            color: var(--amber);
+        }
+
+        /* Question area */
+        .question-area {
+            margin-top: 1rem;
+        }
+        .question-text {
+            font-size: 0.92rem;
+            color: var(--text-primary);
+            margin-bottom: 0.75rem;
+            font-weight: 500;
+        }
+        .answer-row {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .answer-select {
+            flex: 1;
+            min-width: 240px;
+            padding: 0.6rem 0.75rem;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.88rem;
+            font-family: inherit;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 2rem;
+        }
+        .answer-select:focus {
+            outline: none;
+            border-color: var(--cyan);
+            box-shadow: 0 0 0 2px var(--cyan-glow);
+        }
+        .answer-select option {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .btn-verify {
+            padding: 0.55rem 1.25rem;
+            background: linear-gradient(135deg, var(--cyan-dim), var(--cyan));
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+        .btn-verify:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px var(--cyan-glow);
+        }
+        .btn-verify:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Feedback */
+        .feedback {
+            margin-top: 0.75rem;
+            padding: 0.6rem 0.85rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            display: none;
+        }
+        .feedback.show { display: block; }
+        .feedback.correct {
+            background: var(--green-dim);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: var(--green);
+        }
+        .feedback.incorrect {
+            background: var(--red-dim);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+
+        /* Hint toggle */
+        .hint-toggle {
+            margin-top: 0.75rem;
+            font-size: 0.82rem;
+            color: var(--text-dim);
+            cursor: pointer;
+            user-select: none;
+        }
+        .hint-toggle:hover { color: var(--text-secondary); }
+        .hint-body {
+            display: none;
+            margin-top: 0.5rem;
+            padding: 0.6rem 0.85rem;
+            background: var(--amber-dim);
+            border-left: 3px solid var(--amber);
+            border-radius: 0 6px 6px 0;
+            font-size: 0.83rem;
+            color: var(--text-secondary);
+        }
+        .hint-body.show { display: block; }
+
+        /* Completion banner */
+        .completion-banner {
+            display: none;
+            margin-top: 2rem;
+            padding: 2rem;
+            text-align: center;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.08), rgba(34, 197, 94, 0.08));
+            border: 1px solid var(--green);
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(34, 197, 94, 0.15);
+        }
+        .completion-banner.show { display: block; }
+        .completion-banner h2 {
+            color: var(--green);
+            font-size: 1.4rem;
+            margin-bottom: 0.5rem;
+        }
+        .completion-banner p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        .completion-stats {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+        .completion-stats .stat {
+            text-align: center;
+        }
+        .completion-stats .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--cyan);
+        }
+        .completion-stats .stat-label {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .lab-container { padding: 1rem; }
+            .lab-header h1 { font-size: 1.3rem; }
+            .lab-header .meta { flex-wrap: wrap; gap: 0.5rem; }
+            .answer-row { flex-direction: column; }
+            .answer-select { min-width: 100%; }
+            .completion-stats { flex-wrap: wrap; gap: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <div class="nav-links">
+            <a href="../index.html" class="back-link">&#x2190; Network+ Hub</a>
+        </div>
+
+        <div class="lab-header">
+            <h1>NE-02: TCP/IP Stack Scenario Lab</h1>
+            <p class="subtitle">Layer-by-Layer Troubleshooting -- Application Server Timeout</p>
+            <div class="meta">
+                <span>8 Issues</span>
+                <span>25 min</span>
+                <span>Scenario Lab</span>
+            </div>
+        </div>
+
+        <div class="scenario-brief">
+            <h3>Incident Brief</h3>
+            <p>An application server at <strong>10.40.2.50</strong> accepts TCP connections but data transfers time out after 3 seconds. The load balancer health checks pass, but users are reporting intermittent errors and failed file uploads. Your task: analyze the TCP/IP stack layer by layer, examine the evidence collected from packet captures, configs, and system output, and identify all 8 issues causing the degraded service.</p>
+        </div>
+
+        <div class="progress-bar">
+            <span class="progress-label">Issues Found</span>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <span class="progress-count" id="progressCount">0 / 8</span>
+        </div>
+
+        <div id="stepsContainer"></div>
+
+        <div class="completion-banner" id="completionBanner">
+            <h2>All 8 Issues Resolved</h2>
+            <p>You successfully diagnosed the full TCP/IP stack. The application server is now handling transfers without timeout errors.</p>
+            <div class="completion-stats">
+                <div class="stat">
+                    <div class="stat-value" id="statCorrect">0</div>
+                    <div class="stat-label">First-Try Correct</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="statHints">0</div>
+                    <div class="stat-label">Hints Used</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="statTime">0:00</div>
+                    <div class="stat-label">Elapsed</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        var startTime = Date.now();
+        var solved = {};
+        var firstTry = {};
+        var hintsUsed = 0;
+
+        var STEPS = [
+            {
+                num: 1,
+                title: 'TCP Handshake Analysis',
+                layer: 'Transport',
+                evidenceLabel: 'Packet Capture -- TCP 3-Way Handshake (filtered: host 10.40.2.50)',
+                evidence:
+'Frame 1: 74 bytes on wire\n' +
+'  Ethernet II, Src: aa:bb:cc:11:22:33, Dst: dd:ee:ff:44:55:66\n' +
+'  Internet Protocol Version 4, Src: 10.40.1.10, Dst: 10.40.2.50\n' +
+'  Transmission Control Protocol, Src Port: 49821, Dst Port: 443\n' +
+'    Flags: 0x002 (SYN)\n' +
+'    Window size: 65535\n' +
+'    Options:\n' +
+'      MSS: 1460\n' +
+'      <span class="highlight">TCP SYN Timeout: 2s (retransmit after 2000ms)</span>\n' +
+'      SACK permitted\n\n' +
+'Frame 2: 74 bytes on wire   [delta: 2.04s]\n' +
+'  TCP Retransmission\n' +
+'  <span class="warn">[Expert Info: TCP retransmission of SYN -- first attempt timed out]</span>\n' +
+'  Transmission Control Protocol, Src Port: 49821, Dst Port: 443\n' +
+'    Flags: 0x002 (SYN)\n\n' +
+'Frame 3: 66 bytes on wire   [delta: 0.003s]\n' +
+'  Transmission Control Protocol, Src Port: 443, Dst Port: 49821\n' +
+'    Flags: 0x012 (SYN, ACK)\n' +
+'    <span class="ok">Handshake completed after retransmit</span>',
+                question: 'The SYN packet is being retransmitted before the server can respond. What needs to change?',
+                options: [
+                    '-- Select an answer --',
+                    'Disable SYN retransmission entirely',
+                    'Decrease SYN timeout to 1 second',
+                    'Increase SYN timeout to 10 seconds',
+                    'Change the SYN window size to 32768'
+                ],
+                correct: 3,
+                correctMsg: 'Correct. The 2-second SYN timeout is too aggressive for this network path. Increasing to 10 seconds prevents unnecessary retransmissions and allows the server adequate time to respond to the initial SYN.',
+                incorrectMsg: 'Not quite. Look at the delta time between Frame 1 and Frame 2 -- the retransmission fires at 2.04s because the timeout is set to 2s. The server responds in 2.04s, so a longer timeout would prevent the wasteful retransmission.',
+                hint: 'The SYN timeout value (2s) is shorter than the server response time. The standard recommendation for SYN timeout is 10 seconds to handle normal network latency.'
+            },
+            {
+                num: 2,
+                title: 'TCP Window Size',
+                layer: 'Transport',
+                evidenceLabel: 'netstat -an output from application server (10.40.2.50)',
+                evidence:
+'Active Internet connections (servers and established)\n' +
+'Proto  Recv-Q  Send-Q  Local Address       Foreign Address     State\n' +
+'tcp    0       0       0.0.0.0:443         0.0.0.0:*           LISTEN\n' +
+'tcp    0       14480   10.40.2.50:443      10.40.1.10:49821    ESTABLISHED\n' +
+'tcp    0       28672   10.40.2.50:443      10.40.1.15:50112    ESTABLISHED\n' +
+'tcp    0       31200   10.40.2.50:443      10.40.1.22:51440    ESTABLISHED\n\n' +
+'TCP Socket Buffer Configuration:\n' +
+'  net.core.rmem_default = 32768\n' +
+'  net.core.wmem_default = 32768\n' +
+'  <span class="highlight">net.ipv4.tcp_rmem = 4096  32768  32768</span>\n' +
+'  <span class="highlight">net.ipv4.tcp_wmem = 4096  32768  32768</span>\n' +
+'  net.ipv4.tcp_window_scaling = 1\n\n' +
+'<span class="warn">[WARNING] Send-Q approaching buffer maximum on 3 connections</span>\n' +
+'<span class="warn">[WARNING] Bandwidth-delay product for 100ms RTT link: 1.25 MB</span>\n' +
+'           Current max window: 32 KB (2.5% of BDP)',
+                question: 'Multiple connections show Send-Q nearing the buffer limit. Why are transfers slow?',
+                options: [
+                    '-- Select an answer --',
+                    'TCP window size is too small (32KB), increase to at least 64KB',
+                    'Too many ESTABLISHED connections, close idle ones',
+                    'Disable TCP window scaling',
+                    'Reduce the receive buffer to match the send buffer'
+                ],
+                correct: 1,
+                correctMsg: 'Correct. With a 100ms RTT and 32KB window, maximum throughput is only 320 KB/s. Increasing the window to 64KB or higher allows the TCP stack to keep more data in flight and fully utilize the available bandwidth.',
+                incorrectMsg: 'Review the Send-Q values and the buffer configuration. The max window is 32KB but the bandwidth-delay product shows 1.25 MB is needed. The bottleneck is the undersized TCP window.',
+                hint: 'The bandwidth-delay product (BDP) tells you the ideal window size. At 100ms RTT, even 64KB is conservative. The current 32KB max is severely limiting throughput.'
+            },
+            {
+                num: 3,
+                title: 'NIC Offloading Configuration',
+                layer: 'Data Link',
+                evidenceLabel: 'ethtool -k eth0 -- NIC offloading features (10.40.2.50)',
+                evidence:
+'Features for eth0:\n' +
+'  rx-checksumming: on\n' +
+'  tx-checksumming: on\n' +
+'    tx-checksum-ipv4: on\n' +
+'    tx-checksum-ipv6: on\n' +
+'  scatter-gather: on\n' +
+'  tcp-segmentation-offload: on\n' +
+'  <span class="highlight">udp-checksum-offload: off</span>\n' +
+'  generic-receive-offload: on\n' +
+'  large-receive-offload: off\n\n' +
+'--- DNS Resolution Log (last 60s) ---\n' +
+'[14:32:01] query A api.internal.corp -> 10.40.0.53  <span class="ok">OK 12ms</span>\n' +
+'[14:32:14] query A cdn.internal.corp -> 10.40.0.53  <span class="red highlight">FAIL: UDP checksum error, packet dropped</span>\n' +
+'[14:32:15] query A cdn.internal.corp -> 10.40.0.53  <span class="highlight">FAIL: UDP checksum error, packet dropped</span>\n' +
+'[14:32:18] query A cdn.internal.corp -> 10.40.0.53  <span class="ok">OK 340ms (fallback to TCP)</span>\n' +
+'[14:32:30] query A auth.internal.corp -> 10.40.0.53 <span class="highlight">FAIL: UDP checksum error</span>\n' +
+'[14:32:33] query A auth.internal.corp -> 10.40.0.53 <span class="ok">OK 290ms (fallback to TCP)</span>\n\n' +
+'<span class="warn">[WARNING] 67% of UDP DNS queries failing checksum validation</span>',
+                question: 'DNS queries are intermittently failing with UDP checksum errors. What should be changed?',
+                options: [
+                    '-- Select an answer --',
+                    'Replace the NIC firmware',
+                    'Switch all DNS to TCP only',
+                    'Disable rx-checksumming to stop validation',
+                    'Enable UDP checksum offloading on the NIC'
+                ],
+                correct: 4,
+                correctMsg: 'Correct. With UDP checksum offloading disabled, the NIC is not computing checksums for outgoing UDP packets. The DNS server on the other end validates and drops them. Enabling offloading lets the hardware handle checksum calculation correctly.',
+                incorrectMsg: 'Look at the NIC features list. UDP checksum offload is the only feature set to off. The DNS failures all cite "UDP checksum error" -- the NIC is not computing checksums for outgoing UDP.',
+                hint: 'Compare the offloading features. TCP checksumming is on, but UDP is off. DNS primarily uses UDP, so outbound DNS queries leave without valid checksums.'
+            },
+            {
+                num: 4,
+                title: 'Load Balancer TCP Settings',
+                layer: 'Transport',
+                evidenceLabel: 'Load Balancer Configuration -- HAProxy (lb-prod-01)',
+                evidence:
+'# /etc/haproxy/haproxy.cfg\n' +
+'global\n' +
+'    maxconn 4096\n' +
+'    log /dev/log local0\n\n' +
+'defaults\n' +
+'    mode tcp\n' +
+'    timeout connect 5s\n' +
+'    timeout client  30s\n' +
+'    timeout server  30s\n' +
+'    <span class="highlight">option tcplog</span>\n' +
+'    <span class="highlight"># option tcpka    &lt;-- DISABLED</span>\n' +
+'    retries 3\n\n' +
+'frontend app_front\n' +
+'    bind *:443\n' +
+'    default_backend app_servers\n\n' +
+'backend app_servers\n' +
+'    balance roundrobin\n' +
+'    server app1 10.40.2.50:443 check inter 5s\n' +
+'    server app2 10.40.2.51:443 check inter 5s\n\n' +
+'--- Connection Log (last 5 min) ---\n' +
+'<span class="ok">[14:30:00] Health check app1: OK (TCP connect 2ms)</span>\n' +
+'<span class="ok">[14:30:05] Health check app2: OK (TCP connect 3ms)</span>\n' +
+'<span class="warn">[14:30:42] Connection 0x7fa2 idle 60s -> CLOSED (no keepalive)</span>\n' +
+'<span class="warn">[14:31:15] Connection 0x7fa8 idle 60s -> CLOSED (no keepalive)</span>\n' +
+'<span class="highlight">[14:31:16] Client 10.40.1.10 reconnect: new 3-way handshake (340ms overhead)</span>\n' +
+'<span class="warn">[14:32:01] Connection 0x7fb1 idle 60s -> CLOSED (no keepalive)</span>\n' +
+'<span class="highlight">[14:32:02] Client 10.40.1.22 reconnect: new 3-way handshake (290ms overhead)</span>',
+                question: 'Health checks pass but idle connections are being dropped after 60 seconds. Why?',
+                options: [
+                    '-- Select an answer --',
+                    'Increase the timeout client to 120s',
+                    'Enable TCP keepalive (tcpka) on the load balancer',
+                    'Change the health check interval to 60s',
+                    'Switch from TCP mode to HTTP mode'
+                ],
+                correct: 2,
+                correctMsg: 'Correct. TCP keepalive (tcpka) is explicitly disabled in the config. Without keepalive probes, idle connections are torn down by intermediate devices. Enabling tcpka sends periodic probes to maintain idle connections and avoid costly reconnection handshakes.',
+                incorrectMsg: 'Read the config comments. The "option tcpka" line is commented out with "DISABLED" noted. The connection log shows idle connections closing at exactly 60 seconds with the reason "no keepalive."',
+                hint: 'The HAProxy config has a commented-out option. Look for the line with "DISABLED" -- it controls whether the load balancer sends TCP keepalive probes on idle connections.'
+            },
+            {
+                num: 5,
+                title: 'Firewall ACL Review',
+                layer: 'Network',
+                evidenceLabel: 'Firewall ACL Rules -- iptables (fw-edge-01)',
+                evidence:
+'Chain FORWARD (policy DROP)\n' +
+'num  target   prot  source        destination     options\n' +
+'1    ACCEPT   tcp   10.40.1.0/24  10.40.2.0/24    dpt:443\n' +
+'2    ACCEPT   tcp   10.40.2.0/24  10.40.1.0/24    state ESTABLISHED\n' +
+'3    ACCEPT   udp   10.40.0.0/16  10.40.0.53      dpt:53\n' +
+'4    ACCEPT   udp   10.40.0.53    10.40.0.0/16    spt:53\n' +
+'<span class="highlight">5    DROP     1     0.0.0.0/0     0.0.0.0/0       /* block ICMP */</span>\n' +
+'6    ACCEPT   tcp   10.40.3.0/24  10.40.2.0/24    dpt:22\n' +
+'7    LOG      all   0.0.0.0/0     0.0.0.0/0       LOG prefix="FW-DROP: "\n' +
+'8    DROP     all   0.0.0.0/0     0.0.0.0/0\n\n' +
+'--- Firewall Log (last 5 min) ---\n' +
+'<span class="warn">[14:31:10] FW-DROP: proto=1 src=10.40.2.50 dst=10.40.1.10 type=3 code=4</span>\n' +
+'  -> ICMP Destination Unreachable: Fragmentation Needed (MTU=1400)\n' +
+'<span class="warn">[14:31:22] FW-DROP: proto=1 src=10.40.1.1 dst=10.40.2.50 type=3 code=4</span>\n' +
+'  -> ICMP Destination Unreachable: Fragmentation Needed (MTU=1400)\n' +
+'<span class="highlight">[14:31:45] Path MTU discovery FAILED for 10.40.2.50 -> 10.40.1.10</span>\n' +
+'<span class="highlight">  Packets exceeding 1400 bytes silently dropped on transit link</span>',
+                question: 'Path MTU discovery is failing. Large packets are silently dropped on a transit link. What firewall change is needed?',
+                options: [
+                    '-- Select an answer --',
+                    'Allow all ICMP traffic without restriction',
+                    'Remove the default DROP policy',
+                    'Allow ICMP type 3 (Destination Unreachable) through the firewall',
+                    'Increase the firewall MTU to 9000'
+                ],
+                correct: 3,
+                correctMsg: 'Correct. Rule 5 drops all protocol 1 (ICMP) traffic, including type 3 code 4 (Fragmentation Needed) messages that are essential for Path MTU Discovery. Allowing ICMP type 3 lets endpoints negotiate the correct packet size across links with smaller MTUs.',
+                incorrectMsg: 'The firewall log shows ICMP type 3 code 4 packets being dropped. These are "Fragmentation Needed" messages required for PMTUD. Blocking all ICMP is too broad -- type 3 must be permitted.',
+                hint: 'Protocol 1 in iptables = ICMP. The log shows type 3, code 4 (Fragmentation Needed) being dropped. PMTUD relies on these messages to discover the maximum packet size along a path.'
+            },
+            {
+                num: 6,
+                title: 'ARP Table Inspection',
+                layer: 'Data Link',
+                evidenceLabel: 'ARP Table -- switch core-sw-01 (VLAN 40)',
+                evidence:
+'Address          HWtype   HWaddress           Iface    Flags\n' +
+'10.40.2.1        ether    00:1a:2b:3c:4d:01   vlan40   C\n' +
+'10.40.2.10       ether    00:1a:2b:3c:4d:10   vlan40   C\n' +
+'<span class="highlight">10.40.2.50       ether    00:1a:2b:3c:4d:50   vlan40   C</span>\n' +
+'<span class="highlight">10.40.2.50       ether    aa:bb:cc:dd:ee:50   vlan40   C</span>\n' +
+'10.40.2.51       ether    00:1a:2b:3c:4d:51   vlan40   C\n' +
+'10.40.2.100      ether    00:1a:2b:3c:4d:a0   vlan40   C\n\n' +
+'--- Switch Log ---\n' +
+'<span class="highlight">[14:29:55] %IP-4-DUPADDR: Duplicate address 10.40.2.50 on vlan40</span>\n' +
+'           detected by 00:1a:2b:3c:4d:50 and aa:bb:cc:dd:ee:50\n' +
+'<span class="warn">[14:30:10] ARP flux: 10.40.2.50 flapping between port Gi0/12 and Gi0/18</span>\n' +
+'<span class="warn">[14:30:25] ARP flux: 10.40.2.50 flapping between port Gi0/12 and Gi0/18</span>\n' +
+'<span class="highlight">[14:30:40] Traffic to 10.40.2.50 intermittently misdelivered</span>\n' +
+'           50% of packets reaching wrong host',
+                question: 'The ARP table shows two entries for the same IP. What is the conflict?',
+                options: [
+                    '-- Select an answer --',
+                    'Two devices have the same IP address (10.40.2.50)',
+                    'The switch has a spanning tree loop',
+                    'VLAN 40 is misconfigured on the trunk',
+                    'ARP cache poisoning attack in progress'
+                ],
+                correct: 1,
+                correctMsg: 'Correct. The ARP table contains two different MAC addresses (00:1a:2b:3c:4d:50 and aa:bb:cc:dd:ee:50) both mapped to 10.40.2.50. The switch log confirms a duplicate address detection. One device must be reassigned to a different IP.',
+                incorrectMsg: 'Count the entries for 10.40.2.50 in the ARP table. Two different MAC addresses are both claiming the same IP. The switch log explicitly reports %IP-4-DUPADDR.',
+                hint: 'Look at the HWaddress column. IP 10.40.2.50 appears twice with different MAC addresses. The switch detects this as a duplicate address and traffic flaps between the two ports.'
+            },
+            {
+                num: 7,
+                title: 'Traceroute TTL Analysis',
+                layer: 'Network',
+                evidenceLabel: 'traceroute from application server to remote API (10.50.1.25)',
+                evidence:
+'$ traceroute -n 10.50.1.25\n' +
+'traceroute to 10.50.1.25, 30 hops max, 60 byte packets\n' +
+'<span class="highlight"> 1  10.40.2.1    1.204 ms  0.998 ms  1.102 ms</span>\n' +
+'<span class="highlight"> 2  * * *</span>\n' +
+'<span class="highlight"> 3  * * *</span>\n' +
+'...\n' +
+'<span class="highlight">30  * * *</span>\n\n' +
+'$ ip route show\n' +
+'default via 10.40.2.1 dev eth0\n' +
+'10.40.2.0/24 dev eth0 proto kernel scope link src 10.40.2.50\n\n' +
+'$ sysctl net.ipv4.ip_default_ttl\n' +
+'<span class="highlight">net.ipv4.ip_default_ttl = 1</span>\n\n' +
+'<span class="warn">[NOTE] Packets reach the default gateway (hop 1) but are discarded</span>\n' +
+'<span class="warn">       by the next-hop router because TTL expires to 0</span>\n' +
+'<span class="highlight">[ERROR] All connections to 10.50.x.x subnets FAIL</span>\n' +
+'  Remote API calls timeout after 3s with no response',
+                question: 'Traceroute shows packets never get past hop 1. Why can\'t the server reach remote subnets?',
+                options: [
+                    '-- Select an answer --',
+                    'The default gateway is unreachable',
+                    'The IP default TTL is set to 1, packets expire at the first router',
+                    'There is no route to the 10.50.x.x network',
+                    'The traceroute max hops setting is too low'
+                ],
+                correct: 2,
+                correctMsg: 'Correct. With ip_default_ttl = 1, every packet\'s TTL expires after crossing the first router. The gateway (10.40.2.1) is reachable at hop 1, but the next router decrements TTL to 0 and drops the packet. Setting TTL to 64 or 128 resolves this.',
+                incorrectMsg: 'The traceroute reaches hop 1 successfully, so the gateway is reachable and routing exists. Check the sysctl output -- the default TTL is the problem. A TTL of 1 means packets can only survive one hop.',
+                hint: 'Look at the sysctl value for ip_default_ttl. Normal Linux default is 64. A TTL of 1 means every packet dies after one router hop. The gateway itself responds (hop 1), but nothing beyond it.'
+            },
+            {
+                num: 8,
+                title: 'VPN Tunnel MSS Configuration',
+                layer: 'Transport',
+                evidenceLabel: 'VPN Tunnel Config -- OpenVPN (tun0) + transfer test',
+                evidence:
+'# /etc/openvpn/server.conf (relevant lines)\n' +
+'dev tun\n' +
+'proto tcp\n' +
+'port 1194\n' +
+'tun-mtu 1500\n' +
+'<span class="highlight">mssfix 536</span>\n' +
+'cipher AES-256-GCM\n' +
+'auth SHA256\n\n' +
+'$ ip link show tun0\n' +
+'  tun0: <POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP> mtu 1500\n' +
+'    link/none\n' +
+'    inet 10.8.0.1/24 scope global tun0\n\n' +
+'--- Transfer Test Results ---\n' +
+'Test 1: 100-byte payload via VPN    <span class="ok">OK  --  delivered in 12ms</span>\n' +
+'Test 2: 500-byte payload via VPN    <span class="ok">OK  --  delivered in 18ms</span>\n' +
+'Test 3: 1000-byte payload via VPN   <span class="highlight">FAIL -- segmented into 2 packets, reassembly timeout</span>\n' +
+'Test 4: 1400-byte payload via VPN   <span class="highlight">FAIL -- segmented into 3 packets, reassembly timeout</span>\n' +
+'Test 5: 4500-byte file transfer     <span class="highlight">FAIL -- 9 segments, only 4 acknowledged, transfer stalled</span>\n\n' +
+'<span class="warn">[WARNING] MSS clamped to 536 bytes -- all TCP segments exceeding this are fragmented</span>\n' +
+'<span class="warn">[WARNING] Fragmentation + encryption overhead causing reassembly failures</span>\n' +
+'<span class="highlight">[IMPACT] File uploads > 500 bytes consistently fail over VPN tunnel</span>',
+                question: 'Large file transfers fail over the VPN while small payloads work. What needs to change?',
+                options: [
+                    '-- Select an answer --',
+                    'Disable AES-256-GCM encryption to reduce overhead',
+                    'Increase tun-mtu from 1500 to 9000 for jumbo frames',
+                    'Change VPN protocol from TCP to UDP',
+                    'Increase MSS from 536 to 1360 to reduce fragmentation'
+                ],
+                correct: 4,
+                correctMsg: 'Correct. The MSS is clamped to 536 bytes (the old dialup-era minimum), forcing excessive fragmentation. With VPN overhead (typically ~40 bytes for OpenVPN), an MSS of 1360 allows full-sized segments to traverse the tunnel without fragmentation while leaving room for encapsulation headers.',
+                incorrectMsg: 'The mssfix value in the OpenVPN config clamps the TCP MSS to 536 bytes. Any payload larger than 536 bytes is fragmented. The standard VPN-safe MSS is 1360, which accounts for tunnel overhead within a 1500-byte MTU.',
+                hint: 'MSS 536 is the absolute minimum from RFC 879 (dialup era). Modern VPN tunnels use 1360 to account for ~140 bytes of VPN + encryption overhead within a 1500 MTU. Check the mssfix directive in the OpenVPN config.'
+            }
+        ];
+
+        function buildSteps() {
+            var container = document.getElementById('stepsContainer');
+            STEPS.forEach(function(step, idx) {
+                var card = document.createElement('div');
+                card.className = 'step-card' + (idx === 0 ? ' open' : '');
+                card.id = 'step-' + step.num;
+                card.innerHTML =
+                    '<div class="step-header" onclick="window.toggleStep(' + step.num + ')">' +
+                        '<div class="step-num">' + step.num + '</div>' +
+                        '<div class="step-title">' + step.title + '</div>' +
+                        '<div class="step-layer">' + step.layer + '</div>' +
+                        '<div class="step-toggle">&#x25BC;</div>' +
+                    '</div>' +
+                    '<div class="step-body">' +
+                        '<div class="evidence-panel">' +
+                            '<div class="evidence-label">' + step.evidenceLabel + '</div>' +
+                            '<div class="evidence-content">' + step.evidence + '</div>' +
+                        '</div>' +
+                        '<div class="question-area">' +
+                            '<div class="question-text">' + step.question + '</div>' +
+                            '<div class="answer-row">' +
+                                buildSelect(step.num, step.options) +
+                                '<button class="btn-verify" id="btn-' + step.num + '" onclick="window.verifyAnswer(' + step.num + ')">Verify</button>' +
+                            '</div>' +
+                            '<div class="feedback" id="fb-' + step.num + '"></div>' +
+                            '<div class="hint-toggle" onclick="window.showHint(' + step.num + ')">&#x25B6; Show Hint</div>' +
+                            '<div class="hint-body" id="hint-' + step.num + '">' + step.hint + '</div>' +
+                        '</div>' +
+                    '</div>';
+                container.appendChild(card);
+            });
+        }
+
+        function buildSelect(num, options) {
+            var html = '<select class="answer-select" id="sel-' + num + '">';
+            options.forEach(function(opt, i) {
+                html += '<option value="' + i + '">' + opt + '</option>';
+            });
+            html += '</select>';
+            return html;
+        }
+
+        window.toggleStep = function(num) {
+            var card = document.getElementById('step-' + num);
+            card.classList.toggle('open');
+        };
+
+        window.verifyAnswer = function(num) {
+            if (solved[num]) return;
+
+            var sel = document.getElementById('sel-' + num);
+            var fb = document.getElementById('fb-' + num);
+            var card = document.getElementById('step-' + num);
+            var btn = document.getElementById('btn-' + num);
+            var selected = parseInt(sel.value);
+            var step = STEPS[num - 1];
+
+            if (selected === 0) return;
+
+            if (selected === step.correct) {
+                solved[num] = true;
+                if (!firstTry.hasOwnProperty(num)) {
+                    firstTry[num] = true;
+                }
+                fb.className = 'feedback show correct';
+                fb.textContent = step.correctMsg;
+                card.classList.add('correct');
+                card.classList.remove('incorrect');
+                sel.disabled = true;
+                btn.disabled = true;
+                updateProgress();
+
+                // Auto-open next step
+                if (num < 8) {
+                    var nextCard = document.getElementById('step-' + (num + 1));
+                    if (nextCard && !nextCard.classList.contains('open')) {
+                        setTimeout(function() {
+                            nextCard.classList.add('open');
+                            nextCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 600);
+                    }
+                }
+            } else {
+                if (!firstTry.hasOwnProperty(num)) {
+                    firstTry[num] = false;
+                }
+                fb.className = 'feedback show incorrect';
+                fb.textContent = step.incorrectMsg;
+                card.classList.add('incorrect');
+            }
+        };
+
+        window.showHint = function(num) {
+            var hintEl = document.getElementById('hint-' + num);
+            if (!hintEl.classList.contains('show')) {
+                hintEl.classList.add('show');
+                if (!solved[num]) {
+                    hintsUsed++;
+                }
+            }
+        };
+
+        function updateProgress() {
+            var count = Object.keys(solved).length;
+            var pct = (count / 8) * 100;
+            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('progressCount').textContent = count + ' / 8';
+
+            if (count === 8) {
+                showCompletion();
+            }
+        }
+
+        function showCompletion() {
+            var banner = document.getElementById('completionBanner');
+            banner.classList.add('show');
+
+            var correctCount = 0;
+            for (var k in firstTry) {
+                if (firstTry[k]) correctCount++;
+            }
+            document.getElementById('statCorrect').textContent = correctCount + ' / 8';
+            document.getElementById('statHints').textContent = hintsUsed;
+
+            var elapsed = Math.floor((Date.now() - startTime) / 1000);
+            var mins = Math.floor(elapsed / 60);
+            var secs = elapsed % 60;
+            document.getElementById('statTime').textContent = mins + ':' + (secs < 10 ? '0' : '') + secs;
+
+            banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            // Report to ModuleProgress
+            if (typeof ModuleProgress !== 'undefined') {
+                try {
+                    ModuleProgress.complete('web', 'web-ne02-tcpip-scenario', { returnToDashboard: false, returnUrl: '../index.html' });
+                } catch(e) { /* silent */ }
+            }
+        }
+
+        buildSteps();
+    })();
+    </script>
+</body>
+</html>

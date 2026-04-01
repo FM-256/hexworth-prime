@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EIGRP | Network+ N10-009</title>
+    <style>
+        /* =====================================================
+           RESET & BASE
+           ===================================================== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* =====================================================
+           SLIDE SYSTEM — viewport-locked, no overflow
+           ===================================================== */
+        .slide {
+            display: none;
+            position: fixed;
+            inset: 0;
+            padding: 20px 28px 72px;
+            overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Inner wrapper — constrains content width */
+        .slide-inner {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* =====================================================
+           PROGRESS BAR
+           ===================================================== */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: #c9a83a;
+            transition: width 0.4s ease;
+            z-index: 200;
+        }
+
+        /* =====================================================
+           NAVIGATION BAR — fixed bottom
+           ===================================================== */
+        #nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            z-index: 200;
+            padding: 0 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.2);
+            color: #c9a83a;
+            border-color: #c9a83a;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.back-btn {
+            font-size: 0.82rem;
+            padding: 8px 16px;
+        }
+
+        #slide-counter {
+            color: #64748b;
+            font-size: 0.82rem;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        #complete-btn {
+            display: none;
+            background: #3ab577;
+            color: #000;
+            border: none;
+            padding: 9px 26px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+
+        #complete-btn:hover {
+            background: #4fcf8a;
+            transform: translateY(-1px);
+        }
+
+        /* =====================================================
+           SHARED SLIDE TYPOGRAPHY
+           ===================================================== */
+        .slide-meta {
+            font-size: 0.78rem;
+            color: #c9a83a;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .slide-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            text-align: center;
+            line-height: 1.25;
+        }
+
+        .slide-title .accent { color: #c9a83a; }
+
+        .slide-subtitle {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        /* =====================================================
+           SCENARIO STRIP
+           ===================================================== */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.06);
+            border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0;
+            padding: 10px 16px;
+            font-size: 0.88rem;
+            color: #f5e8b0;
+            font-style: italic;
+        }
+
+        /* =====================================================
+           BOXES
+           ===================================================== */
+        .box {
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.875rem;
+        }
+
+        .box-gold {
+            background: rgba(201, 168, 58, 0.07);
+            border: 1px solid rgba(201, 168, 58, 0.3);
+            color: #f5e8b0;
+        }
+
+        .box-green {
+            background: rgba(58, 181, 119, 0.08);
+            border: 1px solid rgba(58, 181, 119, 0.35);
+            color: #d1fae5;
+        }
+
+        .box-red {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fee2e2;
+        }
+
+        .box-blue {
+            background: rgba(58, 143, 212, 0.08);
+            border: 1px solid rgba(58, 143, 212, 0.3);
+            color: #bae0f7;
+        }
+
+        .box-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+            opacity: 0.75;
+        }
+
+        /* =====================================================
+           CARD GRIDS
+           ===================================================== */
+        .card-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        .card-grid-2 { grid-template-columns: 1fr 1fr; }
+        .card-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+        .card-grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+        .card {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 8px;
+            padding: 11px 14px;
+            border-left: 3px solid #c9a83a;
+            font-size: 0.85rem;
+        }
+
+        .card-title {
+            font-weight: 700;
+            color: #c9a83a;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 4px;
+        }
+
+        .card-body {
+            color: #94a3b8;
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-green .card-title { color: #3ab577; }
+        .card.c-blue  { border-left-color: #3a8fd4; }
+        .card.c-blue  .card-title { color: #3a8fd4; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-red   .card-title { color: #ef4444; }
+
+        /* =====================================================
+           TABLE
+           ===================================================== */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.83rem;
+        }
+
+        .data-table th {
+            background: rgba(201, 168, 58, 0.1);
+            color: #c9a83a;
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .data-table td {
+            padding: 7px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: #94a3b8;
+        }
+
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table tr:hover td { background: rgba(201, 168, 58, 0.03); }
+
+        .td-accent { color: #c9a83a; font-weight: 600; }
+        .td-mono   { font-family: 'Courier New', monospace; color: #e2e8f0; }
+
+        /* =====================================================
+           CODE BLOCK
+           ===================================================== */
+        .code-block {
+            background: #070710;
+            border: 1px solid rgba(201, 168, 58, 0.15);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            color: #e2e8f0;
+            white-space: pre;
+        }
+
+        .code-block .c-comment { color: #475569; }
+        .code-block .c-cmd     { color: #c9a83a; }
+        .code-block .c-val     { color: #3ab577; }
+
+        /* =====================================================
+           TITLE SLIDE
+           ===================================================== */
+        .title-hero {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .big-title {
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: #f1f5f9;
+            line-height: 1.2;
+        }
+
+        .big-title .gold { color: #c9a83a; }
+
+        .title-meta-row {
+            display: flex;
+            gap: 28px;
+            justify-content: center;
+            margin-top: 6px;
+            font-size: 0.82rem;
+            color: #475569;
+        }
+
+        .title-meta-row span {
+            border-left: 2px solid #1e293b;
+            padding-left: 28px;
+        }
+
+        .title-meta-row span:first-child {
+            border-left: none;
+            padding-left: 0;
+        }
+
+        /* =====================================================
+           DUAL DIAGRAM — Successor / Feasible Successor
+           ===================================================== */
+        .dual-row {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+        }
+
+        .dual-path {
+            flex: 1;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.83rem;
+        }
+
+        .dual-path.dp-successor {
+            background: rgba(58, 181, 119, 0.07);
+            border: 1px solid rgba(58, 181, 119, 0.3);
+        }
+
+        .dual-path.dp-fs {
+            background: rgba(201, 168, 58, 0.07);
+            border: 1px solid rgba(201, 168, 58, 0.3);
+        }
+
+        .dual-path.dp-query {
+            background: rgba(239, 68, 68, 0.07);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .dp-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 5px;
+        }
+
+        .dp-successor .dp-label { color: #3ab577; }
+        .dp-fs       .dp-label  { color: #c9a83a; }
+        .dp-query    .dp-label  { color: #ef4444; }
+
+        .dp-body { color: #94a3b8; line-height: 1.4; }
+
+        /* =====================================================
+           SUMMARY FACTS
+           ===================================================== */
+        .summary-facts {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .fact-row {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            font-size: 0.875rem;
+        }
+
+        .fact-num {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #c9a83a;
+            min-width: 22px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .fact-text {
+            color: #cbd5e1;
+        }
+
+        .fact-text code {
+            font-family: 'Courier New', monospace;
+            color: #c9a83a;
+            background: rgba(201, 168, 58, 0.1);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+
+        .summary-scenario {
+            background: rgba(201, 168, 58, 0.06);
+            border: 1px solid rgba(201, 168, 58, 0.25);
+            border-radius: 9px;
+            padding: 14px 18px;
+            font-size: 0.875rem;
+            color: #f5e8b0;
+            line-height: 1.65;
+        }
+
+        .summary-scenario strong { color: #c9a83a; }
+
+        /* =====================================================
+           UTILITY
+           ===================================================== */
+        .section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: #475569;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        /* =====================================================
+           RESPONSIVE
+           ===================================================== */
+        @media (max-height: 700px) {
+            .slide-inner { gap: 9px; }
+            .slide-title { font-size: 1.4rem; }
+            .big-title   { font-size: 1.9rem; }
+            .card-grid   { gap: 6px; }
+        }
+
+        @media (max-width: 768px) {
+            .card-grid-3 { grid-template-columns: 1fr; }
+            .card-grid-4 { grid-template-columns: repeat(2, 1fr); }
+            .card-grid-2 { grid-template-columns: 1fr; }
+            .dual-row    { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Progress bar across very top -->
+<div id="progress-bar" style="width:12.5%"></div>
+
+<!-- =====================================================================
+     SLIDE 1 — TITLE
+     ===================================================================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 8 &nbsp;|&nbsp; N10-009 Obj 1.1 &nbsp;|&nbsp; Dynamic Routing</div>
+
+        <div class="title-hero">
+            <div class="big-title">
+                <span class="gold">EIGRP</span>:<br>
+                Cisco's Advanced Distance-Vector
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Hybrid protocol. DUAL algorithm. Near-instant convergence on Cisco networks.
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Your Cisco-only network needs a routing protocol that converges faster than OSPF.
+            EIGRP — Cisco's advanced distance-vector hybrid — keeps a backup path in its pocket.
+            When a link fails, it switches to the pre-calculated feasible successor in milliseconds,
+            no SPF recalculation required.
+        </div>
+
+        <div class="title-meta-row">
+            <span>8 Slides</span>
+            <span>N10-009 Obj 1.1</span>
+            <span>Layer 3 — Network</span>
+            <span>Cisco-Only</span>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 2 — WHAT EIGRP IS (advanced distance-vector / hybrid)
+     ===================================================================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 8</div>
+        <div class="slide-title">What Is <span class="accent">EIGRP</span>?</div>
+        <div class="slide-subtitle">Enhanced Interior Gateway Routing Protocol — Cisco proprietary since 1992, partly open since 2013.</div>
+
+        <div class="card-grid card-grid-3">
+            <div class="card">
+                <div class="card-title">Distance-Vector Foundation</div>
+                <div class="card-body">
+                    Like RIP, EIGRP shares routing information with directly connected neighbors.
+                    Unlike RIP, it does not send full table updates on a timer — only triggered
+                    incremental updates when something changes.
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Link-State Enhancements</div>
+                <div class="card-body">
+                    EIGRP maintains a full topology table (not just the best routes), uses
+                    a sophisticated metric, and forms explicit neighbor relationships with
+                    Hello packets — behaviors borrowed from link-state protocols like OSPF.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-title">Why "Hybrid"</div>
+                <div class="card-body">
+                    EIGRP combines the simplicity of distance-vector (neighbors share metrics,
+                    not full topology maps) with the speed and stability of link-state (topology
+                    awareness, event-driven updates). This is why it is called "advanced
+                    distance-vector" or "hybrid."
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Key Numbers</div>
+            Protocol: IP 88 (not TCP/UDP) &nbsp;|&nbsp; Admin Distance: 90 (internal), 170 (external)
+            &nbsp;|&nbsp; Multicast: 224.0.0.10 &nbsp;|&nbsp; Cisco-proprietary (though RFC 7868 opened a limited version)
+        </div>
+
+        <div class="scenario-strip">
+            Your Cisco-only network means EIGRP is a valid choice. If you had mixed vendors,
+            you would need OSPF instead — EIGRP will not form neighbors with non-Cisco gear
+            in the standard proprietary implementation.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 3 — COMPOSITE METRIC (bandwidth, delay, K values)
+     ===================================================================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 8</div>
+        <div class="slide-title">Composite Metric — <span class="accent">K Values</span></div>
+        <div class="slide-subtitle">EIGRP calculates a single metric from multiple interface parameters. By default, only two actually matter.</div>
+
+        <div class="box box-gold" style="text-align:center; font-size:0.88rem;">
+            <strong>Metric = [K1 x Bandwidth + (K2 x Bandwidth)/(256-Load) + K3 x Delay] x [K5/(Reliability + K4)]</strong>
+        </div>
+
+        <div class="card-grid card-grid-4">
+            <div class="card">
+                <div class="card-title">K1 — Bandwidth</div>
+                <div class="card-body">Default K1 = 1. Uses slowest bandwidth along the path. Higher bandwidth = lower metric = preferred.</div>
+            </div>
+            <div class="card">
+                <div class="card-title">K2 — Load</div>
+                <div class="card-body">Default K2 = 0 (disabled). Interface utilization 0-255. Rarely used — causes metric instability under load.</div>
+            </div>
+            <div class="card">
+                <div class="card-title">K3 — Delay</div>
+                <div class="card-body">Default K3 = 1. Sum of delays along the path in tens of microseconds. Both bandwidth and delay are used by default.</div>
+            </div>
+            <div class="card">
+                <div class="card-title">K4 / K5 — Reliability</div>
+                <div class="card-body">Default K4 = K5 = 0 (disabled). Link reliability 0-255. Disabled by default — causes instability when enabled.</div>
+            </div>
+        </div>
+
+        <div class="card-grid card-grid-2">
+            <div class="box box-green">
+                <div class="box-label">Default Behavior (K1 + K3 only)</div>
+                With K2, K4, K5 at zero, the formula simplifies to:
+                <strong>Metric = 256 x (10^7/Bandwidth_kbps + Delay_us/10)</strong>.
+                Bandwidth and delay. Everything else is noise unless tuned.
+            </div>
+            <div class="box box-red">
+                <div class="box-label">K Values Must Match</div>
+                All EIGRP routers in the same autonomous system must have identical K values.
+                Mismatch = no neighbor relationship. This is one of the first things to check
+                when EIGRP neighbors won't form.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 4 — DUAL ALGORITHM (FD, RD, successor, feasible successor)
+     ===================================================================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 8</div>
+        <div class="slide-title"><span class="accent">DUAL</span> — Diffusing Update Algorithm</div>
+        <div class="slide-subtitle">DUAL guarantees loop-free paths and enables near-instant convergence via pre-calculated backups.</div>
+
+        <div class="card-grid card-grid-2" style="margin-bottom:4px;">
+            <div class="card">
+                <div class="card-title">Feasible Distance (FD)</div>
+                <div class="card-body">The total metric from THIS router to the destination, via the best known path. This is what goes in the routing table.</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Reported Distance (RD)</div>
+                <div class="card-body">The metric a NEIGHBOR reports for reaching the destination. Also called Advertised Distance (AD). This is the neighbor's FD — not yours.</div>
+            </div>
+        </div>
+
+        <div class="dual-row">
+            <div class="dual-path dp-successor">
+                <div class="dp-label">Successor</div>
+                <div class="dp-body">
+                    The neighbor with the <strong>lowest FD</strong> to the destination.
+                    This is the active, currently-used path. It goes in the routing table.
+                    If this path fails and no feasible successor exists, DUAL enters
+                    Active state and queries neighbors.
+                </div>
+            </div>
+            <div class="dual-path dp-fs">
+                <div class="dp-label">Feasible Successor</div>
+                <div class="dp-body">
+                    A backup neighbor whose <strong>RD is less than the current FD</strong>
+                    (the Feasibility Condition). DUAL guarantees this path is loop-free.
+                    When the successor fails, the feasible successor is promoted instantly —
+                    no queries, no recalculation. This is EIGRP's convergence advantage.
+                </div>
+            </div>
+            <div class="dual-path dp-query">
+                <div class="dp-label">Active State (no FS available)</div>
+                <div class="dp-body">
+                    If no feasible successor exists, EIGRP goes Active and sends Query
+                    packets to all neighbors. Neighbors respond with their best metric.
+                    DUAL recalculates. Convergence is slower but still loop-free.
+                    Stuck in Active (SIA) = neighbor never replied within 3 minutes.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Feasibility Condition:</strong> A neighbor qualifies as a Feasible Successor only if its
+            RD &lt; your current FD. This mathematical guarantee is what makes EIGRP loop-free
+            without needing a full topology map like OSPF.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 5 — THREE TABLES (neighbor, topology, routing)
+     ===================================================================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 8</div>
+        <div class="slide-title">Three Tables — <span class="accent">How EIGRP Stores Information</span></div>
+        <div class="slide-subtitle">EIGRP maintains three separate data structures. Know what each one contains.</div>
+
+        <div class="card-grid card-grid-3">
+            <div class="card">
+                <div class="card-title">Neighbor Table</div>
+                <div class="card-body">
+                    Lists all directly connected EIGRP neighbors and their state.
+                    Built via Hello packets. Shows hold time, uptime, and the queue count.
+                    If a neighbor disappears here, all routes through it are immediately
+                    removed from the topology table.
+                    <br><br>
+                    Command: <code style="font-family:monospace; color:#c9a83a;">show ip eigrp neighbors</code>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Topology Table</div>
+                <div class="card-body">
+                    Lists all destinations learned from all neighbors, with FD and RD values.
+                    Contains the successor AND all feasible successors for each destination.
+                    This is the "complete picture" — more than what ends up in the routing table.
+                    <br><br>
+                    Command: <code style="font-family:monospace; color:#c9a83a;">show ip eigrp topology</code>
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-title">Routing Table</div>
+                <div class="card-body">
+                    Contains only the best path (successor) to each destination — the result
+                    DUAL selected from the topology table. EIGRP routes appear as "D" in the
+                    routing table. External routes appear as "D EX."
+                    <br><br>
+                    Command: <code style="font-family:monospace; color:#c9a83a;">show ip route eigrp</code>
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Why three tables matter for troubleshooting:</strong> If a route is in the topology table
+            but not the routing table, DUAL preferred a different path or the Feasibility Condition was not met.
+            If it is not in the topology table at all, the neighbor is not advertising it — check the neighbor table first.
+        </div>
+
+        <div class="scenario-strip">
+            Link to a branch office fails. EIGRP checks the topology table — there is a feasible successor
+            (RD &lt; FD). It is promoted to successor instantly. The routing table updates in under a second.
+            No queries, no reconvergence delay. The network never stopped forwarding traffic.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 6 — CONVERGENCE SPEED + EIGRP vs OSPF
+     ===================================================================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 8</div>
+        <div class="slide-title">Convergence &amp; <span class="accent">EIGRP vs OSPF</span></div>
+        <div class="slide-subtitle">EIGRP's speed advantage is real — but only when a feasible successor is available.</div>
+
+        <div class="card-grid card-grid-2" style="margin-bottom:4px;">
+            <div class="box box-gold">
+                <div class="box-label">EIGRP — With Feasible Successor</div>
+                When the active path fails and a feasible successor exists in the topology table,
+                EIGRP switches paths <strong>without querying any neighbor</strong>.
+                The routing table updates in <strong>under 1 second</strong>. This is EIGRP's primary
+                convergence advantage over OSPF.
+            </div>
+            <div class="box box-blue">
+                <div class="box-label">OSPF — Always Runs SPF</div>
+                When any link changes, OSPF floods an LSA and every affected router runs
+                Dijkstra SPF. This is CPU-intensive and takes <strong>seconds to tens of seconds</strong>
+                depending on network size. Faster than RIP, but not as instant as EIGRP with a FS in hand.
+            </div>
+        </div>
+
+        <table class="data-table" style="border-radius:8px; overflow:hidden;">
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>EIGRP</th>
+                    <th>OSPF</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>Type</td><td class="td-accent">Advanced distance-vector (hybrid)</td><td>Link-state</td></tr>
+                <tr><td>Algorithm</td><td class="td-accent">DUAL</td><td>Dijkstra SPF</td></tr>
+                <tr><td>Metric</td><td class="td-accent">Composite (BW + delay by default)</td><td>Cost (bandwidth only)</td></tr>
+                <tr><td>Convergence</td><td class="td-accent">Sub-second (with FS)</td><td>Seconds</td></tr>
+                <tr><td>Admin distance</td><td class="td-accent">90 (internal) / 170 (external)</td><td>110</td></tr>
+                <tr><td>Vendor support</td><td>Cisco proprietary</td><td class="td-accent">Open standard (RFC 2328)</td></tr>
+                <tr><td>Topology table</td><td class="td-accent">Yes — all paths stored</td><td>Yes — full LSDB</td></tr>
+                <tr><td>Best use</td><td class="td-accent">Cisco-only networks</td><td>Mixed-vendor enterprise</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 7 — CONFIGURATION BASICS
+     ===================================================================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 8</div>
+        <div class="slide-title">EIGRP Configuration — <span class="accent">Cisco IOS</span></div>
+        <div class="slide-subtitle">Simpler to configure than OSPF. Autonomous System number must match all neighbors.</div>
+
+        <div class="card-grid card-grid-2">
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">Basic Setup</div>
+                <div class="code-block"><span class="c-comment">! EIGRP AS 100 — must match all neighbors</span>
+<span class="c-cmd">router eigrp</span> <span class="c-val">100</span>
+<span class="c-comment">! Advertise directly connected networks</span>
+<span class="c-cmd">network</span> <span class="c-val">10.1.0.0 0.0.0.255</span>
+<span class="c-cmd">network</span> <span class="c-val">10.0.12.0 0.0.0.3</span>
+<span class="c-comment">! Disable auto-summarization (IOS 12 default)</span>
+<span class="c-cmd">no auto-summary</span>
+<span class="c-comment">! Silence EIGRP on user-facing ports</span>
+<span class="c-cmd">passive-interface</span> <span class="c-val">GigabitEthernet0/1</span></div>
+            </div>
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">Verification</div>
+                <div class="code-block"><span class="c-comment">! Neighbors — check state and hold time</span>
+<span class="c-cmd">show ip eigrp neighbors</span>
+
+<span class="c-comment">! All paths including feasible successors</span>
+<span class="c-cmd">show ip eigrp topology</span>
+
+<span class="c-comment">! Only best paths in routing table</span>
+<span class="c-cmd">show ip route eigrp</span>
+
+<span class="c-comment">! EIGRP process summary — K values, AS</span>
+<span class="c-cmd">show ip eigrp</span> <span class="c-val">interfaces</span></div>
+            </div>
+        </div>
+
+        <div class="card-grid card-grid-2">
+            <div class="box box-red" style="font-size:0.83rem;">
+                <strong>Common failure: AS number mismatch.</strong> EIGRP will not form a neighbor relationship
+                if the AS numbers don't match. Unlike OSPF process IDs (which are local), EIGRP AS numbers
+                are significant — they must be identical on both ends of every neighbor link.
+            </div>
+            <div class="box box-gold" style="font-size:0.83rem;">
+                <strong>Named EIGRP mode</strong> (IOS 15.0+) is the modern approach:
+                <code style="font-family:monospace; color:#c9a83a;">router eigrp MYORG</code>
+                followed by <code style="font-family:monospace; color:#c9a83a;">address-family ipv4 autonomous-system 100</code>.
+                Supports both IPv4 and IPv6 in a single process.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 8 — SUMMARY + COMPLETE
+     ===================================================================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 8 &nbsp;|&nbsp; N10-009 Obj 1.1</div>
+        <div class="slide-title">EIGRP in Your Cisco Network</div>
+
+        <div class="summary-scenario">
+            Your Cisco-only network needed faster convergence than OSPF. EIGRP delivered it: when the branch link
+            failed, EIGRP promoted the <strong>feasible successor</strong> from its <strong>topology table</strong>
+            without querying a single neighbor. The routing table updated in under a second.
+            No SPF calculation. No waiting. That sub-second recovery is EIGRP's entire value proposition on
+            a Cisco network — at the cost of vendor lock-in.
+        </div>
+
+        <div class="section-label">6 Facts to Carry Out of This Presentation</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">EIGRP is Cisco proprietary. Protocol IP 88. Admin distance: <code>90</code> internal, <code>170</code> external.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Composite metric uses bandwidth and delay by default (K1=1, K3=1, others=0). K values must match all neighbors.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>DUAL algorithm:</strong> FD = your best metric. RD = neighbor's reported metric. FS requires RD &lt; FD.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Three tables: <code>Neighbor table</code> (Hello-based) &rarr; <code>Topology table</code> (all paths) &rarr; <code>Routing table</code> (best path only).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Near-instant convergence when a Feasible Successor exists. Falls back to Active queries if none.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Key commands: <code>show ip eigrp neighbors</code>, <code>show ip eigrp topology</code>, <code>show ip route eigrp</code>.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     NAVIGATION BAR
+     ===================================================================== -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Network+ Hub</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 8</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<!-- =====================================================================
+     PRESENTATION LOGIC
+     ===================================================================== -->
+<script>
+    /* State */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 8;
+
+    /* Navigate to a specific slide number (1-indexed) */
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update progress bar */
+        const pct = (currentSlide / TOTAL_SLIDES) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+
+        /* Update counter */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Update nav button states */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show complete button only on final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            goToSlide(currentSlide + 1);
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            goToSlide(currentSlide - 1);
+        }
+    });
+
+    /* Initialize */
+    goToSlide(1);
+</script>
+
+<!-- Module completion -->
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'web-eigrp', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

@@ -1,0 +1,1802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NE-04 Lab: Cable Testing &amp; Troubleshooting | Network+</title>
+    <style>
+        /* ============================================================
+           ROOT VARIABLES
+           ============================================================ */
+        :root {
+            --bg:          #090910;
+            --bg-card:     #0d0d18;
+            --bg-panel:    #111120;
+            --bg-device:   #0a0a14;
+            --border:      rgba(201, 168, 58, 0.18);
+            --border-hi:   rgba(201, 168, 58, 0.5);
+            --gold:        #c9a83a;
+            --gold-dim:    rgba(201, 168, 58, 0.15);
+            --gold-glow:   rgba(201, 168, 58, 0.28);
+            --text:        #e2e8f0;
+            --text-dim:    #64748b;
+            --text-mid:    #94a3b8;
+            --success:     #22c55e;
+            --success-bg:  rgba(34, 197, 94, 0.12);
+            --success-glow:rgba(34, 197, 94, 0.35);
+            --danger:      #ef4444;
+            --danger-bg:   rgba(239, 68, 68, 0.12);
+            --danger-glow: rgba(239, 68, 68, 0.35);
+            --warn:        #f59e0b;
+            --wire-wo:     #f97316; /* White/Orange */
+            --wire-o:      #ea580c;  /* Orange */
+            --wire-wg:     #4ade80;  /* White/Green */
+            --wire-bl:     #60a5fa;  /* Blue */
+            --wire-wbl:    #93c5fd;  /* White/Blue */
+            --wire-g:      #22c55e;  /* Green */
+            --wire-wbr:    #d4d4aa;  /* White/Brown */
+            --wire-br:     #92400e;  /* Brown */
+        }
+
+        /* ============================================================
+           RESET & BASE
+           ============================================================ */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* ============================================================
+           NAVIGATION BAR
+           ============================================================ */
+        .lab-nav {
+            padding: 11px 20px;
+            background: #0d1117;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+        .lab-nav a {
+            color: #64748b;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.2s;
+        }
+        .lab-nav a:hover { color: var(--gold); }
+        .lab-nav .badge {
+            background: var(--gold-dim);
+            color: var(--gold);
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        /* ============================================================
+           OUTER WRAPPER
+           ============================================================ */
+        .lab-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1.5rem 1.25rem 3rem;
+        }
+
+        /* ============================================================
+           LAB HEADER
+           ============================================================ */
+        .lab-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 1.5rem 2rem;
+            background: linear-gradient(135deg, var(--bg-card), var(--bg-panel));
+            border-radius: 14px;
+            border: 1px solid var(--border-hi);
+            box-shadow: 0 0 30px var(--gold-glow);
+        }
+        .lab-header h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--gold), #e8c96a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.3rem;
+        }
+        .lab-header .subtitle {
+            color: var(--text-mid);
+            font-size: 0.9rem;
+        }
+
+        /* ============================================================
+           PROGRESS BAR
+           ============================================================ */
+        .progress-banner {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.9rem 1.25rem;
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            flex-wrap: wrap;
+        }
+        .progress-label {
+            color: var(--text-mid);
+            font-size: 0.82rem;
+            flex-shrink: 0;
+        }
+        .progress-bar-track {
+            flex: 1;
+            min-width: 120px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.07);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--gold), #e8c96a);
+            border-radius: 3px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+        .progress-stat {
+            font-size: 0.8rem;
+            color: var(--gold);
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        /* ============================================================
+           MAIN SPLIT LAYOUT
+           ============================================================ */
+        .main-split {
+            display: grid;
+            grid-template-columns: 60% 40%;
+            gap: 1.25rem;
+            align-items: start;
+        }
+
+        /* ============================================================
+           PATCH PANEL SECTION (left)
+           ============================================================ */
+        .panel-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+        .section-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 0.9rem;
+            padding-bottom: 0.6rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* The physical patch panel body */
+        .patch-panel-body {
+            background: #1a1a2e;
+            border: 2px solid #2a2a40;
+            border-radius: 6px;
+            padding: 14px 18px 10px;
+            position: relative;
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5), 0 4px 16px rgba(0, 0, 0, 0.4);
+        }
+        .patch-panel-label {
+            font-size: 0.6rem;
+            color: #8888aa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .patch-panel-label span { color: #c9a83a; font-weight: 700; }
+
+        /* Two rows of 12 ports each */
+        .port-row {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 8px;
+        }
+        .port-row:last-child { margin-bottom: 0; }
+
+        /* Individual port */
+        .port {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+        }
+        .port-socket {
+            width: 100%;
+            aspect-ratio: 1;
+            background: #0a0a14;
+            border: 1px solid #2a2a3e;
+            border-radius: 3px;
+            cursor: default;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: all 0.2s;
+        }
+        /* RJ45 opening detail */
+        .port-socket::after {
+            content: '';
+            width: 55%;
+            height: 40%;
+            background: #050508;
+            border-radius: 1px 1px 3px 3px;
+            border: 1px solid #1a1a28;
+        }
+        .port-num {
+            font-size: 0.52rem;
+            color: #55556a;
+            letter-spacing: 0.3px;
+        }
+
+        /* Ports with cables plugged in — highlighted */
+        .port.has-cable .port-socket {
+            background: #121228;
+            border-color: var(--gold);
+            cursor: pointer;
+            box-shadow: 0 0 6px var(--gold-dim);
+        }
+        .port.has-cable .port-socket:hover {
+            border-color: #e8c96a;
+            box-shadow: 0 0 12px var(--gold-glow);
+            transform: translateY(-1px);
+        }
+        /* Cable plug visual sitting above port */
+        .port.has-cable .port-socket::before {
+            content: '';
+            position: absolute;
+            top: -4px;
+            width: 60%;
+            height: 5px;
+            background: var(--gold);
+            border-radius: 2px 2px 0 0;
+            opacity: 0.7;
+        }
+        .port.has-cable .port-num { color: var(--gold); font-weight: 600; }
+
+        /* State: currently selected */
+        .port.active .port-socket {
+            border-color: #60a5fa;
+            box-shadow: 0 0 14px rgba(96, 165, 250, 0.4);
+            background: #101828;
+        }
+        .port.active .port-socket::before { background: #60a5fa; }
+
+        /* State: tested + passed */
+        .port.tested-pass .port-socket {
+            border-color: var(--success);
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.25);
+        }
+        .port.tested-pass .port-socket::before { background: var(--success); }
+
+        /* State: tested + failed */
+        .port.tested-fail .port-socket {
+            border-color: var(--danger);
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.25);
+        }
+        .port.tested-fail .port-socket::before { background: var(--danger); }
+
+        /* Panel legend */
+        .panel-legend {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 0.9rem;
+            font-size: 0.72rem;
+            color: var(--text-dim);
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        /* Port run info table below panel */
+        .run-table {
+            margin-top: 1rem;
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.77rem;
+        }
+        .run-table th {
+            text-align: left;
+            color: var(--text-dim);
+            font-weight: 600;
+            padding: 5px 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            font-size: 0.69rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .run-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            color: var(--text-mid);
+            vertical-align: middle;
+        }
+        .run-table tr:hover td { background: rgba(255,255,255,0.02); }
+        .run-table .port-ref {
+            font-weight: 700;
+            color: var(--gold);
+            font-family: 'Courier New', monospace;
+        }
+        .run-table .result-badge {
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 3px;
+            letter-spacing: 0.4px;
+        }
+        .result-badge.pass  { background: var(--success-bg); color: var(--success); }
+        .result-badge.fail  { background: var(--danger-bg);  color: var(--danger); }
+        .result-badge.pending { background: rgba(255,255,255,0.06); color: var(--text-dim); }
+
+        /* ============================================================
+           TESTER DISPLAY SECTION (right)
+           ============================================================ */
+        .tester-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        /* The device frame */
+        .tester-device {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+
+        /* LCD screen area */
+        .lcd-screen {
+            background: #040810;
+            border: 2px solid #1e2535;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6),
+                        0 0 0 1px rgba(255, 255, 255, 0.03);
+            min-height: 280px;
+            position: relative;
+        }
+        .lcd-idle {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 240px;
+            gap: 0.75rem;
+        }
+        .lcd-idle .idle-icon {
+            width: 48px;
+            height: 48px;
+            border: 2px solid #2a3a5a;
+            border-radius: 8px;
+            background: #060c18;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .lcd-idle .idle-icon svg { opacity: 0.35; }
+        .lcd-idle .idle-text {
+            color: #2a3a5a;
+            font-size: 0.8rem;
+            text-align: center;
+        }
+
+        /* Scanning animation overlay */
+        .lcd-scanning {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 240px;
+            gap: 0.75rem;
+        }
+        .scan-label {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #60a5fa;
+            animation: scanPulse 0.7s ease-in-out infinite alternate;
+        }
+        @keyframes scanPulse {
+            from { opacity: 0.4; }
+            to   { opacity: 1; }
+        }
+
+        /* Wire map SVG container */
+        .lcd-result {
+            display: none;
+        }
+        .lcd-result-inner {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        /* Pass / Fail badge on LCD */
+        .result-verdict {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+        .result-verdict.pass {
+            background: rgba(34, 197, 94, 0.12);
+            color: var(--success);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            text-shadow: 0 0 16px var(--success-glow);
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.1);
+        }
+        .result-verdict.fail {
+            background: rgba(239, 68, 68, 0.12);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            text-shadow: 0 0 16px var(--danger-glow);
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.1);
+        }
+
+        /* Length readout — digital style */
+        .length-readout {
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+            font-family: 'Courier New', monospace;
+            padding: 0.4rem 0.75rem;
+            background: #06060e;
+            border: 1px solid #1a1a28;
+            border-radius: 5px;
+        }
+        .length-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #4ade80;
+            letter-spacing: 2px;
+        }
+        .length-value.over-limit {
+            color: var(--danger);
+            animation: redBlink 1s ease-in-out infinite alternate;
+        }
+        @keyframes redBlink {
+            from { opacity: 0.6; }
+            to   { opacity: 1; }
+        }
+        .length-unit {
+            font-size: 0.75rem;
+            color: #3a5a40;
+        }
+        .length-unit.over-limit { color: #7a1a1a; }
+        .length-label {
+            font-size: 0.65rem;
+            color: #2a3a2a;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-left: auto;
+        }
+        .length-label.over-limit { color: var(--danger); font-weight: 600; }
+
+        /* Wire map SVG */
+        #wire-map-svg {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .wiremap-label {
+            font-size: 0.62rem;
+            color: var(--text-dim);
+            text-align: center;
+            margin-top: 0.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        /* Cable info strip below LCD */
+        .cable-info-strip {
+            padding: 0.65rem 0.9rem;
+            background: var(--bg-panel);
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.76rem;
+            color: var(--text-mid);
+            line-height: 1.8;
+            display: none;
+        }
+        .cable-info-strip .info-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .cable-info-strip .info-key {
+            color: var(--text-dim);
+            min-width: 80px;
+            flex-shrink: 0;
+        }
+        .cable-info-strip .info-val { color: var(--text); }
+        .cable-info-strip .info-val.bad { color: var(--danger); }
+        .cable-info-strip .info-val.good { color: var(--success); }
+
+        /* ============================================================
+           DIAGNOSIS CARD
+           ============================================================ */
+        .diagnosis-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.1rem 1.25rem;
+            display: none;
+        }
+        .diagnosis-card .diag-question {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.75rem;
+        }
+        .diag-options {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+        .diag-option {
+            padding: 0.55rem 0.85rem;
+            background: var(--bg-panel);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            color: var(--text-mid);
+            transition: all 0.2s;
+            text-align: left;
+            width: 100%;
+        }
+        .diag-option:hover {
+            border-color: var(--gold);
+            color: var(--text);
+            background: var(--gold-dim);
+        }
+        .diag-option.correct {
+            border-color: var(--success);
+            background: var(--success-bg);
+            color: var(--success);
+            cursor: default;
+        }
+        .diag-option.incorrect {
+            border-color: var(--danger);
+            background: var(--danger-bg);
+            color: var(--danger);
+            cursor: default;
+            opacity: 0.6;
+        }
+        .diag-option.disabled {
+            cursor: default;
+            opacity: 0.4;
+        }
+        .diag-feedback {
+            margin-top: 0.65rem;
+            padding: 0.6rem 0.85rem;
+            border-radius: 6px;
+            font-size: 0.77rem;
+            line-height: 1.6;
+            display: none;
+        }
+        .diag-feedback.show { display: block; }
+        .diag-feedback.correct {
+            background: var(--success-bg);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            color: #86efac;
+        }
+        .diag-feedback.incorrect {
+            background: var(--danger-bg);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            color: #fca5a5;
+        }
+
+        /* ============================================================
+           COMPLETION BANNER
+           ============================================================ */
+        .completion-banner {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+            background: linear-gradient(135deg, rgba(201,168,58,0.08), rgba(201,168,58,0.03));
+            border: 1px solid var(--border-hi);
+            border-radius: 12px;
+            margin-top: 1.5rem;
+        }
+        .completion-banner h2 {
+            font-size: 1.3rem;
+            color: var(--gold);
+            margin-bottom: 0.4rem;
+        }
+        .completion-banner p {
+            color: var(--text-mid);
+            font-size: 0.87rem;
+            margin-bottom: 1.1rem;
+        }
+        .complete-btn {
+            display: inline-block;
+            padding: 0.65rem 1.75rem;
+            background: linear-gradient(135deg, var(--gold), #b8941f);
+            color: #0a0805;
+            font-weight: 700;
+            font-size: 0.88rem;
+            border: none;
+            border-radius: 7px;
+            cursor: pointer;
+            text-decoration: none;
+            letter-spacing: 0.4px;
+            transition: all 0.2s;
+        }
+        .complete-btn:hover {
+            background: linear-gradient(135deg, #e8c96a, #c9a83a);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px var(--gold-glow);
+        }
+
+        /* ============================================================
+           RESPONSIVE: collapse to single column below 900px
+           ============================================================ */
+        @media (max-width: 900px) {
+            .main-split {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ============================================================
+         NAVIGATION BAR
+         ============================================================ -->
+    <nav class="lab-nav">
+        <a href="../index.html">&larr; Network+ Hub</a>
+        <span class="badge">NE-04 INFRASTRUCTURE</span>
+    </nav>
+
+    <!-- ============================================================
+         MAIN WRAPPER
+         ============================================================ -->
+    <div class="lab-wrapper">
+
+        <!-- Header -->
+        <div class="lab-header">
+            <h1>NE-04 Lab: Cable Testing &amp; Troubleshooting</h1>
+            <div class="subtitle">Test and certify 6 cable runs in a new office buildout using a Fluke cable tester</div>
+        </div>
+
+        <!-- Progress Banner -->
+        <div class="progress-banner">
+            <span class="progress-label">Lab Progress</span>
+            <div class="progress-bar-track">
+                <div class="progress-bar-fill" id="progress-fill"></div>
+            </div>
+            <span class="progress-stat" id="progress-stat">0 of 6 cables tested &middot; 0 of 4 faults diagnosed</span>
+        </div>
+
+        <!-- Two-column split -->
+        <div class="main-split">
+
+            <!-- ====================================================
+                 LEFT: PATCH PANEL
+                 ==================================================== -->
+            <div class="panel-section">
+                <div class="section-title">24-Port Patch Panel &mdash; Graystone Engineering MDF, Rack 1</div>
+
+                <div class="patch-panel-body">
+                    <div class="patch-panel-label">
+                        <span>FLUKE DSX-5000 &mdash; GRAYSTONE ENG BUILDOUT</span>
+                        <span style="color:#55556a">TIA-568C / T568B &mdash; Cat6 UTP</span>
+                    </div>
+
+                    <!-- Row 1: ports 1-12 -->
+                    <div class="port-row" id="port-row-1"></div>
+                    <!-- Row 2: ports 13-24 -->
+                    <div class="port-row" id="port-row-2"></div>
+                </div>
+
+                <!-- Legend -->
+                <div class="panel-legend">
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background:var(--gold);"></div>
+                        <span>Cable run present (click to test)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background:#60a5fa;"></div>
+                        <span>Currently testing</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background:var(--success);"></div>
+                        <span>Tested &mdash; PASS</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background:var(--danger);"></div>
+                        <span>Tested &mdash; FAIL</span>
+                    </div>
+                </div>
+
+                <!-- Cable runs reference table -->
+                <table class="run-table" id="run-table">
+                    <thead>
+                        <tr>
+                            <th>Port</th>
+                            <th>Run ID</th>
+                            <th>Destination</th>
+                            <th>Length</th>
+                            <th>Result</th>
+                        </tr>
+                    </thead>
+                    <tbody id="run-table-body"></tbody>
+                </table>
+            </div>
+
+            <!-- ====================================================
+                 RIGHT: TESTER DISPLAY
+                 ==================================================== -->
+            <div class="tester-section">
+
+                <!-- Tester device frame -->
+                <div class="tester-device">
+                    <div class="section-title">Fluke DSX-5000 Cable Analyzer</div>
+
+                    <!-- LCD Screen -->
+                    <div class="lcd-screen">
+
+                        <!-- Idle state -->
+                        <div class="lcd-idle" id="lcd-idle">
+                            <div class="idle-icon">
+                                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#4466aa" stroke-width="1.5">
+                                    <rect x="2" y="5" width="20" height="14" rx="2"/>
+                                    <path d="M8 10h8M8 14h5"/>
+                                </svg>
+                            </div>
+                            <div class="idle-text">Select a port on the patch panel<br>to begin cable testing</div>
+                        </div>
+
+                        <!-- Scanning state -->
+                        <div class="lcd-scanning" id="lcd-scanning">
+                            <div class="scan-label">Scanning...</div>
+                            <!-- Animated pin scan progress -->
+                            <svg id="scan-svg" width="220" height="120" viewBox="0 0 220 120">
+                                <!-- Left pins -->
+                                <g id="scan-pins-left"></g>
+                                <!-- Right pins -->
+                                <g id="scan-pins-right"></g>
+                                <!-- Connecting lines (animate in) -->
+                                <g id="scan-lines"></g>
+                            </svg>
+                            <div class="scan-label" id="scan-port-label" style="font-size:0.65rem;letter-spacing:1px;color:#3a5a7a;"></div>
+                        </div>
+
+                        <!-- Result state -->
+                        <div class="lcd-result" id="lcd-result">
+                            <div class="lcd-result-inner">
+
+                                <!-- Pass/Fail verdict -->
+                                <div class="result-verdict" id="result-verdict"></div>
+
+                                <!-- Length readout -->
+                                <div class="length-readout" id="length-readout">
+                                    <span class="length-value" id="length-value"></span>
+                                    <span class="length-unit" id="length-unit">m</span>
+                                    <span class="length-label" id="length-label">LENGTH</span>
+                                </div>
+
+                                <!-- Wire map SVG -->
+                                <div>
+                                    <svg id="wire-map-svg" viewBox="0 0 260 200" preserveAspectRatio="xMidYMid meet"></svg>
+                                    <div class="wiremap-label">T568B Wire Map &mdash; Near End &rarr; Far End</div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div><!-- /.lcd-screen -->
+
+                    <!-- Cable info strip (shown after scan) -->
+                    <div class="cable-info-strip" id="cable-info-strip">
+                        <div class="info-row">
+                            <span class="info-key">Run ID:</span>
+                            <span class="info-val" id="info-run-id"></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-key">Category:</span>
+                            <span class="info-val" id="info-category"></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-key">Fault:</span>
+                            <span class="info-val" id="info-fault"></span>
+                        </div>
+                    </div>
+
+                </div><!-- /.tester-device -->
+
+                <!-- Diagnosis card (shown only for failing cables) -->
+                <div class="diagnosis-card" id="diagnosis-card">
+                    <div class="diag-question" id="diag-question"></div>
+                    <div class="diag-options" id="diag-options"></div>
+                    <div class="diag-feedback" id="diag-feedback"></div>
+                </div>
+
+            </div><!-- /.tester-section -->
+
+        </div><!-- /.main-split -->
+
+        <!-- Completion banner -->
+        <div class="completion-banner" id="completion-banner">
+            <h2>Lab Complete</h2>
+            <p>All 6 cable runs tested &mdash; 4 faults correctly diagnosed. Certification report ready.</p>
+            <button class="complete-btn" id="complete-btn">Mark Complete &amp; Return to Hub</button>
+        </div>
+
+    </div><!-- /.lab-wrapper -->
+
+
+    <script>
+    /* ============================================================
+       CABLE DATA
+       Each cable run maps to one of the 6 active ports.
+       pinMap: array of 8 entries — index = near-end pin (1-based),
+               value = { far: farPin, type: 'ok'|'crossed'|'open'|'short' }
+       shortPins: [a, b] — for short fault, both pins short to each other
+       ============================================================ */
+    var CABLE_DATA = {
+        /* Port 3 — PASS, straight-through T568B */
+        3: {
+            id: 'cable-1',
+            runId: 'Run A-101',
+            dest: 'Office 101, Wall J1',
+            category: 'Cat6 UTP',
+            length: 45,
+            overLimit: false,
+            pass: true,
+            faultType: null,
+            faultDetail: 'No faults detected. Straight-through T568B on all 8 conductors.',
+            pinMap: [
+                { near: 1, far: 1, status: 'ok' },
+                { near: 2, far: 2, status: 'ok' },
+                { near: 3, far: 3, status: 'ok' },
+                { near: 4, far: 4, status: 'ok' },
+                { near: 5, far: 5, status: 'ok' },
+                { near: 6, far: 6, status: 'ok' },
+                { near: 7, far: 7, status: 'ok' },
+                { near: 8, far: 8, status: 'ok' }
+            ],
+            shortPairs: null,
+            diagnosis: null
+        },
+        /* Port 7 — FAIL, crossover cable */
+        7: {
+            id: 'cable-2',
+            runId: 'Run A-102',
+            dest: 'Office 102, Wall J2',
+            category: 'Cat6 UTP',
+            length: 22,
+            overLimit: false,
+            pass: false,
+            faultType: 'crossover',
+            faultDetail: 'Crossover wiring: Pins 1,2 swapped with 3,6 (T568A on one end, T568B on other). Horizontal runs require straight-through.',
+            pinMap: [
+                { near: 1, far: 3, status: 'crossed' },
+                { near: 2, far: 6, status: 'crossed' },
+                { near: 3, far: 1, status: 'crossed' },
+                { near: 4, far: 4, status: 'ok' },
+                { near: 5, far: 5, status: 'ok' },
+                { near: 6, far: 2, status: 'crossed' },
+                { near: 7, far: 7, status: 'ok' },
+                { near: 8, far: 8, status: 'ok' }
+            ],
+            shortPairs: null,
+            diagnosis: {
+                question: 'Run A-102: Pins 1,2 map to 3,6 and pins 3,6 map to 1,2. What is the fault?',
+                correct: 'crossover',
+                options: [
+                    { value: 'crossover',       label: 'Crossover cable where straight-through is required' },
+                    { value: 'open',            label: 'Open circuit (broken conductor)' },
+                    { value: 'short',           label: 'Short between two conductors' },
+                    { value: 'exceed-distance', label: 'Cable exceeds maximum distance limit' }
+                ],
+                feedback: {
+                    crossover: 'Correct. Pins 1,2 from one end are connected to pins 3,6 on the far end — this is the 568A-to-568B crossing pattern of a crossover cable. Horizontal infrastructure runs always require straight-through (T568B to T568B). Fix: re-terminate both ends to T568B.',
+                    open: 'Incorrect. An open would show a missing pin with no continuity. Here all 8 pins have continuity — they are simply mapped to the wrong far-end pins.',
+                    short: 'Incorrect. A short would show two pins connected to a single destination. Here each pin has exactly one far-end mapping — just the wrong one.',
+                    'exceed-distance': 'Incorrect. The length is 22m, well within the 100m Cat6 limit. The fault is in the wiring pattern, not the cable length.'
+                }
+            }
+        },
+        /* Port 11 — FAIL, open on pin 3 */
+        11: {
+            id: 'cable-3',
+            runId: 'Run A-103',
+            dest: 'Office 103, Wall J3',
+            category: 'Cat6 UTP',
+            length: 41,
+            overLimit: false,
+            pass: false,
+            faultType: 'open',
+            faultDetail: 'Open on Pin 3 (White/Green, Pair 2). TDR locates break at 41m from tester. Likely conductor damage during pull.',
+            pinMap: [
+                { near: 1, far: 1, status: 'ok' },
+                { near: 2, far: 2, status: 'ok' },
+                { near: 3, far: null, status: 'open' },
+                { near: 4, far: 4, status: 'ok' },
+                { near: 5, far: 5, status: 'ok' },
+                { near: 6, far: 6, status: 'ok' },
+                { near: 7, far: 7, status: 'ok' },
+                { near: 8, far: 8, status: 'ok' }
+            ],
+            shortPairs: null,
+            diagnosis: {
+                question: 'Run A-103: Pin 3 shows no continuity (OPEN). TDR break at 41m. What is the fault?',
+                correct: 'open',
+                options: [
+                    { value: 'crossover',       label: 'Crossover cable where straight-through is required' },
+                    { value: 'open',            label: 'Open circuit (broken conductor)' },
+                    { value: 'short',           label: 'Short between two conductors' },
+                    { value: 'exceed-distance', label: 'Cable exceeds maximum distance limit' }
+                ],
+                feedback: {
+                    crossover: 'Incorrect. A crossover would show all 8 pins with continuity to the wrong far-end pins. Here Pin 3 has zero continuity — it is broken, not rerouted.',
+                    open: 'Correct. Pin 3 (White/Green) has no path to the far end. The TDR measurement places the break at 41m from the tester, indicating physical conductor damage during the installation pull. Fix: replace the cable or re-pull if slack is available.',
+                    short: 'Incorrect. A short would show pin 3 connecting to multiple destinations. Here pin 3 shows no connection at all.',
+                    'exceed-distance': 'Incorrect. The cable is within the 100m limit. The TDR distance of 41m is where the break was found, not the cable length.'
+                }
+            }
+        },
+        /* Port 15 — FAIL, exceeds distance */
+        15: {
+            id: 'cable-4',
+            runId: 'Run A-104',
+            dest: 'Conference Room, J4',
+            category: 'Cat6 UTP',
+            length: 112,
+            overLimit: true,
+            pass: false,
+            faultType: 'exceed-distance',
+            faultDetail: 'Run is 112m, exceeding the 100m TIA-568C maximum for Cat6 horizontal cabling. Attenuation is excessive at 28.4 dB.',
+            pinMap: [
+                { near: 1, far: 1, status: 'ok' },
+                { near: 2, far: 2, status: 'ok' },
+                { near: 3, far: 3, status: 'ok' },
+                { near: 4, far: 4, status: 'ok' },
+                { near: 5, far: 5, status: 'ok' },
+                { near: 6, far: 6, status: 'ok' },
+                { near: 7, far: 7, status: 'ok' },
+                { near: 8, far: 8, status: 'ok' }
+            ],
+            shortPairs: null,
+            diagnosis: {
+                question: 'Run A-104: Wire map is correct but length reads 112m. What is the fault?',
+                correct: 'exceed-distance',
+                options: [
+                    { value: 'crossover',       label: 'Crossover cable where straight-through is required' },
+                    { value: 'open',            label: 'Open circuit (broken conductor)' },
+                    { value: 'short',           label: 'Short between two conductors' },
+                    { value: 'exceed-distance', label: 'Cable exceeds maximum distance limit' }
+                ],
+                feedback: {
+                    crossover: 'Incorrect. The wire map is fully correct — all 8 pins map straight across. This is not a wiring pattern fault.',
+                    open: 'Incorrect. All 8 pins show continuity. An open would show at least one pin with no far-end connection.',
+                    short: 'Incorrect. A short would show pins sharing a destination. All pins here map cleanly 1-to-1.',
+                    'exceed-distance': 'Correct. The cable is 112m, exceeding the TIA-568C maximum of 100m for Cat6 horizontal cabling. The wire map is correct but signal attenuation (28.4 dB at 100 MHz) exceeds the Cat6 specification. Fix: install a properly located IDF switch at the midpoint to create two compliant sub-100m runs.'
+                }
+            }
+        },
+        /* Port 19 — FAIL, short between pins 4 and 5 */
+        19: {
+            id: 'cable-5',
+            runId: 'Run A-105',
+            dest: 'Server Closet, J5',
+            category: 'Cat6 UTP',
+            length: 27,
+            overLimit: false,
+            pass: false,
+            faultType: 'short',
+            faultDetail: 'Short between Pin 4 (Blue) and Pin 5 (White/Blue) at 12m from near end. Conductors are in contact.',
+            pinMap: [
+                { near: 1, far: 1, status: 'ok' },
+                { near: 2, far: 2, status: 'ok' },
+                { near: 3, far: 3, status: 'ok' },
+                { near: 4, far: 4, status: 'ok' },
+                { near: 5, far: 5, status: 'ok' },
+                { near: 6, far: 6, status: 'ok' },
+                { near: 7, far: 7, status: 'ok' },
+                { near: 8, far: 8, status: 'ok' }
+            ],
+            /* Short is shown as an extra lateral red wire between pins 4 and 5 in the SVG */
+            shortPairs: [4, 5],
+            diagnosis: {
+                question: 'Run A-105: Short detected between Pin 4 and Pin 5 at 12m. What is the fault?',
+                correct: 'short',
+                options: [
+                    { value: 'crossover',       label: 'Crossover cable where straight-through is required' },
+                    { value: 'open',            label: 'Open circuit (broken conductor)' },
+                    { value: 'short',           label: 'Short between two conductors' },
+                    { value: 'exceed-distance', label: 'Cable exceeds maximum distance limit' }
+                ],
+                feedback: {
+                    crossover: 'Incorrect. The wire map shows all pins connecting to correct far-end positions. A crossover would reroute pairs 1,2 to 3,6.',
+                    open: 'Incorrect. Both Pin 4 and Pin 5 have continuity to the far end. An open would show one of them disconnected entirely.',
+                    short: 'Correct. Pin 4 (Blue) and Pin 5 (White/Blue) are electrically connected to each other — a short. The TDR locates the fault at 12m, likely a pinch point or crush in conduit. The two conductors are touching, creating a bridge. Fix: replace the cable run.',
+                    'exceed-distance': 'Incorrect. The run is 27m, well within the 100m limit. The 12m measurement is the TDR location of the short, not the cable length.'
+                }
+            }
+        },
+        /* Port 23 — PASS, straight-through T568B */
+        23: {
+            id: 'cable-6',
+            runId: 'Run A-106',
+            dest: 'Office 106, Wall J6',
+            category: 'Cat6 UTP',
+            length: 78,
+            overLimit: false,
+            pass: true,
+            faultType: null,
+            faultDetail: 'No faults detected. Straight-through T568B on all 8 conductors.',
+            pinMap: [
+                { near: 1, far: 1, status: 'ok' },
+                { near: 2, far: 2, status: 'ok' },
+                { near: 3, far: 3, status: 'ok' },
+                { near: 4, far: 4, status: 'ok' },
+                { near: 5, far: 5, status: 'ok' },
+                { near: 6, far: 6, status: 'ok' },
+                { near: 7, far: 7, status: 'ok' },
+                { near: 8, far: 8, status: 'ok' }
+            ],
+            shortPairs: null,
+            diagnosis: null
+        }
+    };
+
+    /* T568B wire colors per pin position (1-based) */
+    var T568B_COLORS = {
+        1: { stroke: '#f97316', label: 'W/O'  }, /* White/Orange */
+        2: { stroke: '#c2410c', label: 'O'    }, /* Orange       */
+        3: { stroke: '#4ade80', label: 'W/G'  }, /* White/Green  */
+        4: { stroke: '#60a5fa', label: 'BL'   }, /* Blue         */
+        5: { stroke: '#93c5fd', label: 'W/BL' }, /* White/Blue   */
+        6: { stroke: '#22c55e', label: 'G'    }, /* Green        */
+        7: { stroke: '#d4d4aa', label: 'W/BR' }, /* White/Brown  */
+        8: { stroke: '#92400e', label: 'BR'   }  /* Brown        */
+    };
+
+    /* ============================================================
+       STATE
+       ============================================================ */
+    var state = {
+        testedPorts: {},        /* portNum -> 'pass'|'fail' */
+        diagnosedCables: {},    /* cableId -> true */
+        currentPort: null,      /* which port is selected */
+        scanning: false
+    };
+
+    /* Ports with cables: 3,7,11,15,19,23 */
+    var CABLE_PORTS = [3, 7, 11, 15, 19, 23];
+    /* Ports that need a diagnosis after test */
+    var DIAG_REQUIRED_PORTS = [7, 11, 15, 19];
+    var TOTAL_CABLES = 6;
+    var TOTAL_DIAGS  = 4;
+
+    /* ============================================================
+       BUILD PATCH PANEL
+       ============================================================ */
+    function buildPatchPanel() {
+        var row1 = document.getElementById('port-row-1');
+        var row2 = document.getElementById('port-row-2');
+
+        for (var p = 1; p <= 24; p++) {
+            var hasCable = CABLE_PORTS.indexOf(p) !== -1;
+            var div = document.createElement('div');
+            div.className = 'port' + (hasCable ? ' has-cable' : '');
+            div.id = 'port-' + p;
+
+            var socket = document.createElement('div');
+            socket.className = 'port-socket';
+
+            var num = document.createElement('div');
+            num.className = 'port-num';
+            num.textContent = p < 10 ? '0' + p : '' + p;
+
+            div.appendChild(socket);
+            div.appendChild(num);
+
+            if (hasCable) {
+                /* Closure to capture port number */
+                (function(portNum) {
+                    div.addEventListener('click', function() {
+                        if (state.scanning) { return; }
+                        selectPort(portNum);
+                    });
+                })(p);
+            }
+
+            if (p <= 12) {
+                row1.appendChild(div);
+            } else {
+                row2.appendChild(div);
+            }
+        }
+    }
+
+    /* ============================================================
+       BUILD RUN TABLE
+       ============================================================ */
+    function buildRunTable() {
+        var tbody = document.getElementById('run-table-body');
+        tbody.innerHTML = '';
+
+        CABLE_PORTS.forEach(function(portNum) {
+            var cable = CABLE_DATA[portNum];
+            var tested = state.testedPorts[portNum];
+            var tr = document.createElement('tr');
+
+            var resultBadge = '<span class="result-badge pending">--</span>';
+            if (tested === 'pass') {
+                resultBadge = '<span class="result-badge pass">PASS</span>';
+            } else if (tested === 'fail') {
+                resultBadge = '<span class="result-badge fail">FAIL</span>';
+            }
+
+            tr.innerHTML = '<td class="port-ref">P' + portNum + '</td>'
+                + '<td>' + cable.runId + '</td>'
+                + '<td style="color:var(--text)">' + cable.dest + '</td>'
+                + '<td>' + (tested ? cable.length + 'm' : '--') + '</td>'
+                + '<td>' + resultBadge + '</td>';
+
+            tbody.appendChild(tr);
+        });
+    }
+
+    /* ============================================================
+       UPDATE PROGRESS
+       ============================================================ */
+    function updateProgress() {
+        var tested   = Object.keys(state.testedPorts).length;
+        var diagnosed = Object.keys(state.diagnosedCables).length;
+        var total    = TOTAL_CABLES + TOTAL_DIAGS; /* 10 total actions */
+        var done     = tested + diagnosed;
+        var pct      = Math.round((done / total) * 100);
+
+        document.getElementById('progress-fill').style.width = pct + '%';
+        document.getElementById('progress-stat').textContent =
+            tested + ' of ' + TOTAL_CABLES + ' cables tested \u00B7 '
+            + diagnosed + ' of ' + TOTAL_DIAGS + ' faults diagnosed';
+
+        /* Check completion */
+        if (tested >= TOTAL_CABLES && diagnosed >= TOTAL_DIAGS) {
+            document.getElementById('completion-banner').style.display = 'block';
+        }
+    }
+
+    /* ============================================================
+       SELECT PORT — start the scan sequence
+       ============================================================ */
+    function selectPort(portNum) {
+        if (state.scanning) { return; }
+
+        /* Deactivate previously active port */
+        if (state.currentPort !== null) {
+            var prev = document.getElementById('port-' + state.currentPort);
+            if (prev) {
+                prev.classList.remove('active');
+                /* Restore tested state styling */
+                var prevTested = state.testedPorts[state.currentPort];
+                if (prevTested === 'pass') { prev.classList.add('tested-pass'); }
+                else if (prevTested === 'fail') { prev.classList.add('tested-fail'); }
+            }
+        }
+
+        state.currentPort = portNum;
+        state.scanning = true;
+
+        /* Mark port as active */
+        var portEl = document.getElementById('port-' + portNum);
+        portEl.classList.remove('tested-pass', 'tested-fail');
+        portEl.classList.add('active');
+
+        /* Show scanning state on LCD */
+        showScanning(portNum);
+
+        /* After animation, show result (~2.4 seconds) */
+        setTimeout(function() {
+            state.scanning = false;
+            showResult(portNum);
+        }, 2400);
+    }
+
+    /* ============================================================
+       SHOW SCANNING ANIMATION
+       ============================================================ */
+    function showScanning(portNum) {
+        var cable = CABLE_DATA[portNum];
+
+        document.getElementById('lcd-idle').style.display     = 'none';
+        document.getElementById('lcd-result').style.display   = 'none';
+        document.getElementById('lcd-scanning').style.display = 'flex';
+        document.getElementById('cable-info-strip').style.display = 'none';
+        document.getElementById('diagnosis-card').style.display   = 'none';
+
+        document.getElementById('scan-port-label').textContent =
+            cable.runId + '  /  Port ' + portNum;
+
+        buildScanSVG(portNum);
+    }
+
+    /* ============================================================
+       BUILD SCAN ANIMATION SVG
+       Pins light up one-by-one using sequential CSS animation delays.
+       ============================================================ */
+    function buildScanSVG(portNum) {
+        var leftGroup  = document.getElementById('scan-pins-left');
+        var rightGroup = document.getElementById('scan-pins-right');
+        var lineGroup  = document.getElementById('scan-lines');
+
+        leftGroup.innerHTML  = '';
+        rightGroup.innerHTML = '';
+        lineGroup.innerHTML  = '';
+
+        /* Layout constants */
+        var lx  = 30;   /* left pin x */
+        var rx  = 190;  /* right pin x */
+        var y0  = 10;   /* top y */
+        var dy  = 13;   /* y spacing between pins */
+
+        var NS = 'http://www.w3.org/2000/svg';
+
+        for (var i = 1; i <= 8; i++) {
+            var cy = y0 + (i - 1) * dy;
+            var color = T568B_COLORS[i].stroke;
+            var delay = ((i - 1) * 0.22) + 's';
+
+            /* Left pin circle */
+            var circL = document.createElementNS(NS, 'circle');
+            circL.setAttribute('cx', lx);
+            circL.setAttribute('cy', cy);
+            circL.setAttribute('r', '4');
+            circL.setAttribute('fill', '#0a0a14');
+            circL.setAttribute('stroke', '#2a2a3e');
+            circL.setAttribute('stroke-width', '1.5');
+            circL.style.animation = 'pinLight 0.3s ease forwards ' + delay;
+            circL.style.setProperty('--pin-color', color);
+            leftGroup.appendChild(circL);
+
+            /* Left label */
+            var txtL = document.createElementNS(NS, 'text');
+            txtL.setAttribute('x', lx - 10);
+            txtL.setAttribute('y', cy + 4);
+            txtL.setAttribute('text-anchor', 'end');
+            txtL.setAttribute('font-size', '7');
+            txtL.setAttribute('fill', '#3a4a6a');
+            txtL.textContent = i;
+            leftGroup.appendChild(txtL);
+
+            /* Right pin circle */
+            var circR = document.createElementNS(NS, 'circle');
+            circR.setAttribute('cx', rx);
+            circR.setAttribute('cy', cy);
+            circR.setAttribute('r', '4');
+            circR.setAttribute('fill', '#0a0a14');
+            circR.setAttribute('stroke', '#2a2a3e');
+            circR.setAttribute('stroke-width', '1.5');
+            circR.style.animation = 'pinLight 0.3s ease forwards ' + (delay);
+            rightGroup.appendChild(circR);
+
+            /* Right label */
+            var txtR = document.createElementNS(NS, 'text');
+            txtR.setAttribute('x', rx + 10);
+            txtR.setAttribute('y', cy + 4);
+            txtR.setAttribute('text-anchor', 'start');
+            txtR.setAttribute('font-size', '7');
+            txtR.setAttribute('fill', '#3a4a6a');
+            txtR.textContent = i;
+            rightGroup.appendChild(txtR);
+
+            /* Connecting line with delayed draw */
+            var farY = cy; /* straight line — all straight in scan view */
+            var line = document.createElementNS(NS, 'line');
+            line.setAttribute('x1', lx + 5);
+            line.setAttribute('y1', cy);
+            line.setAttribute('x2', rx - 5);
+            line.setAttribute('y2', farY);
+            line.setAttribute('stroke', color);
+            line.setAttribute('stroke-width', '1.5');
+            line.setAttribute('stroke-opacity', '0');
+            line.style.animation = 'lineAppear 0.25s ease forwards ' + delay;
+            lineGroup.appendChild(line);
+        }
+    }
+
+    /* ============================================================
+       SHOW RESULT — full wire map + verdict
+       ============================================================ */
+    function showResult(portNum) {
+        var cable = CABLE_DATA[portNum];
+
+        /* Record tested state */
+        state.testedPorts[portNum] = cable.pass ? 'pass' : 'fail';
+
+        /* Update port styling */
+        var portEl = document.getElementById('port-' + portNum);
+        portEl.classList.remove('active');
+        portEl.classList.add(cable.pass ? 'tested-pass' : 'tested-fail');
+
+        /* Switch LCD panels */
+        document.getElementById('lcd-scanning').style.display = 'none';
+        document.getElementById('lcd-result').style.display   = 'block';
+
+        /* Verdict badge */
+        var verdictEl = document.getElementById('result-verdict');
+        verdictEl.className = 'result-verdict ' + (cable.pass ? 'pass' : 'fail');
+        verdictEl.textContent = cable.pass ? 'PASS' : 'FAIL';
+
+        /* Length readout */
+        var lenVal  = document.getElementById('length-value');
+        var lenUnit = document.getElementById('length-unit');
+        var lenLbl  = document.getElementById('length-label');
+        lenVal.textContent  = cable.length;
+        lenVal.className    = 'length-value' + (cable.overLimit ? ' over-limit' : '');
+        lenUnit.textContent = 'm';
+        lenUnit.className   = 'length-unit' + (cable.overLimit ? ' over-limit' : '');
+        lenLbl.textContent  = cable.overLimit ? 'OVER LIMIT' : 'LENGTH';
+        lenLbl.className    = 'length-label' + (cable.overLimit ? ' over-limit' : '');
+
+        /* Wire map */
+        buildWireMap(portNum, cable);
+
+        /* Cable info strip */
+        document.getElementById('cable-info-strip').style.display = 'block';
+        document.getElementById('info-run-id').textContent    = cable.runId;
+        document.getElementById('info-category').textContent  = cable.category;
+        var faultEl = document.getElementById('info-fault');
+        faultEl.textContent = cable.faultType
+            ? cable.faultDetail
+            : 'None detected';
+        faultEl.className = 'info-val ' + (cable.pass ? 'good' : 'bad');
+
+        /* Rebuild run table to reflect result */
+        buildRunTable();
+        updateProgress();
+
+        /* Show diagnosis card for failing cables that have a diagnosis */
+        if (!cable.pass && cable.diagnosis) {
+            showDiagnosisCard(cable);
+        } else {
+            document.getElementById('diagnosis-card').style.display = 'none';
+        }
+    }
+
+    /* ============================================================
+       BUILD WIRE MAP SVG
+       Layout: 8 pins on left (y: 15-177), 8 pins on right.
+       Lines connect near-end to far-end positions.
+       For crossover: line goes diagonally.
+       For open: dashed line ending midway with an X.
+       For short: extra red lateral line between shorted pins.
+       ============================================================ */
+    function buildWireMap(portNum, cable) {
+        var svg = document.getElementById('wire-map-svg');
+        svg.innerHTML = '';
+
+        var NS  = 'http://www.w3.org/2000/svg';
+        var lx  = 38;   /* left pin center x */
+        var rx  = 222;  /* right pin center x */
+        var y0  = 18;   /* y of pin 1 */
+        var dy  = 22;   /* y spacing */
+        var r   = 5;    /* pin circle radius */
+
+        /* Background grid lines (subtle) */
+        for (var g = 0; g < 8; g++) {
+            var gy = y0 + g * dy;
+            var gridLine = document.createElementNS(NS, 'line');
+            gridLine.setAttribute('x1', '0');
+            gridLine.setAttribute('y1', gy);
+            gridLine.setAttribute('x2', '260');
+            gridLine.setAttribute('y2', gy);
+            gridLine.setAttribute('stroke', 'rgba(255,255,255,0.03)');
+            gridLine.setAttribute('stroke-width', '1');
+            svg.appendChild(gridLine);
+        }
+
+        /* "NEAR END" and "FAR END" column headers */
+        var hNear = document.createElementNS(NS, 'text');
+        hNear.setAttribute('x', lx);
+        hNear.setAttribute('y', 8);
+        hNear.setAttribute('text-anchor', 'middle');
+        hNear.setAttribute('font-size', '7');
+        hNear.setAttribute('fill', '#3a4a6a');
+        hNear.setAttribute('font-family', 'Segoe UI, system-ui, sans-serif');
+        hNear.textContent = 'NEAR END';
+        svg.appendChild(hNear);
+
+        var hFar = document.createElementNS(NS, 'text');
+        hFar.setAttribute('x', rx);
+        hFar.setAttribute('y', 8);
+        hFar.setAttribute('text-anchor', 'middle');
+        hFar.setAttribute('font-size', '7');
+        hFar.setAttribute('fill', '#3a4a6a');
+        hFar.setAttribute('font-family', 'Segoe UI, system-ui, sans-serif');
+        hFar.textContent = 'FAR END';
+        svg.appendChild(hFar);
+
+        /* Draw wires (underneath pins) */
+        cable.pinMap.forEach(function(entry) {
+            var nearY = y0 + (entry.near - 1) * dy;
+            var color = T568B_COLORS[entry.near].stroke;
+
+            if (entry.status === 'open') {
+                /* Dashed line ending midway */
+                var midX = lx + (rx - lx) / 2;
+                var wireDash = document.createElementNS(NS, 'line');
+                wireDash.setAttribute('x1', lx + r + 1);
+                wireDash.setAttribute('y1', nearY);
+                wireDash.setAttribute('x2', midX);
+                wireDash.setAttribute('y2', nearY);
+                wireDash.setAttribute('stroke', '#ef4444');
+                wireDash.setAttribute('stroke-width', '2');
+                wireDash.setAttribute('stroke-dasharray', '4 3');
+                svg.appendChild(wireDash);
+
+                /* X marker at break point */
+                var xSize = 5;
+                var xm = midX;
+                var ym = nearY;
+                var xLine1 = document.createElementNS(NS, 'line');
+                xLine1.setAttribute('x1', xm - xSize); xLine1.setAttribute('y1', ym - xSize);
+                xLine1.setAttribute('x2', xm + xSize); xLine1.setAttribute('y2', ym + xSize);
+                xLine1.setAttribute('stroke', '#ef4444'); xLine1.setAttribute('stroke-width', '2');
+                svg.appendChild(xLine1);
+
+                var xLine2 = document.createElementNS(NS, 'line');
+                xLine2.setAttribute('x1', xm + xSize); xLine2.setAttribute('y1', ym - xSize);
+                xLine2.setAttribute('x2', xm - xSize); xLine2.setAttribute('y2', ym + xSize);
+                xLine2.setAttribute('stroke', '#ef4444'); xLine2.setAttribute('stroke-width', '2');
+                svg.appendChild(xLine2);
+
+            } else if (entry.status === 'crossed') {
+                /* Diagonal line to far end pin position */
+                var farY = y0 + (entry.far - 1) * dy;
+                var wireCross = document.createElementNS(NS, 'line');
+                wireCross.setAttribute('x1', lx + r + 1);
+                wireCross.setAttribute('y1', nearY);
+                wireCross.setAttribute('x2', rx - r - 1);
+                wireCross.setAttribute('y2', farY);
+                wireCross.setAttribute('stroke', '#f97316');
+                wireCross.setAttribute('stroke-width', '2');
+                wireCross.setAttribute('opacity', '0.85');
+                svg.appendChild(wireCross);
+
+            } else {
+                /* Normal straight line */
+                var wireOk = document.createElementNS(NS, 'line');
+                wireOk.setAttribute('x1', lx + r + 1);
+                wireOk.setAttribute('y1', nearY);
+                wireOk.setAttribute('x2', rx - r - 1);
+                wireOk.setAttribute('y2', nearY);
+                wireOk.setAttribute('stroke', color);
+                wireOk.setAttribute('stroke-width', '2');
+                wireOk.setAttribute('opacity', cable.pass ? '0.9' : '0.55');
+                svg.appendChild(wireOk);
+            }
+        });
+
+        /* Short indicator: red lateral line between shorted pins */
+        if (cable.shortPairs) {
+            var pinA = cable.shortPairs[0];
+            var pinB = cable.shortPairs[1];
+            var yA   = y0 + (pinA - 1) * dy;
+            var yB   = y0 + (pinB - 1) * dy;
+            var midXS = lx + (rx - lx) * 0.4;
+
+            /* Vertical red short line */
+            var shortLine = document.createElementNS(NS, 'line');
+            shortLine.setAttribute('x1', midXS);
+            shortLine.setAttribute('y1', yA);
+            shortLine.setAttribute('x2', midXS);
+            shortLine.setAttribute('y2', yB);
+            shortLine.setAttribute('stroke', '#ef4444');
+            shortLine.setAttribute('stroke-width', '2.5');
+            shortLine.setAttribute('opacity', '0.9');
+            svg.appendChild(shortLine);
+
+            /* Short label */
+            var shortTxt = document.createElementNS(NS, 'text');
+            shortTxt.setAttribute('x', midXS + 5);
+            shortTxt.setAttribute('y', (yA + yB) / 2 + 3);
+            shortTxt.setAttribute('font-size', '7');
+            shortTxt.setAttribute('fill', '#ef4444');
+            shortTxt.setAttribute('font-family', 'Segoe UI, system-ui, sans-serif');
+            shortTxt.textContent = 'SHORT';
+            svg.appendChild(shortTxt);
+
+            /* Junction dots on both wires */
+            [yA, yB].forEach(function(jy) {
+                var dot = document.createElementNS(NS, 'circle');
+                dot.setAttribute('cx', midXS);
+                dot.setAttribute('cy', jy);
+                dot.setAttribute('r', '2.5');
+                dot.setAttribute('fill', '#ef4444');
+                svg.appendChild(dot);
+            });
+        }
+
+        /* Draw near-end pins (left column) */
+        for (var n = 1; n <= 8; n++) {
+            var ny     = y0 + (n - 1) * dy;
+            var nColor = T568B_COLORS[n].stroke;
+            var nLabel = T568B_COLORS[n].label;
+
+            /* Pin circle */
+            var pinCirc = document.createElementNS(NS, 'circle');
+            pinCirc.setAttribute('cx', lx);
+            pinCirc.setAttribute('cy', ny);
+            pinCirc.setAttribute('r', r);
+            pinCirc.setAttribute('fill', nColor);
+            pinCirc.setAttribute('stroke', '#0a0a14');
+            pinCirc.setAttribute('stroke-width', '1');
+            svg.appendChild(pinCirc);
+
+            /* Pin number inside circle */
+            var pinNum = document.createElementNS(NS, 'text');
+            pinNum.setAttribute('x', lx);
+            pinNum.setAttribute('y', ny + 3);
+            pinNum.setAttribute('text-anchor', 'middle');
+            pinNum.setAttribute('font-size', '5.5');
+            pinNum.setAttribute('fill', '#050508');
+            pinNum.setAttribute('font-weight', 'bold');
+            pinNum.setAttribute('font-family', 'Segoe UI, system-ui, sans-serif');
+            pinNum.textContent = n;
+            svg.appendChild(pinNum);
+
+            /* Color label to the left */
+            var pinLbl = document.createElementNS(NS, 'text');
+            pinLbl.setAttribute('x', lx - 9);
+            pinLbl.setAttribute('y', ny + 3);
+            pinLbl.setAttribute('text-anchor', 'end');
+            pinLbl.setAttribute('font-size', '6.5');
+            pinLbl.setAttribute('fill', nColor);
+            pinLbl.setAttribute('font-family', 'Courier New, monospace');
+            pinLbl.textContent = nLabel;
+            svg.appendChild(pinLbl);
+        }
+
+        /* Draw far-end pins (right column) — based on where wires arrive */
+        /* Build a set of which far-end positions are occupied and with what color */
+        var farPins = {}; /* farPos -> { color, status } */
+        cable.pinMap.forEach(function(entry) {
+            if (entry.status !== 'open' && entry.far !== null) {
+                farPins[entry.far] = {
+                    color: T568B_COLORS[entry.near].stroke,
+                    status: entry.status
+                };
+            }
+        });
+
+        for (var f = 1; f <= 8; f++) {
+            var fy     = y0 + (f - 1) * dy;
+            var fInfo  = farPins[f];
+            var fColor = fInfo ? fInfo.color : '#1a2030';
+            var fLabel = T568B_COLORS[f].label;
+
+            /* Pin circle */
+            var fCirc = document.createElementNS(NS, 'circle');
+            fCirc.setAttribute('cx', rx);
+            fCirc.setAttribute('cy', fy);
+            fCirc.setAttribute('r', r);
+            fCirc.setAttribute('fill', fInfo ? fColor : '#0a0a14');
+            fCirc.setAttribute('stroke', fInfo ? fColor : '#1a1a28');
+            fCirc.setAttribute('stroke-width', '1');
+            svg.appendChild(fCirc);
+
+            /* Pin number inside */
+            var fNum = document.createElementNS(NS, 'text');
+            fNum.setAttribute('x', rx);
+            fNum.setAttribute('y', fy + 3);
+            fNum.setAttribute('text-anchor', 'middle');
+            fNum.setAttribute('font-size', '5.5');
+            fNum.setAttribute('fill', fInfo ? '#050508' : '#1a2030');
+            fNum.setAttribute('font-weight', 'bold');
+            fNum.setAttribute('font-family', 'Segoe UI, system-ui, sans-serif');
+            fNum.textContent = f;
+            svg.appendChild(fNum);
+
+            /* Color label to the right */
+            var fLbl = document.createElementNS(NS, 'text');
+            fLbl.setAttribute('x', rx + 9);
+            fLbl.setAttribute('y', fy + 3);
+            fLbl.setAttribute('text-anchor', 'start');
+            fLbl.setAttribute('font-size', '6.5');
+            fLbl.setAttribute('fill', fInfo ? fColor : '#1a2030');
+            fLbl.setAttribute('font-family', 'Courier New, monospace');
+            fLbl.textContent = fLabel;
+            svg.appendChild(fLbl);
+        }
+
+        /* Open pin indicator on far side: X where pin would be */
+        cable.pinMap.forEach(function(entry) {
+            if (entry.status === 'open') {
+                var ofy = y0 + (entry.near - 1) * dy; /* same row on far side */
+                var os  = 4;
+                var oCirc = document.createElementNS(NS, 'circle');
+                oCirc.setAttribute('cx', rx);
+                oCirc.setAttribute('cy', ofy);
+                oCirc.setAttribute('r', r);
+                oCirc.setAttribute('fill', '#0a0a14');
+                oCirc.setAttribute('stroke', '#ef4444');
+                oCirc.setAttribute('stroke-width', '1.5');
+                oCirc.setAttribute('stroke-dasharray', '2 2');
+                svg.appendChild(oCirc);
+
+                var ox1 = document.createElementNS(NS, 'line');
+                ox1.setAttribute('x1', rx - os + 1); ox1.setAttribute('y1', ofy - os + 1);
+                ox1.setAttribute('x2', rx + os - 1); ox1.setAttribute('y2', ofy + os - 1);
+                ox1.setAttribute('stroke', '#ef4444'); ox1.setAttribute('stroke-width', '1.5');
+                svg.appendChild(ox1);
+
+                var ox2 = document.createElementNS(NS, 'line');
+                ox2.setAttribute('x1', rx + os - 1); ox2.setAttribute('y1', ofy - os + 1);
+                ox2.setAttribute('x2', rx - os + 1); ox2.setAttribute('y2', ofy + os - 1);
+                ox2.setAttribute('stroke', '#ef4444'); ox2.setAttribute('stroke-width', '1.5');
+                svg.appendChild(ox2);
+            }
+        });
+    }
+
+    /* ============================================================
+       SHOW DIAGNOSIS CARD
+       ============================================================ */
+    function showDiagnosisCard(cable) {
+        var card     = document.getElementById('diagnosis-card');
+        var question = document.getElementById('diag-question');
+        var options  = document.getElementById('diag-options');
+        var feedback = document.getElementById('diag-feedback');
+
+        /* If already correctly diagnosed, show completed state */
+        var alreadyDone = state.diagnosedCables[cable.id] === true;
+
+        card.style.display = 'block';
+        question.textContent = cable.diagnosis.question;
+        options.innerHTML  = '';
+        feedback.className = 'diag-feedback';
+        feedback.innerHTML = '';
+
+        cable.diagnosis.options.forEach(function(opt) {
+            var btn = document.createElement('button');
+            btn.className = 'diag-option';
+            btn.textContent = opt.label;
+
+            if (alreadyDone) {
+                if (opt.value === cable.diagnosis.correct) {
+                    btn.classList.add('correct');
+                } else {
+                    btn.classList.add('disabled');
+                }
+            } else {
+                btn.addEventListener('click', function() {
+                    handleDiagAnswer(cable, opt.value);
+                });
+            }
+
+            options.appendChild(btn);
+        });
+
+        if (alreadyDone) {
+            feedback.textContent = cable.diagnosis.feedback[cable.diagnosis.correct];
+            feedback.className   = 'diag-feedback correct show';
+        }
+    }
+
+    /* ============================================================
+       HANDLE DIAGNOSIS ANSWER
+       ============================================================ */
+    function handleDiagAnswer(cable, chosen) {
+        var options  = document.getElementById('diag-options');
+        var feedback = document.getElementById('diag-feedback');
+        var isCorrect = (chosen === cable.diagnosis.correct);
+
+        /* Lock all buttons */
+        var btns = options.querySelectorAll('.diag-option');
+        btns.forEach(function(btn) {
+            btn.removeEventListener('click', function(){});
+            if (btn.textContent === getLabelForValue(cable, cable.diagnosis.correct)) {
+                btn.classList.add('correct');
+            } else if (btn.textContent === getLabelForValue(cable, chosen) && !isCorrect) {
+                btn.classList.add('incorrect');
+            } else {
+                btn.classList.add('disabled');
+            }
+        });
+
+        /* Show feedback */
+        feedback.textContent = cable.diagnosis.feedback[chosen];
+        feedback.className   = 'diag-feedback ' + (isCorrect ? 'correct' : 'incorrect') + ' show';
+
+        /* Only award credit for correct answer */
+        if (isCorrect) {
+            state.diagnosedCables[cable.id] = true;
+            updateProgress();
+        }
+    }
+
+    /* Helper: find option label for a given value */
+    function getLabelForValue(cable, val) {
+        for (var i = 0; i < cable.diagnosis.options.length; i++) {
+            if (cable.diagnosis.options[i].value === val) {
+                return cable.diagnosis.options[i].label;
+            }
+        }
+        return '';
+    }
+
+    /* ============================================================
+       COMPLETION HANDLER
+       ============================================================ */
+    document.getElementById('complete-btn').addEventListener('click', function() {
+        if (typeof ModuleProgress !== 'undefined' && ModuleProgress.complete) {
+            ModuleProgress.complete('web', 'gui-ne04-cable-testing', { returnUrl: '../index.html' });
+        } else {
+            window.location.href = '../index.html';
+        }
+    });
+
+    /* ============================================================
+       CSS KEYFRAMES injected via style tag (needed for SVG circle
+       animation since SVG elements don't have a CSS class sheet above)
+       ============================================================ */
+    var animStyle = document.createElement('style');
+    animStyle.textContent = [
+        '@keyframes pinLight {',
+        '  from { fill: #0a0a14; stroke: #2a2a3e; }',
+        '  to   { fill: var(--pin-color, #4ade80); stroke: var(--pin-color, #4ade80); }',
+        '}',
+        '@keyframes lineAppear {',
+        '  from { stroke-opacity: 0; }',
+        '  to   { stroke-opacity: 0.85; }',
+        '}'
+    ].join('\n');
+    document.head.appendChild(animStyle);
+
+    /* ============================================================
+       INIT
+       ============================================================ */
+    buildPatchPanel();
+    buildRunTable();
+    updateProgress();
+
+    </script>
+
+</body>
+</html>

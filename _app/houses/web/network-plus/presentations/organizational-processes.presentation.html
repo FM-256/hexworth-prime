@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/PresentationA11y.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organizational Processes | Network+ N10-009</title>
+    <style>
+        /* =====================================================
+           RESET & BASE
+           ===================================================== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* =====================================================
+           SLIDE SYSTEM
+           ===================================================== */
+        .slide {
+            display: none;
+            position: fixed;
+            inset: 0;
+            padding: 20px 28px 72px;
+            overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide-inner {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* =====================================================
+           PROGRESS BAR
+           ===================================================== */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: #3a8fd4;
+            transition: width 0.4s ease;
+            z-index: 200;
+        }
+
+        /* =====================================================
+           NAVIGATION BAR
+           ===================================================== */
+        #nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            z-index: 200;
+            padding: 0 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(58, 143, 212, 0.15);
+            color: #3a8fd4;
+            border-color: #3a8fd4;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.back-btn {
+            font-size: 0.82rem;
+            padding: 8px 16px;
+        }
+
+        #slide-counter {
+            color: #64748b;
+            font-size: 0.82rem;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        #complete-btn {
+            display: none;
+            background: #3a8fd4;
+            color: #fff;
+            border: none;
+            padding: 9px 26px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+
+        #complete-btn:hover {
+            background: #5aa8e8;
+            transform: translateY(-1px);
+        }
+
+        /* =====================================================
+           SHARED TYPOGRAPHY
+           ===================================================== */
+        .slide-meta {
+            font-size: 0.78rem;
+            color: #3a8fd4;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .slide-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            text-align: center;
+            line-height: 1.25;
+        }
+
+        .slide-title .accent      { color: #3a8fd4; }
+        .slide-title .accent-gold { color: #c9a83a; }
+        .slide-title .accent-red  { color: #ef4444; }
+
+        .slide-subtitle {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        /* =====================================================
+           SCENARIO STRIP
+           ===================================================== */
+        .scenario-strip {
+            background: rgba(58, 143, 212, 0.07);
+            border-left: 3px solid #3a8fd4;
+            border-radius: 0 8px 8px 0;
+            padding: 10px 16px;
+            font-size: 0.88rem;
+            color: #bae0ff;
+            font-style: italic;
+        }
+
+        /* =====================================================
+           INFO BOXES
+           ===================================================== */
+        .box {
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.875rem;
+        }
+
+        .box-blue {
+            background: rgba(58, 143, 212, 0.08);
+            border: 1px solid rgba(58, 143, 212, 0.3);
+            color: #bae0ff;
+        }
+
+        .box-gold {
+            background: rgba(201, 168, 58, 0.08);
+            border: 1px solid rgba(201, 168, 58, 0.3);
+            color: #fef3c7;
+        }
+
+        .box-green {
+            background: rgba(58, 181, 119, 0.08);
+            border: 1px solid rgba(58, 181, 119, 0.35);
+            color: #d1fae5;
+        }
+
+        .box-red {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fee2e2;
+        }
+
+        .box-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+            opacity: 0.75;
+        }
+
+        /* =====================================================
+           TITLE SLIDE
+           ===================================================== */
+        .title-hero {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .big-title {
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: #f1f5f9;
+            line-height: 1.2;
+        }
+
+        .big-title .blue { color: #3a8fd4; }
+        .big-title .red  { color: #ef4444; }
+
+        .title-meta-row {
+            display: flex;
+            gap: 28px;
+            justify-content: center;
+            margin-top: 6px;
+            font-size: 0.82rem;
+            color: #475569;
+        }
+
+        .title-meta-row span {
+            border-left: 2px solid #1e293b;
+            padding-left: 28px;
+        }
+
+        .title-meta-row span:first-child {
+            border-left: none;
+            padding-left: 0;
+        }
+
+        /* =====================================================
+           LAYOUT HELPERS
+           ===================================================== */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            align-items: start;
+        }
+
+        .three-col {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        /* =====================================================
+           INFO CARDS
+           ===================================================== */
+        .info-card {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 8px;
+            padding: 12px 14px;
+            border-left: 3px solid #3a8fd4;
+            font-size: 0.85rem;
+        }
+
+        .info-card .ic-title {
+            font-weight: 700;
+            color: #f1f5f9;
+            margin-bottom: 4px;
+            font-size: 0.88rem;
+        }
+
+        .info-card .ic-body {
+            color: #94a3b8;
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+
+        .info-card.ic-gold  { border-left-color: #c9a83a; }
+        .info-card.ic-green { border-left-color: #3ab577; }
+        .info-card.ic-red   { border-left-color: #ef4444; }
+
+        /* =====================================================
+           SUMMARY FACTS
+           ===================================================== */
+        .fact-row {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            font-size: 0.875rem;
+        }
+
+        .fact-num {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #3a8fd4;
+            min-width: 22px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .fact-text { color: #cbd5e1; }
+
+        .fact-text code {
+            font-family: 'Courier New', monospace;
+            color: #3a8fd4;
+            background: rgba(58, 143, 212, 0.08);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+
+        /* =====================================================
+           TABLE
+           ===================================================== */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.83rem;
+        }
+
+        .data-table th {
+            text-align: left;
+            padding: 7px 10px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: #3a8fd4;
+            border-bottom: 1px solid rgba(58, 143, 212, 0.25);
+        }
+
+        .data-table td {
+            padding: 7px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: #cbd5e1;
+            vertical-align: top;
+        }
+
+        .data-table tr:last-child td { border-bottom: none; }
+
+        /* =====================================================
+           UTILITY
+           ===================================================== */
+        .section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: #475569;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        /* =====================================================
+           RESPONSIVE
+           ===================================================== */
+        @media (max-height: 700px) {
+            .slide-inner { gap: 9px; }
+            .slide-title { font-size: 1.4rem; }
+            .big-title   { font-size: 1.9rem; }
+        }
+
+        @media (max-width: 768px) {
+            .two-col   { grid-template-columns: 1fr; }
+            .three-col { grid-template-columns: 1fr; }
+            .slide-title { font-size: 1.3rem; }
+        }
+
+        /* =====================================================
+           SVG / ANIMATION KEYFRAMES
+           ===================================================== */
+
+        /* Change management flowchart: steps light up in sequence */
+        @keyframes stepLight0 {
+            0%,100% { opacity: 0.25; }
+            10%,20%  { opacity: 1; }
+        }
+        @keyframes stepLight1 {
+            0%,100% { opacity: 0.25; }
+            25%,35%  { opacity: 1; }
+        }
+        @keyframes stepLight2 {
+            0%,100% { opacity: 0.25; }
+            38%,48%  { opacity: 1; }
+        }
+        @keyframes stepLight3 {
+            0%,100% { opacity: 0.25; }
+            51%,61%  { opacity: 1; }
+        }
+        @keyframes stepLight4 {
+            0%,100% { opacity: 0.25; }
+            64%,74%  { opacity: 1; }
+        }
+        @keyframes stepLight5 {
+            0%,100% { opacity: 0.25; }
+            77%,87%  { opacity: 1; }
+        }
+        @keyframes stepLight6 {
+            0%,100% { opacity: 0.25; }
+            90%,100% { opacity: 1; }
+        }
+
+        .cm-step-0 { animation: stepLight0 7s ease-in-out infinite; }
+        .cm-step-1 { animation: stepLight1 7s ease-in-out infinite; }
+        .cm-step-2 { animation: stepLight2 7s ease-in-out infinite; }
+        .cm-step-3 { animation: stepLight3 7s ease-in-out infinite; }
+        .cm-step-4 { animation: stepLight4 7s ease-in-out infinite; }
+        .cm-step-5 { animation: stepLight5 7s ease-in-out infinite; }
+        .cm-step-6 { animation: stepLight6 7s ease-in-out infinite; }
+
+        /* Config diff animation */
+        @keyframes diffHighlight {
+            0%,100% { fill: rgba(255,255,255,0); }
+            50%      { fill: rgba(239,68,68,0.3); }
+        }
+
+        .diff-row { animation: diffHighlight 3s ease-in-out infinite; }
+
+        /* Baseline anomaly graph */
+        @keyframes anomalyPulse {
+            0%,70%,100% { opacity: 0.15; }
+            75%,85%      { opacity: 1; }
+        }
+
+        .anomaly-spike { animation: anomalyPulse 5s ease-in-out infinite; }
+
+        /* EOL timeline progress */
+        @keyframes timelineProgress {
+            from { width: 0; }
+            to   { width: 100%; }
+        }
+
+        /* Database fill */
+        @keyframes dbFill {
+            0%   { height: 0; }
+            100% { height: 90%; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="progress-bar" style="width:10%"></div>
+
+<!-- =====================================================================
+     SLIDE 1 — TITLE
+     ===================================================================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 10 &nbsp;|&nbsp; N10-009 Obj 3.1 &nbsp;|&nbsp; Operations</div>
+
+        <div class="title-hero">
+            <div class="big-title">
+                Organizational Processes:<br>
+                <span class="blue">Documentation</span> &amp; <span class="blue">Change Management</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Process failures cause more outages than hardware failures.
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            A junior admin pushed a firewall change to production without approval. Within minutes, the entire sales
+            team lost VPN access. Change management exists to prevent exactly this. Documentation exists so you can
+            fix it when prevention fails. Both are examinable — and both matter in the real world.
+        </div>
+
+        <div class="title-meta-row">
+            <span>10 Slides</span>
+            <span>N10-009 Obj 3.1</span>
+            <span>Operations &amp; Management</span>
+            <span>Process + Practice</span>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 2 — DOCUMENTATION TYPES
+     ===================================================================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 10</div>
+        <div class="slide-title">Documentation <span class="accent">Types</span></div>
+        <div class="slide-subtitle">Physical and logical diagrams serve different audiences and answer different questions.</div>
+
+        <div style="display:flex; gap:20px; align-items:flex-start;">
+            <!-- SVG: physical vs logical diagram side by side, elements highlighting on hover -->
+            <svg width="440" height="190" viewBox="0 0 440 190" style="flex-shrink:0; background:rgba(255,255,255,0.02); border-radius:10px; border:1px solid rgba(255,255,255,0.07);">
+
+                <!-- ===== LEFT: Physical diagram ===== -->
+                <text x="105" y="18" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#c9a83a" letter-spacing="1">PHYSICAL</text>
+
+                <!-- Building / rack -->
+                <rect x="15" y="24" width="180" height="158" rx="5" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+                <!-- Rack 1 -->
+                <rect x="28" y="34" width="45" height="70" rx="3" fill="rgba(201,168,58,0.08)" stroke="rgba(201,168,58,0.3)" stroke-width="1"/>
+                <text x="50" y="46" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#c9a83a">RACK-A</text>
+                <rect x="32" y="50" width="37" height="8" rx="1" fill="rgba(6,182,212,0.2)" stroke="rgba(6,182,212,0.3)" stroke-width="0.5"/>
+                <text x="50" y="57" text-anchor="middle" font-family="Courier New" font-size="6" fill="#06b6d4">SW-01</text>
+                <rect x="32" y="62" width="37" height="8" rx="1" fill="rgba(58,181,119,0.2)" stroke="rgba(58,181,119,0.3)" stroke-width="0.5"/>
+                <text x="50" y="69" text-anchor="middle" font-family="Courier New" font-size="6" fill="#3ab577">SRV-01</text>
+                <rect x="32" y="74" width="37" height="8" rx="1" fill="rgba(58,181,119,0.2)" stroke="rgba(58,181,119,0.3)" stroke-width="0.5"/>
+                <text x="50" y="81" text-anchor="middle" font-family="Courier New" font-size="6" fill="#3ab577">SRV-02</text>
+                <rect x="32" y="86" width="37" height="6" rx="1" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+                <text x="50" y="91" text-anchor="middle" font-family="Courier New" font-size="5" fill="#475569">PATCH</text>
+
+                <!-- Physical cable from rack-a to rack-b -->
+                <path d="M73 65 Q105 50 123 65" fill="none" stroke="rgba(201,168,58,0.4)" stroke-width="1.5"/>
+
+                <!-- Rack 2 -->
+                <rect x="123" y="34" width="45" height="70" rx="3" fill="rgba(58,143,212,0.08)" stroke="rgba(58,143,212,0.3)" stroke-width="1"/>
+                <text x="145" y="46" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#3a8fd4">RACK-B</text>
+                <rect x="127" y="50" width="37" height="8" rx="1" fill="rgba(6,182,212,0.2)" stroke="rgba(6,182,212,0.3)" stroke-width="0.5"/>
+                <text x="145" y="57" text-anchor="middle" font-family="Courier New" font-size="6" fill="#06b6d4">SW-02</text>
+                <rect x="127" y="62" width="37" height="8" rx="1" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+                <text x="145" y="69" text-anchor="middle" font-family="Courier New" font-size="6" fill="#64748b">FIREWALL</text>
+
+                <!-- Highlighting animation on SW-01 -->
+                <rect x="32" y="50" width="37" height="8" rx="1" fill="rgba(6,182,212,0)" stroke="none">
+                    <animate attributeName="fill" values="rgba(6,182,212,0);rgba(6,182,212,0.35);rgba(6,182,212,0)" dur="3s" repeatCount="indefinite"/>
+                </rect>
+
+                <!-- Floor label -->
+                <text x="105" y="120" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#475569">Physical location, cable runs,</text>
+                <text x="105" y="132" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#475569">rack positions, port IDs</text>
+                <text x="105" y="145" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#3a4a5e">Audience: field techs, installers</text>
+
+                <!-- ===== DIVIDER ===== -->
+                <line x1="220" y1="24" x2="220" y2="182" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="4,3"/>
+
+                <!-- ===== RIGHT: Logical diagram ===== -->
+                <text x="330" y="18" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#3a8fd4" letter-spacing="1">LOGICAL</text>
+
+                <!-- Internet cloud -->
+                <ellipse cx="330" cy="40" rx="30" ry="14" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                <text x="330" y="44" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#94a3b8">Internet</text>
+
+                <!-- Firewall -->
+                <rect x="308" y="62" width="44" height="18" rx="3" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.35)" stroke-width="1"/>
+                <text x="330" y="74" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#f87171">Firewall</text>
+                <line x1="330" y1="54" x2="330" y2="62" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+
+                <!-- Core switch -->
+                <rect x="308" y="88" width="44" height="18" rx="3" fill="rgba(6,182,212,0.1)" stroke="rgba(6,182,212,0.3)" stroke-width="1"/>
+                <text x="330" y="100" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#06b6d4">Core SW</text>
+                <line x1="330" y1="80" x2="330" y2="88" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+
+                <!-- VLAN branches -->
+                <line x1="308" y1="97" x2="265" y2="112" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+                <line x1="352" y1="97" x2="395" y2="112" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+                <line x1="330" y1="106" x2="330" y2="112" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+
+                <!-- VLAN boxes -->
+                <rect x="235" y="112" width="60" height="16" rx="3" fill="rgba(58,181,119,0.12)" stroke="rgba(58,181,119,0.3)"/>
+                <text x="265" y="123" text-anchor="middle" font-family="Courier New" font-size="7" fill="#3ab577">VLAN 10</text>
+                <rect x="300" y="112" width="60" height="16" rx="3" fill="rgba(201,168,58,0.12)" stroke="rgba(201,168,58,0.3)"/>
+                <text x="330" y="123" text-anchor="middle" font-family="Courier New" font-size="7" fill="#c9a83a">VLAN 20</text>
+                <rect x="365" y="112" width="60" height="16" rx="3" fill="rgba(58,143,212,0.12)" stroke="rgba(58,143,212,0.3)"/>
+                <text x="395" y="123" text-anchor="middle" font-family="Courier New" font-size="7" fill="#3a8fd4">VLAN 30</text>
+
+                <!-- Logical diagram caption -->
+                <text x="330" y="148" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#475569">IP addressing, VLANs, routing,</text>
+                <text x="330" y="160" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#475569">protocols, subnets</text>
+                <text x="330" y="172" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#3a4a5e">Audience: network engineers, NOC</text>
+
+                <!-- Animated: logical node highlight -->
+                <rect x="308" y="88" width="44" height="18" rx="3" fill="rgba(6,182,212,0)" stroke="none">
+                    <animate attributeName="fill" values="rgba(6,182,212,0);rgba(6,182,212,0.3);rgba(6,182,212,0)" dur="4s" repeatCount="indefinite" begin="2s"/>
+                </rect>
+            </svg>
+
+            <div style="display:flex; flex-direction:column; gap:10px; flex:1; min-width:0;">
+                <div class="info-card">
+                    <div class="ic-title">Physical Diagram</div>
+                    <div class="ic-body">Shows physical layout: buildings, rooms, racks, cable runs, port connections. Created and maintained by cabling contractors and facilities staff. Critical for on-site troubleshooting and moves/adds/changes.</div>
+                </div>
+                <div class="info-card ic-gold">
+                    <div class="ic-title">Logical Diagram</div>
+                    <div class="ic-body">Shows IP addressing, VLAN assignments, routing paths, and protocol relationships. Devices appear as icons, not physical shapes. Updated by network engineers. The NOC uses this diagram when analyzing traffic and planning changes.</div>
+                </div>
+                <div class="info-card ic-green">
+                    <div class="ic-title">Why Both Matter</div>
+                    <div class="ic-body">A physical diagram tells you where the cable is. The logical diagram tells you what the cable carries. To trace a VPN problem, you start with logical. To fix a broken link, you go to physical. They are complementary, not interchangeable.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 3 — CHANGE MANAGEMENT
+     ===================================================================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 10</div>
+        <div class="slide-title">Change Management <span class="accent">Workflow</span></div>
+        <div class="slide-subtitle">Every change to production requires a ticket, a review, an approval, and a rollback plan — before a single command is typed.</div>
+
+        <!-- SVG: flowchart lighting up step by step -->
+        <svg width="760" height="120" viewBox="0 0 760 120" style="width:100%; background:rgba(255,255,255,0.02); border-radius:10px; border:1px solid rgba(255,255,255,0.07); max-height:120px;">
+
+            <!-- Step boxes: 7 steps across -->
+            <!-- Request -->
+            <g class="cm-step-0">
+                <rect x="10" y="35" width="85" height="50" rx="6" fill="rgba(58,143,212,0.15)" stroke="#3a8fd4" stroke-width="1.5"/>
+                <text x="52" y="57" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#3a8fd4">REQUEST</text>
+                <text x="52" y="71" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#94a3b8">Submit</text>
+                <text x="52" y="81" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#94a3b8">ticket</text>
+            </g>
+            <text x="99" y="63" font-family="Segoe UI" font-size="12" fill="#334155">&#8594;</text>
+
+            <!-- Review -->
+            <g class="cm-step-1">
+                <rect x="105" y="35" width="85" height="50" rx="6" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="147" y="57" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#c9a83a">REVIEW</text>
+                <text x="147" y="71" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#94a3b8">CAB</text>
+                <text x="147" y="81" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#94a3b8">evaluates</text>
+            </g>
+            <text x="194" y="63" font-family="Segoe UI" font-size="12" fill="#334155">&#8594;</text>
+
+            <!-- Approve -->
+            <g class="cm-step-2">
+                <rect x="200" y="35" width="85" height="50" rx="6" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="242" y="57" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#3ab577">APPROVE</text>
+                <text x="242" y="71" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#94a3b8">Signed</text>
+                <text x="242" y="81" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#94a3b8">off</text>
+            </g>
+            <text x="289" y="63" font-family="Segoe UI" font-size="12" fill="#334155">&#8594;</text>
+
+            <!-- Schedule -->
+            <g class="cm-step-3">
+                <rect x="295" y="35" width="85" height="50" rx="6" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="337" y="57" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#06b6d4">SCHEDULE</text>
+                <text x="337" y="71" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#94a3b8">Change</text>
+                <text x="337" y="81" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#94a3b8">window</text>
+            </g>
+            <text x="384" y="63" font-family="Segoe UI" font-size="12" fill="#334155">&#8594;</text>
+
+            <!-- Implement -->
+            <g class="cm-step-4">
+                <rect x="390" y="35" width="85" height="50" rx="6" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.5"/>
+                <text x="432" y="57" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#c9a83a">IMPLEMENT</text>
+                <text x="432" y="71" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#94a3b8">Make</text>
+                <text x="432" y="81" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#94a3b8">the change</text>
+            </g>
+            <text x="479" y="63" font-family="Segoe UI" font-size="12" fill="#334155">&#8594;</text>
+
+            <!-- Verify -->
+            <g class="cm-step-5">
+                <rect x="485" y="35" width="85" height="50" rx="6" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1.5"/>
+                <text x="527" y="57" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#3ab577">VERIFY</text>
+                <text x="527" y="71" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#94a3b8">Test &amp;</text>
+                <text x="527" y="81" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#94a3b8">confirm</text>
+            </g>
+            <text x="574" y="63" font-family="Segoe UI" font-size="12" fill="#334155">&#8594;</text>
+
+            <!-- Document -->
+            <g class="cm-step-6">
+                <rect x="580" y="35" width="85" height="50" rx="6" fill="rgba(58,143,212,0.12)" stroke="#3a8fd4" stroke-width="1.5"/>
+                <text x="622" y="57" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#3a8fd4">DOCUMENT</text>
+                <text x="622" y="71" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#94a3b8">Update</text>
+                <text x="622" y="81" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#94a3b8">records</text>
+            </g>
+
+            <!-- Rollback path label -->
+            <path d="M 485 85 Q 437 110 390 85" fill="none" stroke="rgba(239,68,68,0.4)" stroke-width="1.5" stroke-dasharray="4,3"/>
+            <text x="437" y="115" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#ef4444">Rollback if verify fails</text>
+
+            <!-- Ticket number label -->
+            <text x="680" y="57" font-family="Courier New" font-size="8" fill="#64748b">CHG-</text>
+            <text x="680" y="68" font-family="Courier New" font-size="8" fill="#64748b">20241</text>
+        </svg>
+
+        <div class="three-col">
+            <div class="info-card">
+                <div class="ic-title">CAB — Change Advisory Board</div>
+                <div class="ic-body">Cross-functional committee that reviews proposed changes. Members: network ops, security, server team, application owners, business stakeholders. Emergency CAB for urgent changes with faster approval path but tighter scope controls.</div>
+            </div>
+            <div class="info-card ic-gold">
+                <div class="ic-title">Change Windows</div>
+                <div class="ic-body">Scheduled periods for production changes — typically nights and weekends. Standard changes (low risk, pre-approved): can proceed without full CAB review. Emergency changes: separate process, post-hoc documentation. The junior admin skipped all of this.</div>
+            </div>
+            <div class="info-card ic-red">
+                <div class="ic-title">Rollback Plan Requirement</div>
+                <div class="ic-body">Every change ticket must include a rollback plan before approval. If the change fails verification, the rollback plan is executed immediately. No rollback plan = ticket rejected. This is the safety net the junior admin had no plan for.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 4 — CONFIGURATION MANAGEMENT
+     ===================================================================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 10</div>
+        <div class="slide-title">Configuration Management &amp; <span class="accent">Config Drift</span></div>
+        <div class="slide-subtitle">The running config diverges from the golden baseline. The diff is your early warning system.</div>
+
+        <div style="display:flex; gap:16px; align-items:flex-start;">
+            <!-- SVG: config diff animation -->
+            <svg width="420" height="190" viewBox="0 0 420 190" style="flex-shrink:0; background:rgba(0,0,0,0.4); border-radius:10px; border:1px solid rgba(255,255,255,0.08); font-family:Courier New;">
+
+                <!-- Three panels: golden, running, diff -->
+                <!-- Golden config label -->
+                <rect x="8" y="8" width="120" height="14" rx="2" fill="rgba(58,181,119,0.2)"/>
+                <text x="68" y="19" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#3ab577">GOLDEN CONFIG</text>
+
+                <!-- Config lines -->
+                <text x="12" y="38" font-size="8" fill="#94a3b8">interface Gi0/1</text>
+                <text x="12" y="50" font-size="8" fill="#94a3b8"> ip address 10.1.1.1</text>
+                <text x="12" y="62" font-size="8" fill="#94a3b8"> no shutdown</text>
+                <text x="12" y="74" font-size="8" fill="#94a3b8">ip route 0.0.0.0 0.0.0.0</text>
+                <text x="12" y="86" font-size="8" fill="#94a3b8"> 192.168.1.1</text>
+                <text x="12" y="98" font-size="8" fill="#94a3b8">access-list 10 permit</text>
+                <text x="12" y="110" font-size="8" fill="#94a3b8"> 10.0.0.0 0.255.255.255</text>
+                <text x="12" y="122" font-size="8" fill="#3ab577">access-list 10 deny any</text>
+
+                <!-- Running config label -->
+                <rect x="138" y="8" width="130" height="14" rx="2" fill="rgba(239,68,68,0.15)"/>
+                <text x="203" y="19" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#f87171">RUNNING CONFIG (DRIFTED)</text>
+
+                <!-- Running config lines — some differ -->
+                <text x="142" y="38" font-size="8" fill="#94a3b8">interface Gi0/1</text>
+                <text x="142" y="50" font-size="8" fill="#94a3b8"> ip address 10.1.1.1</text>
+                <text x="142" y="62" font-size="8" fill="#94a3b8"> no shutdown</text>
+                <text x="142" y="74" font-size="8" fill="#94a3b8">ip route 0.0.0.0 0.0.0.0</text>
+                <text x="142" y="86" font-size="8" fill="#94a3b8"> 192.168.1.1</text>
+                <!-- Drifted lines -->
+                <g class="diff-row">
+                    <rect x="138" y="93" width="250" height="12" rx="1" fill="rgba(239,68,68,0.3)"/>
+                </g>
+                <text x="142" y="103" font-size="8" fill="#fca5a5">access-list 10 permit any</text>
+                <g class="diff-row" style="animation-delay:0.3s">
+                    <rect x="138" y="108" width="250" height="12" rx="1" fill="rgba(239,68,68,0.2)"/>
+                </g>
+                <text x="142" y="118" font-size="8" fill="#fca5a5">! deny removed by j.smith</text>
+
+                <!-- Diff arrow -->
+                <text x="295" y="80" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#ef4444">DIFF</text>
+                <text x="295" y="93" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#f87171">- access-list 10 deny any</text>
+                <text x="295" y="106" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#fbbf24">+ access-list 10 permit any</text>
+                <text x="295" y="119" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#fca5a5">DRIFT DETECTED</text>
+
+                <!-- Rollback arrow -->
+                <path d="M300 130 Q300 150 200 160 Q130 168 70 155" fill="none" stroke="rgba(58,181,119,0.5)" stroke-width="1.5" stroke-dasharray="4,3"/>
+                <polygon points="70,155 80,149 80,161" fill="#3ab577" opacity="0.7"/>
+                <text x="200" y="180" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#3ab577">Rollback to golden config</text>
+
+                <!-- Border separators -->
+                <line x1="130" y1="8" x2="130" y2="185" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+                <line x1="270" y1="8" x2="270" y2="140" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+            </svg>
+
+            <div style="display:flex; flex-direction:column; gap:10px; flex:1; min-width:0;">
+                <div class="info-card">
+                    <div class="ic-title">Configuration Types</div>
+                    <div class="ic-body">
+                        <strong style="color:#3ab577;">Golden/Baseline config</strong> — the approved, known-good configuration. Stored in version control.<br>
+                        <strong style="color:#c9a83a;">Running config</strong> — what is currently active on the device. May drift from baseline through undocumented changes.<br>
+                        <strong style="color:#06b6d4;">Startup config</strong> — what loads on boot. If startup differs from running, a reboot causes unexpected behavior.
+                    </div>
+                </div>
+                <div class="info-card ic-gold">
+                    <div class="ic-title">Config Drift Detection</div>
+                    <div class="ic-body">Tools like RANCID, Oxidized, or commercial DCIM/NMS platforms automatically pull device configs on a schedule and diff them against the stored baseline. Alerts trigger on any deviation. This is how you catch the unauthorized ACL change at 3am instead of during an incident.</div>
+                </div>
+                <div class="box box-blue" style="font-size:0.82rem;">
+                    <div class="box-label">Version Control for Configs</div>
+                    Store all configs in Git. Each change is a commit with author, timestamp, and message. Roll back with <code style="font-family:Courier New; color:#3a8fd4;">git revert</code>. Blame with <code style="font-family:Courier New; color:#3a8fd4;">git log</code>. Same discipline as code — because network config IS code.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 5 — NETWORK DIAGRAMS
+     ===================================================================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 10</div>
+        <div class="slide-title">Network Diagrams: <span class="accent">Layer 1 / 2 / 3</span></div>
+        <div class="slide-subtitle">Each OSI layer exposes different information. The right diagram depends on what you are troubleshooting.</div>
+
+        <div class="three-col">
+            <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:14px;">
+                <div style="font-size:0.72rem; font-weight:700; color:#c9a83a; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px; text-align:center;">Layer 1 — Physical</div>
+                <svg width="100%" height="100" viewBox="0 0 200 100">
+                    <!-- Physical: cables, ports, connectors -->
+                    <rect x="20" y="30" width="40" height="30" rx="3" fill="rgba(201,168,58,0.15)" stroke="#c9a83a" stroke-width="1"/>
+                    <text x="40" y="48" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#c9a83a">SW-A</text>
+                    <rect x="140" y="30" width="40" height="30" rx="3" fill="rgba(201,168,58,0.15)" stroke="#c9a83a" stroke-width="1"/>
+                    <text x="160" y="48" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#c9a83a">SW-B</text>
+                    <!-- Cable with connector type label -->
+                    <line x1="60" y1="45" x2="140" y2="45" stroke="#c9a83a" stroke-width="2"/>
+                    <circle cx="60" cy="45" r="3" fill="#c9a83a"/>
+                    <circle cx="140" cy="45" r="3" fill="#c9a83a"/>
+                    <text x="100" y="38" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#94a3b8">Cat6A / Port Gi0/1</text>
+                    <text x="100" y="65" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#64748b">Physical connectors,</text>
+                    <text x="100" y="76" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#64748b">cable types, port IDs</text>
+                </svg>
+            </div>
+
+            <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:14px;">
+                <div style="font-size:0.72rem; font-weight:700; color:#06b6d4; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px; text-align:center;">Layer 2 — Data Link</div>
+                <svg width="100%" height="100" viewBox="0 0 200 100">
+                    <!-- L2: VLANs, MACs, trunks -->
+                    <rect x="20" y="20" width="50" height="60" rx="3" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1"/>
+                    <text x="45" y="36" text-anchor="middle" font-family="Segoe UI" font-size="7" font-weight="700" fill="#06b6d4">SW-A</text>
+                    <rect x="25" y="40" width="40" height="8" rx="1" fill="rgba(58,181,119,0.2)"/>
+                    <text x="45" y="47" text-anchor="middle" font-family="Courier New" font-size="6" fill="#3ab577">V10</text>
+                    <rect x="25" y="51" width="40" height="8" rx="1" fill="rgba(201,168,58,0.2)"/>
+                    <text x="45" y="58" text-anchor="middle" font-family="Courier New" font-size="6" fill="#c9a83a">V20</text>
+                    <rect x="25" y="62" width="40" height="10" rx="1" fill="rgba(58,143,212,0.2)"/>
+                    <text x="45" y="70" text-anchor="middle" font-family="Courier New" font-size="6" fill="#3a8fd4">V30</text>
+
+                    <!-- Trunk label -->
+                    <line x1="70" y1="50" x2="130" y2="50" stroke="#06b6d4" stroke-width="2.5"/>
+                    <text x="100" y="44" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#94a3b8">802.1Q Trunk</text>
+                    <text x="100" y="65" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#94a3b8">V10,V20,V30</text>
+
+                    <rect x="130" y="20" width="50" height="60" rx="3" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1"/>
+                    <text x="155" y="36" text-anchor="middle" font-family="Segoe UI" font-size="7" font-weight="700" fill="#06b6d4">SW-B</text>
+                    <text x="100" y="88" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#64748b">VLANs, trunks, STP, MACs</text>
+                </svg>
+            </div>
+
+            <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:14px;">
+                <div style="font-size:0.72rem; font-weight:700; color:#3ab577; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px; text-align:center;">Layer 3 — Network</div>
+                <svg width="100%" height="100" viewBox="0 0 200 100">
+                    <!-- L3: subnets, routes, IPs -->
+                    <ellipse cx="100" cy="20" rx="25" ry="10" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+                    <text x="100" y="24" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#94a3b8">Router</text>
+
+                    <line x1="85" y1="30" x2="50" y2="55" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+                    <line x1="115" y1="30" x2="150" y2="55" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+                    <line x1="100" y1="30" x2="100" y2="55" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+
+                    <rect x="15" y="55" width="70" height="18" rx="3" fill="rgba(58,181,119,0.1)" stroke="rgba(58,181,119,0.3)"/>
+                    <text x="50" y="67" text-anchor="middle" font-family="Courier New" font-size="7" fill="#3ab577">10.1.0.0/24</text>
+                    <rect x="65" y="55" width="70" height="18" rx="3" fill="rgba(201,168,58,0.1)" stroke="rgba(201,168,58,0.3)"/>
+                    <text x="100" y="67" text-anchor="middle" font-family="Courier New" font-size="7" fill="#c9a83a">10.2.0.0/24</text>
+                    <rect x="115" y="55" width="70" height="18" rx="3" fill="rgba(58,143,212,0.1)" stroke="rgba(58,143,212,0.3)"/>
+                    <text x="150" y="67" text-anchor="middle" font-family="Courier New" font-size="7" fill="#3a8fd4">10.3.0.0/24</text>
+
+                    <text x="100" y="88" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#64748b">IP subnets, routing, gateways</text>
+                </svg>
+            </div>
+        </div>
+
+        <div class="two-col">
+            <div class="box box-blue" style="font-size:0.83rem;">
+                <div class="box-label">Diagram Currency</div>
+                A diagram that is 6 months out of date is worse than no diagram — it gives false confidence. Require diagram updates as part of every change management ticket. Tie documentation to the change process, not to memory.
+            </div>
+            <div class="box box-gold" style="font-size:0.83rem;">
+                <div class="box-label">Tools in Practice</div>
+                Visio, Lucidchart, draw.io (free) for manual diagrams. NetBrain, SolarWinds for automated discovery and diagram generation. Export to PDF after every change and store with the change ticket.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 6 — ASSET INVENTORY
+     ===================================================================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 10</div>
+        <div class="slide-title">Asset Inventory &amp; <span class="accent">CMDB</span></div>
+        <div class="slide-subtitle">You cannot secure, patch, or decommission what you do not know exists.</div>
+
+        <div style="display:flex; gap:16px; align-items:flex-start;">
+            <!-- SVG: database filling with asset entries -->
+            <svg width="260" height="190" viewBox="0 0 260 190" style="flex-shrink:0; background:rgba(255,255,255,0.02); border-radius:10px; border:1px solid rgba(255,255,255,0.07);">
+
+                <!-- Database cylinder top -->
+                <ellipse cx="130" cy="30" rx="80" ry="14" fill="rgba(58,143,212,0.15)" stroke="#3a8fd4" stroke-width="1.5"/>
+                <rect x="50" y="30" width="160" height="130" fill="rgba(58,143,212,0.06)" stroke="none"/>
+                <ellipse cx="130" cy="160" rx="80" ry="14" fill="rgba(58,143,212,0.1)" stroke="#3a8fd4" stroke-width="1.5"/>
+                <rect x="50" y="30" width="2" height="130" fill="none" stroke="#3a8fd4" stroke-width="1.5"/>
+                <rect x="208" y="30" width="2" height="130" fill="none" stroke="#3a8fd4" stroke-width="1.5"/>
+
+                <!-- Animated rows appearing in the DB -->
+                <g opacity="0">
+                    <rect x="58" y="45" width="144" height="10" rx="2" fill="rgba(201,168,58,0.2)" stroke="rgba(201,168,58,0.3)" stroke-width="0.5"/>
+                    <text x="130" y="53" text-anchor="middle" font-family="Courier New" font-size="7" fill="#c9a83a">SW-CORE-01 | 10.0.0.1 | C9300</text>
+                    <animate attributeName="opacity" values="0;0;1;1" dur="8s" repeatCount="indefinite" begin="0s"/>
+                </g>
+                <g opacity="0">
+                    <rect x="58" y="58" width="144" height="10" rx="2" fill="rgba(58,181,119,0.15)" stroke="rgba(58,181,119,0.25)" stroke-width="0.5"/>
+                    <text x="130" y="66" text-anchor="middle" font-family="Courier New" font-size="7" fill="#3ab577">SRV-01 | 10.1.0.10 | Dell R750</text>
+                    <animate attributeName="opacity" values="0;0;0;1;1" dur="8s" repeatCount="indefinite" begin="0.5s"/>
+                </g>
+                <g opacity="0">
+                    <rect x="58" y="71" width="144" height="10" rx="2" fill="rgba(6,182,212,0.15)" stroke="rgba(6,182,212,0.25)" stroke-width="0.5"/>
+                    <text x="130" y="79" text-anchor="middle" font-family="Courier New" font-size="7" fill="#06b6d4">FW-01 | 10.0.0.254 | Palo PA</text>
+                    <animate attributeName="opacity" values="0;0;0;0;1;1" dur="8s" repeatCount="indefinite" begin="1s"/>
+                </g>
+                <g opacity="0">
+                    <rect x="58" y="84" width="144" height="10" rx="2" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)" stroke-width="0.5"/>
+                    <text x="130" y="92" text-anchor="middle" font-family="Courier New" font-size="7" fill="#94a3b8">AP-LOBBY | 10.2.0.5 | Cisco</text>
+                    <animate attributeName="opacity" values="0;0;0;0;0;1;1" dur="8s" repeatCount="indefinite" begin="1.5s"/>
+                </g>
+                <g opacity="0">
+                    <rect x="58" y="97" width="144" height="10" rx="2" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>
+                    <text x="130" y="105" text-anchor="middle" font-family="Courier New" font-size="7" fill="#f87171">SW-IDF2 | EOS 2025-03</text>
+                    <animate attributeName="opacity" values="0;0;0;0;0;0;1" dur="8s" repeatCount="indefinite" begin="2s"/>
+                </g>
+                <g opacity="0">
+                    <rect x="58" y="110" width="144" height="10" rx="2" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.08)" stroke-width="0.5"/>
+                    <text x="130" y="118" text-anchor="middle" font-family="Courier New" font-size="7" fill="#64748b">UPS-01 | Battery: 82% | OK</text>
+                    <animate attributeName="opacity" values="0;0;0;0;0;0;0;1" dur="8s" repeatCount="indefinite" begin="2.5s"/>
+                </g>
+
+                <text x="130" y="178" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#64748b">CMDB — Configuration Management DB</text>
+            </svg>
+
+            <div style="display:flex; flex-direction:column; gap:10px; flex:1; min-width:0;">
+                <div class="info-card">
+                    <div class="ic-title">What the CMDB Tracks</div>
+                    <div class="ic-body">Every configuration item (CI): hardware assets (make, model, serial, location), software licenses (version, seat count, expiry), network devices (IP, VLAN, firmware), warranties and support contracts, and relationships between CIs (this server runs on that hypervisor).</div>
+                </div>
+                <div class="two-col" style="gap:8px;">
+                    <div class="info-card ic-gold">
+                        <div class="ic-title">Software Licensing</div>
+                        <div class="ic-body">Track per-seat vs. per-core vs. site licenses. Audit against installed software regularly. License audit failures = significant fines. Include software in CMDB, not just a spreadsheet.</div>
+                    </div>
+                    <div class="info-card ic-red">
+                        <div class="ic-title">Shadow IT Risk</div>
+                        <div class="ic-body">Devices and services deployed without IT's knowledge. They are not in the CMDB, not patched, not secured. Network access control (NAC) and periodic discovery scans help surface them.</div>
+                    </div>
+                </div>
+                <div class="box box-blue" style="font-size:0.82rem;">
+                    <div class="box-label">Automation</div>
+                    SNMP discovery, Nmap scanning, or agent-based inventory tools populate the CMDB automatically. Manual inventories become stale immediately. Automate the scan, review the exceptions.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 7 — SLA AND IPAM
+     ===================================================================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 10</div>
+        <div class="slide-title">SLA Metrics &amp; <span class="accent">IPAM</span></div>
+        <div class="slide-subtitle">SLAs define what "good" looks like. IPAM prevents address conflicts from making it look bad.</div>
+
+        <div class="two-col">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:14px;">
+                    <div class="section-label" style="margin-bottom:10px;">Service Level Agreement Metrics</div>
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Metric</th><th>Definition</th><th>Typical SLA</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="color:#3a8fd4; font-weight:700;">Uptime %</td>
+                                <td>Available / total time</td>
+                                <td><span style="font-family:Courier New; color:#3ab577;">99.9%</span> = 8.7h/yr down</td>
+                            </tr>
+                            <tr>
+                                <td style="color:#3a8fd4; font-weight:700;">MTTR</td>
+                                <td>Mean Time to Repair</td>
+                                <td>Avg time to restore service</td>
+                            </tr>
+                            <tr>
+                                <td style="color:#3a8fd4; font-weight:700;">MTBF</td>
+                                <td>Mean Time Between Failures</td>
+                                <td>Reliability indicator</td>
+                            </tr>
+                            <tr>
+                                <td style="color:#3a8fd4; font-weight:700;">RTO</td>
+                                <td>Recovery Time Objective</td>
+                                <td>Max acceptable downtime</td>
+                            </tr>
+                            <tr>
+                                <td style="color:#3a8fd4; font-weight:700;">RPO</td>
+                                <td>Recovery Point Objective</td>
+                                <td>Max acceptable data loss</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="info-card">
+                    <div class="ic-title">IPAM — IP Address Management</div>
+                    <div class="ic-body">Centralized database of all IP address allocations. Tracks what address is assigned to what device, subnet utilization, DHCP scope usage, and DNS records. Prevents duplicate IP conflicts before they cause outages. Tools: InfoBlox, SolarWinds IPAM, phpIPAM (free).</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:12px;">
+                    <div class="section-label" style="margin-bottom:8px;">IPAM — Subnet Utilization</div>
+                    <div style="font-size:0.8rem; color:#64748b; margin-bottom:6px; font-family:Courier New;">10.1.0.0/24 — Engineering</div>
+                    <div style="background:rgba(255,255,255,0.06); border-radius:4px; height:14px; overflow:hidden; margin-bottom:3px;">
+                        <div style="height:100%; width:78%; background:linear-gradient(90deg,#3ab577,#c9a83a);border-radius:4px;"></div>
+                    </div>
+                    <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:8px;">198 / 254 addresses used (78%)</div>
+
+                    <div style="font-size:0.8rem; color:#64748b; margin-bottom:6px; font-family:Courier New;">10.2.0.0/24 — Servers</div>
+                    <div style="background:rgba(255,255,255,0.06); border-radius:4px; height:14px; overflow:hidden; margin-bottom:3px;">
+                        <div style="height:100%; width:35%; background:#3ab577; border-radius:4px;"></div>
+                    </div>
+                    <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:8px;">89 / 254 addresses used (35%)</div>
+
+                    <div style="font-size:0.8rem; color:#64748b; margin-bottom:6px; font-family:Courier New;">10.3.0.0/24 — VoIP</div>
+                    <div style="background:rgba(255,255,255,0.06); border-radius:4px; height:14px; overflow:hidden; margin-bottom:3px;">
+                        <div style="height:100%; width:95%; background:linear-gradient(90deg,#c9a83a,#ef4444); border-radius:4px;"></div>
+                    </div>
+                    <div style="font-size:0.75rem; color:#fca5a5;">241 / 254 used (95%) — plan expansion</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 8 — BASELINES
+     ===================================================================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 10</div>
+        <div class="slide-title">Network <span class="accent">Baselines</span> &amp; Anomaly Detection</div>
+        <div class="slide-subtitle">You cannot spot abnormal without first knowing what normal looks like.</div>
+
+        <!-- SVG: traffic baseline graph with anomaly spike -->
+        <svg width="760" height="130" viewBox="0 0 760 130" style="width:100%; background:rgba(0,0,0,0.35); border-radius:10px; border:1px solid rgba(255,255,255,0.07); max-height:130px;">
+
+            <!-- Grid lines -->
+            <line x1="50" y1="20" x2="740" y2="20" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+            <line x1="50" y1="45" x2="740" y2="45" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+            <line x1="50" y1="70" x2="740" y2="70" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+            <line x1="50" y1="95" x2="740" y2="95" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+
+            <!-- Y-axis labels -->
+            <text x="42" y="23" text-anchor="end" font-family="Courier New" font-size="8" fill="#475569">100%</text>
+            <text x="42" y="48" text-anchor="end" font-family="Courier New" font-size="8" fill="#475569">75%</text>
+            <text x="42" y="73" text-anchor="end" font-family="Courier New" font-size="8" fill="#475569">50%</text>
+            <text x="42" y="98" text-anchor="end" font-family="Courier New" font-size="8" fill="#475569">25%</text>
+
+            <!-- Axes -->
+            <line x1="50" y1="10" x2="50" y2="110" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+            <line x1="50" y1="110" x2="740" y2="110" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+
+            <!-- Baseline band (normal range) -->
+            <rect x="50" y="60" width="690" height="25" fill="rgba(58,143,212,0.08)" stroke="none"/>
+            <text x="55" y="69" font-family="Segoe UI" font-size="8" fill="#3a8fd4" opacity="0.7">Normal baseline (45-65%)</text>
+
+            <!-- Baseline traffic line — normal wave -->
+            <polyline fill="none" stroke="#3a8fd4" stroke-width="2" opacity="0.7"
+                points="50,80 80,75 110,72 140,78 170,70 200,74 230,68 260,75 290,72 320,76 350,70 380,73 410,69 440,75 470,72 490,70"/>
+
+            <!-- Anomaly spike -->
+            <g class="anomaly-spike">
+                <polyline fill="none" stroke="#ef4444" stroke-width="2.5"
+                    points="490,70 510,62 525,35 540,15 555,22 570,42 585,60 600,70"/>
+                <!-- Spike fill -->
+                <polygon fill="rgba(239,68,68,0.15)"
+                    points="490,110 490,70 510,62 525,35 540,15 555,22 570,42 585,60 600,70 600,110"/>
+                <!-- Alert label -->
+                <rect x="510" y="8" width="90" height="16" rx="3" fill="rgba(239,68,68,0.3)" stroke="#ef4444" stroke-width="1"/>
+                <text x="555" y="19" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#fca5a5">ANOMALY DETECTED</text>
+            </g>
+
+            <!-- Traffic continues after spike -->
+            <polyline fill="none" stroke="#3a8fd4" stroke-width="2" opacity="0.7"
+                points="600,70 630,74 660,71 690,75 720,72 740,70"/>
+
+            <!-- Time labels -->
+            <text x="70" y="122" font-family="Segoe UI" font-size="8" fill="#475569">00:00</text>
+            <text x="185" y="122" font-family="Segoe UI" font-size="8" fill="#475569">06:00</text>
+            <text x="305" y="122" font-family="Segoe UI" font-size="8" fill="#475569">12:00</text>
+            <text x="420" y="122" font-family="Segoe UI" font-size="8" fill="#475569">18:00</text>
+            <text x="530" y="122" font-family="Segoe UI" font-size="8" fill="#ef4444">21:43</text>
+            <text x="650" y="122" font-family="Segoe UI" font-size="8" fill="#475569">00:00</text>
+
+            <!-- Chart title -->
+            <text x="395" y="14" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#94a3b8">WAN Link Utilization — 24h</text>
+        </svg>
+
+        <div class="three-col">
+            <div class="info-card">
+                <div class="ic-title">Establishing a Baseline</div>
+                <div class="ic-body">Measure network traffic, CPU, memory, and error rates during normal operations for at least 30 days. Capture peak hours, off-hours, and weekly cycles. This becomes the reference for what "normal" looks like. Document it formally.</div>
+            </div>
+            <div class="info-card ic-gold">
+                <div class="ic-title">Anomaly Detection</div>
+                <div class="ic-body">Any sustained deviation above the baseline triggers investigation. The spike at 21:43 could be: a backup job, a DDoS, malware exfiltration, or a misconfigured application. The baseline makes it visible. Without it, the spike blends into the noise.</div>
+            </div>
+            <div class="info-card ic-green">
+                <div class="ic-title">Capacity Planning</div>
+                <div class="ic-body">Baselines reveal growth trends. If the average WAN utilization grows 5% per quarter, you can project when the link will saturate and order an upgrade before users notice. Reactive procurement is always more expensive than planned.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 9 — LIFE-CYCLE MANAGEMENT
+     ===================================================================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 10</div>
+        <div class="slide-title">Life-Cycle Management: <span class="accent-red">EOL / EOS</span> &amp; Patching</div>
+        <div class="slide-subtitle">Unpatched and end-of-life equipment is one of the most common vectors for network compromise.</div>
+
+        <div style="display:flex; gap:16px; align-items:flex-start;">
+            <!-- EOL timeline SVG -->
+            <svg width="340" height="185" viewBox="0 0 340 185" style="flex-shrink:0; background:rgba(255,255,255,0.02); border-radius:10px; border:1px solid rgba(255,255,255,0.07);">
+                <text x="170" y="20" text-anchor="middle" font-family="Segoe UI" font-size="9" font-weight="700" fill="#94a3b8">PRODUCT LIFE-CYCLE TIMELINE</text>
+
+                <!-- Timeline bar -->
+                <rect x="20" y="36" width="300" height="16" rx="8" fill="rgba(255,255,255,0.06)"/>
+
+                <!-- Phases -->
+                <rect x="20" y="36" width="90" height="16" rx="8" fill="rgba(58,181,119,0.4)"/>
+                <rect x="110" y="36" width="90" height="16" fill="rgba(201,168,58,0.3)"/>
+                <rect x="200" y="36" width="70" height="16" fill="rgba(239,68,68,0.3)"/>
+                <rect x="270" y="36" width="50" height="16" rx="8" fill="rgba(100,116,139,0.3)"/>
+
+                <!-- Phase labels -->
+                <text x="65" y="48" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#3ab577">ACTIVE</text>
+                <text x="155" y="48" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#c9a83a">LIMITED</text>
+                <text x="235" y="48" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#ef4444">EOSM</text>
+                <text x="295" y="48" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#94a3b8">EOL</text>
+
+                <!-- Milestone markers -->
+                <line x1="110" y1="30" x2="110" y2="60" stroke="rgba(201,168,58,0.6)" stroke-width="1.5"/>
+                <text x="110" y="68" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#c9a83a">EOS</text>
+                <text x="110" y="77" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#94a3b8">End of Sale</text>
+
+                <line x1="200" y1="30" x2="200" y2="60" stroke="rgba(239,68,68,0.6)" stroke-width="1.5"/>
+                <text x="200" y="68" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#ef4444">EOSM</text>
+                <text x="200" y="77" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#94a3b8">End of Maintenance</text>
+
+                <line x1="270" y1="30" x2="270" y2="60" stroke="rgba(100,116,139,0.6)" stroke-width="1.5"/>
+                <text x="270" y="68" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#64748b">EOL</text>
+                <text x="270" y="77" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#64748b">End of Life</text>
+
+                <!-- Current position marker -->
+                <line x1="220" y1="28" x2="220" y2="55" stroke="#ef4444" stroke-width="2">
+                    <animate attributeName="opacity" values="1;0.3;1" dur="1.5s" repeatCount="indefinite"/>
+                </line>
+                <polygon points="220,26 216,32 224,32" fill="#ef4444">
+                    <animate attributeName="opacity" values="1;0.3;1" dur="1.5s" repeatCount="indefinite"/>
+                </polygon>
+                <text x="220" y="88" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#ef4444">You are here</text>
+                <text x="220" y="98" text-anchor="middle" font-family="Segoe UI" font-size="7" fill="#fca5a5">No more security patches</text>
+
+                <!-- Patching cadence -->
+                <rect x="10" y="108" width="320" height="70" rx="5" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)"/>
+                <text x="170" y="122" text-anchor="middle" font-family="Segoe UI" font-size="8" font-weight="700" fill="#94a3b8">PATCH CADENCE</text>
+                <text x="170" y="136" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#64748b">Critical CVE: patch within 24-72h</text>
+                <text x="170" y="148" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#64748b">High severity: within 7 days</text>
+                <text x="170" y="160" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#64748b">Medium/Low: monthly patch cycle</text>
+                <text x="170" y="172" text-anchor="middle" font-family="Segoe UI" font-size="8" fill="#64748b">OS firmware: quarterly review</text>
+            </svg>
+
+            <div style="display:flex; flex-direction:column; gap:10px; flex:1; min-width:0;">
+                <div class="info-card">
+                    <div class="ic-title">End of Life vs End of Sale vs End of Support</div>
+                    <div class="ic-body">
+                        <strong style="color:#3ab577;">End of Sale (EOS):</strong> vendor stops selling the product. You can still buy used, but the clock is ticking.<br>
+                        <strong style="color:#ef4444;">End of Maintenance (EoSM):</strong> no more security patches released. Any new CVE is permanently unpatched.<br>
+                        <strong style="color:#64748b;">End of Life (EOL):</strong> vendor stops all support, including hardware replacement. If it breaks, you are on your own.
+                    </div>
+                </div>
+                <div class="info-card ic-red">
+                    <div class="ic-title">The EOL Security Problem</div>
+                    <div class="ic-body">WannaCry (2017) exploited Windows XP — out of support since 2014. EternalBlue affected 200,000 systems in 150 countries in one day. The organizations running EOL equipment had no patch available, and no recourse. Track EOL dates in the CMDB. Budget for replacements before the date arrives.</div>
+                </div>
+                <div class="info-card ic-gold">
+                    <div class="ic-title">Decommissioning Process</div>
+                    <div class="ic-body">Removing a device from the network is a change — it requires a ticket. Sanitize storage media (NIST SP 800-88). Remove from CMDB, IPAM, and DNS. Revoke certificates. Update network diagrams. Physically label as decommissioned before disposal. Chain of custody documentation for regulated industries.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 10 — SUMMARY + COMPLETE
+     ===================================================================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 10 &nbsp;|&nbsp; Summary</div>
+        <div class="slide-title">Organizational Processes: <span class="accent">What You Now Know</span></div>
+
+        <div class="two-col">
+            <div style="display:flex; flex-direction:column; gap:7px;">
+                <div class="fact-row"><span class="fact-num">1</span><span class="fact-text">Physical diagrams show cable and hardware layout. Logical diagrams show IP, VLAN, and routing. Both must be current and stored where engineers can find them at 2am.</span></div>
+                <div class="fact-row"><span class="fact-num">2</span><span class="fact-text">Change management: Request → Review (CAB) → Approve → Schedule → Implement → Verify → Document. No undocumented production changes. Ever.</span></div>
+                <div class="fact-row"><span class="fact-num">3</span><span class="fact-text">Config drift detection: compare running config to golden baseline. Version control configs in Git. Roll back on deviation.</span></div>
+                <div class="fact-row"><span class="fact-num">4</span><span class="fact-text">CMDB tracks all CIs — hardware, software, licenses, warranties. IPAM prevents address conflicts. Both must be automated and current.</span></div>
+                <div class="fact-row"><span class="fact-num">5</span><span class="fact-text">SLA metrics: uptime %, MTTR, MTBF, RTO, RPO. Know the definitions and what each measures.</span></div>
+                <div class="fact-row"><span class="fact-num">6</span><span class="fact-text">Baselines establish normal. Anomalies become visible only against a known baseline. Capture at least 30 days of data across peaks and valleys.</span></div>
+                <div class="fact-row"><span class="fact-num">7</span><span class="fact-text">EOL/EOS devices have no security patches. Track dates in CMDB, budget replacements before EoSM. Decommissioning is a formal change process.</span></div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div style="background:rgba(58,143,212,0.07); border:1px solid rgba(58,143,212,0.3); border-radius:9px; padding:14px 18px; font-size:0.875rem; color:#bae0ff; line-height:1.65;">
+                    <strong style="color:#3a8fd4;">The firewall incident is resolved.</strong> The junior admin's unauthorized change was caught within 15 minutes by config drift detection, compared against the golden config in version control, and rolled back by the on-call engineer using the documented rollback procedure. A post-incident review resulted in tighter RBAC on the firewall management console and a mandatory change ticket requirement for all ACL modifications.
+                    <br><br>
+                    Documentation and process are not bureaucracy — they are how networks survive contact with human error.
+                </div>
+
+                <div class="box box-blue" style="font-size:0.82rem;">
+                    <div class="box-label">N10-009 Obj 3.1 Coverage</div>
+                    Physical/logical diagrams, change management (CAB, rollback), configuration management (golden config, drift), network diagrams (L1/L2/L3), asset inventory, CMDB, IPAM, SLA (MTTR/MTBF/RTO/RPO), baselines, EOL/EOS, patch management, decommissioning.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     NAVIGATION BAR
+     ===================================================================== -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">Back to Course</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="changeSlide(-1)" disabled>Previous</button>
+    <span id="slide-counter">1 / 10</span>
+    <button class="nav-btn" id="next-btn" onclick="changeSlide(1)">Next</button>
+    <button id="complete-btn">Mark Complete</button>
+</nav>
+
+<script>
+    /* =====================================================
+       SLIDE NAVIGATION ENGINE
+       ===================================================== */
+    const TOTAL_SLIDES = 10;
+    const MODULE_ID    = 'web-organizational-processes';
+    let currentSlide   = 1;
+
+    function changeSlide(direction) {
+        const previous = document.getElementById('slide-' + currentSlide);
+        currentSlide = Math.max(1, Math.min(TOTAL_SLIDES, currentSlide + direction));
+        const next = document.getElementById('slide-' + currentSlide);
+
+        if (previous) previous.classList.remove('active');
+        if (next)     next.classList.add('active');
+
+        const pct = (currentSlide / TOTAL_SLIDES) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+        document.getElementById('slide-counter').textContent = currentSlide + ' / ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+
+    /* =====================================================
+       COMPLETE BUTTON
+       ===================================================== */
+    document.getElementById('complete-btn').addEventListener('click', function () {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', MODULE_ID, { returnUrl: '../index.html' });
+        }
+        this.textContent = 'Completed!';
+        this.style.background = '#5aa8e8';
+        this.disabled = true;
+    });
+
+    /* =====================================================
+       KEYBOARD NAVIGATION
+       ===================================================== */
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+            if (currentSlide < TOTAL_SLIDES) changeSlide(1);
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+            if (currentSlide > 1) changeSlide(-1);
+        }
+    });
+</script>
+
+</body>
+</html>

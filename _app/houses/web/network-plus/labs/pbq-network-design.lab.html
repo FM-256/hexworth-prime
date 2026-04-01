@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PBQ: Network Design | Network+</title>
+    <style>
+        :root {
+            --cyan: #06b6d4;
+            --cyan-dim: rgba(6, 182, 212, 0.18);
+            --cyan-glow: rgba(6, 182, 212, 0.30);
+            --cyan-glow-strong: rgba(6, 182, 212, 0.50);
+            --bg-primary: #090910;
+            --bg-secondary: #0f0f1a;
+            --bg-tertiary: #161625;
+            --bg-card: #12121f;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-dim: #64748b;
+            --success: #22c55e;
+            --success-dim: rgba(34, 197, 94, 0.15);
+            --danger: #ef4444;
+            --danger-dim: rgba(239, 68, 68, 0.15);
+            --warning: #f59e0b;
+            --warning-dim: rgba(245, 158, 11, 0.12);
+            --border: rgba(6, 182, 212, 0.15);
+            --border-active: rgba(6, 182, 212, 0.45);
+            --slot-border: rgba(6, 182, 212, 0.35);
+            --slot-bg: rgba(6, 182, 212, 0.06);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .lab-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Navigation */
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--cyan);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+        .back-link:hover { color: #67e8f9; transform: translateX(-5px); }
+
+        /* Header */
+        .lab-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+            border-radius: 16px;
+            border: 1px solid var(--cyan);
+            box-shadow: 0 0 30px var(--cyan-glow);
+        }
+        .lab-header .pbq-badge {
+            display: inline-block;
+            padding: 3px 12px;
+            background: rgba(6, 182, 212, 0.15);
+            border: 1px solid var(--border-active);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--cyan);
+            margin-bottom: 0.75rem;
+        }
+        .lab-header h1 {
+            font-size: 1.9rem;
+            margin-bottom: 0.4rem;
+            background: linear-gradient(135deg, var(--cyan), #67e8f9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .lab-header .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+        }
+        .lab-header .meta {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .lab-header .meta span {
+            background: var(--bg-primary);
+            padding: 3px 10px;
+            border-radius: 6px;
+            border: 1px solid #1e293b;
+        }
+
+        /* Scenario brief */
+        .scenario-brief {
+            background: linear-gradient(135deg, rgba(6,182,212,0.07), rgba(6,182,212,0.02));
+            border: 1px solid var(--border-active);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 2rem;
+        }
+        .scenario-brief h2 {
+            color: var(--cyan);
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.75rem;
+        }
+        .scenario-brief p {
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+            margin-bottom: 1rem;
+            line-height: 1.7;
+        }
+        .scenario-brief ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+        .scenario-brief ul li {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.6rem;
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+        }
+        .scenario-brief ul li::before {
+            content: '--';
+            color: var(--cyan);
+            flex-shrink: 0;
+            font-weight: 700;
+        }
+
+        /* Instructions bar */
+        .instructions-bar {
+            background: var(--warning-dim);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 8px;
+            padding: 0.75rem 1.25rem;
+            font-size: 0.85rem;
+            color: var(--warning);
+            margin-bottom: 2rem;
+        }
+
+        /* ========= TOPOLOGY DIAGRAM ========= */
+        .topology-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            overflow-x: auto;
+        }
+        .topology-section h2 {
+            color: var(--cyan);
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 1.75rem;
+            text-align: center;
+        }
+
+        /* The topology is built with a CSS grid / flex tree.
+           Lines are rendered with thin box-borders on pseudo or wrapper divs. */
+        .topo-root {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            min-width: 640px;
+        }
+
+        /* ---- Internet cloud ---- */
+        .topo-internet {
+            background: rgba(30, 41, 59, 0.6);
+            border: 2px dashed #334155;
+            border-radius: 50px;
+            padding: 0.55rem 2rem;
+            font-size: 0.82rem;
+            color: var(--text-dim);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        /* Vertical connector line */
+        .topo-vline {
+            width: 2px;
+            background: #1e3a4c;
+            flex-shrink: 0;
+        }
+        .topo-vline-short { height: 24px; }
+        .topo-vline-med   { height: 36px; }
+
+        /* Horizontal split connector */
+        .topo-hfork {
+            display: flex;
+            align-items: flex-start;
+            width: 100%;
+            justify-content: center;
+        }
+        .topo-hfork-left,
+        .topo-hfork-right {
+            width: 2px;
+            height: 36px;
+            background: #1e3a4c;
+        }
+        .topo-hfork-bar {
+            height: 2px;
+            background: #1e3a4c;
+            flex: 1;
+            max-width: 220px;
+            margin-top: 0;
+            align-self: flex-start;
+            margin-top: 0;
+        }
+        /* The H-fork: a horizontal line spanning between two vertical drops */
+        .topo-split {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            width: 100%;
+            position: relative;
+        }
+        .topo-split-inner {
+            display: flex;
+            gap: 0;
+            align-items: flex-start;
+            width: 560px;
+        }
+        .topo-branch {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+        }
+
+        /* Slot boxes */
+        .topo-slot {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.35rem;
+            position: relative;
+        }
+        .slot-box {
+            width: 160px;
+            min-height: 64px;
+            border: 2px dashed var(--slot-border);
+            background: var(--slot-bg);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 0.5rem 0.6rem;
+            transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
+            cursor: default;
+        }
+        /* When a device is selected, the slot solidifies */
+        .slot-box.has-value {
+            border-style: solid;
+            border-color: var(--cyan);
+            background: rgba(6, 182, 212, 0.10);
+            box-shadow: 0 0 12px rgba(6, 182, 212, 0.18);
+        }
+        .slot-box.correct {
+            border-color: var(--success);
+            background: var(--success-dim);
+            box-shadow: 0 0 14px rgba(34, 197, 94, 0.20);
+        }
+        .slot-box.incorrect {
+            border-color: var(--danger);
+            background: var(--danger-dim);
+        }
+        .slot-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: var(--text-dim);
+        }
+        .slot-number {
+            font-size: 0.68rem;
+            color: var(--cyan);
+            font-weight: 700;
+            letter-spacing: 0.06em;
+        }
+        .slot-device-name {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            min-height: 1em;
+        }
+        .slot-placeholder {
+            font-size: 1.3rem;
+            color: #334155;
+            font-weight: 300;
+        }
+
+        /* Dropdown inside each slot (the actual select) */
+        .slot-select {
+            width: 100%;
+            padding: 5px 6px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            text-align: center;
+            text-align-last: center;
+        }
+        .slot-select:focus {
+            outline: none;
+            border-color: var(--cyan);
+            box-shadow: 0 0 8px var(--cyan-glow);
+        }
+        .slot-select option { background: #0f0f1a; color: var(--text-primary); }
+
+        /* End device nodes (servers, PCs, etc.) */
+        .topo-enddevices {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+        .end-node {
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid #1e293b;
+            font-size: 0.72rem;
+            color: var(--text-dim);
+        }
+
+        /* The horizontal bar in the split */
+        .hbar {
+            height: 2px;
+            background: #1e3a4c;
+            flex: 1;
+            align-self: flex-start;
+            margin-top: 0;
+        }
+
+        /* Building labels */
+        .building-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+            border-bottom: 1px solid #1e293b;
+            padding-bottom: 4px;
+            width: 200px;
+            text-align: center;
+        }
+
+        /* Sub-slot row for Building A's server slot + closet slot */
+        .sub-slots {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+        }
+        .sub-slot-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* ========= SLOT LEGEND / REFERENCE ========= */
+        .slot-reference {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .slot-ref-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            transition: border-color 0.25s;
+        }
+        .slot-ref-card.correct  { border-color: var(--success); }
+        .slot-ref-card.incorrect { border-color: var(--danger); }
+        .slot-ref-card .ref-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.4rem;
+        }
+        .slot-ref-card .ref-slot-id {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--cyan);
+            font-weight: 700;
+        }
+        .slot-ref-card .ref-location {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+        }
+        .slot-ref-card .ref-clue {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+        .ref-status-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+        .ref-status-icon.pending { background: #1e293b; color: var(--text-dim); }
+        .ref-status-icon.ok      { background: var(--success); color: #000; }
+        .ref-status-icon.fail    { background: var(--danger); color: #fff; }
+
+        /* Feedback panel (shown after submit) */
+        .feedback-panel {
+            display: none;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 1.75rem;
+            margin-bottom: 2rem;
+        }
+        .feedback-panel.visible { display: block; }
+        .feedback-panel h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+        .score-display {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            background: var(--bg-tertiary);
+        }
+        .score-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .score-number.pass { color: var(--success); }
+        .score-number.fail { color: var(--danger); }
+        .score-detail { font-size: 0.85rem; color: var(--text-secondary); }
+        .score-detail strong { color: var(--text-primary); display: block; margin-bottom: 2px; }
+
+        .slot-feedback-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .slot-fb-item {
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-size: 0.85rem;
+        }
+        .slot-fb-item.correct  { background: var(--success-dim); border: 1px solid rgba(34,197,94,0.3); }
+        .slot-fb-item.incorrect { background: var(--danger-dim); border: 1px solid rgba(239,68,68,0.3); }
+        .slot-fb-item .fb-top {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.3rem;
+        }
+        .slot-fb-item .fb-verdict {
+            font-weight: 700;
+        }
+        .slot-fb-item.correct  .fb-verdict { color: var(--success); }
+        .slot-fb-item.incorrect .fb-verdict { color: var(--danger); }
+        .slot-fb-item .fb-slot-id { color: var(--text-dim); font-size: 0.78rem; }
+        .slot-fb-item .fb-explanation { color: var(--text-secondary); line-height: 1.55; }
+
+        /* Action buttons */
+        .action-row {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+        .btn-submit {
+            padding: 0.8rem 2rem;
+            background: linear-gradient(135deg, var(--cyan), #0891b2);
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.25s;
+            letter-spacing: 0.04em;
+        }
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px var(--cyan-glow-strong);
+        }
+        .btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-reset {
+            padding: 0.8rem 1.5rem;
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid #334155;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+        .btn-reset:hover {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        /* Completion banner */
+        .completion-banner {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+            background: linear-gradient(135deg, var(--success-dim), rgba(34,197,94,0.05));
+            border: 1px solid rgba(34,197,94,0.4);
+            border-radius: 14px;
+            margin-bottom: 2rem;
+        }
+        .completion-banner.visible { display: block; }
+        .completion-banner h2 {
+            font-size: 1.4rem;
+            color: var(--success);
+            margin-bottom: 0.5rem;
+        }
+        .completion-banner p { color: var(--text-secondary); font-size: 0.9rem; }
+
+        /* Device reference table */
+        .device-ref-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .device-ref-section h2 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--cyan);
+            margin-bottom: 1rem;
+        }
+        .device-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.82rem;
+        }
+        .device-table th, .device-table td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .device-table th {
+            background: var(--bg-tertiary);
+            color: var(--cyan);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .device-table tr:last-child td { border-bottom: none; }
+        .device-table td:first-child { color: var(--text-primary); font-weight: 600; }
+        .device-table td:last-child { color: var(--text-secondary); }
+
+        /* Mobile responsiveness */
+        @media (max-width: 720px) {
+            .lab-container { padding: 1rem; }
+            .lab-header h1 { font-size: 1.5rem; }
+            .topology-section { padding: 1rem; }
+            .slot-reference { grid-template-columns: 1fr; }
+            .action-row { flex-direction: column; }
+            .btn-submit, .btn-reset { width: 100%; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+
+        <a href="../index.html" class="back-link">&larr; Network+ Hub</a>
+
+        <!-- Header -->
+        <header class="lab-header">
+            <div class="pbq-badge">Performance-Based Question</div>
+            <h1>Corporate Network Design</h1>
+            <p class="subtitle">Place the correct network device in each topology slot to satisfy all design requirements</p>
+            <div class="meta">
+                <span>Network+</span>
+                <span>7 Slots</span>
+                <span>Must Pass All 7</span>
+                <span>Domain 2.0: Network Infrastructure</span>
+            </div>
+        </header>
+
+        <!-- Scenario -->
+        <section class="scenario-brief" aria-labelledby="scenario-heading">
+            <h2 id="scenario-heading">Scenario</h2>
+            <p>
+                A network administrator has been tasked with designing a network for a new corporate office.
+                The office consists of two buildings separated by 150 feet with no physical connectivity.
+                The configuration must meet all of the following requirements:
+            </p>
+            <ul>
+                <li>Devices in both buildings must be able to access the Internet</li>
+                <li>Security insists that all Internet traffic be inspected before entering the network</li>
+                <li>Desktops should not see traffic destined for other devices</li>
+                <li>Wireless coverage is needed in Building B's conference room</li>
+                <li>Building A needs a dedicated server room with high-speed switching</li>
+                <li>A remote wiring closet in Building A must extend the network without sharing bandwidth</li>
+            </ul>
+        </section>
+
+        <div class="instructions-bar">
+            Use the dropdown inside each slot to assign a device. Select "Submit Design" when all 7 slots are filled. All 7 must be correct to pass.
+        </div>
+
+        <!-- Topology Diagram -->
+        <section class="topology-section" aria-labelledby="topology-heading">
+            <h2 id="topology-heading">Network Topology</h2>
+
+            <div class="topo-root" role="img" aria-label="Network topology diagram with 7 device slots">
+
+                <!-- Internet cloud -->
+                <div class="topo-internet">Internet Cloud</div>
+                <div class="topo-vline topo-vline-short"></div>
+
+                <!-- Slot 1: Firewall -->
+                <div class="topo-slot">
+                    <div class="slot-box" id="slotbox-1">
+                        <div class="slot-number">SLOT 1</div>
+                        <div class="slot-placeholder" id="slotplaceholder-1">?</div>
+                        <div class="slot-device-name" id="slotname-1"></div>
+                        <select class="slot-select" id="slot-1" aria-label="Slot 1 - Internet entry point" onchange="onSlotChange(1)">
+                            <option value="">-- Select Device --</option>
+                            <option value="Switch">Switch</option>
+                            <option value="Router">Router</option>
+                            <option value="Firewall">Firewall</option>
+                            <option value="WAP">WAP (Wireless Access Point)</option>
+                            <option value="Hub">Hub</option>
+                            <option value="Wireless Range Extender">Wireless Range Extender</option>
+                            <option value="Media Converter">Media Converter</option>
+                            <option value="Load Balancer">Load Balancer</option>
+                        </select>
+                        <div class="slot-label">Internet Entry</div>
+                    </div>
+                </div>
+                <div class="topo-vline topo-vline-short"></div>
+
+                <!-- Slot 2: Router -->
+                <div class="topo-slot">
+                    <div class="slot-box" id="slotbox-2">
+                        <div class="slot-number">SLOT 2</div>
+                        <div class="slot-placeholder" id="slotplaceholder-2">?</div>
+                        <div class="slot-device-name" id="slotname-2"></div>
+                        <select class="slot-select" id="slot-2" aria-label="Slot 2 - Inter-building routing" onchange="onSlotChange(2)">
+                            <option value="">-- Select Device --</option>
+                            <option value="Switch">Switch</option>
+                            <option value="Router">Router</option>
+                            <option value="Firewall">Firewall</option>
+                            <option value="WAP">WAP (Wireless Access Point)</option>
+                            <option value="Hub">Hub</option>
+                            <option value="Wireless Range Extender">Wireless Range Extender</option>
+                            <option value="Media Converter">Media Converter</option>
+                            <option value="Load Balancer">Load Balancer</option>
+                        </select>
+                        <div class="slot-label">Inter-building</div>
+                    </div>
+                </div>
+
+                <!-- Horizontal split to Building A and Building B -->
+                <div class="topo-split" aria-hidden="true">
+                    <div class="topo-split-inner">
+                        <!-- Left branch -->
+                        <div class="topo-branch">
+                            <div style="display:flex; flex-direction:row; align-items:flex-start; width:100%; justify-content:flex-end;">
+                                <div class="hbar" style="height:2px; margin-top:35px;"></div>
+                                <div class="topo-vline" style="height:35px; width:2px; flex-shrink:0;"></div>
+                            </div>
+                        </div>
+                        <!-- Right branch -->
+                        <div class="topo-branch">
+                            <div style="display:flex; flex-direction:row; align-items:flex-start; width:100%; justify-content:flex-start;">
+                                <div class="topo-vline" style="height:35px; width:2px; flex-shrink:0;"></div>
+                                <div class="hbar" style="height:2px; margin-top:35px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Two buildings row -->
+                <div style="display:flex; gap:2rem; justify-content:center; width:100%; margin-top:0;">
+
+                    <!-- Building A -->
+                    <div style="display:flex; flex-direction:column; align-items:center;">
+                        <div class="building-label">Building A</div>
+
+                        <!-- Slot 3: Distribution Switch -->
+                        <div class="topo-slot">
+                            <div class="slot-box" id="slotbox-3">
+                                <div class="slot-number">SLOT 3</div>
+                                <div class="slot-placeholder" id="slotplaceholder-3">?</div>
+                                <div class="slot-device-name" id="slotname-3"></div>
+                                <select class="slot-select" id="slot-3" aria-label="Slot 3 - Building A distribution" onchange="onSlotChange(3)">
+                                    <option value="">-- Select Device --</option>
+                                    <option value="Switch">Switch</option>
+                                    <option value="Router">Router</option>
+                                    <option value="Firewall">Firewall</option>
+                                    <option value="WAP">WAP (Wireless Access Point)</option>
+                                    <option value="Hub">Hub</option>
+                                    <option value="Wireless Range Extender">Wireless Range Extender</option>
+                                    <option value="Media Converter">Media Converter</option>
+                                    <option value="Load Balancer">Load Balancer</option>
+                                </select>
+                                <div class="slot-label">Distribution</div>
+                            </div>
+                        </div>
+
+                        <div class="topo-vline topo-vline-short"></div>
+
+                        <!-- Sub-slots: Slot 4 (Server Room) + Slot 5 (Remote Closet) -->
+                        <div class="sub-slots">
+                            <div class="sub-slot-col">
+                                <div class="topo-slot">
+                                    <div class="slot-box" id="slotbox-4">
+                                        <div class="slot-number">SLOT 4</div>
+                                        <div class="slot-placeholder" id="slotplaceholder-4">?</div>
+                                        <div class="slot-device-name" id="slotname-4"></div>
+                                        <select class="slot-select" id="slot-4" aria-label="Slot 4 - Server room high-speed switch" onchange="onSlotChange(4)">
+                                            <option value="">-- Select Device --</option>
+                                            <option value="Switch">Switch</option>
+                                            <option value="Router">Router</option>
+                                            <option value="Firewall">Firewall</option>
+                                            <option value="WAP">WAP (Wireless Access Point)</option>
+                                            <option value="Hub">Hub</option>
+                                            <option value="Wireless Range Extender">Wireless Range Extender</option>
+                                            <option value="Media Converter">Media Converter</option>
+                                            <option value="Load Balancer">Load Balancer</option>
+                                        </select>
+                                        <div class="slot-label">Server Room</div>
+                                    </div>
+                                </div>
+                                <div class="topo-vline topo-vline-short"></div>
+                                <div class="topo-enddevices">
+                                    <div class="end-node">Server 1</div>
+                                    <div class="end-node">Server 2</div>
+                                </div>
+                            </div>
+                            <div class="sub-slot-col">
+                                <div class="topo-slot">
+                                    <div class="slot-box" id="slotbox-5">
+                                        <div class="slot-number">SLOT 5</div>
+                                        <div class="slot-placeholder" id="slotplaceholder-5">?</div>
+                                        <div class="slot-device-name" id="slotname-5"></div>
+                                        <select class="slot-select" id="slot-5" aria-label="Slot 5 - Remote wiring closet" onchange="onSlotChange(5)">
+                                            <option value="">-- Select Device --</option>
+                                            <option value="Switch">Switch</option>
+                                            <option value="Router">Router</option>
+                                            <option value="Firewall">Firewall</option>
+                                            <option value="WAP">WAP (Wireless Access Point)</option>
+                                            <option value="Hub">Hub</option>
+                                            <option value="Wireless Range Extender">Wireless Range Extender</option>
+                                            <option value="Media Converter">Media Converter</option>
+                                            <option value="Load Balancer">Load Balancer</option>
+                                        </select>
+                                        <div class="slot-label">Remote Closet</div>
+                                    </div>
+                                </div>
+                                <div class="topo-vline topo-vline-short"></div>
+                                <div class="topo-enddevices">
+                                    <div class="end-node">PC-1</div>
+                                    <div class="end-node">PC-2</div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div><!-- end Building A -->
+
+                    <!-- Building B -->
+                    <div style="display:flex; flex-direction:column; align-items:center;">
+                        <div class="building-label">Building B</div>
+
+                        <!-- Slot 6: Distribution Switch -->
+                        <div class="topo-slot">
+                            <div class="slot-box" id="slotbox-6">
+                                <div class="slot-number">SLOT 6</div>
+                                <div class="slot-placeholder" id="slotplaceholder-6">?</div>
+                                <div class="slot-device-name" id="slotname-6"></div>
+                                <select class="slot-select" id="slot-6" aria-label="Slot 6 - Building B distribution" onchange="onSlotChange(6)">
+                                    <option value="">-- Select Device --</option>
+                                    <option value="Switch">Switch</option>
+                                    <option value="Router">Router</option>
+                                    <option value="Firewall">Firewall</option>
+                                    <option value="WAP">WAP (Wireless Access Point)</option>
+                                    <option value="Hub">Hub</option>
+                                    <option value="Wireless Range Extender">Wireless Range Extender</option>
+                                    <option value="Media Converter">Media Converter</option>
+                                    <option value="Load Balancer">Load Balancer</option>
+                                </select>
+                                <div class="slot-label">Distribution</div>
+                            </div>
+                        </div>
+
+                        <div class="topo-vline topo-vline-short"></div>
+
+                        <div class="sub-slots">
+                            <!-- Slot 7: WAP for conference room -->
+                            <div class="sub-slot-col">
+                                <div class="topo-slot">
+                                    <div class="slot-box" id="slotbox-7">
+                                        <div class="slot-number">SLOT 7</div>
+                                        <div class="slot-placeholder" id="slotplaceholder-7">?</div>
+                                        <div class="slot-device-name" id="slotname-7"></div>
+                                        <select class="slot-select" id="slot-7" aria-label="Slot 7 - Conference room wireless" onchange="onSlotChange(7)">
+                                            <option value="">-- Select Device --</option>
+                                            <option value="Switch">Switch</option>
+                                            <option value="Router">Router</option>
+                                            <option value="Firewall">Firewall</option>
+                                            <option value="WAP">WAP (Wireless Access Point)</option>
+                                            <option value="Hub">Hub</option>
+                                            <option value="Wireless Range Extender">Wireless Range Extender</option>
+                                            <option value="Media Converter">Media Converter</option>
+                                            <option value="Load Balancer">Load Balancer</option>
+                                        </select>
+                                        <div class="slot-label">Conf. Room</div>
+                                    </div>
+                                </div>
+                                <div class="topo-vline topo-vline-short"></div>
+                                <div class="topo-enddevices">
+                                    <div class="end-node">Laptop</div>
+                                    <div class="end-node">Tablet</div>
+                                </div>
+                            </div>
+                            <!-- Wired end devices -->
+                            <div class="sub-slot-col" style="justify-content:flex-end; padding-bottom:8px;">
+                                <div class="topo-enddevices" style="flex-direction:column;">
+                                    <div class="end-node">PC-3</div>
+                                    <div class="end-node">PC-4</div>
+                                    <div class="end-node">Printer</div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div><!-- end Building B -->
+                </div><!-- end buildings row -->
+
+            </div><!-- end topo-root -->
+        </section>
+
+        <!-- Slot reference cards (clues for each slot) -->
+        <section aria-labelledby="slots-heading">
+            <h2 id="slots-heading" style="font-size:0.9rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--cyan); margin-bottom:1rem;">Slot Requirements</h2>
+            <div class="slot-reference" id="slotReferenceGrid">
+                <!-- Cards are rendered by JS so status icons can update live -->
+            </div>
+        </section>
+
+        <!-- Action buttons -->
+        <div class="action-row">
+            <button class="btn-submit" id="btnSubmit" onclick="submitDesign()">Submit Design</button>
+            <button class="btn-reset" onclick="resetAll()">Reset All</button>
+        </div>
+
+        <!-- Feedback panel -->
+        <section class="feedback-panel" id="feedbackPanel" aria-live="polite">
+            <h2>Design Analysis</h2>
+            <div class="score-display">
+                <div class="score-number" id="scoreNumber">0/7</div>
+                <div class="score-detail">
+                    <strong id="scoreVerdict">--</strong>
+                    <span id="scoreSubtext"></span>
+                </div>
+            </div>
+            <div class="slot-feedback-list" id="slotFeedbackList"></div>
+        </section>
+
+        <!-- Completion banner -->
+        <div class="completion-banner" id="completionBanner">
+            <h2>Design Accepted</h2>
+            <p>All 7 slots are correctly configured. This module has been marked complete.</p>
+        </div>
+
+        <!-- Device reference table -->
+        <section class="device-ref-section" aria-labelledby="devref-heading">
+            <h2 id="devref-heading">Device Reference</h2>
+            <table class="device-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Device</th>
+                        <th scope="col">Primary Function</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Firewall</td><td>Inspects and filters traffic based on rules; blocks unauthorized access at the network perimeter</td></tr>
+                    <tr><td>Router</td><td>Routes packets between different IP networks; determines the best path between subnets</td></tr>
+                    <tr><td>Switch</td><td>Forwards frames based on MAC addresses; provides dedicated bandwidth per port (no shared collision domain)</td></tr>
+                    <tr><td>WAP</td><td>Provides wireless (802.11) access for clients; connects back to the wired switch via uplink</td></tr>
+                    <tr><td>Hub</td><td>Repeats all traffic to every port; shares bandwidth; creates a single collision domain</td></tr>
+                    <tr><td>Wireless Range Extender</td><td>Rebroadcasts an existing wireless signal to extend range; does not connect new wired infrastructure</td></tr>
+                    <tr><td>Media Converter</td><td>Converts between physical media types (e.g., copper to fiber)</td></tr>
+                    <tr><td>Load Balancer</td><td>Distributes incoming traffic across multiple servers to improve availability and performance</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+    </div><!-- end lab-container -->
+
+    <script>
+        'use strict';
+
+        /* ============================================================
+         * SLOT DEFINITIONS
+         * Each object defines the slot's location label, clue text,
+         * correct answer, and the explanation shown on submit.
+         * ============================================================ */
+        var SLOTS = {
+            1: {
+                location: 'Internet Entry Point',
+                clue: 'Security requires all Internet traffic to be inspected for threats before it enters the internal network. This device enforces access control policies at the perimeter.',
+                correct: 'Firewall',
+                wrongReasons: {
+                    'Router': 'A router forwards traffic between networks but does not inspect payloads or enforce security policies. Security requires a firewall at the perimeter.',
+                    'Switch': 'Switches operate at Layer 2 and have no mechanism to inspect or filter traffic for threats.',
+                    'Hub': 'Hubs are Layer 1 devices with no filtering capability whatsoever.',
+                    'WAP': 'A WAP provides wireless access; it has no role at the Internet perimeter.',
+                    'Wireless Range Extender': 'A range extender rebroadcasts wireless signals; it performs no security inspection.',
+                    'Media Converter': 'A media converter changes physical media types; it performs no security function.',
+                    'Load Balancer': 'A load balancer distributes traffic across servers; it is not a security perimeter device.'
+                },
+                correctExplanation: 'A Firewall is the correct device at the Internet entry point. It inspects all inbound and outbound traffic, enforces access control lists, and satisfies the security requirement that all Internet traffic be inspected before entering the network.'
+            },
+            2: {
+                location: 'Inter-building Connection',
+                clue: 'The two buildings operate on separate networks. A device is needed that can forward traffic between different IP subnets and route packets across the 150-foot gap.',
+                correct: 'Router',
+                wrongReasons: {
+                    'Switch': 'Switches forward frames within a single network (Layer 2). They cannot route between separate IP networks.',
+                    'Firewall': 'While some firewalls can route, the primary inter-network routing device is a router. The firewall is already placed at the perimeter.',
+                    'Hub': 'Hubs are Layer 1 repeaters and have no routing capability.',
+                    'WAP': 'A WAP provides wireless access; it does not route between buildings.',
+                    'Wireless Range Extender': 'A range extender extends wireless range; it cannot route between separate IP networks.',
+                    'Media Converter': 'A media converter changes physical media types; it cannot route between networks.',
+                    'Load Balancer': 'A load balancer distributes traffic across servers; it does not route between buildings.'
+                },
+                correctExplanation: 'A Router is the correct device between buildings. It routes packets between the Building A and Building B subnets, providing the Layer 3 path that allows both buildings to reach the Internet and each other.'
+            },
+            3: {
+                location: 'Building A -- Distribution',
+                clue: 'Desktops in Building A should not see traffic destined for other devices. This device provides dedicated bandwidth per port and forwards frames only to the correct destination using MAC address tables.',
+                correct: 'Switch',
+                wrongReasons: {
+                    'Hub': 'A hub broadcasts all traffic to every connected port -- every device sees every frame. This directly violates the requirement that desktops not see each other\'s traffic.',
+                    'Router': 'A router is a Layer 3 device used to interconnect networks, not to connect end devices within a single building.',
+                    'Firewall': 'A firewall is a perimeter security device, not a general-purpose device for connecting workstations inside a building.',
+                    'WAP': 'A WAP provides wireless access; it is not used as a building distribution device for wired desktops.',
+                    'Wireless Range Extender': 'A range extender is not a wired distribution device.',
+                    'Media Converter': 'A media converter changes physical media; it cannot aggregate and switch frames for multiple hosts.',
+                    'Load Balancer': 'A load balancer is not used to connect end workstations in a building.'
+                },
+                correctExplanation: 'A Switch is correct here. Switches use MAC address tables to forward frames only to the intended destination port, ensuring desktops do not see traffic destined for other devices -- satisfying the security requirement.'
+            },
+            4: {
+                location: 'Building A -- Server Room',
+                clue: 'The server room requires high-speed, dedicated switching. Each server must receive maximum dedicated bandwidth without contention from other ports.',
+                correct: 'Switch',
+                wrongReasons: {
+                    'Hub': 'Hubs share bandwidth across all ports. In a server room requiring high-speed dedicated bandwidth, a hub would create a collision domain and severely degrade performance.',
+                    'Router': 'A router connects separate networks; it is not a high-speed device used to aggregate servers within a room.',
+                    'Firewall': 'A firewall is a security device, not a high-speed Layer 2 switching device for server room aggregation.',
+                    'WAP': 'Servers in a server room are wired; wireless is not applicable here.',
+                    'Wireless Range Extender': 'A range extender is irrelevant in a wired server room environment.',
+                    'Media Converter': 'A media converter changes media types; it cannot aggregate multiple servers with dedicated bandwidth.',
+                    'Load Balancer': 'A load balancer distributes incoming requests; it does not replace the Layer 2 switch that physically connects servers.'
+                },
+                correctExplanation: 'A Switch is correct for the server room. A managed switch provides dedicated bandwidth per port, full-duplex operation, and high-speed backplane capacity -- meeting the requirement for high-speed dedicated switching for servers.'
+            },
+            5: {
+                location: 'Building A -- Remote Wiring Closet',
+                clue: 'A remote closet needs to extend the network to additional workstations. The requirement specifically states bandwidth must not be shared -- ruling out any device that creates a shared collision domain.',
+                correct: 'Switch',
+                wrongReasons: {
+                    'Hub': 'A hub creates a shared collision domain and divides bandwidth among all ports. The requirement explicitly states bandwidth must not be shared -- a hub fails this test.',
+                    'Router': 'A router connects separate IP networks. A remote closet within the same building does not need a router -- it needs a Layer 2 device to aggregate local workstations.',
+                    'Firewall': 'A firewall is a perimeter security device, not a remote closet aggregation device.',
+                    'WAP': 'A WAP provides wireless coverage; a remote wiring closet serves wired workstations.',
+                    'Wireless Range Extender': 'A range extender extends wireless signals; it does not provide wired port aggregation for a closet.',
+                    'Media Converter': 'A media converter changes physical media; it cannot aggregate multiple workstations.',
+                    'Load Balancer': 'A load balancer is not used to connect workstations in a remote closet.'
+                },
+                correctExplanation: 'A Switch is correct at the remote wiring closet. Unlike a hub, a switch provides each port with dedicated bandwidth and eliminates the shared collision domain -- directly satisfying the requirement that network extension not share bandwidth.'
+            },
+            6: {
+                location: 'Building B -- Distribution',
+                clue: 'Building B has multiple wired end devices (PCs, printer) and a conference room requiring wireless coverage. A distribution device must connect all of these while providing dedicated per-port bandwidth.',
+                correct: 'Switch',
+                wrongReasons: {
+                    'Hub': 'Hubs broadcast all traffic to every port. This violates the requirement that devices not see each other\'s traffic, and creates a collision domain that degrades performance.',
+                    'Router': 'A router connects separate IP subnets. Within Building B, end devices are on the same subnet and need a Layer 2 switch, not a router.',
+                    'Firewall': 'A firewall is a perimeter device. Deploying one inside Building B as the distribution switch is not the correct role.',
+                    'WAP': 'A WAP provides wireless access to a single area; it is not a building-wide distribution device.',
+                    'Wireless Range Extender': 'A range extender is not a wired distribution device.',
+                    'Media Converter': 'A media converter changes physical media; it cannot aggregate multiple hosts.',
+                    'Load Balancer': 'A load balancer distributes server requests; it is not a building distribution device.'
+                },
+                correctExplanation: 'A Switch is correct for Building B distribution. It connects all wired devices (PCs, printer) and uplinks to the WAP in the conference room, providing dedicated bandwidth per port throughout the building.'
+            },
+            7: {
+                location: 'Building B -- Conference Room',
+                clue: 'The conference room needs wireless coverage for laptops and tablets. This location has an uplink to the building switch and needs to create a new wireless access point -- not extend an existing signal.',
+                correct: 'WAP',
+                wrongReasons: {
+                    'Wireless Range Extender': 'A range extender rebroadcasts an existing wireless signal to extend its range. This location requires a new, dedicated access point wired back to the building switch -- not a range extension of another AP.',
+                    'Switch': 'A switch provides wired connectivity; it cannot provide wireless coverage to laptop and tablet clients.',
+                    'Router': 'A router connects separate networks; it is not used to provide wireless coverage to conference room clients.',
+                    'Firewall': 'A firewall is a perimeter security device, not a wireless coverage device.',
+                    'Hub': 'A hub is a Layer 1 wired device; it provides no wireless capability.',
+                    'Media Converter': 'A media converter changes physical media types; it has no wireless capability.',
+                    'Load Balancer': 'A load balancer distributes server traffic; it has no wireless capability.'
+                },
+                correctExplanation: 'A WAP (Wireless Access Point) is correct for the conference room. It connects via a wired uplink to the Building B switch and broadcasts an 802.11 wireless network for laptops and tablets. A range extender would be wrong here because there is no existing wireless signal to extend -- a dedicated AP wired to the switch is required.'
+            }
+        };
+
+        /* ============================================================
+         * STATE
+         * ============================================================ */
+        var submitted = false;
+
+        /* ============================================================
+         * SLOT REFERENCE CARD RENDERING
+         * Build the clue cards below the diagram on page load.
+         * ============================================================ */
+        function renderSlotCards() {
+            var grid = document.getElementById('slotReferenceGrid');
+            grid.innerHTML = '';
+            for (var i = 1; i <= 7; i++) {
+                var s = SLOTS[i];
+                var card = document.createElement('div');
+                card.className = 'slot-ref-card';
+                card.id = 'refcard-' + i;
+                card.innerHTML =
+                    '<div class="ref-header">' +
+                        '<span class="ref-slot-id">Slot ' + i + '</span>' +
+                        '<div class="ref-status-icon pending" id="reficon-' + i + '">?</div>' +
+                    '</div>' +
+                    '<div class="ref-location">' + s.location + '</div>' +
+                    '<div class="ref-clue">' + s.clue + '</div>';
+                grid.appendChild(card);
+            }
+        }
+
+        /* ============================================================
+         * onSlotChange
+         * Fires when student picks a device from a dropdown.
+         * Updates the slot box visual immediately.
+         * ============================================================ */
+        function onSlotChange(slotNum) {
+            var select = document.getElementById('slot-' + slotNum);
+            var box    = document.getElementById('slotbox-' + slotNum);
+            var ph     = document.getElementById('slotplaceholder-' + slotNum);
+            var nm     = document.getElementById('slotname-' + slotNum);
+            var val    = select.value;
+
+            if (val) {
+                box.classList.add('has-value');
+                ph.style.display = 'none';
+                nm.textContent = val;
+                /* Update the reference card status icon to show a selection was made */
+                var icon = document.getElementById('reficon-' + slotNum);
+                if (icon && !submitted) {
+                    icon.className = 'ref-status-icon';
+                    icon.style.background = 'rgba(6,182,212,0.25)';
+                    icon.style.color = '#06b6d4';
+                    icon.textContent = '-';
+                }
+            } else {
+                box.classList.remove('has-value');
+                ph.style.display = '';
+                nm.textContent = '';
+                var icon2 = document.getElementById('reficon-' + slotNum);
+                if (icon2 && !submitted) {
+                    icon2.className = 'ref-status-icon pending';
+                    icon2.style.background = '';
+                    icon2.style.color = '';
+                    icon2.textContent = '?';
+                }
+            }
+        }
+
+        /* ============================================================
+         * submitDesign
+         * Validates all 7 slots and renders per-slot feedback.
+         * ============================================================ */
+        function submitDesign() {
+            /* Ensure all slots are filled */
+            var allFilled = true;
+            for (var i = 1; i <= 7; i++) {
+                if (!document.getElementById('slot-' + i).value) {
+                    allFilled = false;
+                    break;
+                }
+            }
+            if (!allFilled) {
+                /* Flash the submit button to indicate missing slots */
+                var btn = document.getElementById('btnSubmit');
+                btn.textContent = 'Fill all 7 slots first';
+                btn.style.background = 'linear-gradient(135deg, var(--danger), #b91c1c)';
+                setTimeout(function() {
+                    btn.textContent = 'Submit Design';
+                    btn.style.background = '';
+                }, 2000);
+                return;
+            }
+
+            submitted = true;
+
+            var correctCount = 0;
+            var fbItems = [];
+
+            for (var j = 1; j <= 7; j++) {
+                var answer  = document.getElementById('slot-' + j).value;
+                var isRight = (answer === SLOTS[j].correct);
+                if (isRight) correctCount++;
+
+                /* Update slot box state */
+                var slotBox = document.getElementById('slotbox-' + j);
+                slotBox.classList.remove('has-value');
+                slotBox.classList.add(isRight ? 'correct' : 'incorrect');
+
+                /* Update reference card */
+                var card = document.getElementById('refcard-' + j);
+                card.classList.add(isRight ? 'correct' : 'incorrect');
+
+                /* Update reference icon */
+                var icon = document.getElementById('reficon-' + j);
+                icon.className = 'ref-status-icon ' + (isRight ? 'ok' : 'fail');
+                icon.style.background = '';
+                icon.style.color = '';
+                icon.textContent = isRight ? 'OK' : 'X';
+
+                /* Build per-slot feedback */
+                var explanation;
+                if (isRight) {
+                    explanation = SLOTS[j].correctExplanation;
+                } else {
+                    /* Show the specific wrong-answer reason if available */
+                    explanation = SLOTS[j].wrongReasons[answer] || 'Incorrect. The correct answer is: ' + SLOTS[j].correct + '. ' + SLOTS[j].correctExplanation;
+                    explanation += ' Correct answer: ' + SLOTS[j].correct + '. ' + SLOTS[j].correctExplanation;
+                }
+
+                fbItems.push({
+                    slot: j,
+                    location: SLOTS[j].location,
+                    answer: answer,
+                    correct: isRight,
+                    explanation: explanation
+                });
+
+                /* Disable dropdown after submission */
+                document.getElementById('slot-' + j).disabled = true;
+            }
+
+            /* Render score display */
+            var passed = (correctCount === 7);
+            var scoreNum = document.getElementById('scoreNumber');
+            scoreNum.textContent = correctCount + '/7';
+            scoreNum.className = 'score-number ' + (passed ? 'pass' : 'fail');
+
+            document.getElementById('scoreVerdict').textContent = passed ? 'Design Accepted' : 'Design Rejected';
+            document.getElementById('scoreSubtext').textContent = passed
+                ? 'All 7 slots are correctly configured.'
+                : (7 - correctCount) + ' slot' + ((7 - correctCount) !== 1 ? 's' : '') + ' require correction. Review the analysis below.';
+
+            /* Render per-slot feedback items */
+            var list = document.getElementById('slotFeedbackList');
+            list.innerHTML = '';
+            fbItems.forEach(function(item) {
+                var div = document.createElement('div');
+                div.className = 'slot-fb-item ' + (item.correct ? 'correct' : 'incorrect');
+                div.innerHTML =
+                    '<div class="fb-top">' +
+                        '<span class="fb-verdict">' + (item.correct ? 'Correct' : 'Incorrect') + '</span>' +
+                        '<span class="fb-slot-id">Slot ' + item.slot + ' &mdash; ' + item.location + ' &mdash; Your answer: ' + item.answer + '</span>' +
+                    '</div>' +
+                    '<div class="fb-explanation">' + item.explanation + '</div>';
+                list.appendChild(div);
+            });
+
+            /* Show feedback panel */
+            var panel = document.getElementById('feedbackPanel');
+            panel.classList.add('visible');
+
+            /* Show completion banner and complete module if passed */
+            if (passed) {
+                document.getElementById('completionBanner').classList.add('visible');
+                if (typeof ModuleProgress !== 'undefined') {
+                    ModuleProgress.complete('web', 'web-pbq-network-design', {
+                        returnToDashboard: false,
+                        returnUrl: '../index.html'
+                    });
+                }
+            }
+
+            /* Disable submit button; scroll to feedback */
+            var submitBtn = document.getElementById('btnSubmit');
+            submitBtn.disabled = true;
+            submitBtn.textContent = passed ? 'Design Accepted' : 'Submit Design';
+
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        /* ============================================================
+         * resetAll
+         * Clears all slot selections and resets visual state.
+         * ============================================================ */
+        function resetAll() {
+            submitted = false;
+
+            for (var i = 1; i <= 7; i++) {
+                var select = document.getElementById('slot-' + i);
+                select.value = '';
+                select.disabled = false;
+
+                var box = document.getElementById('slotbox-' + i);
+                box.classList.remove('has-value', 'correct', 'incorrect');
+
+                var ph = document.getElementById('slotplaceholder-' + i);
+                ph.style.display = '';
+
+                var nm = document.getElementById('slotname-' + i);
+                nm.textContent = '';
+
+                var card = document.getElementById('refcard-' + i);
+                card.classList.remove('correct', 'incorrect');
+
+                var icon = document.getElementById('reficon-' + i);
+                icon.className = 'ref-status-icon pending';
+                icon.style.background = '';
+                icon.style.color = '';
+                icon.textContent = '?';
+            }
+
+            /* Hide feedback and completion panels */
+            document.getElementById('feedbackPanel').classList.remove('visible');
+            document.getElementById('completionBanner').classList.remove('visible');
+
+            /* Re-enable submit button */
+            var submitBtn = document.getElementById('btnSubmit');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit Design';
+        }
+
+        /* ============================================================
+         * INIT
+         * ============================================================ */
+        renderSlotCards();
+    </script>
+
+</body>
+</html>

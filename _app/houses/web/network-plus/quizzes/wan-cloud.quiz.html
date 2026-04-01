@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 8: WAN &amp; Cloud Quiz | Network+ N10-009</title>
+    <style>
+        :root {
+            --bg: #090910;
+            --bg-card: #12121e;
+            --bg-option: #161625;
+            --cyan: #06b6d4;
+            --cyan-dim: rgba(6, 182, 212, 0.15);
+            --text: #e2e8f0;
+            --text-muted: #8892a8;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --border: rgba(255,255,255,0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, var(--bg) 0%, #0f0f1a 50%, #111128 100%);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .quiz-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .back-link {
+            color: var(--cyan);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        .back-link:hover { color: #67e8f9; transform: translateX(-5px); }
+
+        .quiz-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: var(--bg-card);
+            border-radius: 14px;
+            border: 1px solid var(--cyan-dim);
+        }
+
+        .quiz-header h1 {
+            font-size: 1.6rem;
+            color: var(--cyan);
+            margin-bottom: 0.5rem;
+        }
+
+        .quiz-header .subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .quiz-header .meta {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            font-size: 0.8rem;
+        }
+
+        .quiz-header .meta span {
+            background: var(--bg);
+            padding: 4px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+
+        /* Progress */
+        .progress-bar-wrap {
+            background: var(--bg-card);
+            border-radius: 10px;
+            padding: 14px 18px;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .progress-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .progress-track {
+            flex: 1;
+            height: 8px;
+            background: var(--bg);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--cyan), var(--success));
+            border-radius: 4px;
+            transition: width 0.4s ease;
+            width: 0%;
+        }
+
+        .score-label {
+            font-size: 0.85rem;
+            color: var(--cyan);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        /* Question card */
+        .question-card {
+            background: var(--bg-card);
+            border-radius: 14px;
+            padding: 2rem;
+            border: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+
+        .question-num {
+            font-size: 0.8rem;
+            color: var(--cyan);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.75rem;
+        }
+
+        .question-text {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        /* Options */
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 1rem;
+        }
+
+        .option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 18px;
+            background: var(--bg-option);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .option:hover { border-color: rgba(6, 182, 212, 0.4); background: rgba(6, 182, 212, 0.05); }
+
+        .option.selected { border-color: var(--cyan); background: rgba(6, 182, 212, 0.08); }
+
+        .option.correct {
+            border-color: var(--success);
+            background: rgba(34, 197, 94, 0.1);
+        }
+
+        .option.incorrect {
+            border-color: var(--danger);
+            background: rgba(239, 68, 68, 0.08);
+        }
+
+        .option.disabled { pointer-events: none; opacity: 0.7; }
+        .option.correct.disabled, .option.incorrect.disabled { opacity: 1; }
+
+        .option-letter {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--cyan);
+            flex-shrink: 0;
+        }
+
+        .option.correct .option-letter { background: var(--success); color: #fff; border-color: var(--success); }
+        .option.incorrect .option-letter { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+        /* Feedback */
+        .feedback {
+            padding: 14px 18px;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            display: none;
+        }
+
+        .feedback.correct {
+            display: block;
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #86efac;
+        }
+
+        .feedback.incorrect {
+            display: block;
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+
+        /* Navigation */
+        .quiz-nav {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .next-btn {
+            padding: 10px 24px;
+            background: rgba(6, 182, 212, 0.15);
+            border: 1px solid rgba(6, 182, 212, 0.4);
+            color: var(--cyan);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .next-btn:hover { background: var(--cyan); color: #fff; }
+        .next-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .next-btn:disabled:hover { background: rgba(6, 182, 212, 0.15); color: var(--cyan); }
+
+        /* Results */
+        .results-card {
+            display: none;
+            text-align: center;
+            background: var(--bg-card);
+            border-radius: 14px;
+            padding: 3rem 2rem;
+            border: 1px solid var(--border);
+        }
+
+        .results-card h2 {
+            color: var(--cyan);
+            font-size: 1.4rem;
+            margin-bottom: 1rem;
+        }
+
+        .score-big {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: var(--success);
+            margin-bottom: 0.5rem;
+        }
+
+        .score-big.low { color: var(--danger); }
+        .score-big.mid { color: #fbbf24; }
+
+        .score-msg {
+            color: var(--text-muted);
+            font-size: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .results-btns {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .results-btns a, .results-btns button {
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .btn-retry {
+            background: rgba(6, 182, 212, 0.15);
+            border: 1px solid rgba(6, 182, 212, 0.4);
+            color: var(--cyan);
+        }
+        .btn-retry:hover { background: var(--cyan); color: #fff; }
+
+        .btn-hub {
+            background: rgba(34, 197, 94, 0.15);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            color: var(--success);
+        }
+        .btn-hub:hover { background: var(--success); color: #fff; }
+
+        @media (max-width: 640px) {
+            .quiz-container { padding: 1rem; }
+            .question-card { padding: 1.25rem; }
+            .quiz-header h1 { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <div class="nav-links">
+            <a href="../index.html" class="back-link">&#8592; Network+ Hub</a>
+        </div>
+
+        <div class="quiz-header">
+            <h1>Chapter 8: WAN &amp; Cloud Quiz</h1>
+            <p class="subtitle">NAT, WAN technologies, cloud concepts, and remote access</p>
+            <div class="meta">
+                <span>Chapter 8</span>
+                <span>15 Questions</span>
+                <span>Obj 1.3, 2.1, 3.5</span>
+            </div>
+        </div>
+
+        <div class="progress-bar-wrap">
+            <span class="progress-label" id="progressLabel">Question 1 of 15</span>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <span class="score-label" id="scoreLabel">Score: 0</span>
+        </div>
+
+        <div class="question-card" id="questionCard">
+            <div class="question-num" id="questionNum">QUESTION 1</div>
+            <div class="question-text" id="questionText"></div>
+            <div class="options" id="optionsEl"></div>
+            <div class="feedback" id="feedback"></div>
+            <div class="quiz-nav">
+                <button class="next-btn" id="nextBtn" onclick="nextQuestion()" disabled>Next Question</button>
+            </div>
+        </div>
+
+        <div class="results-card" id="resultsCard">
+            <h2>Quiz Complete</h2>
+            <div class="score-big" id="finalScore"></div>
+            <p class="score-msg" id="scoreMsg"></p>
+            <div class="results-btns">
+                <button class="btn-retry" onclick="restartQuiz()">Try Again</button>
+                <a href="../index.html" class="btn-hub">Back to Network+ Hub</a>
+                <a href="../index.html#ch9" id="nextChapterBtn" class="btn-hub" style="display:none;background:var(--success, #22c55e);color:#fff;border-color:var(--success, #22c55e);">Continue to Chapter 9 →</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var questions = [
+            {
+                q: "Which NAT type maps multiple private IP addresses to a single public IP using port numbers?",
+                opts: ["Static NAT", "Dynamic NAT", "PAT (Port Address Translation)", "NAT64"],
+                ans: 2,
+                exp: "PAT (also called NAT overload) maps many private IPs to one public IP by tracking unique source port numbers. Static NAT is one-to-one. Dynamic NAT uses a pool but still one-to-one per session."
+            },
+            {
+                q: "What is the purpose of NAT64?",
+                opts: ["Translates between two different IPv4 subnets", "Translates between IPv6 and IPv4 to allow interoperability", "Encrypts NAT translations for security", "Provides redundant NAT for failover"],
+                ans: 1,
+                exp: "NAT64 allows IPv6-only clients to communicate with IPv4-only servers by translating between the two address families. This is critical during the transition from IPv4 to IPv6."
+            },
+            {
+                q: "What does MPLS use to make forwarding decisions instead of IP addresses?",
+                opts: ["MAC addresses", "Labels", "VLAN tags", "Port numbers"],
+                ans: 1,
+                exp: "MPLS (Multiprotocol Label Switching) inserts short labels between Layer 2 and Layer 3 headers. Routers forward based on these labels, which is faster than full IP lookups and enables traffic engineering."
+            },
+            {
+                q: "What is the primary advantage of SD-WAN over traditional WAN?",
+                opts: ["It eliminates the need for any internet connection", "It uses centralized software control to dynamically route traffic across multiple connection types", "It only works with MPLS circuits", "It replaces all LAN switching"],
+                ans: 1,
+                exp: "SD-WAN uses a centralized controller to intelligently route traffic across MPLS, broadband, LTE, and other links based on application requirements, cost, and real-time performance metrics."
+            },
+            {
+                q: "Which broadband technology delivers internet over the existing telephone infrastructure using frequency division?",
+                opts: ["Cable (DOCSIS)", "DSL", "Fiber (FTTH)", "Fixed wireless"],
+                ans: 1,
+                exp: "DSL (Digital Subscriber Line) uses existing telephone copper pairs and separates voice and data using different frequencies. Cable uses coaxial TV infrastructure. Fiber delivers over glass strands."
+            },
+            {
+                q: "What is the demarcation point (demarc)?",
+                opts: ["The main patch panel in the server room", "The boundary where the ISP's responsibility ends and the customer's begins", "The firewall between the LAN and WAN", "The point where fiber converts to copper"],
+                ans: 1,
+                exp: "The demarcation point is the physical location where the service provider's network ends and the customer's network begins. It is typically located at a network interface device (NID) on the building exterior."
+            },
+            {
+                q: "What is the function of a CSU/DSU?",
+                opts: ["Converts analog phone signals to digital", "Serves as the interface between a router and a digital leased line (T1/T3)", "Provides PoE to connected devices", "Manages VLAN trunking between switches"],
+                ans: 1,
+                exp: "A CSU/DSU (Channel Service Unit/Data Service Unit) converts the digital signal from a router into the framing format required by the carrier's leased line (T1/T3) and provides line termination."
+            },
+            {
+                q: "What is the key difference between a site-to-site VPN and a client-to-site VPN?",
+                opts: ["Site-to-site uses IPsec while client-to-site uses HTTP", "Site-to-site connects two networks permanently; client-to-site connects a single user to a network", "Client-to-site is faster than site-to-site", "Site-to-site does not use encryption"],
+                ans: 1,
+                exp: "A site-to-site VPN creates a persistent encrypted tunnel between two network gateways (e.g., two office locations). A client-to-site (remote access) VPN connects an individual user's device to the corporate network."
+            },
+            {
+                q: "In a split tunnel VPN configuration, how is traffic handled?",
+                opts: ["All traffic goes through the VPN tunnel", "Only traffic destined for the corporate network goes through the tunnel; internet traffic goes directly out", "Traffic is split equally between two VPN servers", "Inbound traffic uses the tunnel; outbound traffic does not"],
+                ans: 1,
+                exp: "Split tunneling sends only corporate-destined traffic through the VPN, while general internet traffic exits directly. Full tunnel sends all traffic through the VPN, providing more security but higher latency."
+            },
+            {
+                q: "Which cloud service model provides virtualized infrastructure (servers, storage, networking) that the customer manages?",
+                opts: ["SaaS", "PaaS", "IaaS", "DaaS"],
+                ans: 2,
+                exp: "IaaS (Infrastructure as a Service) provides raw compute, storage, and networking. The customer manages the OS, middleware, and applications. Examples include AWS EC2 and Azure Virtual Machines."
+            },
+            {
+                q: "A company uses a mix of on-premises servers and AWS cloud resources connected by a VPN. What cloud deployment model is this?",
+                opts: ["Public cloud", "Private cloud", "Hybrid cloud", "Community cloud"],
+                ans: 2,
+                exp: "A hybrid cloud combines on-premises (or private cloud) infrastructure with public cloud services, connected via VPN or dedicated links. This allows workload flexibility and data sovereignty."
+            },
+            {
+                q: "What is a VPC (Virtual Private Cloud)?",
+                opts: ["A physical data center rented by one tenant", "An isolated virtual network within a public cloud where you define your own IP space and subnets", "A VPN connection between two cloud providers", "A private DNS zone in the cloud"],
+                ans: 1,
+                exp: "A VPC is a logically isolated section of a public cloud where you control IP addressing, subnets, route tables, and gateways. It functions like your own private network inside the cloud provider's infrastructure."
+            },
+            {
+                q: "What is the purpose of security groups in cloud networking?",
+                opts: ["They manage user authentication", "They act as virtual firewalls controlling inbound and outbound traffic to cloud instances", "They encrypt data at rest", "They balance load across multiple regions"],
+                ans: 1,
+                exp: "Security groups are stateful virtual firewalls that control traffic at the instance level. You define allow rules for inbound and outbound traffic by protocol, port, and source/destination."
+            },
+            {
+                q: "What does NFV (Network Functions Virtualization) accomplish?",
+                opts: ["Converts physical network cables to wireless", "Replaces dedicated network hardware appliances with software running on standard servers", "Encrypts all network functions automatically", "Provides network address translation for IPv6"],
+                ans: 1,
+                exp: "NFV decouples network functions (firewalls, load balancers, IDS/IPS, routers) from proprietary hardware and runs them as software on commodity servers, reducing cost and increasing agility."
+            },
+            {
+                q: "Which protocol should be used for secure remote command-line management of network devices?",
+                opts: ["Telnet", "SSH", "SNMP v1", "HTTP"],
+                ans: 1,
+                exp: "SSH (Secure Shell) encrypts all traffic including credentials. Telnet sends everything in cleartext and should never be used for management. SSH is the standard for in-band CLI management."
+            }
+        ];
+
+        var current = 0;
+        var score = 0;
+        var answered = false;
+        var TOTAL = questions.length;
+
+        function loadQuestion() {
+            var q = questions[current];
+            document.getElementById('questionNum').textContent = 'QUESTION ' + (current + 1);
+            document.getElementById('questionText').textContent = q.q;
+            document.getElementById('progressLabel').textContent = 'Question ' + (current + 1) + ' of ' + TOTAL;
+            document.getElementById('progressFill').style.width = ((current + 1) / TOTAL * 100) + '%';
+
+            var html = '';
+            var letters = ['A', 'B', 'C', 'D'];
+            for (var i = 0; i < q.opts.length; i++) {
+                html += '<div class="option" onclick="selectAnswer(' + i + ')">' +
+                    '<span class="option-letter">' + letters[i] + '</span>' +
+                    '<span>' + q.opts[i] + '</span></div>';
+            }
+            document.getElementById('optionsEl').innerHTML = html;
+            document.getElementById('feedback').className = 'feedback';
+            document.getElementById('feedback').textContent = '';
+            document.getElementById('nextBtn').disabled = true;
+            answered = false;
+        }
+
+        function selectAnswer(idx) {
+            if (answered) return;
+            answered = true;
+
+            var q = questions[current];
+            var opts = document.querySelectorAll('.option');
+
+            for (var i = 0; i < opts.length; i++) {
+                opts[i].classList.add('disabled');
+                if (i === q.ans) opts[i].classList.add('correct');
+                else if (i === idx) opts[i].classList.add('incorrect');
+            }
+
+            var fb = document.getElementById('feedback');
+            if (idx === q.ans) {
+                score++;
+                fb.className = 'feedback correct';
+                fb.textContent = 'Correct! ' + q.exp;
+            } else {
+                fb.className = 'feedback incorrect';
+                fb.textContent = 'Incorrect. ' + q.exp;
+            }
+
+            document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+            document.getElementById('nextBtn').disabled = false;
+
+            if (current === TOTAL - 1) {
+                document.getElementById('nextBtn').textContent = 'See Results';
+            }
+        }
+
+        function nextQuestion() {
+            current++;
+            if (current >= TOTAL) {
+                showResults();
+                return;
+            }
+            loadQuestion();
+        }
+
+        function showResults() {
+            document.getElementById('questionCard').style.display = 'none';
+            document.querySelector('.progress-bar-wrap').style.display = 'none';
+            var resultsCard = document.getElementById('resultsCard');
+            resultsCard.style.display = 'block';
+
+            var pct = Math.round((score / TOTAL) * 100);
+            var scoreBig = document.getElementById('finalScore');
+            scoreBig.textContent = score + '/' + TOTAL + ' (' + pct + '%)';
+
+            if (pct >= 80) {
+                scoreBig.className = 'score-big';
+            } else if (pct >= 60) {
+                scoreBig.className = 'score-big mid';
+            } else {
+                scoreBig.className = 'score-big low';
+            }
+
+            var msg = '';
+            if (pct >= 90) msg = 'Outstanding! You have mastered WAN and cloud concepts.';
+            else if (pct >= 70) msg = 'Solid understanding. Review the topics you missed and you will be exam-ready.';
+            else if (pct >= 50) msg = 'Good effort. Revisit the Chapter 8 presentations and try again.';
+            else msg = 'Keep studying. Review Chapter 8 materials and retake the quiz.';
+            document.getElementById('scoreMsg').textContent = msg;
+
+            if (pct >= 70 && typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('web', 'web-wan-cloud-quiz', { returnToDashboard: false, returnUrl: '../index.html' });
+            }
+
+            var nextBtn = document.getElementById('nextChapterBtn');
+            if (nextBtn) nextBtn.style.display = pct >= 70 ? '' : 'none';
+        }
+
+        function restartQuiz() {
+            current = 0;
+            score = 0;
+            answered = false;
+            document.getElementById('scoreLabel').textContent = 'Score: 0';
+            document.getElementById('questionCard').style.display = '';
+            document.querySelector('.progress-bar-wrap').style.display = '';
+            document.getElementById('resultsCard').style.display = 'none';
+            document.getElementById('nextBtn').textContent = 'Next Question';
+            loadQuestion();
+        }
+
+        loadQuestion();
+    </script>
+</body>
+</html>

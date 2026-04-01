@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPv6 | Network+ N10-009</title>
+    <style>
+        /* =====================================================
+           RESET & BASE
+           ===================================================== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #091118 100%);
+            color: #e2e8f0;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* =====================================================
+           SLIDE SYSTEM — viewport-locked, no overflow
+           ===================================================== */
+        .slide {
+            display: none;
+            position: fixed;
+            inset: 0;
+            padding: 20px 28px 72px;
+            overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide-inner {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* =====================================================
+           PROGRESS BAR
+           ===================================================== */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: #06b6d4;
+            transition: width 0.4s ease;
+            z-index: 200;
+        }
+
+        /* =====================================================
+           NAVIGATION BAR
+           ===================================================== */
+        #nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            z-index: 200;
+            padding: 0 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(6, 182, 212, 0.15);
+            color: #06b6d4;
+            border-color: #06b6d4;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.back-btn {
+            font-size: 0.82rem;
+            padding: 8px 16px;
+        }
+
+        #slide-counter {
+            color: #64748b;
+            font-size: 0.82rem;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        #complete-btn {
+            display: none;
+            background: #06b6d4;
+            color: #000;
+            border: none;
+            padding: 9px 26px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+
+        #complete-btn:hover {
+            background: #22d3ee;
+            transform: translateY(-1px);
+        }
+
+        /* =====================================================
+           SLIDE HEADERS
+           ===================================================== */
+        .slide-meta {
+            font-size: 0.78rem;
+            color: #06b6d4;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .slide-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            text-align: center;
+            line-height: 1.25;
+        }
+
+        .slide-title span.accent     { color: #06b6d4; }
+        .slide-title span.accent-gold { color: #fbbf24; }
+        .slide-title span.accent-green { color: #4ade80; }
+
+        .slide-subtitle {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        /* =====================================================
+           SCENARIO STRIP
+           ===================================================== */
+        .scenario-strip {
+            background: rgba(6, 182, 212, 0.07);
+            border-left: 3px solid #06b6d4;
+            border-radius: 0 8px 8px 0;
+            padding: 10px 16px;
+            font-size: 0.88rem;
+            color: #cffafe;
+            font-style: italic;
+        }
+
+        /* =====================================================
+           INFO BOXES
+           ===================================================== */
+        .box {
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.875rem;
+        }
+
+        .box-cyan {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            color: #cffafe;
+        }
+
+        .box-green {
+            background: rgba(58, 181, 119, 0.08);
+            border: 1px solid rgba(58, 181, 119, 0.35);
+            color: #d1fae5;
+        }
+
+        .box-red {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fee2e2;
+        }
+
+        .box-gold {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            color: #fef3c7;
+        }
+
+        .box-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+            opacity: 0.75;
+        }
+
+        /* =====================================================
+           SLIDE 1 — TITLE HERO
+           ===================================================== */
+        .title-hero {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .title-hero .big-title {
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: #f1f5f9;
+            line-height: 1.2;
+        }
+
+        .title-hero .big-title .cyan { color: #06b6d4; }
+
+        .title-meta-row {
+            display: flex;
+            gap: 28px;
+            justify-content: center;
+            margin-top: 6px;
+            font-size: 0.82rem;
+            color: #475569;
+        }
+
+        .title-meta-row span {
+            border-left: 2px solid #1e293b;
+            padding-left: 28px;
+        }
+
+        .title-meta-row span:first-child {
+            border-left: none;
+            padding-left: 0;
+        }
+
+        /* =====================================================
+           ADDRESS FORMAT DISPLAY
+           ===================================================== */
+        .addr-display {
+            background: #0a0a0f;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 8px;
+            padding: 14px 20px;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+        }
+
+        .addr-full {
+            font-size: 1.3rem;
+            color: #f1f5f9;
+            letter-spacing: 0.06em;
+            margin-bottom: 4px;
+        }
+
+        .addr-full .h-cyan { color: #06b6d4; }
+        .addr-full .h-gold { color: #fbbf24; }
+        .addr-full .h-sep  { color: #334155; }
+
+        .addr-note {
+            font-size: 0.78rem;
+            color: #64748b;
+            font-family: 'Segoe UI', sans-serif;
+            margin-top: 3px;
+        }
+
+        .compress-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .compress-step {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: 0.83rem;
+        }
+
+        .compress-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: #475569;
+            min-width: 110px;
+            flex-shrink: 0;
+        }
+
+        .compress-addr {
+            font-family: 'Courier New', monospace;
+            color: #cffafe;
+        }
+
+        .compress-addr .removed { color: #ef4444; text-decoration: line-through; opacity: 0.6; }
+        .compress-addr .kept    { color: #06b6d4; }
+
+        /* =====================================================
+           ADDRESS TYPE CARDS
+           ===================================================== */
+        .type-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 9px;
+        }
+
+        .type-card {
+            border-radius: 8px;
+            padding: 11px 13px;
+        }
+
+        .type-card.tc-global {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.28);
+        }
+
+        .type-card.tc-link {
+            background: rgba(251, 191, 36, 0.07);
+            border: 1px solid rgba(251, 191, 36, 0.25);
+        }
+
+        .type-card.tc-unique {
+            background: rgba(58, 181, 119, 0.07);
+            border: 1px solid rgba(58, 181, 119, 0.25);
+        }
+
+        .type-card.tc-multi {
+            background: rgba(167, 139, 250, 0.07);
+            border: 1px solid rgba(167, 139, 250, 0.25);
+        }
+
+        .type-card.tc-any {
+            background: rgba(239, 68, 68, 0.06);
+            border: 1px solid rgba(239, 68, 68, 0.22);
+        }
+
+        .type-card.tc-loop {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .tc-prefix {
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            margin-bottom: 3px;
+        }
+
+        .tc-global  .tc-prefix { color: #06b6d4; }
+        .tc-link    .tc-prefix { color: #fbbf24; }
+        .tc-unique  .tc-prefix { color: #4ade80; }
+        .tc-multi   .tc-prefix { color: #c4b5fd; }
+        .tc-any     .tc-prefix { color: #f87171; }
+        .tc-loop    .tc-prefix { color: #94a3b8; }
+
+        .tc-name {
+            font-weight: 700;
+            color: #f1f5f9;
+            font-size: 0.85rem;
+            margin-bottom: 3px;
+        }
+
+        .tc-desc {
+            font-size: 0.78rem;
+            color: #64748b;
+            line-height: 1.35;
+        }
+
+        /* =====================================================
+           SLAAC / DHCPv6 COMPARISON
+           ===================================================== */
+        .config-cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .config-col {
+            border-radius: 8px;
+            padding: 12px 14px;
+        }
+
+        .config-col.col-slaac {
+            background: rgba(6, 182, 212, 0.07);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+        }
+
+        .config-col.col-dhcp {
+            background: rgba(58, 181, 119, 0.07);
+            border: 1px solid rgba(58, 181, 119, 0.25);
+        }
+
+        .config-col-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+
+        .col-slaac .config-col-label { color: #06b6d4; }
+        .col-dhcp  .config-col-label { color: #4ade80; }
+
+        .config-item {
+            font-size: 0.82rem;
+            color: #94a3b8;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            line-height: 1.4;
+        }
+
+        .config-item:last-child { border-bottom: none; }
+        .config-item strong { color: #e2e8f0; }
+
+        /* =====================================================
+           EUI-64 VISUAL
+           ===================================================== */
+        .eui-visual {
+            display: flex;
+            gap: 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .eui-seg {
+            padding: 8px 10px;
+            text-align: center;
+        }
+
+        .eui-seg.es-prefix {
+            background: rgba(6, 182, 212, 0.15);
+            color: #06b6d4;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 6px 0 0 6px;
+        }
+
+        .eui-seg.es-oui {
+            background: rgba(251, 191, 36, 0.12);
+            color: #fbbf24;
+            border: 1px solid rgba(251, 191, 36, 0.25);
+            border-left: none;
+        }
+
+        .eui-seg.es-fffe {
+            background: rgba(167, 139, 250, 0.12);
+            color: #c4b5fd;
+            border: 1px solid rgba(167, 139, 250, 0.25);
+            border-left: none;
+        }
+
+        .eui-seg.es-nic {
+            background: rgba(58, 181, 119, 0.12);
+            color: #4ade80;
+            border: 1px solid rgba(58, 181, 119, 0.25);
+            border-left: none;
+            border-radius: 0 6px 6px 0;
+        }
+
+        .eui-seg-label {
+            font-size: 0.68rem;
+            color: #475569;
+            font-family: 'Segoe UI', sans-serif;
+            margin-top: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* =====================================================
+           TRANSITION TECH CARDS
+           ===================================================== */
+        .trans-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 9px;
+        }
+
+        .trans-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 8px;
+            padding: 11px 13px;
+        }
+
+        .trans-name {
+            font-weight: 700;
+            color: #f1f5f9;
+            font-size: 0.88rem;
+            margin-bottom: 3px;
+        }
+
+        .trans-tag {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 5px;
+            color: #06b6d4;
+        }
+
+        .trans-desc {
+            font-size: 0.78rem;
+            color: #64748b;
+            line-height: 1.4;
+        }
+
+        .trans-desc code {
+            font-family: 'Courier New', monospace;
+            color: #06b6d4;
+            background: rgba(6, 182, 212, 0.08);
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+
+        /* =====================================================
+           NDP TABLE
+           ===================================================== */
+        .ndp-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.83rem;
+        }
+
+        .ndp-table th {
+            background: rgba(6, 182, 212, 0.1);
+            color: #06b6d4;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            padding: 7px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(6, 182, 212, 0.2);
+        }
+
+        .ndp-table td {
+            padding: 6px 12px;
+            color: #cbd5e1;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 0.82rem;
+        }
+
+        .ndp-table tr:last-child td { border-bottom: none; }
+        .ndp-table tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+        .ndp-table td.msg-type { font-family: 'Courier New', monospace; color: #06b6d4; font-weight: 700; }
+        .ndp-table td.ipv4-equiv { color: #94a3b8; font-style: italic; }
+
+        /* =====================================================
+           IPV4 VS IPV6 COMPARISON
+           ===================================================== */
+        .compare-cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .compare-col {
+            border-radius: 8px;
+            padding: 12px 14px;
+        }
+
+        .compare-col.cv4 {
+            background: rgba(239, 68, 68, 0.06);
+            border: 1px solid rgba(239, 68, 68, 0.22);
+        }
+
+        .compare-col.cv6 {
+            background: rgba(6, 182, 212, 0.07);
+            border: 1px solid rgba(6, 182, 212, 0.25);
+        }
+
+        .compare-col-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+
+        .cv4 .compare-col-label { color: #f87171; }
+        .cv6 .compare-col-label { color: #06b6d4; }
+
+        .compare-item {
+            font-size: 0.82rem;
+            color: #94a3b8;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            line-height: 1.4;
+        }
+
+        .compare-item:last-child { border-bottom: none; }
+        .compare-item strong { color: #e2e8f0; }
+
+        /* =====================================================
+           CONFIG TERMINAL
+           ===================================================== */
+        .terminal-block {
+            background: #0a0a0f;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            line-height: 1.65;
+        }
+
+        .t-comment { color: #475569; }
+        .t-cmd     { color: #06b6d4; }
+        .t-output  { color: #4ade80; }
+        .t-label   {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: #fbbf24;
+            margin-bottom: 4px;
+        }
+
+        /* =====================================================
+           SUMMARY FACTS
+           ===================================================== */
+        .summary-facts {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .fact-row {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            font-size: 0.875rem;
+        }
+
+        .fact-num {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #06b6d4;
+            min-width: 22px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .fact-text { color: #cbd5e1; }
+
+        .fact-text code {
+            font-family: 'Courier New', monospace;
+            color: #06b6d4;
+            background: rgba(6, 182, 212, 0.1);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+
+        .summary-scenario {
+            background: rgba(6, 182, 212, 0.07);
+            border: 1px solid rgba(6, 182, 212, 0.28);
+            border-radius: 9px;
+            padding: 14px 18px;
+            font-size: 0.875rem;
+            color: #cffafe;
+            line-height: 1.65;
+        }
+
+        .summary-scenario strong { color: #06b6d4; }
+
+        /* =====================================================
+           UTILITY
+           ===================================================== */
+        .section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: #475569;
+        }
+
+        /* =====================================================
+           RESPONSIVE
+           ===================================================== */
+        @media (max-height: 700px) {
+            .slide-inner { gap: 9px; }
+            .slide-title { font-size: 1.4rem; }
+            .title-hero .big-title { font-size: 1.9rem; }
+        }
+
+        @media (max-width: 768px) {
+            .type-grid    { grid-template-columns: repeat(2, 1fr); }
+            .config-cols  { grid-template-columns: 1fr; }
+            .trans-grid   { grid-template-columns: 1fr; }
+            .compare-cols { grid-template-columns: 1fr; }
+            .slide-title  { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="progress-bar" style="width:10%"></div>
+
+<!-- =====================================================================
+     SLIDE 1 — TITLE
+     ===================================================================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 10 &nbsp;|&nbsp; N10-009 Obj 1.4 &nbsp;|&nbsp; Chapter 5</div>
+
+        <div class="title-hero">
+            <div class="big-title">
+                IPv6:<br>
+                <span class="cyan">The Real Solution</span> to Address Exhaustion
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                128-bit addresses. No more NAT. Built-in security. But the transition is complex.
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            IPv4 addresses are exhausted. NAT has been a band-aid for 20 years. IPv6 is the real solution —
+            128-bit addresses, no more NAT, built-in security. But the transition is complex.
+        </div>
+
+        <div class="title-meta-row">
+            <span>10 Slides</span>
+            <span>N10-009 Obj 1.4</span>
+            <span>Network Layer (Layer 3)</span>
+            <span>Architecture + Transition</span>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 2 — WHY IPv6
+     ===================================================================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 10</div>
+        <div class="slide-title">Why IPv6 — The Address Exhaustion Problem</div>
+        <div class="slide-subtitle">IPv4 gave us about 4.3 billion addresses. That was not enough.</div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div class="box box-red">
+                <div class="box-label">IPv4 — The Problem</div>
+                32 bits = 2^32 = 4,294,967,296 addresses. Sounds large until you subtract reserved ranges, private blocks, and realize every IoT device, phone, server, and router needs an IP.
+                IANA exhausted the last IPv4 blocks in 2011. Regional registries ran dry between 2012 and 2019.
+            </div>
+            <div class="box box-cyan">
+                <div class="box-label">IPv6 — The Fix</div>
+                128 bits = 2^128 = approximately 340 undecillion addresses. That is 340 followed by 36 zeros.
+                Every device ever manufactured could have thousands of addresses and we would not come close to exhaustion.
+            </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px;">
+            <div class="box box-gold">
+                <div class="box-label">NAT Was a Band-Aid</div>
+                Network Address Translation let multiple devices share one public IP. It works, but breaks end-to-end connectivity,
+                complicates protocols, and adds latency. IPv6 eliminates the need for NAT entirely.
+            </div>
+            <div class="box box-cyan">
+                <div class="box-label">What Else IPv6 Brings</div>
+                Stateless address autoconfiguration (SLAAC). Simplified header format. Mandatory support for IPsec.
+                Multicast replaces broadcast. Neighbor Discovery replaces ARP.
+            </div>
+            <div class="box box-gold">
+                <div class="box-label">Current Reality</div>
+                Most networks run dual-stack (both IPv4 and IPv6) during the transition.
+                Pure IPv6-only networks exist but are rare. You need to understand both and how they coexist.
+            </div>
+        </div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            Your data center has 10,000 devices. Every one gets a globally routable IPv6 address.
+            No NAT. No PAT. End-to-end reachability between any two points on the Internet.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 3 — ADDRESS FORMAT + COMPRESSION
+     ===================================================================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 10</div>
+        <div class="slide-title">Address Format — <span class="accent">128 Bits, 8 Hextets</span></div>
+        <div class="slide-subtitle">Written as 8 groups of 4 hex digits separated by colons. Two compression rules make it manageable.</div>
+
+        <div class="addr-display">
+            <div class="addr-note">Full uncompressed address:</div>
+            <div class="addr-full" style="margin: 6px 0;">
+                <span class="h-cyan">2001</span><span class="h-sep">:</span><span class="h-cyan">0db8</span><span class="h-sep">:</span>
+                <span class="h-gold">0000</span><span class="h-sep">:</span><span class="h-gold">0000</span><span class="h-sep">:</span>
+                <span class="h-gold">0000</span><span class="h-sep">:</span><span class="h-cyan">ff3e</span><span class="h-sep">:</span>
+                <span class="h-cyan">0051</span><span class="h-sep">:</span><span class="h-cyan">a0c2</span>
+            </div>
+            <div class="addr-note">Cyan = significant fields, gold = consecutive groups of all zeros</div>
+        </div>
+
+        <div class="compress-steps">
+            <div class="compress-step">
+                <div class="compress-label">Rule 1: Drop leading zeros</div>
+                <div class="compress-addr">
+                    <span>2001:0db8:0000:0000:0000:ff3e:0051:a0c2</span>
+                    &nbsp;&rarr;&nbsp;
+                    <span class="kept">2001:db8:0:0:0:ff3e:51:a0c2</span>
+                </div>
+            </div>
+            <div class="compress-step">
+                <div class="compress-label">Rule 2: Collapse zeros (once)</div>
+                <div class="compress-addr">
+                    <span>2001:db8:0:0:0:ff3e:51:a0c2</span>
+                    &nbsp;&rarr;&nbsp;
+                    <span class="kept">2001:db8::ff3e:51:a0c2</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="box box-cyan">
+                <div class="box-label">Rule 1 — Drop Leading Zeros</div>
+                Within any group of 4 hex digits, remove leading zeros.
+                <code style="font-family:monospace; color:#06b6d4;">0051</code> becomes <code style="font-family:monospace; color:#06b6d4;">51</code>.
+                <code style="font-family:monospace; color:#06b6d4;">0db8</code> becomes <code style="font-family:monospace; color:#06b6d4;">db8</code>.
+                You still need at least one digit per group.
+            </div>
+            <div class="box box-gold">
+                <div class="box-label">Rule 2 — Double Colon (once only)</div>
+                One consecutive run of all-zero groups can be replaced with <code style="font-family:monospace; color:#06b6d4;">::</code>.
+                You can only use this trick once per address. If you use it twice, the address becomes ambiguous — the reader cannot know how many zeros to expand back to.
+            </div>
+        </div>
+
+        <div class="box box-green" style="font-size:0.83rem; text-align:center;">
+            Loopback: <code style="font-family:monospace; color:#06b6d4;">::1</code> (expanded: 0000:0000:0000:0000:0000:0000:0000:0001)
+            &nbsp;&nbsp;|&nbsp;&nbsp;
+            Unspecified: <code style="font-family:monospace; color:#06b6d4;">::</code> (all zeros, 128 bits)
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 4 — ADDRESS TYPES
+     ===================================================================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 10</div>
+        <div class="slide-title">Address Types — <span class="accent">Unicast, Multicast, Anycast</span></div>
+        <div class="slide-subtitle">IPv6 has no broadcast. It replaced broadcast with targeted multicast. Know each type by prefix.</div>
+
+        <div class="type-grid">
+            <div class="type-card tc-global">
+                <div class="tc-prefix">2000::/3</div>
+                <div class="tc-name">Global Unicast</div>
+                <div class="tc-desc">Globally routable. The IPv6 equivalent of public IPv4 addresses. Starts with 2 or 3 in the first hex digit.</div>
+            </div>
+            <div class="type-card tc-link">
+                <div class="tc-prefix">fe80::/10</div>
+                <div class="tc-name">Link-Local</div>
+                <div class="tc-desc">Auto-configured on every interface. Valid only on the local link — not routed. Used for NDP and router discovery.</div>
+            </div>
+            <div class="type-card tc-unique">
+                <div class="tc-prefix">fc00::/7</div>
+                <div class="tc-name">Unique Local</div>
+                <div class="tc-desc">Private addressing, similar to RFC 1918 in IPv4 (10.x, 172.16.x, 192.168.x). Not globally routable. Use within an organization.</div>
+            </div>
+            <div class="type-card tc-multi">
+                <div class="tc-prefix">ff00::/8</div>
+                <div class="tc-name">Multicast</div>
+                <div class="tc-desc">One-to-many within a group. Replaces IPv4 broadcast. ff02::1 = all nodes, ff02::2 = all routers, ff02::5/6 = OSPF.</div>
+            </div>
+            <div class="type-card tc-any">
+                <div class="tc-prefix">(same as unicast)</div>
+                <div class="tc-name">Anycast</div>
+                <div class="tc-desc">One address assigned to multiple interfaces. Packet delivered to the nearest one. Used for DNS root servers and CDN.</div>
+            </div>
+            <div class="type-card tc-loop">
+                <div class="tc-prefix">::1</div>
+                <div class="tc-name">Loopback</div>
+                <div class="tc-desc">Equivalent to 127.0.0.1. Tests the local IP stack without sending anything on the wire.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>No broadcast in IPv6.</strong> Functions that used broadcast in IPv4 (ARP, DHCP discovery) now use targeted multicast.
+            This reduces unnecessary traffic on all nodes that are not part of the relevant group.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 5 — SLAAC vs DHCPv6
+     ===================================================================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 10</div>
+        <div class="slide-title">SLAAC vs <span class="accent">DHCPv6</span></div>
+        <div class="slide-subtitle">IPv6 offers two mechanisms for address configuration. Understand when each is used and what EUI-64 contributes.</div>
+
+        <div class="config-cols">
+            <div class="config-col col-slaac">
+                <div class="config-col-label">SLAAC — Stateless Address Autoconfiguration</div>
+                <div class="config-item"><strong>How:</strong> Host generates its own address from the network prefix + interface identifier</div>
+                <div class="config-item"><strong>Prefix source:</strong> Router Advertisement (RA) messages from the local router</div>
+                <div class="config-item"><strong>No server needed:</strong> No DHCPv6 server required. Zero config on the client side.</div>
+                <div class="config-item"><strong>Interface ID:</strong> Derived via EUI-64 or randomized (RFC 4941 privacy extensions)</div>
+                <div class="config-item"><strong>Limitation:</strong> Cannot deliver DNS server addresses natively (need RDNSS option or DHCPv6)</div>
+            </div>
+            <div class="config-col col-dhcp">
+                <div class="config-col-label">DHCPv6 — Stateful Configuration</div>
+                <div class="config-item"><strong>How:</strong> Client requests address and options from a DHCPv6 server (like DHCPv4)</div>
+                <div class="config-item"><strong>Stateful:</strong> Server tracks every lease — which address was given to which client</div>
+                <div class="config-item"><strong>Delivers:</strong> Address, prefix length, DNS servers, domain name, other options</div>
+                <div class="config-item"><strong>Stateless DHCPv6:</strong> SLAAC handles the address; DHCPv6 only delivers DNS and other options</div>
+                <div class="config-item"><strong>M and O flags:</strong> Router sets M (Managed) flag for stateful DHCPv6, O (Other) for stateless DHCPv6</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            <strong>EUI-64:</strong> When a host uses SLAAC, it generates a 64-bit interface ID from its 48-bit MAC address.
+            Split the MAC in half, insert <code style="font-family:monospace;">ff:fe</code> in the middle, then flip the 7th bit (universal/local bit).
+            Example: MAC <code style="font-family:monospace;">00:1A:2B:3C:4D:5E</code> becomes interface ID <code style="font-family:monospace;">021a:2bff:fe3c:4d5e</code>.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 6 — PREFIX LENGTHS
+     ===================================================================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 10</div>
+        <div class="slide-title">IPv6 Prefix Lengths — <span class="accent">/64</span> Is Standard</div>
+        <div class="slide-subtitle">IPv6 uses the same CIDR notation as IPv4, but the conventions are different and more rigid.</div>
+
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px;">
+            <div class="box box-cyan">
+                <div class="box-label">/64 — The Standard LAN Prefix</div>
+                Every IPv6 subnet should be a /64. The first 64 bits are the network prefix; the last 64 bits are the interface identifier.
+                SLAAC and EUI-64 require exactly /64. Do not use smaller host subnets in IPv6 — the protocol is designed around /64.
+            </div>
+            <div class="box box-gold">
+                <div class="box-label">/48 — Typical Site Allocation</div>
+                ISPs typically allocate a /48 to each customer site. A /48 gives you 65,536 possible /64 subnets.
+                That is one for every VLAN, department, floor, or segment you could ever need.
+            </div>
+            <div class="box box-green">
+                <div class="box-label">/128 — Host Route</div>
+                A /128 is a single host address — all 128 bits specified. Used for loopback (::1/128) and for assigning specific individual addresses.
+                Equivalent to a /32 host route in IPv4.
+            </div>
+        </div>
+
+        <div class="addr-display">
+            <div class="addr-note">ISP allocates /48 to your organization:</div>
+            <div class="addr-full" style="margin:6px 0;">
+                <span class="h-cyan">2001:db8:acad</span><span class="h-sep">:</span><span class="h-gold">0001</span><span class="h-sep">:</span><span class="h-gold">0000</span><span class="h-sep">:</span><span class="h-gold">0000</span><span class="h-sep">:</span><span class="h-gold">0000</span><span class="h-sep">:</span><span class="h-gold">0001</span>
+            </div>
+            <div class="addr-note">Cyan = your /48 prefix (fixed). Gold = subnet ID (16 bits = 65,536 subnets) + interface ID (64 bits).</div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="box box-red">
+                <div class="box-label">No Subnet Mask Notation</div>
+                IPv6 uses only CIDR prefix notation — no dotted-decimal subnet masks.
+                There is no such thing as a 255.255.0.0 mask in IPv6. It is always /prefix.
+            </div>
+            <div class="box box-cyan">
+                <div class="box-label">Link-Local Always fe80::/64</div>
+                Every interface auto-generates a link-local address in the fe80::/64 range using EUI-64 or random interface ID.
+                This happens before any router advertisement is received.
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 7 — TRANSITION TECHNOLOGIES
+     ===================================================================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 10</div>
+        <div class="slide-title">Transition Technologies — Getting From IPv4 to IPv6</div>
+        <div class="slide-subtitle">You cannot flip a switch on the entire Internet. These mechanisms allow coexistence and gradual migration.</div>
+
+        <div class="trans-grid">
+            <div class="trans-card">
+                <div class="trans-tag">Coexistence</div>
+                <div class="trans-name">Dual-Stack</div>
+                <div class="trans-desc">Every device runs both IPv4 and IPv6 simultaneously. Uses whichever protocol the destination supports. The most common real-world approach. Requires both stacks to be maintained.</div>
+            </div>
+            <div class="trans-card">
+                <div class="trans-tag">Tunneling</div>
+                <div class="trans-name">6to4</div>
+                <div class="trans-desc">Encapsulates IPv6 packets inside IPv4 for transit across an IPv4-only network. Uses relay routers. Automatic but complex. Deprecated in many environments due to security concerns.</div>
+            </div>
+            <div class="trans-card">
+                <div class="trans-tag">Tunneling</div>
+                <div class="trans-name">Teredo</div>
+                <div class="trans-desc">Tunnels IPv6 through IPv4 UDP, specifically designed to work through NAT devices. Useful when the host is behind a NAT that blocks other tunneling. Used by Windows as a fallback mechanism.</div>
+            </div>
+            <div class="trans-card">
+                <div class="trans-tag">Tunneling</div>
+                <div class="trans-name">ISATAP</div>
+                <div class="trans-desc">Intra-Site Automatic Tunnel Addressing Protocol. Tunnels IPv6 over IPv4 within an enterprise network. Interface identifier is derived from the IPv4 address. Primarily a Microsoft technology.</div>
+            </div>
+            <div class="trans-card">
+                <div class="trans-tag">Tunneling</div>
+                <div class="trans-name">GRE Tunnel</div>
+                <div class="trans-desc">Generic Routing Encapsulation. Manually configured tunnel between two routers to carry IPv6 over an IPv4 backbone. Simple and explicit — configure both endpoints with matching tunnel addresses.</div>
+            </div>
+            <div class="trans-card">
+                <div class="trans-tag">Translation</div>
+                <div class="trans-name">NAT64</div>
+                <div class="trans-desc">Translates IPv6 packets to IPv4 and back. Allows IPv6-only hosts to communicate with IPv4-only destinations. Works with DNS64, which synthesizes AAAA records for IPv4-only services.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Exam priority:</strong> Know dual-stack, 6to4, and NAT64 conceptually. Understand that tunneling carries one protocol inside another.
+            GRE is manually configured; 6to4 and Teredo are automatic. Dual-stack is the simplest and most widely deployed.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 8 — NDP — NEIGHBOR DISCOVERY PROTOCOL
+     ===================================================================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 10</div>
+        <div class="slide-title">NDP — Neighbor Discovery <span class="accent">Replaces ARP</span></div>
+        <div class="slide-subtitle">IPv6 does not use ARP. Neighbor Discovery Protocol handles address resolution, router discovery, and duplicate detection.</div>
+
+        <table class="ndp-table">
+            <thead>
+                <tr>
+                    <th>ICMPv6 Message</th>
+                    <th>Type</th>
+                    <th>Purpose</th>
+                    <th>IPv4 Equivalent</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="msg-type">Router Solicitation (RS)</td>
+                    <td>133</td>
+                    <td>Host asks "Is there a router on this link? Please send me your RA."</td>
+                    <td class="ipv4-equiv">No direct equivalent</td>
+                </tr>
+                <tr>
+                    <td class="msg-type">Router Advertisement (RA)</td>
+                    <td>134</td>
+                    <td>Router periodically announces prefix, default gateway, M and O flags, MTU, hop limit.</td>
+                    <td class="ipv4-equiv">DHCP server offer (partial)</td>
+                </tr>
+                <tr>
+                    <td class="msg-type">Neighbor Solicitation (NS)</td>
+                    <td>135</td>
+                    <td>Host asks "Who has IPv6 address X? Tell me your MAC." Also used for DAD.</td>
+                    <td class="ipv4-equiv">ARP Request</td>
+                </tr>
+                <tr>
+                    <td class="msg-type">Neighbor Advertisement (NA)</td>
+                    <td>136</td>
+                    <td>Host replies "I have address X, my MAC is Y." Response to NS.</td>
+                    <td class="ipv4-equiv">ARP Reply</td>
+                </tr>
+                <tr>
+                    <td class="msg-type">Redirect</td>
+                    <td>137</td>
+                    <td>Router tells a host to use a better next-hop for a particular destination.</td>
+                    <td class="ipv4-equiv">ICMP Redirect</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            <strong>DAD — Duplicate Address Detection:</strong> Before using a new address, a host sends a Neighbor Solicitation
+            for its own address. If another device responds, the address is in use. This prevents IPv6 address conflicts automatically.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 9 — IPV4 vs IPv6 KEY DIFFERENCES
+     ===================================================================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 10</div>
+        <div class="slide-title">IPv4 vs IPv6 — <span class="accent">Key Differences</span></div>
+        <div class="slide-subtitle">Both protocols route packets — but the architecture differences are significant for troubleshooting and design.</div>
+
+        <div class="compare-cols">
+            <div class="compare-col cv4">
+                <div class="compare-col-label">IPv4</div>
+                <div class="compare-item"><strong>Address size:</strong> 32-bit, ~4.3 billion total</div>
+                <div class="compare-item"><strong>Notation:</strong> Dotted-decimal (192.168.1.1)</div>
+                <div class="compare-item"><strong>Address assignment:</strong> Manual or DHCPv4</div>
+                <div class="compare-item"><strong>Address resolution:</strong> ARP (broadcast-based)</div>
+                <div class="compare-item"><strong>Broadcast:</strong> Yes — all hosts on subnet receive</div>
+                <div class="compare-item"><strong>NAT:</strong> Required to extend address space</div>
+                <div class="compare-item"><strong>IPsec:</strong> Optional, externally added</div>
+                <div class="compare-item"><strong>Header size:</strong> Variable (20-60 bytes)</div>
+                <div class="compare-item"><strong>Fragmentation:</strong> Routers can fragment packets</div>
+                <div class="compare-item"><strong>Checksum:</strong> Header includes checksum field</div>
+            </div>
+            <div class="compare-col cv6">
+                <div class="compare-col-label">IPv6</div>
+                <div class="compare-item"><strong>Address size:</strong> 128-bit, 340 undecillion total</div>
+                <div class="compare-item"><strong>Notation:</strong> Colon-hex (2001:db8::1)</div>
+                <div class="compare-item"><strong>Address assignment:</strong> SLAAC or DHCPv6</div>
+                <div class="compare-item"><strong>Address resolution:</strong> NDP (multicast-based)</div>
+                <div class="compare-item"><strong>Broadcast:</strong> No — multicast is used instead</div>
+                <div class="compare-item"><strong>NAT:</strong> Not needed — globally unique addresses</div>
+                <div class="compare-item"><strong>IPsec:</strong> Built-in, mandatory support</div>
+                <div class="compare-item"><strong>Header size:</strong> Fixed at 40 bytes</div>
+                <div class="compare-item"><strong>Fragmentation:</strong> Only source host fragments</div>
+                <div class="compare-item"><strong>Checksum:</strong> No header checksum (handled by Layer 4)</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            The fixed 40-byte header makes IPv6 faster to process in hardware. No fragmentation by routers means cleaner forwarding paths.
+            No checksum means less per-hop computation — upper-layer protocols (TCP/UDP) already checksum their data.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 10 — SUMMARY + COMPLETE
+     ===================================================================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 10 &nbsp;|&nbsp; N10-009 Obj 1.4</div>
+        <div class="slide-title">IPv6 — The Future That Is Already Here</div>
+
+        <div class="summary-scenario">
+            IPv4 is exhausted. Your data center is moving to dual-stack. Every device gets a global unicast address starting with
+            <strong>2001:</strong> — no NAT required. Link-local <strong>fe80::</strong> addresses auto-configure on every interface.
+            NDP replaces ARP. SLAAC and Router Advertisements replace DHCP for basic configuration.
+            When IPv6-only hosts need to reach IPv4 servers, <strong>NAT64</strong> bridges the gap.
+            The transition is complex but the destination is a cleaner, more scalable Internet.
+        </div>
+
+        <div class="section-label">5 Facts to Carry Out of This Presentation</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">IPv6 is 128-bit. Two compression rules: drop leading zeros in each group, use <code>::</code> once for consecutive zero groups.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Address types by prefix: <code>2000::/3</code> global unicast, <code>fe80::/10</code> link-local, <code>fc00::/7</code> unique local, <code>ff00::/8</code> multicast.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">SLAAC = host builds its own address from RA prefix + EUI-64 interface ID. DHCPv6 = server assigns address like DHCPv4.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">NDP replaces ARP: NS/NA = address resolution, RS/RA = router discovery, DAD = duplicate detection. No broadcast in IPv6.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Transition: dual-stack (both protocols), tunneling (6to4/Teredo/GRE carry IPv6 over IPv4), NAT64 (translates between the two).</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     NAVIGATION BAR
+     ===================================================================== -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Network+ Hub</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 10</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<!-- =====================================================================
+     PRESENTATION LOGIC
+     ===================================================================== -->
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 10;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        const pct = (currentSlide / TOTAL_SLIDES) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            goToSlide(currentSlide + 1);
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            goToSlide(currentSlide - 1);
+        }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'web-ipv6', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

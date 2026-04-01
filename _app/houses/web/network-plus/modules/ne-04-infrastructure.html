@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NE-04: Physical Infrastructure | Network+</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg-dark: #090910; --bg-card: #111120; --accent: #06b6d4; --accent-dim: rgba(6, 182, 212, 0.12); --green: #10b981; --text-primary: #e0e0e0; --text-secondary: #8b949e; --border: rgba(255, 255, 255, 0.08); }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.7; }
+        .ne-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 14px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .ne-header-left { display: flex; align-items: center; gap: 15px; }
+        .ne-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .ne-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .ne-breadcrumb { font-size: 0.8rem; color: var(--text-secondary); }
+        .ne-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+        .ne-breadcrumb a:hover { color: var(--accent); }
+        .ne-back { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .ne-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-content { max-width: 820px; margin: 0 auto; padding: 30px 25px 60px; }
+        .ne-objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .ne-objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+        .ne-objectives ul { list-style: none; }
+        .ne-objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.92rem; }
+        .ne-objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .ne-section { margin-bottom: 35px; }
+        .ne-section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .ne-section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .ne-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .ne-code { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; color: var(--text-secondary); white-space: pre-wrap; }
+        .ne-code .prompt { color: var(--green); }
+        .ne-code .comment { color: #6a737d; }
+        .ne-code .highlight { color: var(--accent); }
+        .ne-code .value { color: #f0883e; }
+        .ne-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+        .ne-table th { background: var(--bg-card); color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--border); font-weight: 600; }
+        .ne-table td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text-secondary); }
+        .ne-table tr:hover td { background: rgba(6, 182, 212, 0.04); }
+        .ne-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+        .ne-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: border-color 0.2s; }
+        .ne-card:hover { border-color: var(--accent); }
+        .ne-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .ne-card span { color: var(--text-secondary); font-size: 0.85rem; }
+        .ne-callout { background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 16px 20px; margin: 18px 0; }
+        .ne-callout strong { color: var(--green); }
+        .ne-callout p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+        .ne-takeaways { background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(6, 182, 212, 0.04)); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .ne-takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .ne-takeaways ul { list-style: none; }
+        .ne-takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .ne-takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .ne-nav { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .ne-nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .ne-nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .ne-nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-nav-btn.primary:hover { background: #0891b2; }
+        .ne-inline-code { background: #0d1117; padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--accent); }
+        @media (max-width: 700px) { .ne-card-grid { grid-template-columns: 1fr; } .ne-content { padding: 20px 15px 40px; } }
+    </style>
+</head>
+<body>
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">NE-04</span>
+            <h1>Physical Infrastructure</h1>
+        </div>
+        <div class="ne-breadcrumb">
+            <a href="../index.html">Network+</a> / NE-04
+        </div>
+        <a href="../index.html" class="ne-back">&lt; Network+ Hub</a>
+    </header>
+
+    <div class="ne-content">
+        <div class="ne-objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Identify copper and fiber cable types and their specifications</li>
+                <li>Recognize common connector types (RJ45, LC, SC, ST, F-type, BNC)</li>
+                <li>Explain T568A and T568B wiring standards</li>
+                <li>Describe physical installation best practices (IDF/MDF, rack layout, power, environmental)</li>
+                <li>Compare network topologies and their use cases</li>
+            </ul>
+        </div>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Copper Cabling</h2>
+            <p class="ne-text">Copper cabling remains the backbone of most LANs. Twisted-pair cables use pairs of insulated copper wires twisted together to reduce electromagnetic interference (EMI). The two main types are UTP (Unshielded Twisted Pair) and STP (Shielded Twisted Pair).</p>
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>UTP (Unshielded Twisted Pair)</strong>
+                    <span>No additional shielding beyond the outer jacket. Most common in office environments. Lower cost, easier to install, sufficient for most deployments. Susceptible to EMI in industrial environments.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>STP (Shielded Twisted Pair)</strong>
+                    <span>Foil or braided shield around individual pairs or the entire cable bundle. Used in environments with high EMI (factories, near motors). Requires grounded connectors. Higher cost and stiffer cable.</span>
+                </div>
+            </div>
+            <table class="ne-table">
+                <thead>
+                    <tr><th>Category</th><th>Max Speed</th><th>Max Distance</th><th>Common Use</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Cat 5e</td><td>1 Gbps</td><td>100m</td><td>Legacy LAN</td></tr>
+                    <tr><td>Cat 6</td><td>1-10 Gbps</td><td>55m (10G)</td><td>Modern LAN</td></tr>
+                    <tr><td>Cat 6a</td><td>10 Gbps</td><td>100m</td><td>High-speed LAN</td></tr>
+                    <tr><td>Cat 7</td><td>10 Gbps</td><td>100m</td><td>Shielded environments</td></tr>
+                </tbody>
+            </table>
+            <div class="ne-callout">
+                <strong>Plenum vs PVC Jacket:</strong>
+                <p>Plenum-rated cable (CMP) uses fire-retardant, low-smoke jacket material required for air-handling spaces (above drop ceilings, under raised floors). PVC/riser-rated cable (CMR) is cheaper but produces toxic fumes when burned -- never use PVC in plenum spaces.</p>
+            </div>
+            <p class="ne-text"><strong style="color:var(--accent);">Coaxial Cable:</strong> Uses a central copper conductor surrounded by insulation, a metallic shield, and an outer jacket. RG-6 is standard for cable TV and broadband ISP connections. RG-59 is thinner, used for short CCTV runs. Coax is largely legacy for networking but remains essential for cable internet (DOCSIS) and video distribution.</p>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Fiber Optic Cabling</h2>
+            <p class="ne-text">Fiber optic cables transmit data as pulses of light through a glass or plastic core. They are immune to EMI, support much longer distances than copper, and provide higher bandwidth. The two primary types differ in core size and light propagation.</p>
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>Single-Mode Fiber (SMF)</strong>
+                    <span>9 micrometer core. Uses a laser light source. Single ray of light travels straight through the core. Supports distances up to 80km. Higher cost for transceivers. Used for WAN links, campus backbones, and long-haul connections.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Multimode Fiber (MMF)</strong>
+                    <span>50 or 62.5 micrometer core. Uses LED or VCSEL light source. Multiple rays of light bounce through the larger core (modal dispersion limits distance). Lower cost. Used for LAN backbones and data center interconnects.</span>
+                </div>
+            </div>
+            <table class="ne-table">
+                <thead>
+                    <tr><th>Property</th><th>Single-Mode</th><th>Multimode</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Core Size</td><td>9 micrometer</td><td>50 / 62.5 micrometer</td></tr>
+                    <tr><td>Max Distance</td><td>Up to 80km</td><td>Up to 550m</td></tr>
+                    <tr><td>Transceiver Cost</td><td>Higher</td><td>Lower</td></tr>
+                    <tr><td>Use Case</td><td>WAN, long runs</td><td>LAN, data center</td></tr>
+                    <tr><td>Jacket Color</td><td>Yellow (OS1/OS2)</td><td>Orange (OM1/OM2) or Aqua (OM3/OM4)</td></tr>
+                </tbody>
+            </table>
+            <div class="ne-code">
+<span class="comment">/* Multimode Fiber Grades */</span>
+
+<span class="highlight">OM1</span>  62.5 micrometer core  |  Up to 275m at 1G    |  Orange jacket
+<span class="highlight">OM2</span>  50 micrometer core    |  Up to 550m at 1G    |  Orange jacket
+<span class="highlight">OM3</span>  50 micrometer core    |  Up to 300m at 10G   |  Aqua jacket
+<span class="highlight">OM4</span>  50 micrometer core    |  Up to 400m at 10G   |  Aqua jacket
+
+<span class="comment">/* Rule of thumb:
+   - Fiber for runs over 100m or between buildings
+   - Copper for horizontal runs to workstations (under 100m)
+   - Fiber in environments with heavy EMI */</span>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Connectors</h2>
+            <p class="ne-text">Each cable type uses specific connectors. Knowing which connector matches which cable and application is essential for both the exam and field work.</p>
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>RJ45</strong>
+                    <span>8-pin modular connector for Ethernet twisted-pair cables. The most common network connector. Used with Cat 5e/6/6a/7.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>RJ11</strong>
+                    <span>4 or 6-pin modular connector for telephone lines. Smaller than RJ45. Still found on DSL modems and analog phone systems.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>LC (Lucent Connector)</strong>
+                    <span>Small form-factor fiber connector with a latch mechanism. Most common in modern data centers. Used with both SMF and MMF.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>SC (Subscriber Connector)</strong>
+                    <span>Square-shaped fiber connector with push-pull coupling. Larger than LC. Common in telecom and older installations.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>ST (Straight Tip)</strong>
+                    <span>Bayonet-style twist-lock fiber connector. Legacy connector, being replaced by LC and SC in most environments.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>F-type</strong>
+                    <span>Threaded coaxial connector used for cable TV, satellite, and cable internet (DOCSIS). Screw-on coupling.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>BNC (Bayonet Neill-Concelman)</strong>
+                    <span>Twist-lock coaxial connector. Legacy networking (10BASE2 thinnet). Still used in some CCTV and test equipment.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>MTRJ (Mechanical Transfer RJ)</strong>
+                    <span>Duplex fiber connector in a small form factor similar to RJ45. Contains both transmit and receive fibers in one connector.</span>
+                </div>
+            </div>
+            <div class="ne-callout">
+                <strong>SFP / SFP+ / QSFP Transceivers:</strong>
+                <p>Small Form-factor Pluggable modules are hot-swappable transceivers that plug into switch/router ports. SFP supports up to 1 Gbps, SFP+ supports 10 Gbps, and QSFP+ supports 40 Gbps. They allow the same switch port to use different fiber or copper media by swapping the transceiver module.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Wiring Standards</h2>
+            <p class="ne-text">The TIA/EIA-568 standard defines two wiring patterns for terminating twisted-pair cables into RJ45 connectors. Both use all 8 wires -- the difference is which color wire goes to which pin.</p>
+            <div class="ne-code">
+<span class="comment">/* T568A Pin Assignments */</span>
+Pin 1: <span class="highlight">White/Green</span>     Pin 5: <span class="highlight">White/Blue</span>
+Pin 2: <span class="highlight">Green</span>            Pin 6: <span class="highlight">Orange</span>
+Pin 3: <span class="highlight">White/Orange</span>     Pin 7: <span class="highlight">White/Brown</span>
+Pin 4: <span class="highlight">Blue</span>             Pin 8: <span class="highlight">Brown</span>
+
+<span class="comment">/* T568B Pin Assignments */</span>
+Pin 1: <span class="value">White/Orange</span>     Pin 5: <span class="value">White/Blue</span>
+Pin 2: <span class="value">Orange</span>            Pin 6: <span class="value">Green</span>
+Pin 3: <span class="value">White/Green</span>       Pin 7: <span class="value">White/Brown</span>
+Pin 4: <span class="value">Blue</span>              Pin 8: <span class="value">Brown</span>
+
+<span class="comment">/* Key difference: T568A and T568B swap the green and orange pairs
+   (pins 1-2 and 3-6) */</span>
+            </div>
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>Straight-Through Cable</strong>
+                    <span>Both ends use the SAME standard (both T568A or both T568B). Connects unlike devices: PC to switch, switch to router. The most common cable type.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Crossover Cable</strong>
+                    <span>One end T568A, other end T568B. Connects like devices: switch to switch, PC to PC. Swaps transmit and receive pairs.</span>
+                </div>
+            </div>
+            <div class="ne-callout">
+                <strong>Auto-MDI/X:</strong>
+                <p>Most modern switches and NICs support Auto-MDI/X, which automatically detects the connection type and internally swaps transmit/receive pairs as needed. This makes crossover cables largely unnecessary in modern networks, but you still need to know the concept for the exam.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Ethernet Standards</h2>
+            <p class="ne-text">IEEE 802.3 defines the Ethernet standards that specify speed, cable type, and maximum distance. The naming convention follows: speed (in Mbps or Gbps) + BASE + media type abbreviation.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr><th>Standard</th><th>Speed</th><th>Cable</th><th>Max Distance</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>100BASE-TX</td><td>100 Mbps</td><td>Cat 5 UTP</td><td>100m</td></tr>
+                    <tr><td>1000BASE-T</td><td>1 Gbps</td><td>Cat 5e UTP</td><td>100m</td></tr>
+                    <tr><td>10GBASE-T</td><td>10 Gbps</td><td>Cat 6a UTP</td><td>100m</td></tr>
+                    <tr><td>1000BASE-SX</td><td>1 Gbps</td><td>MMF</td><td>550m</td></tr>
+                    <tr><td>1000BASE-LX</td><td>1 Gbps</td><td>SMF</td><td>5km</td></tr>
+                    <tr><td>10GBASE-SR</td><td>10 Gbps</td><td>MMF</td><td>400m</td></tr>
+                    <tr><td>10GBASE-LR</td><td>10 Gbps</td><td>SMF</td><td>10km</td></tr>
+                </tbody>
+            </table>
+            <div class="ne-code">
+<span class="comment">/* Naming convention breakdown */</span>
+<span class="highlight">1000BASE-LX</span>
+  <span class="value">1000</span>  = Speed in Mbps (1 Gbps)
+  <span class="value">BASE</span>  = Baseband signaling (single channel)
+  <span class="value">L</span>     = Long wavelength (1310nm laser)
+  <span class="value">X</span>     = Fiber optic
+
+<span class="comment">/* Common suffixes:
+   T  = Twisted pair (copper)
+   S  = Short wavelength (850nm) -- multimode
+   L  = Long wavelength (1310nm) -- single-mode
+   SR = Short reach
+   LR = Long reach */</span>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Physical Installation</h2>
+            <p class="ne-text">Structured cabling and proper facility design are critical to a reliable network. The physical layout follows a hierarchical model from the service entrance to the wall jack.</p>
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>MDF (Main Distribution Frame)</strong>
+                    <span>Central point where outside cabling (ISP demarcation) enters the building and connects to the internal network backbone. Houses core switches and routers. Typically one per building.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>IDF (Intermediate Distribution Frame)</strong>
+                    <span>Secondary wiring closets on each floor or wing that connect back to the MDF via backbone cabling. Houses access-layer switches that serve end users. Multiple per building.</span>
+                </div>
+            </div>
+            <div class="ne-code">
+<span class="comment">/* Standard 42U Rack Layout (bottom to top) */</span>
+
+<span class="highlight">Bottom (1U-8U):</span>   UPS, PDU, heavy equipment
+                    <span class="comment">// Heavy items at the bottom for stability</span>
+
+<span class="highlight">Middle (9U-28U):</span>  Servers, storage arrays
+                    <span class="comment">// Most accessible area for maintenance</span>
+
+<span class="highlight">Top (29U-42U):</span>    Switches, routers, patch panels
+                    <span class="comment">// Network equipment generates less heat</span>
+                    <span class="comment">// Cable management easier from top</span>
+
+<span class="comment">/* 1U = 1.75 inches (44.45mm) of vertical rack space
+   Standard full rack = 42U
+   Half rack = 22U or 24U */</span>
+            </div>
+            <p class="ne-text"><strong style="color:var(--accent);">Hot/Cold Aisle Containment:</strong> Server racks are arranged so that cold air intakes face one aisle (cold aisle) and hot air exhausts face the opposite aisle (hot aisle). This prevents hot exhaust from recirculating into equipment intakes. Containment panels or doors seal the aisles for maximum efficiency.</p>
+            <p class="ne-text"><strong style="color:var(--accent);">Cable Management:</strong> Use horizontal and vertical cable managers, label both ends of every cable, maintain proper bend radius (no sharp kinks), use Velcro ties instead of zip ties (easier to modify), and keep power cables separated from data cables to prevent EMI.</p>
+            <p class="ne-text"><strong style="color:var(--accent);">TIA-606 Labeling Standard:</strong> Defines a uniform labeling scheme for cables, patch panels, outlets, and rooms. Every cable should be labeled at both ends with a unique identifier that traces back to documentation.</p>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Power and Environmental</h2>
+            <p class="ne-text">Network infrastructure requires clean, uninterrupted power and controlled environmental conditions. A failure in either can take down an entire site.</p>
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>Online (Double-Conversion) UPS</strong>
+                    <span>Always running on battery/inverter. Zero transfer time. Provides the cleanest power. Used for critical infrastructure like core switches and servers.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Line-Interactive UPS</strong>
+                    <span>Uses an autotransformer to regulate voltage without switching to battery. 2-4ms transfer time. Good balance of protection and cost for network closets.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Standby (Offline) UPS</strong>
+                    <span>Runs on utility power until it detects failure, then switches to battery. 5-12ms transfer time. Suitable for workstations and non-critical equipment.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>PDU (Power Distribution Unit)</strong>
+                    <span>Distributes power from a single source to multiple rack-mounted devices. Managed PDUs allow remote monitoring and per-outlet control. Essential for tracking power budgets.</span>
+                </div>
+            </div>
+            <p class="ne-text"><strong style="color:var(--accent);">Generators:</strong> Diesel or natural gas generators provide extended runtime during prolonged outages. UPS bridges the gap (30-60 seconds) while the generator starts. Regular testing under load is essential.</p>
+            <div class="ne-code">
+<span class="comment">/* Environmental Controls */</span>
+
+<span class="highlight">Temperature:</span>  64-75 F (18-24 C) per ASHRAE guidelines
+<span class="highlight">Humidity:</span>     40-60% relative humidity
+                <span class="comment">// Too low = static discharge risk
+                // Too high = condensation and corrosion</span>
+
+<span class="highlight">Fire Suppression:</span>
+  <span class="value">Clean Agent</span> (FM-200, Novec 1230) -- preferred for server rooms
+                <span class="comment">// Suppresses fire without damaging equipment
+                // Safe for occupied spaces</span>
+  <span class="value">Pre-action Sprinkler</span> -- requires two triggers (detector + sprinkler head)
+                <span class="comment">// Reduces accidental discharge risk
+                // Water damage still possible</span>
+  <span class="comment">// NEVER use standard wet-pipe sprinklers in a server room</span>
+            </div>
+            <div class="ne-callout">
+                <strong>Power over Ethernet (PoE):</strong>
+                <p>PoE delivers DC power alongside data over standard Ethernet cables, eliminating the need for separate power supplies for devices like IP phones, wireless APs, and security cameras.</p>
+            </div>
+            <table class="ne-table">
+                <thead>
+                    <tr><th>PoE Standard</th><th>IEEE</th><th>Max Power</th><th>Common Devices</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>PoE</td><td>802.3af</td><td>15.4W</td><td>IP phones, basic APs</td></tr>
+                    <tr><td>PoE+</td><td>802.3at</td><td>30W</td><td>Pan-tilt cameras, advanced APs</td></tr>
+                    <tr><td>PoE++</td><td>802.3bt</td><td>60-100W</td><td>Video conferencing, thin clients</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Network Topologies</h2>
+            <p class="ne-text">Network topology describes how devices are arranged and interconnected. Physical topology is the actual cable layout; logical topology describes how data flows.</p>
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>Star Topology</strong>
+                    <span>All devices connect to a central switch or hub. Most common LAN topology. Easy to add/remove devices. Single point of failure at the central device.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Mesh Topology</strong>
+                    <span>Every device connects to every other device (full mesh) or most devices (partial mesh). Maximum redundancy. Common in WAN and core network designs. Expensive to implement.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Bus Topology</strong>
+                    <span>All devices share a single backbone cable with terminators at each end. Legacy (10BASE2 coax). One cable break takes down the entire segment.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Ring Topology</strong>
+                    <span>Devices form a closed loop. Data travels in one direction (or both in dual-ring). Used in FDDI and SONET. A break in the ring disrupts communication unless dual-ring is used.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Point-to-Point</strong>
+                    <span>Direct connection between exactly two devices. WAN links between routers. Simple, dedicated bandwidth, no contention.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Hybrid</strong>
+                    <span>Combination of two or more topologies. Most real-world networks are hybrid -- star topology in the LAN connected via mesh in the WAN.</span>
+                </div>
+            </div>
+            <div class="ne-code">
+<span class="comment">/* Three-Tier Hierarchical Model */</span>
+
+<span class="highlight">Core Layer</span>         High-speed backbone, no packet filtering
+                     <span class="comment">// Routers/L3 switches, redundant links</span>
+
+<span class="highlight">Distribution Layer</span>  Policy enforcement, routing, filtering
+                     <span class="comment">// L3 switches, ACLs, inter-VLAN routing</span>
+
+<span class="highlight">Access Layer</span>        End-user connectivity, port security
+                     <span class="comment">// L2 switches, PoE, VLAN assignment</span>
+
+<span class="comment">/* Spine-and-Leaf (Data Center) */</span>
+
+<span class="highlight">Spine Switches</span>      Every leaf connects to every spine
+<span class="highlight">Leaf Switches</span>       Connect directly to servers/storage
+                     <span class="comment">// Equal-cost paths, predictable latency
+                     // Optimized for east-west traffic</span>
+            </div>
+            <div class="ne-callout">
+                <strong>Traffic Flow Directions:</strong>
+                <p><strong style="color:var(--accent);">North-South:</strong> Traffic entering or leaving the data center (client to server). Traditional three-tier handles this well. <strong style="color:var(--accent);">East-West:</strong> Traffic between servers within the data center (server to server). Spine-and-leaf is optimized for this pattern, which dominates modern workloads.</p>
+            </div>
+        </section>
+
+        <div class="ne-takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>Cat 5e is the minimum for Gigabit Ethernet; Cat 6a is required for 10G at full 100m distance</li>
+                <li>Single-mode fiber = long distance (up to 80km); multimode fiber = short distance (up to 550m)</li>
+                <li>T568B is the most common wiring standard in the US; T568A is common internationally</li>
+                <li>Heavy equipment (UPS, PDU) goes at the bottom of the rack for stability</li>
+                <li>Always use clean agent fire suppression (FM-200, Novec 1230) in server rooms -- never wet-pipe sprinklers</li>
+                <li>PoE power budget must account for all connected devices -- plan for 802.3at (30W) or 802.3bt (60-100W) for modern APs</li>
+            </ul>
+        </div>
+
+        <nav class="ne-nav">
+            <a href="ne-03.html" class="ne-nav-btn">&lt; Previous: IP Addressing</a>
+            <a href="ne-04.html" class="ne-nav-btn primary">Next: Ethernet &amp; Switching &gt;</a>
+        </nav>
+    </div>
+
+    <script>
+        (function() {
+        })();
+    </script>
+<div style="text-align:center;padding:30px 20px 40px;">
+    <button onclick="completeModule()" style="background:#22c55e;color:#fff;border:none;padding:14px 36px;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 2px 8px rgba(34,197,94,0.3);transition:all 0.2s;">Complete Module</button>
+</div>
+<script>
+function completeModule() {
+    if (window.ModuleProgress) {
+        ModuleProgress.complete('web', 'web-ne-04-infrastructure', { returnUrl: 'ne-04.html' });
+    } else {
+        window.location.href = 'ne-04.html';
+    }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="../../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+  <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Network+ N10-009 Jeopardy Review - Hexworth Prime</title>
+  <style>
+    :root {
+      /* Web House Theme (Cyan/Network) */
+      --bg: #090910;
+      --bg2: #0f0f1a;
+      --card: #141425;
+      --ink: #e0e0e0;
+      --muted: #64748b;
+      --accent: #06b6d4;
+      --accent2: #22d3ee;
+      --accent-glow: rgba(6, 182, 212, 0.3);
+      --ok: #2ed573;
+      --warn: #ffc107;
+      --bad: #ff4757;
+      --border: rgba(6, 182, 212, 0.2);
+      --gold: #fbbf24;
+      --silver: #94a3b8;
+      --bronze: #cd7f32;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+      color: var(--ink);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .page-header {
+      padding: 15px 30px;
+      background: rgba(0, 0, 0, 0.4);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .page-header a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.2s;
+    }
+
+    .page-header a:hover { color: var(--accent); }
+
+    .brand {
+      font-weight: 600;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      margin-bottom: 20px;
+      background: linear-gradient(90deg, var(--gold), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* Scoreboard — three team cards */
+    .scoreboard {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .team-score {
+      background: rgba(20, 20, 37, 0.8);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 15px 30px;
+      text-align: center;
+      min-width: 150px;
+    }
+
+    .team-score h3 {
+      color: var(--accent);
+      font-size: 0.9rem;
+      margin-bottom: 5px;
+    }
+
+    .team-score .score {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--gold);
+    }
+
+    .score-controls {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 8px;
+    }
+
+    .score-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--border);
+      color: var(--ink);
+      width: 30px;
+      height: 30px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: all 0.2s;
+    }
+
+    .score-btn:hover {
+      background: var(--accent);
+      color: #090910;
+    }
+
+    /* 5-column board (5 categories) */
+    .board {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    @media (max-width: 900px) {
+      .board { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    @media (max-width: 500px) {
+      .board { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .category-header {
+      background: linear-gradient(180deg, rgba(6, 182, 212, 0.2), rgba(34, 211, 238, 0.1));
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 15px 10px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: var(--accent);
+      min-height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Classic Jeopardy blue cells */
+    .question-cell {
+      background: linear-gradient(180deg, #1e3a8a, #1e40af);
+      border: 2px solid #3b82f6;
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+      font-weight: 800;
+      font-size: 1.4rem;
+      color: #fbbf24;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      min-height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .question-cell:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    /* Revealed cells show a check mark and go dim */
+    .question-cell.revealed {
+      background: rgba(50, 50, 70, 0.5);
+      border-color: rgba(255, 255, 255, 0.1);
+      color: var(--muted);
+      cursor: default;
+      font-size: 0.7rem;
+      font-weight: 400;
+    }
+
+    .question-cell.revealed:hover {
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* Modal overlay */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background: linear-gradient(180deg, #1e3a8a 0%, #0f1a2e 100%);
+      border: 2px solid #3b82f6;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 700px;
+      width: 100%;
+      text-align: center;
+      animation: modalIn 0.3s ease;
+    }
+
+    @keyframes modalIn {
+      from { transform: scale(0.9); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+
+    .modal-points {
+      font-size: 3rem;
+      font-weight: 800;
+      color: var(--gold);
+      margin-bottom: 20px;
+    }
+
+    .modal-category {
+      color: var(--accent);
+      font-size: 0.9rem;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .modal-question {
+      font-size: 1.4rem;
+      color: #fff;
+      margin-bottom: 30px;
+      line-height: 1.5;
+    }
+
+    .modal-answer {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .modal-answer.visible {
+      display: block;
+    }
+
+    .modal-answer h4 {
+      color: var(--ok);
+      margin-bottom: 10px;
+      font-size: 0.9rem;
+    }
+
+    .modal-answer p {
+      font-size: 1.2rem;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .modal-btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .modal-btn.reveal {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #090910;
+    }
+
+    .modal-btn.correct {
+      background: linear-gradient(135deg, var(--ok), #26a65b);
+      color: #fff;
+    }
+
+    .modal-btn.wrong {
+      background: linear-gradient(135deg, var(--bad), #c44);
+      color: #fff;
+    }
+
+    .modal-btn.close {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--ink);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .modal-btn:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.1);
+    }
+
+    footer {
+      text-align: center;
+      padding: 30px;
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-top: 30px;
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    footer a:hover { text-decoration: underline; }
+
+    .reset-btn {
+      display: block;
+      margin: 20px auto;
+      padding: 10px 20px;
+      background: rgba(255, 71, 87, 0.2);
+      border: 1px solid var(--bad);
+      border-radius: 8px;
+      color: var(--bad);
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .reset-btn:hover {
+      background: rgba(255, 71, 87, 0.3);
+    }
+
+    .complete-btn {
+      display: block;
+      margin: 20px auto;
+      padding: 10px 24px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .complete-btn:hover {
+      filter: brightness(1.1);
+    }
+
+    .complete-btn.completed {
+      background: rgba(34, 197, 94, 0.3);
+      border: 1px solid #22c55e;
+      cursor: default;
+    }
+  </style>
+</head>
+<body>
+
+<header class="page-header">
+  <a href="../index.html">Back to Network+ Hub</a>
+  <span class="brand">Hexworth Prime</span>
+</header>
+
+<div class="container">
+  <h1>Network+ N10-009 Jeopardy Review</h1>
+
+  <div class="scoreboard">
+    <div class="team-score">
+      <h3>Team 1</h3>
+      <div class="score" id="team1Score">0</div>
+      <div class="score-controls">
+        <button class="score-btn" onclick="adjustScore(1, -200)">-</button>
+        <button class="score-btn" onclick="adjustScore(1,  200)">+</button>
+      </div>
+    </div>
+    <div class="team-score">
+      <h3>Team 2</h3>
+      <div class="score" id="team2Score">0</div>
+      <div class="score-controls">
+        <button class="score-btn" onclick="adjustScore(2, -200)">-</button>
+        <button class="score-btn" onclick="adjustScore(2,  200)">+</button>
+      </div>
+    </div>
+    <div class="team-score">
+      <h3>Team 3</h3>
+      <div class="score" id="team3Score">0</div>
+      <div class="score-controls">
+        <button class="score-btn" onclick="adjustScore(3, -200)">-</button>
+        <button class="score-btn" onclick="adjustScore(3,  200)">+</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="board" id="board"></div>
+
+  <button class="complete-btn" id="jeopardyCompleteBtn" onclick="markComplete()">Mark Complete</button>
+  <button class="reset-btn" onclick="resetGame()">Reset Game</button>
+</div>
+
+<!-- Question Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-points" id="modalPoints">$200</div>
+    <div class="modal-category" id="modalCategory">Category</div>
+    <div class="modal-question" id="modalQuestion">Question goes here?</div>
+    <div class="modal-answer" id="modalAnswer">
+      <h4>Correct Answer</h4>
+      <p id="modalAnswerText">Answer goes here</p>
+    </div>
+    <div class="modal-buttons">
+      <button class="modal-btn reveal"   id="revealBtn"  onclick="revealAnswer()">Show Answer</button>
+      <button class="modal-btn correct"  id="correctBtn" onclick="markCorrect()" style="display:none">Correct</button>
+      <button class="modal-btn wrong"    id="wrongBtn"   onclick="markWrong()"   style="display:none">Wrong</button>
+      <button class="modal-btn close"                    onclick="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Part of <a href="../../../../index.html">Hexworth Prime</a> | Web House Network+ Training
+</footer>
+
+<script>
+// ─── Question Bank ────────────────────────────────────────────────────────────
+// 5 categories aligned to N10-009 exam domains, $200–$1000 per category.
+const categories = [
+  {
+    name: "Networking Concepts",
+    questions: [
+      {
+        points: 200,
+        question: "What OSI layer is responsible for logical addressing and routing packets between networks?",
+        answer: "Layer 3 (Network)"
+      },
+      {
+        points: 400,
+        question: "What port number does DNS use for name resolution queries?",
+        answer: "53 (both TCP and UDP)"
+      },
+      {
+        points: 600,
+        question: "What is the IP protocol number assigned to ICMP?",
+        answer: "1"
+      },
+      {
+        points: 800,
+        question: "Which unicast routing concept sends traffic to the topologically nearest instance of a service, commonly used for CDN and DNS anycast pools?",
+        answer: "Anycast"
+      },
+      {
+        points: 1000,
+        question: "Which IPSec protocol provides confidentiality (encryption), data integrity, and authentication, and carries protocol number 50?",
+        answer: "ESP (Encapsulating Security Payload, Protocol 50)"
+      }
+    ]
+  },
+  {
+    name: "Network Implementation",
+    questions: [
+      {
+        points: 200,
+        question: "What does 802.1Q insert into an Ethernet frame to identify VLAN membership?",
+        answer: "A 4-byte VLAN tag (inserted between the source MAC and EtherType fields)"
+      },
+      {
+        points: 400,
+        question: "What is the default STP bridge priority value before any tuning is applied?",
+        answer: "32768"
+      },
+      {
+        points: 600,
+        question: "Which EtherChannel negotiation protocol is the IEEE 802.3ad open standard?",
+        answer: "LACP (Link Aggregation Control Protocol)"
+      },
+      {
+        points: 800,
+        question: "What is the Maximum Transmission Unit (MTU) for a standard Ethernet frame payload?",
+        answer: "1500 bytes"
+      },
+      {
+        points: 1000,
+        question: "What switch port feature allows the same physical port to simultaneously carry untagged data traffic and tagged voice traffic on separate VLANs?",
+        answer: "Voice VLAN (auxiliary VLAN)"
+      }
+    ]
+  },
+  {
+    name: "Network Operations",
+    questions: [
+      {
+        points: 200,
+        question: "What does the acronym DORA stand for in the DHCP lease acquisition process?",
+        answer: "Discover, Offer, Request, Acknowledge"
+      },
+      {
+        points: 400,
+        question: "Which DNS resource record type maps a fully qualified hostname to an IPv4 address?",
+        answer: "A record"
+      },
+      {
+        points: 600,
+        question: "What is the primary purpose of Network Time Protocol (NTP)?",
+        answer: "Synchronize clocks across network devices to a common time source"
+      },
+      {
+        points: 800,
+        question: "What Linux command displays all listening TCP sockets with process names and numeric ports without DNS resolution?",
+        answer: "ss -tlnp"
+      },
+      {
+        points: 1000,
+        question: "What security extension authenticates DNS responses using digital signatures to prevent cache poisoning and spoofing?",
+        answer: "DNSSEC (Domain Name System Security Extensions)"
+      }
+    ]
+  },
+  {
+    name: "Network Security",
+    questions: [
+      {
+        points: 200,
+        question: "Name the three pillars of the CIA triad that form the foundation of information security.",
+        answer: "Confidentiality, Integrity, Availability"
+      },
+      {
+        points: 400,
+        question: "What Layer 2 attack overwhelms a switch by sending thousands of frames with spoofed source MAC addresses, causing it to flood all ports?",
+        answer: "MAC flooding (CAM table overflow attack)"
+      },
+      {
+        points: 600,
+        question: "What is the key operational difference between an IDS and an IPS in terms of traffic handling?",
+        answer: "IDS is passive (detects and alerts, traffic bypasses it); IPS is inline (can block or drop malicious traffic in real time)"
+      },
+      {
+        points: 800,
+        question: "What IEEE standard provides port-based network access control, requiring devices to authenticate before gaining network access?",
+        answer: "802.1X (Port-Based Network Access Control / NAC)"
+      },
+      {
+        points: 1000,
+        question: "In a zero trust architecture, what is the default access policy applied to any user, device, or network segment by default?",
+        answer: "Deny all; every access request must be explicitly verified regardless of location"
+      }
+    ]
+  },
+  {
+    name: "Network Troubleshooting",
+    questions: [
+      {
+        points: 200,
+        question: "According to CompTIA's seven-step troubleshooting methodology, what is the very first step?",
+        answer: "Identify the problem"
+      },
+      {
+        points: 400,
+        question: "Late collisions detected on a switch port (occurring after the first 512 bits) are a classic symptom of what configuration mismatch?",
+        answer: "Duplex mismatch (one side full-duplex, the other half-duplex)"
+      },
+      {
+        points: 600,
+        question: "A ping to a remote host returns 'Request timed out' for all packets. What are the three most common causes?",
+        answer: "Host is down or unreachable, a firewall is blocking ICMP, or a routing problem prevents the packets from reaching the destination (or the reply from returning)"
+      },
+      {
+        points: 800,
+        question: "A cable tester reports that pins 1 and 2 at one end connect to pins 3 and 6 at the other end, with all other pairs straight through. What type of cable is this?",
+        answer: "Crossover cable"
+      },
+      {
+        points: 1000,
+        question: "Path MTU Discovery silently fails inside a VPN tunnel, causing TCP sessions to hang after the handshake. What is the root cause?",
+        answer: "An intermediate device is blocking ICMP Type 3 Code 4 'Fragmentation Needed' messages, preventing endpoints from learning the reduced MTU"
+      }
+    ]
+  }
+];
+
+// ─── State ────────────────────────────────────────────────────────────────────
+// Tracks which cells have been revealed and team scores; persisted to localStorage.
+let revealed = {};
+let scores = { 1: 0, 2: 0, 3: 0 };
+let currentQuestion = null;
+
+// ─── Board Rendering ──────────────────────────────────────────────────────────
+function initBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+
+  // Row 0: category header cells
+  categories.forEach(cat => {
+    const header = document.createElement('div');
+    header.className = 'category-header';
+    header.textContent = cat.name;
+    board.appendChild(header);
+  });
+
+  // Rows 1–5: question value cells, one row per point tier
+  for (let row = 0; row < 5; row++) {
+    categories.forEach((cat, catIdx) => {
+      const q = cat.questions[row];
+      const cell = document.createElement('div');
+      cell.className = 'question-cell';
+      cell.dataset.cat = catIdx;
+      cell.dataset.q   = row;
+
+      const key = `${catIdx}-${row}`;
+      if (revealed[key]) {
+        cell.classList.add('revealed');
+        cell.textContent = 'Done';
+      } else {
+        cell.textContent = '$' + q.points;
+        cell.onclick = () => openQuestion(catIdx, row);
+      }
+
+      board.appendChild(cell);
+    });
+  }
+}
+
+// ─── Modal ────────────────────────────────────────────────────────────────────
+function openQuestion(catIdx, qIdx) {
+  const cat = categories[catIdx];
+  const q   = cat.questions[qIdx];
+  currentQuestion = { catIdx, qIdx, points: q.points };
+
+  document.getElementById('modalPoints').textContent    = '$' + q.points;
+  document.getElementById('modalCategory').textContent  = cat.name;
+  document.getElementById('modalQuestion').textContent  = q.question;
+  document.getElementById('modalAnswerText').textContent = q.answer;
+
+  // Reset modal state: hide answer, show only the reveal button
+  document.getElementById('modalAnswer').classList.remove('visible');
+  document.getElementById('revealBtn').style.display  = 'inline-block';
+  document.getElementById('correctBtn').style.display = 'none';
+  document.getElementById('wrongBtn').style.display   = 'none';
+
+  document.getElementById('modal').classList.add('active');
+}
+
+function revealAnswer() {
+  document.getElementById('modalAnswer').classList.add('visible');
+  document.getElementById('revealBtn').style.display  = 'none';
+  document.getElementById('correctBtn').style.display = 'inline-block';
+  document.getElementById('wrongBtn').style.display   = 'inline-block';
+}
+
+function markCorrect() {
+  if (currentQuestion) {
+    const key = `${currentQuestion.catIdx}-${currentQuestion.qIdx}`;
+    revealed[key] = true;
+    saveState();
+    initBoard();
+    checkAllRevealed();
+  }
+  closeModal();
+}
+
+function markWrong() {
+  if (currentQuestion) {
+    const key = `${currentQuestion.catIdx}-${currentQuestion.qIdx}`;
+    revealed[key] = true;
+    saveState();
+    initBoard();
+    checkAllRevealed();
+  }
+  closeModal();
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('active');
+  currentQuestion = null;
+}
+
+// ─── Scoring ──────────────────────────────────────────────────────────────────
+function adjustScore(team, amount) {
+  scores[team] += amount;
+  document.getElementById(`team${team}Score`).textContent = scores[team];
+  saveState();
+}
+
+// ─── Persistence ──────────────────────────────────────────────────────────────
+function saveState() {
+  localStorage.setItem('hexworth_netplus_jeopardy_revealed', JSON.stringify(revealed));
+  localStorage.setItem('hexworth_netplus_jeopardy_scores',   JSON.stringify(scores));
+}
+
+function loadState() {
+  try {
+    const r = localStorage.getItem('hexworth_netplus_jeopardy_revealed');
+    const s = localStorage.getItem('hexworth_netplus_jeopardy_scores');
+    if (r) revealed = JSON.parse(r);
+    if (s) scores   = JSON.parse(s);
+  } catch (e) { /* silently ignore parse failures */ }
+
+  document.getElementById('team1Score').textContent = scores[1];
+  document.getElementById('team2Score').textContent = scores[2];
+  document.getElementById('team3Score').textContent = scores[3];
+}
+
+// ─── Reset ────────────────────────────────────────────────────────────────────
+function resetGame() {
+  if (confirm('Reset the game? All scores and revealed questions will be cleared.')) {
+    revealed = {};
+    scores   = { 1: 0, 2: 0, 3: 0 };
+    localStorage.removeItem('hexworth_netplus_jeopardy_revealed');
+    localStorage.removeItem('hexworth_netplus_jeopardy_scores');
+    document.getElementById('team1Score').textContent = 0;
+    document.getElementById('team2Score').textContent = 0;
+    document.getElementById('team3Score').textContent = 0;
+    initBoard();
+  }
+}
+
+// ─── Completion ───────────────────────────────────────────────────────────────
+// Called manually by the instructor or auto-triggered when all 25 cells are revealed.
+function markComplete() {
+  const btn = document.getElementById('jeopardyCompleteBtn');
+
+  // Persist completion flag in ModuleProgress (server-side via FluxCapacitor)
+  if (typeof ModuleProgress !== 'undefined') {
+    ModuleProgress.complete('web-netplus-jeopardy');
+  }
+
+  // Fallback local progress record
+  try {
+    const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+    if (!progress.web) progress.web = {};
+    progress.web['netplus-jeopardy'] = { completed: true, timestamp: Date.now() };
+    localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+  } catch (e) {
+    console.error('Failed to save local progress:', e);
+  }
+
+  btn.textContent = 'Completed!';
+  btn.classList.add('completed');
+  btn.onclick = null;
+}
+
+// Automatically surface the Complete button after all 25 questions are revealed
+function checkAllRevealed() {
+  const total = categories.length * categories[0].questions.length; // 5 * 5 = 25
+  if (Object.keys(revealed).length >= total) {
+    // All questions answered — scroll the complete button into view
+    const btn = document.getElementById('jeopardyCompleteBtn');
+    btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+function checkCompletionStatus() {
+  try {
+    const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+    if (progress.web && progress.web['netplus-jeopardy'] && progress.web['netplus-jeopardy'].completed) {
+      const btn = document.getElementById('jeopardyCompleteBtn');
+      btn.textContent = 'Completed!';
+      btn.classList.add('completed');
+      btn.onclick = null;
+    }
+  } catch (e) {
+    console.error('Failed to check completion status:', e);
+  }
+}
+
+// ─── Keyboard Shortcuts ───────────────────────────────────────────────────────
+// Escape closes the modal; Space reveals the answer when modal is open.
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal();
+  if (e.key === ' ' && document.getElementById('modal').classList.contains('active')) {
+    e.preventDefault();
+    if (document.getElementById('revealBtn').style.display !== 'none') {
+      revealAnswer();
+    }
+  }
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+loadState();
+initBoard();
+checkCompletionStatus();
+</script>
+</body>
+</html>

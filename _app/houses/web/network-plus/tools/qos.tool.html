@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QoS Visualizer - Network+ N10-009</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            padding: 30px 0;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .back-link {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            text-decoration: none;
+            font-size: 1.1em;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+
+        .back-link:hover {
+            opacity: 1;
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 15px 30px;
+            background: rgba(255,255,255,0.05);
+            color: #cbd5e1;
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: all 0.3s;
+        }
+
+        .tab-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .tab-btn.active {
+            background: #06b6d4;
+            color: white;
+            border-color: #06b6d4;
+        }
+
+        .tab-content {
+            display: none;
+            background: #1a1a2e;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        h2 {
+            color: #06b6d4;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        h3 {
+            color: #22d3ee;
+            margin: 25px 0 15px;
+            font-size: 1.4em;
+        }
+
+        .dscp-explorer {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 20px 0;
+        }
+
+        .dscp-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .dscp-item {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+            color: #1e293b;
+        }
+
+        .dscp-item:hover {
+            transform: translateX(5px);
+            border-color: #06b6d4;
+        }
+
+        .dscp-item.ef {
+            background: linear-gradient(135deg, #ef4444, #f87171);
+            color: white;
+        }
+
+        .dscp-item.af4 {
+            background: linear-gradient(135deg, #f59e0b, #fbbf24);
+            color: #1e293b;
+        }
+
+        .dscp-item.af3 {
+            background: linear-gradient(135deg, #eab308, #facc15);
+            color: #1e293b;
+        }
+
+        .dscp-item.af2 {
+            background: linear-gradient(135deg, #10b981, #34d399);
+            color: white;
+        }
+
+        .dscp-item.af1 {
+            background: linear-gradient(135deg, #3b82f6, #60a5fa);
+            color: white;
+        }
+
+        .dscp-item.cs, .dscp-item.default {
+            background: linear-gradient(135deg, #475569, #64748b);
+            color: white;
+        }
+
+        .dscp-detail {
+            background: #0f172a;
+            padding: 30px;
+            border-radius: 15px;
+            border: 3px solid #06b6d4;
+        }
+
+        .detail-header {
+            font-size: 2em;
+            color: #06b6d4;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px;
+            margin: 10px 0;
+            background: #1e293b;
+            border-radius: 8px;
+            color: #e2e8f0;
+        }
+
+        .detail-label {
+            font-weight: bold;
+            color: #22d3ee;
+        }
+
+        .queue-simulator {
+            margin: 30px 0;
+        }
+
+        .queue-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background: #06b6d4;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0891b2;
+        }
+
+        .btn-secondary {
+            background: #334155;
+            color: #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: #475569;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .queue-display {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .queue-container {
+            border: 3px solid #06b6d4;
+            border-radius: 15px;
+            padding: 20px;
+            min-width: 200px;
+            background: #0f172a;
+        }
+
+        .queue-label {
+            font-weight: bold;
+            color: #06b6d4;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 1.1em;
+        }
+
+        .queue-packets {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 300px;
+        }
+
+        .packet-box {
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+            animation: packetAppear 0.3s ease-out;
+        }
+
+        @keyframes packetAppear {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .packet-voice {
+            background: #ef4444;
+        }
+
+        .packet-video {
+            background: #f59e0b;
+        }
+
+        .packet-data {
+            background: #3b82f6;
+        }
+
+        .packet-bulk {
+            background: #6b7280;
+        }
+
+        .stats-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #0e7490, #06b6d4);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        .shaper-visual {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 30px 0;
+        }
+
+        .shaper-box {
+            padding: 30px;
+            border-radius: 15px;
+            border: 3px solid;
+        }
+
+        .shaper-box.policing {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .shaper-box.shaping {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .token-bucket {
+            width: 200px;
+            height: 200px;
+            margin: 20px auto;
+            position: relative;
+        }
+
+        .bucket {
+            width: 100%;
+            height: 100%;
+            border: 4px solid #64748b;
+            border-radius: 0 0 20px 20px;
+            background: linear-gradient(to top, #3b82f6 0%, #3b82f6 50%, #1e293b 50%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bucket-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, #0e7490, #06b6d4);
+            transition: height 0.5s ease;
+        }
+
+        .bucket-label {
+            position: absolute;
+            bottom: -30px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-weight: bold;
+            color: #94a3b8;
+        }
+
+        .traffic-slider {
+            margin: 20px 0;
+            color: #e2e8f0;
+        }
+
+        .traffic-slider input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #334155;
+            outline: none;
+        }
+
+        .traffic-slider input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #06b6d4;
+            cursor: pointer;
+        }
+
+        .info-box {
+            background: rgba(6, 182, 212, 0.1);
+            border-left: 4px solid #06b6d4;
+            padding: 15px 20px;
+            margin: 15px 0;
+            border-radius: 0 10px 10px 0;
+            color: #e2e8f0;
+        }
+
+        .warning-box {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 4px solid #f59e0b;
+            padding: 15px 20px;
+            margin: 15px 0;
+            border-radius: 0 10px 10px 0;
+            color: #e2e8f0;
+        }
+
+        select, input[type="number"] {
+            padding: 10px;
+            border: 2px solid #334155;
+            border-radius: 8px;
+            font-size: 1em;
+            background: #1e293b;
+            color: #e2e8f0;
+        }
+
+        @media (max-width: 900px) {
+            .dscp-explorer, .shaper-visual {
+                grid-template-columns: 1fr;
+            }
+
+            .queue-display {
+                flex-direction: column;
+            }
+        }
+
+        .complete-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .complete-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(34, 197, 94, 0.4);
+        }
+
+        /* Guided Tutorial */
+        .tutorial-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 9998;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .tutorial-overlay.active { opacity: 1; }
+        .tutorial-popup {
+            position: fixed;
+            z-index: 9999;
+            background: #1a1a2e;
+            border: 2px solid #06b6d4;
+            border-radius: 16px;
+            padding: 28px 32px 20px;
+            max-width: 420px;
+            width: 90vw;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #e2e8f0;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+        }
+        .tutorial-popup h3 {
+            color: #06b6d4;
+            margin: 0 0 12px 0;
+            font-size: 1.15em;
+        }
+        .tutorial-popup p {
+            line-height: 1.6;
+            margin-bottom: 18px;
+            font-size: 0.98em;
+        }
+        .tutorial-dots {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .tutorial-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: #334155;
+            transition: background 0.3s;
+        }
+        .tutorial-dot.active { background: #06b6d4; }
+        .tutorial-btns {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .tutorial-btns button {
+            padding: 8px 22px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95em;
+            transition: all 0.2s;
+        }
+        .tutorial-skip {
+            background: transparent;
+            color: #94a3b8;
+            border: 1px solid #334155 !important;
+        }
+        .tutorial-skip:hover { color: #e2e8f0; border-color: #64748b !important; }
+        .tutorial-next {
+            background: #06b6d4;
+            color: white;
+        }
+        .tutorial-next:hover { background: #0891b2; }
+
+        p {
+            color: #cbd5e1;
+        }
+
+        label {
+            color: #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="back-link">&#8592; Back to Network+ Hub</a>
+
+    <div class="container">
+        <header>
+            <h1><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> QoS Visualizer</h1>
+            <p>Interactive Quality of Service Learning Tool</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="dscp">DSCP/CoS Mapper</button>
+            <button class="tab-btn" data-tab="queue">Queue Simulator</button>
+            <button class="tab-btn" data-tab="shaper">Traffic Shaper</button>
+            <button class="tutorial-replay" id="tutorialReplay" onclick="startTutorial()" style="display:none;">Tutorial</button>
+        </div>
+
+        <!-- Tab 1: DSCP/CoS Mapper -->
+        <div id="dscp" class="tab-content active">
+            <h2>DSCP & CoS Value Explorer</h2>
+            <p>Click on any DSCP value to see detailed information and CoS mapping:</p>
+
+            <div class="dscp-explorer">
+                <div class="dscp-list" id="dscp-list">
+                    <!-- Populated by JavaScript -->
+                </div>
+
+                <div class="dscp-detail" id="dscp-detail">
+                    <div class="detail-header">Select a DSCP value</div>
+                    <p style="text-align: center; color: #94a3b8;">Click any DSCP value on the left to see detailed information</p>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>DSCP Quick Reference:</strong> EF (46) for voice, AF4x for video, AF3x for critical data, AF2x for transactional data, AF1x for bulk data, DF/CS0 (0) for best effort.
+            </div>
+        </div>
+
+        <!-- Tab 2: Queue Simulator -->
+        <div id="queue" class="tab-content">
+            <h2>Queuing Mechanism Simulator</h2>
+            <p>See how different queuing mechanisms handle packet prioritization:</p>
+
+            <div class="queue-controls">
+                <label>
+                    Queuing Method:
+                    <select id="queue-method" onchange="updateQueueDisplay()">
+                        <option value="fifo">FIFO (First In, First Out)</option>
+                        <option value="pq">Priority Queuing (PQ)</option>
+                        <option value="llq" selected>Low Latency Queuing (LLQ)</option>
+                    </select>
+                </label>
+                <button class="btn btn-primary" onclick="addRandomPacket()">Add Random Packet</button>
+                <button class="btn btn-secondary" onclick="processPacket()">Process Next Packet</button>
+                <button class="btn btn-danger" onclick="clearQueues()">Clear All Queues</button>
+            </div>
+
+            <div class="queue-display" id="queue-display">
+                <!-- Populated by JavaScript -->
+            </div>
+
+            <div class="stats-panel">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-voice">0</div>
+                    <div class="stat-label">Voice Packets Processed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-video">0</div>
+                    <div class="stat-label">Video Packets Processed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-data">0</div>
+                    <div class="stat-label">Data Packets Processed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-bulk">0</div>
+                    <div class="stat-label">Bulk Packets Processed</div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>How it works:</strong> Click "Add Random Packet" to generate traffic, then click "Process Next Packet" to see which packet gets transmitted first based on the selected queuing method.
+            </div>
+        </div>
+
+        <!-- Tab 3: Traffic Shaper -->
+        <div id="shaper" class="tab-content">
+            <h2>Policing vs Shaping - Token Bucket Demo</h2>
+            <p>Visualize the difference between policing and shaping with the token bucket algorithm:</p>
+
+            <div class="traffic-slider">
+                <label><strong>Traffic Rate:</strong> <span id="traffic-rate">500</span> Kbps</label>
+                <input type="range" min="0" max="2000" value="500" step="100" oninput="updateTraffic(this.value)">
+            </div>
+
+            <div class="traffic-slider">
+                <label><strong>Configured Rate (CIR):</strong> <span id="cir-rate">1000</span> Kbps</label>
+                <input type="range" min="500" max="2000" value="1000" step="100" oninput="updateCIR(this.value)">
+            </div>
+
+            <div class="shaper-visual">
+                <div class="shaper-box policing">
+                    <h3 style="color: #dc2626; text-align: center;"><img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Policing</h3>
+                    <div class="token-bucket">
+                        <div class="bucket">
+                            <div class="bucket-fill" id="police-fill"></div>
+                        </div>
+                        <div class="bucket-label">Token Bucket</div>
+                    </div>
+                    <div style="text-align: center; margin-top: 20px;">
+                        <div style="font-weight: bold; font-size: 1.2em; color: #dc2626;">Action: <span id="police-action">FORWARD</span></div>
+                        <div style="margin-top: 10px;" id="police-dropped">Packets Dropped: 0</div>
+                    </div>
+                    <div class="info-box" style="margin-top: 20px;">
+                        <strong>Policing:</strong> Excess traffic is immediately dropped. No buffering occurs.
+                    </div>
+                </div>
+
+                <div class="shaper-box shaping">
+                    <h3 style="color: #059669; text-align: center;"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Shaping</h3>
+                    <div class="token-bucket">
+                        <div class="bucket">
+                            <div class="bucket-fill" id="shape-fill"></div>
+                        </div>
+                        <div class="bucket-label">Token Bucket</div>
+                    </div>
+                    <div style="text-align: center; margin-top: 20px;">
+                        <div style="font-weight: bold; font-size: 1.2em; color: #059669;">Action: <span id="shape-action">FORWARD</span></div>
+                        <div style="margin-top: 10px;" id="shape-buffered">Packets Buffered: 0</div>
+                    </div>
+                    <div class="info-box" style="margin-top: 20px;">
+                        <strong>Shaping:</strong> Excess traffic is buffered and delayed. Smoother traffic flow.
+                    </div>
+                </div>
+            </div>
+
+            <div class="warning-box">
+                <strong>Key Difference:</strong> Policing drops excess traffic (can cause TCP retransmissions), while shaping buffers it (increases delay but reduces loss).
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab functionality
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(btn.dataset.tab).classList.add('active');
+            });
+        });
+
+        // DSCP/CoS Mapper
+        const dscpValues = [
+            { name: 'EF', decimal: 46, binary: '101110', phb: 'Expedited Forwarding', use: 'Voice (VoIP)', cos: 5, class: 'ef', priority: 'Highest' },
+            { name: 'CS5', decimal: 40, binary: '101000', phb: 'Class Selector 5', use: 'Video Signaling', cos: 5, class: 'cs', priority: 'High' },
+            { name: 'AF41', decimal: 34, binary: '100010', phb: 'Assured Forwarding 41', use: 'Video (Low Drop)', cos: 4, class: 'af4', priority: 'High' },
+            { name: 'AF42', decimal: 36, binary: '100100', phb: 'Assured Forwarding 42', use: 'Video (Med Drop)', cos: 4, class: 'af4', priority: 'High' },
+            { name: 'AF43', decimal: 38, binary: '100110', phb: 'Assured Forwarding 43', use: 'Video (High Drop)', cos: 4, class: 'af4', priority: 'High' },
+            { name: 'CS4', decimal: 32, binary: '100000', phb: 'Class Selector 4', use: 'Video', cos: 4, class: 'cs', priority: 'High' },
+            { name: 'AF31', decimal: 26, binary: '011010', phb: 'Assured Forwarding 31', use: 'Critical Data (Low Drop)', cos: 3, class: 'af3', priority: 'Medium-High' },
+            { name: 'AF32', decimal: 28, binary: '011100', phb: 'Assured Forwarding 32', use: 'Critical Data (Med Drop)', cos: 3, class: 'af3', priority: 'Medium-High' },
+            { name: 'AF33', decimal: 30, binary: '011110', phb: 'Assured Forwarding 33', use: 'Critical Data (High Drop)', cos: 3, class: 'af3', priority: 'Medium-High' },
+            { name: 'CS3', decimal: 24, binary: '011000', phb: 'Class Selector 3', use: 'Signaling', cos: 3, class: 'cs', priority: 'Medium-High' },
+            { name: 'AF21', decimal: 18, binary: '010010', phb: 'Assured Forwarding 21', use: 'Transactional Data (Low Drop)', cos: 2, class: 'af2', priority: 'Medium' },
+            { name: 'AF22', decimal: 20, binary: '010100', phb: 'Assured Forwarding 22', use: 'Transactional Data (Med Drop)', cos: 2, class: 'af2', priority: 'Medium' },
+            { name: 'AF23', decimal: 22, binary: '010110', phb: 'Assured Forwarding 23', use: 'Transactional Data (High Drop)', cos: 2, class: 'af2', priority: 'Medium' },
+            { name: 'CS2', decimal: 16, binary: '010000', phb: 'Class Selector 2', use: 'High Priority Data', cos: 2, class: 'cs', priority: 'Medium' },
+            { name: 'AF11', decimal: 10, binary: '001010', phb: 'Assured Forwarding 11', use: 'Bulk Data (Low Drop)', cos: 1, class: 'af1', priority: 'Low' },
+            { name: 'AF12', decimal: 12, binary: '001100', phb: 'Assured Forwarding 12', use: 'Bulk Data (Med Drop)', cos: 1, class: 'af1', priority: 'Low' },
+            { name: 'AF13', decimal: 14, binary: '001110', phb: 'Assured Forwarding 13', use: 'Bulk Data (High Drop)', cos: 1, class: 'af1', priority: 'Low' },
+            { name: 'CS1', decimal: 8, binary: '001000', phb: 'Class Selector 1', use: 'Scavenger', cos: 1, class: 'cs', priority: 'Low' },
+            { name: 'DF (CS0)', decimal: 0, binary: '000000', phb: 'Default Forwarding', use: 'Best Effort', cos: 0, class: 'default', priority: 'Best Effort' }
+        ];
+
+        function renderDSCPList() {
+            const list = document.getElementById('dscp-list');
+            list.innerHTML = dscpValues.map(dscp => `
+                <div class="dscp-item ${dscp.class}" onclick="showDSCPDetail(${dscp.decimal})">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="font-size: 1.2em;">${dscp.name}</strong>
+                            <div style="font-size: 0.9em; opacity: 0.8;">DSCP ${dscp.decimal}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 0.9em;">${dscp.use}</div>
+                            <div style="font-size: 0.8em; opacity: 0.7;">CoS ${dscp.cos}</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function showDSCPDetail(decimal) {
+            const dscp = dscpValues.find(d => d.decimal === decimal);
+            const detail = document.getElementById('dscp-detail');
+            detail.innerHTML = `
+                <div class="detail-header">${dscp.name}</div>
+                <div class="detail-row">
+                    <span class="detail-label">DSCP Decimal:</span>
+                    <span>${dscp.decimal}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">DSCP Binary:</span>
+                    <span>${dscp.binary}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">PHB (Per-Hop Behavior):</span>
+                    <span>${dscp.phb}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Typical Use:</span>
+                    <span>${dscp.use}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">CoS Mapping:</span>
+                    <span>${dscp.cos}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Priority Level:</span>
+                    <span>${dscp.priority}</span>
+                </div>
+                <div style="margin-top: 20px; padding: 15px; background: rgba(6,182,212,0.1); border-radius: 8px;">
+                    <strong>Configuration Example:</strong>
+                    <pre style="margin-top: 10px; font-family: monospace; background: #0f172a; color: #06b6d4; padding: 10px; border-radius: 5px; overflow-x: auto;">set ip dscp ${dscp.name.toLowerCase()}
+! or
+set ip dscp ${dscp.decimal}</pre>
+                </div>
+            `;
+        }
+
+        // Queue Simulator
+        let queues = {
+            fifo: [],
+            priority: [],
+            video: [],
+            data: [],
+            bulk: []
+        };
+
+        let stats = {
+            voice: 0,
+            video: 0,
+            data: 0,
+            bulk: 0
+        };
+
+        function updateQueueDisplay() {
+            const method = document.getElementById('queue-method').value;
+            const display = document.getElementById('queue-display');
+
+            if (method === 'fifo') {
+                display.innerHTML = `
+                    <div class="queue-container">
+                        <div class="queue-label">FIFO Queue (All Traffic)</div>
+                        <div class="queue-packets" id="fifo-queue"></div>
+                    </div>
+                `;
+            } else if (method === 'pq') {
+                display.innerHTML = `
+                    <div class="queue-container" style="border-color: #ef4444;">
+                        <div class="queue-label">High Priority</div>
+                        <div class="queue-packets" id="priority-queue"></div>
+                    </div>
+                    <div class="queue-container" style="border-color: #f59e0b;">
+                        <div class="queue-label">Medium Priority</div>
+                        <div class="queue-packets" id="video-queue"></div>
+                    </div>
+                    <div class="queue-container" style="border-color: #3b82f6;">
+                        <div class="queue-label">Normal Priority</div>
+                        <div class="queue-packets" id="data-queue"></div>
+                    </div>
+                    <div class="queue-container" style="border-color: #6b7280;">
+                        <div class="queue-label">Low Priority</div>
+                        <div class="queue-packets" id="bulk-queue"></div>
+                    </div>
+                `;
+            } else if (method === 'llq') {
+                display.innerHTML = `
+                    <div class="queue-container" style="border-color: #ef4444; background: rgba(239,68,68,0.1);">
+                        <div class="queue-label"><img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Priority Queue (Voice)</div>
+                        <div class="queue-packets" id="priority-queue"></div>
+                        <div style="text-align: center; margin-top: 10px; font-size: 0.9em; color: #dc2626;">Serviced FIRST</div>
+                    </div>
+                    <div class="queue-container" style="border-color: #f59e0b;">
+                        <div class="queue-label"><img src="/assets/images/icons/icon-camera.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Video Queue</div>
+                        <div class="queue-packets" id="video-queue"></div>
+                    </div>
+                    <div class="queue-container" style="border-color: #3b82f6;">
+                        <div class="queue-label"><img src="/assets/images/icons/icon-document.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Data Queue</div>
+                        <div class="queue-packets" id="data-queue"></div>
+                    </div>
+                    <div class="queue-container" style="border-color: #6b7280;">
+                        <div class="queue-label"><img src="/assets/images/icons/icon-package.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Bulk Queue</div>
+                        <div class="queue-packets" id="bulk-queue"></div>
+                    </div>
+                `;
+            }
+
+            renderQueues();
+        }
+
+        function addRandomPacket() {
+            const types = ['voice', 'video', 'data', 'bulk'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            const method = document.getElementById('queue-method').value;
+
+            if (method === 'fifo') {
+                queues.fifo.push(type);
+            } else {
+                if (type === 'voice') queues.priority.push(type);
+                else if (type === 'video') queues.video.push(type);
+                else if (type === 'data') queues.data.push(type);
+                else queues.bulk.push(type);
+            }
+
+            renderQueues();
+        }
+
+        function processPacket() {
+            const method = document.getElementById('queue-method').value;
+            let processed = null;
+
+            if (method === 'fifo') {
+                if (queues.fifo.length > 0) {
+                    processed = queues.fifo.shift();
+                }
+            } else {
+                // Priority queuing logic
+                if (queues.priority.length > 0) {
+                    processed = queues.priority.shift();
+                } else if (queues.video.length > 0) {
+                    processed = queues.video.shift();
+                } else if (queues.data.length > 0) {
+                    processed = queues.data.shift();
+                } else if (queues.bulk.length > 0) {
+                    processed = queues.bulk.shift();
+                }
+            }
+
+            if (processed) {
+                stats[processed]++;
+                updateStats();
+            }
+
+            renderQueues();
+        }
+
+        function clearQueues() {
+            queues = {
+                fifo: [],
+                priority: [],
+                video: [],
+                data: [],
+                bulk: []
+            };
+            renderQueues();
+        }
+
+        function renderQueues() {
+            const method = document.getElementById('queue-method').value;
+
+            if (method === 'fifo') {
+                const container = document.getElementById('fifo-queue');
+                if (container) {
+                    container.innerHTML = queues.fifo.map(type =>
+                        `<div class="packet-box packet-${type}">${type.toUpperCase()}</div>`
+                    ).join('');
+                }
+            } else {
+                ['priority', 'video', 'data', 'bulk'].forEach(q => {
+                    const container = document.getElementById(`${q}-queue`);
+                    if (container) {
+                        const queueName = q === 'priority' ? 'priority' : q;
+                        container.innerHTML = queues[queueName].map(type =>
+                            `<div class="packet-box packet-${type}">${type.toUpperCase()}</div>`
+                        ).join('');
+                    }
+                });
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('stat-voice').textContent = stats.voice;
+            document.getElementById('stat-video').textContent = stats.video;
+            document.getElementById('stat-data').textContent = stats.data;
+            document.getElementById('stat-bulk').textContent = stats.bulk;
+        }
+
+        // Traffic Shaper
+        let trafficRate = 500;
+        let cirRate = 1000;
+        let policeDropped = 0;
+        let shapeBuffered = 0;
+
+        function updateTraffic(value) {
+            trafficRate = parseInt(value);
+            document.getElementById('traffic-rate').textContent = value;
+            updateShaper();
+        }
+
+        function updateCIR(value) {
+            cirRate = parseInt(value);
+            document.getElementById('cir-rate').textContent = value;
+            updateShaper();
+        }
+
+        function updateShaper() {
+            const policeFill = document.getElementById('police-fill');
+            const shapeFill = document.getElementById('shape-fill');
+            const policeAction = document.getElementById('police-action');
+            const shapeAction = document.getElementById('shape-action');
+
+            // Calculate token bucket fill level (0-100%)
+            const fillPercent = Math.min(100, (cirRate / 2000) * 100);
+            policeFill.style.height = fillPercent + '%';
+            shapeFill.style.height = fillPercent + '%';
+
+            // Determine actions
+            if (trafficRate <= cirRate) {
+                policeAction.textContent = 'FORWARD';
+                policeAction.style.color = '#10b981';
+                shapeAction.textContent = 'FORWARD';
+                shapeAction.style.color = '#10b981';
+            } else {
+                policeAction.textContent = 'DROP EXCESS';
+                policeAction.style.color = '#ef4444';
+                policeDropped += Math.floor((trafficRate - cirRate) / 100);
+
+                shapeAction.textContent = 'BUFFER EXCESS';
+                shapeAction.style.color = '#f59e0b';
+                shapeBuffered += Math.floor((trafficRate - cirRate) / 100);
+            }
+
+            document.getElementById('police-dropped').textContent = `Packets Dropped: ${policeDropped}`;
+            document.getElementById('shape-buffered').textContent = `Packets Buffered: ${shapeBuffered}`;
+        }
+
+        // Initialize
+        renderDSCPList();
+        updateQueueDisplay();
+        updateShaper();
+
+        // Start shaper animation
+        setInterval(() => {
+            if (trafficRate > cirRate) {
+                updateShaper();
+            }
+        }, 1000);
+    </script>
+
+<div style="text-align: center; padding: 30px;">
+    <button class="complete-btn" onclick="completeModule()">Mark Complete</button>
+</div>
+<script>
+function completeModule() {
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('web', 'web-qos', { returnUrl: '../index.html' });
+    }
+}
+</script>
+
+<!-- Guided Tutorial (beacon-based) -->
+<style>
+    .tutorial-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9000; display: none; }
+    .tutorial-overlay.active { display: block; }
+    .tutorial-beacon { position: absolute; width: 24px; height: 24px; border-radius: 50%; background: #06b6d4; z-index: 9002; cursor: pointer; animation: beacon-pulse 1.5s ease-in-out infinite; display: none; }
+    .tutorial-beacon::after { content: ''; position: absolute; inset: -8px; border-radius: 50%; border: 2px solid #06b6d4; animation: beacon-ring 1.5s ease-in-out infinite; }
+    @keyframes beacon-pulse { 0%,100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(6,182,212,0.6); } 50% { transform: scale(1.2); box-shadow: 0 0 20px 8px rgba(6,182,212,0.3); } }
+    @keyframes beacon-ring { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.8); opacity: 0; } }
+    .tutorial-tooltip { position: absolute; background: #1a1a2e; border: 2px solid #06b6d4; border-radius: 12px; padding: 16px 20px; max-width: 320px; z-index: 9003; color: #e2e8f0; box-shadow: 0 8px 32px rgba(0,0,0,0.6); display: none; }
+    .tutorial-tooltip .tt-step { font-size: 0.7rem; color: #06b6d4; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+    .tutorial-tooltip .tt-title { font-size: 1rem; font-weight: 700; color: #f1f5f9; margin-bottom: 8px; }
+    .tutorial-tooltip .tt-body { font-size: 0.85rem; color: #94a3b8; line-height: 1.5; margin-bottom: 12px; }
+    .tutorial-tooltip .tt-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .tutorial-tooltip .tt-btn { padding: 6px 16px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; cursor: pointer; border: none; }
+    .tutorial-tooltip .tt-btn-next { background: #06b6d4; color: #000; }
+    .tutorial-tooltip .tt-btn-next:hover { background: #22d3ee; }
+    .tutorial-tooltip .tt-btn-skip { background: transparent; color: #64748b; border: 1px solid rgba(255,255,255,0.1); }
+    .tutorial-highlight { position: relative; z-index: 9001 !important; box-shadow: 0 0 0 4px rgba(6,182,212,0.5), 0 0 20px rgba(6,182,212,0.3) !important; border-radius: 8px; }
+    .tutorial-replay { background: rgba(201,168,58,0.15); border: 1px solid rgba(201,168,58,0.4); color: #c9a83a; padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; animation: tutorial-flash 2s ease-in-out infinite; letter-spacing: 0.02em; }
+    .tutorial-replay:hover { background: rgba(201,168,58,0.3); animation: none; }
+    @keyframes tutorial-flash { 0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(201,168,58,0); } 50% { opacity: 0.7; box-shadow: 0 0 12px 4px rgba(201,168,58,0.3); } }
+</style>
+<div class="tutorial-overlay" id="tutorialOverlay"></div>
+<div class="tutorial-beacon" id="tutorialBeacon"></div>
+<div class="tutorial-tooltip" id="tutorialTooltip"></div>
+<script>
+(function() {
+    var TUTORIAL_KEY = 'hexworth_tutorial_qos_v1';
+    var currentStep = 0;
+    var steps = [
+        { target: 'h1, .tool-title, .header h1', title: 'Welcome to the QoS Visualizer', body: 'This tool teaches Quality of Service — how networks prioritize critical traffic like voice and video over bulk data. Let\'s take a quick tour.', position: 'below' },
+        { target: 'h2', title: 'DSCP & CoS Explorer', body: 'Start here. Explore DSCP marking values — each traffic class gets a priority level. Voice is EF (46), video is AF41, bulk data is CS1. Click values to see details.', position: 'below', scrollTo: true },
+        { target: 'h2:nth-of-type(2)', title: 'Queuing Simulator', body: 'See how marked packets are scheduled. Strict priority serves voice first, weighted fair queuing balances the rest. Watch packets flow through the queue.', position: 'below', scrollTo: true },
+        { target: 'h2:nth-of-type(3)', title: 'Policing vs Shaping', body: 'Policing drops excess traffic immediately. Shaping buffers and delays it. The token bucket demo shows the difference in real time.', position: 'below', scrollTo: true },
+        { target: '.complete-btn', title: 'Track Your Progress', body: 'When you\'ve explored the tool, click Mark Complete to track it on the Network+ hub. Now go explore!', position: 'above' }
+    ];
+
+    function getTarget(selector) {
+        var selectors = selector.split(',');
+        for (var i = 0; i < selectors.length; i++) {
+            var el = document.querySelector(selectors[i].trim());
+            if (el) return el;
+        }
+        return null;
+    }
+
+    function showStep(idx) {
+        currentStep = idx;
+        var step = steps[idx];
+        if (!step) { endTutorial(); return; }
+
+        var el = getTarget(step.target);
+        if (!el) { if (idx < steps.length - 1) showStep(idx + 1); else endTutorial(); return; }
+
+        if (step.scrollTo) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        setTimeout(function() {
+            var overlay = document.getElementById('tutorialOverlay');
+            var beacon = document.getElementById('tutorialBeacon');
+            var tooltip = document.getElementById('tutorialTooltip');
+
+            overlay.classList.add('active');
+            document.querySelectorAll('.tutorial-highlight').forEach(function(e) { e.classList.remove('tutorial-highlight'); });
+            el.classList.add('tutorial-highlight');
+
+            var r = el.getBoundingClientRect();
+            beacon.style.display = 'block';
+            beacon.style.left = (r.left + r.width / 2 - 12) + 'px';
+            beacon.style.top = (r.top + r.height / 2 - 12) + 'px';
+
+            tooltip.style.display = 'block';
+            tooltip.innerHTML = '<div class="tt-step">Step ' + (idx + 1) + ' of ' + steps.length + '</div>' +
+                '<div class="tt-title">' + step.title + '</div>' +
+                '<div class="tt-body">' + step.body + '</div>' +
+                '<div class="tt-actions">' +
+                '<button class="tt-btn tt-btn-skip" onclick="skipTutorial()">Skip Tour</button>' +
+                '<button class="tt-btn tt-btn-next" onclick="nextStep()">' + (idx < steps.length - 1 ? 'Next' : 'Start Exploring') + '</button></div>';
+
+            if (step.position === 'below') {
+                tooltip.style.left = Math.max(10, Math.min(r.left, window.innerWidth - 340)) + 'px';
+                tooltip.style.top = (r.bottom + 16) + 'px';
+            } else {
+                tooltip.style.left = Math.max(10, Math.min(r.left, window.innerWidth - 340)) + 'px';
+                tooltip.style.top = (r.top - 180) + 'px';
+            }
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(function() { tooltip.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 400);
+        }, 300);
+    }
+
+    function nextStep() { showStep(currentStep + 1); }
+    function skipTutorial() { endTutorial(); }
+    function endTutorial() {
+        document.getElementById('tutorialOverlay').classList.remove('active');
+        document.getElementById('tutorialBeacon').style.display = 'none';
+        document.getElementById('tutorialTooltip').style.display = 'none';
+        document.querySelectorAll('.tutorial-highlight').forEach(function(e) { e.classList.remove('tutorial-highlight'); });
+        localStorage.setItem(TUTORIAL_KEY, 'done');
+        document.getElementById('tutorialReplay').style.display = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    function startTutorial() { currentStep = 0; window.scrollTo({ top: 0 }); setTimeout(function() { showStep(0); }, 300); }
+
+    window.nextStep = nextStep;
+    window.skipTutorial = skipTutorial;
+    window.startTutorial = startTutorial;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (!localStorage.getItem(TUTORIAL_KEY)) { setTimeout(startTutorial, 800); }
+        else { document.getElementById('tutorialReplay').style.display = 'block'; }
+    });
+})();
+</script>
+
+</body>
+</html>

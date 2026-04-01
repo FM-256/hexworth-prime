@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NE-01: OSI Model Deep Dive | Network Essentials</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #090910;
+            --bg-card: #111120;
+            --accent: #06b6d4;
+            --accent-dim: rgba(6, 182, 212, 0.12);
+            --green: #10b981;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.7;
+        }
+
+        .ne-header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .ne-header-left { display: flex; align-items: center; gap: 15px; }
+
+        .ne-badge {
+            background: var(--accent);
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .ne-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+
+        .ne-breadcrumb {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .ne-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+        .ne-breadcrumb a:hover { color: var(--accent); }
+
+        .ne-back {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .ne-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+        .ne-content {
+            max-width: 820px;
+            margin: 0 auto;
+            padding: 30px 25px 60px;
+        }
+
+        .ne-objectives {
+            background: var(--accent-dim);
+            border-left: 3px solid var(--accent);
+            padding: 18px 22px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 30px;
+        }
+
+        .ne-objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+        .ne-objectives ul { list-style: none; }
+        .ne-objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.92rem; }
+        .ne-objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+
+        .ne-section { margin-bottom: 35px; }
+
+        .ne-section-title {
+            font-size: 1.3rem;
+            color: var(--accent);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .ne-section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+
+        .ne-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+
+        .ne-code {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 14px 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            overflow-x: auto;
+            color: var(--text-secondary);
+            white-space: pre-wrap;
+        }
+
+        .ne-code .prompt { color: var(--green); }
+        .ne-code .comment { color: #6a737d; }
+        .ne-code .highlight { color: var(--accent); }
+        .ne-code .value { color: #f0883e; }
+
+        .ne-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 14px 0;
+            font-size: 0.88rem;
+        }
+
+        .ne-table th {
+            background: var(--bg-card);
+            color: var(--accent);
+            padding: 10px 14px;
+            text-align: left;
+            border: 1px solid var(--border);
+            font-weight: 600;
+        }
+
+        .ne-table td {
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .ne-table tr:hover td { background: rgba(6, 182, 212, 0.04); }
+
+        .ne-card-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 14px 0;
+        }
+
+        .ne-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .ne-card:hover { border-color: var(--accent); }
+        .ne-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .ne-card span { color: var(--text-secondary); font-size: 0.85rem; }
+
+        .ne-callout {
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 18px 0;
+        }
+
+        .ne-callout strong { color: var(--green); }
+        .ne-callout p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+
+        .ne-takeaways {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(6, 182, 212, 0.04));
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+        }
+
+        .ne-takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .ne-takeaways ul { list-style: none; }
+        .ne-takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .ne-takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+
+        .ne-nav {
+            display: flex;
+            justify-content: space-between;
+            padding: 16px 0;
+            margin-top: 30px;
+            border-top: 1px solid var(--border);
+        }
+
+        .ne-nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .ne-nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .ne-nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-nav-btn.primary:hover { background: #0891b2; }
+        .ne-nav-btn.disabled { opacity: 0.4; pointer-events: none; }
+
+        .ne-inline-code {
+            background: #0d1117;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85em;
+            color: var(--accent);
+        }
+
+        @media (max-width: 700px) {
+            .ne-card-grid { grid-template-columns: 1fr; }
+            .ne-content { padding: 20px 15px 40px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">NE-01</span>
+            <h1>OSI Model Deep Dive</h1>
+        </div>
+        <div class="ne-breadcrumb">
+            <a href="../index.html">Network+</a> / NE-01
+        </div>
+        <a href="../index.html" class="ne-back">&lt; Network+ Hub</a>
+    </header>
+
+    <div class="ne-content">
+        <div class="ne-objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Name and describe all 7 layers of the OSI model</li>
+                <li>Identify the PDU (Protocol Data Unit) at each layer</li>
+                <li>Trace a packet through encapsulation and de-encapsulation</li>
+                <li>Map real protocols to their OSI layer</li>
+                <li>Explain why layered architecture matters for troubleshooting</li>
+            </ul>
+        </div>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Why the OSI Model?</h2>
+            <p class="ne-text">The Open Systems Interconnection (OSI) model is a conceptual framework that standardizes network communication into seven distinct layers. Developed by the ISO in 1984, it gives network engineers a common language for troubleshooting, design, and protocol development.</p>
+            <p class="ne-text">When a user loads a web page, data travels down through all seven layers on the sender's side, crosses the physical medium, and travels back up through all seven layers on the receiver's side. Each layer adds its own header (encapsulation) on the way down and strips it off (de-encapsulation) on the way up.</p>
+
+            <div class="ne-callout">
+                <strong>Exam Tip:</strong>
+                <p>The mnemonic "Please Do Not Throw Sausage Pizza Away" maps to Physical, Data Link, Network, Transport, Session, Presentation, Application -- from Layer 1 to Layer 7.</p>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">The 7 Layers</h2>
+            <table class="ne-table">
+                <thead>
+                    <tr>
+                        <th>Layer</th>
+                        <th>Name</th>
+                        <th>PDU</th>
+                        <th>Key Protocols</th>
+                        <th>Devices</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>7</td>
+                        <td>Application</td>
+                        <td>Data</td>
+                        <td>HTTP, FTP, SMTP, DNS, SSH</td>
+                        <td>Software / Proxy</td>
+                    </tr>
+                    <tr>
+                        <td>6</td>
+                        <td>Presentation</td>
+                        <td>Data</td>
+                        <td>SSL/TLS, JPEG, ASCII, MPEG</td>
+                        <td>--</td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td>Session</td>
+                        <td>Data</td>
+                        <td>NetBIOS, RPC, PPTP</td>
+                        <td>--</td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td>Transport</td>
+                        <td>Segment / Datagram</td>
+                        <td>TCP, UDP</td>
+                        <td>Load Balancer</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>Network</td>
+                        <td>Packet</td>
+                        <td>IP, ICMP, OSPF, ARP</td>
+                        <td>Router</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>Data Link</td>
+                        <td>Frame</td>
+                        <td>Ethernet, Wi-Fi (802.11), PPP</td>
+                        <td>Switch, Bridge</td>
+                    </tr>
+                    <tr>
+                        <td>1</td>
+                        <td>Physical</td>
+                        <td>Bits</td>
+                        <td>Ethernet (physical), USB, DSL</td>
+                        <td>Hub, Repeater, Cable</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Layer 1 -- Physical</h2>
+            <p class="ne-text">The physical layer handles raw bit transmission over a physical medium. It defines electrical signals, voltages, pin layouts, cable specifications, and data rates. This is where copper cables, fiber optics, and radio waves live.</p>
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>Copper (UTP/STP)</strong>
+                    <span>Cat5e up to 1 Gbps / 100m. Cat6a up to 10 Gbps / 100m. Electrical signals, susceptible to EMI.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Fiber Optic</strong>
+                    <span>Single-mode: long distance (up to 80km). Multi-mode: short distance (up to 2km). Light pulses, immune to EMI.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Wireless</strong>
+                    <span>Radio frequency transmission. 2.4 GHz and 5 GHz bands. Subject to interference and attenuation.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Encoding</strong>
+                    <span>Manchester encoding, NRZ, 4B/5B. How 1s and 0s are represented as electrical or optical signals.</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Layer 2 -- Data Link</h2>
+            <p class="ne-text">The data link layer packages bits into frames and handles node-to-node delivery on the same network segment. It provides MAC addressing, error detection (CRC), and flow control. The layer is split into two sublayers: LLC (Logical Link Control) and MAC (Media Access Control).</p>
+            <div class="ne-code">
+<span class="comment">/* Ethernet Frame Structure */</span>
+| Preamble | SFD | <span class="highlight">Dest MAC</span> | <span class="highlight">Src MAC</span> | Type/Len | <span class="value">Payload</span> | FCS |
+| 7 bytes  | 1B  |  6 bytes  |  6 bytes |  2 bytes | 46-1500B | 4B  |
+
+<span class="comment">/* Example MAC Address */</span>
+<span class="highlight">AA:BB:CC</span>:<span class="value">DD:EE:FF</span>
+ OUI (vendor)  Device ID
+
+<span class="comment">/* The switch learns MAC addresses by reading the source MAC
+   of incoming frames and mapping it to the ingress port. */</span>
+            </div>
+            <p class="ne-text">Switches operate at Layer 2. They build a MAC address table by examining source MACs on incoming frames, then forward frames only to the correct port -- avoiding unnecessary traffic on other ports.</p>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Layer 3 -- Network</h2>
+            <p class="ne-text">The network layer handles logical addressing (IP addresses) and routing. It determines the best path for data to travel across multiple networks. Routers operate at this layer, making forwarding decisions based on destination IP addresses.</p>
+            <div class="ne-code">
+<span class="comment">/* IPv4 Header (simplified) */</span>
+| Version | IHL | <span class="value">TOS</span> | <span class="highlight">Total Length</span> |
+| Identification  | Flags | Fragment Offset |
+| <span class="value">TTL</span> | <span class="highlight">Protocol</span> | Header Checksum     |
+| <span class="highlight">Source IP Address</span>                       |
+| <span class="highlight">Destination IP Address</span>                  |
+
+<span class="comment">/* TTL prevents infinite loops -- decremented at each hop.
+   When TTL reaches 0, the packet is discarded and an
+   ICMP Time Exceeded message is sent back. */</span>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Layer 4 -- Transport</h2>
+            <p class="ne-text">The transport layer provides end-to-end communication between applications. TCP offers reliable, ordered delivery with error correction. UDP offers fast, connectionless delivery without guarantees. Port numbers identify specific applications.</p>
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>TCP (Reliable)</strong>
+                    <span>Connection-oriented. Three-way handshake (SYN, SYN-ACK, ACK). Sequence numbers, acknowledgments, retransmission. Used by HTTP, SSH, FTP.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>UDP (Fast)</strong>
+                    <span>Connectionless. No handshake, no delivery guarantee. Lower overhead. Used by DNS, DHCP, VoIP, streaming, gaming.</span>
+                </div>
+            </div>
+            <div class="ne-code">
+<span class="comment">/* TCP Three-Way Handshake */</span>
+Client  ---<span class="highlight"> SYN </span>--->  Server     <span class="comment">// "I want to connect"</span>
+Client  <---<span class="highlight"> SYN-ACK </span>---  Server  <span class="comment">// "OK, I acknowledge"</span>
+Client  ---<span class="highlight"> ACK </span>--->  Server     <span class="comment">// "Connection established"</span>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Layers 5-7 -- Upper Layers</h2>
+            <p class="ne-text"><strong style="color:var(--accent)">Session Layer (5)</strong> manages dialogs between applications. It establishes, maintains, and terminates sessions. Think of a video call -- the session layer keeps the connection alive and handles re-establishment if it drops.</p>
+            <p class="ne-text"><strong style="color:var(--accent)">Presentation Layer (6)</strong> handles data formatting, encryption, and compression. When your browser receives TLS-encrypted data and decompresses a GZIP response, that is presentation layer work. Character encoding (ASCII, Unicode) also lives here.</p>
+            <p class="ne-text"><strong style="color:var(--accent)">Application Layer (7)</strong> is the interface between network services and end-user applications. HTTP defines how web browsers request pages. SMTP defines how email is sent. DNS translates domain names to IP addresses. This layer does not include the applications themselves -- it provides the protocols they use.</p>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Encapsulation Walkthrough</h2>
+            <p class="ne-text">When you browse to <span class="ne-inline-code">https://hexworth.com</span>, here is what happens at each layer:</p>
+            <div class="ne-code">
+<span class="highlight">Layer 7 (Application):</span>  HTTP GET request created
+<span class="highlight">Layer 6 (Presentation):</span> TLS encrypts the payload
+<span class="highlight">Layer 5 (Session):</span>      TLS session is established/maintained
+<span class="highlight">Layer 4 (Transport):</span>    TCP segment added (src port 49152, dst port 443)
+<span class="highlight">Layer 3 (Network):</span>      IP header added (src 192.168.1.50, dst 104.21.32.1)
+<span class="highlight">Layer 2 (Data Link):</span>    Ethernet frame added (src MAC, dst MAC = gateway)
+<span class="highlight">Layer 1 (Physical):</span>     Converted to electrical/optical signals on the wire
+
+<span class="comment">/* Each layer wraps the previous layer's output.
+   The receiver strips headers in reverse order (de-encapsulation). */</span>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">OSI vs TCP/IP Model</h2>
+            <p class="ne-text">The TCP/IP model (also called the Internet model) compresses the OSI's seven layers into four. In practice, most real-world protocols map to the TCP/IP model, but the OSI model remains the standard for teaching and troubleshooting.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr><th>OSI Layers</th><th>TCP/IP Layer</th><th>Example</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>7, 6, 5 -- Application, Presentation, Session</td><td>Application</td><td>HTTP, DNS, SMTP</td></tr>
+                    <tr><td>4 -- Transport</td><td>Transport</td><td>TCP, UDP</td></tr>
+                    <tr><td>3 -- Network</td><td>Internet</td><td>IP, ICMP</td></tr>
+                    <tr><td>2, 1 -- Data Link, Physical</td><td>Network Access</td><td>Ethernet, Wi-Fi</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Troubleshooting with the OSI Model</h2>
+            <p class="ne-text">The OSI model provides a systematic approach to diagnosing network problems. Start at Layer 1 and work up:</p>
+            <div class="ne-code">
+<span class="highlight">Layer 1:</span> Is the cable plugged in? Link light on? Correct cable type?
+<span class="highlight">Layer 2:</span> Is the MAC address learned? Are there VLAN mismatches? STP blocking?
+<span class="highlight">Layer 3:</span> Is the IP address correct? Can you ping the gateway? Routing issue?
+<span class="highlight">Layer 4:</span> Is the port open? Firewall blocking TCP/UDP? Connection refused?
+<span class="highlight">Layer 7:</span> Is the service running? DNS resolving? Application misconfigured?
+            </div>
+            <div class="ne-callout">
+                <strong>Real-World Approach:</strong>
+                <p>Most technicians use a "bottom-up" approach (start at Layer 1) for hardware problems and a "top-down" approach (start at Layer 7) for application problems. Knowing both strategies makes you effective at any level.</p>
+            </div>
+        </section>
+
+        <div class="ne-takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>The OSI model has 7 layers: Physical, Data Link, Network, Transport, Session, Presentation, Application</li>
+                <li>Each layer has a specific PDU: Bits, Frames, Packets, Segments, Data</li>
+                <li>Encapsulation wraps data with headers at each layer going down; de-encapsulation strips them going up</li>
+                <li>Switches operate at Layer 2 (MAC), Routers at Layer 3 (IP)</li>
+                <li>The TCP/IP model consolidates OSI into 4 practical layers</li>
+                <li>Use bottom-up or top-down OSI troubleshooting depending on the symptom</li>
+            </ul>
+        </div>
+
+        <nav class="ne-nav">
+            <a href="../index.html" class="ne-nav-btn disabled">&lt; Previous</a>
+            <a href="ne-02.html" class="ne-nav-btn primary">Next: TCP/IP Protocol Suite &gt;</a>
+        </nav>
+    </div>
+
+    <script>
+        (function() {
+        })();
+    </script>
+<div style="text-align:center;padding:30px 20px 40px;">
+    <button onclick="completeModule()" style="background:#22c55e;color:#fff;border:none;padding:14px 36px;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 2px 8px rgba(34,197,94,0.3);transition:all 0.2s;">Complete Module</button>
+</div>
+<script>
+function completeModule() {
+    if (window.ModuleProgress) {
+        ModuleProgress.complete('web', 'web-ne-01', { returnUrl: 'ne-02.html' });
+    } else {
+        window.location.href = 'ne-02.html';
+    }
+}
+</script>
+</body>
+</html>

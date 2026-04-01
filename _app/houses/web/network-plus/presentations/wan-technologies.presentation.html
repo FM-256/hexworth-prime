@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WAN Technologies | Network+ N10-009</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
+        }
+
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
+        }
+
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code { font-family: 'Courier New', monospace; color: #c9a83a; background: rgba(201, 168, 58, 0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px) { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+
+<div id="progress-bar" style="width:12.5%"></div>
+
+<!-- SLIDE 1 - TITLE -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 8 &nbsp;|&nbsp; N10-009 Obj 1.2 &nbsp;|&nbsp; WAN</div>
+        <div class="title-hero">
+            <div class="big-title">
+                WAN Technologies:<br>
+                <span class="accent">Connecting the World</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Your LAN ends at the building. The WAN connects everything beyond it.
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Your company opens a branch office 500 miles away. The new office needs access to the same file servers, databases, and applications as headquarters.
+            You need a WAN link. But which one? MPLS, broadband VPN, SD-WAN? The answer depends on bandwidth, reliability, cost, and latency requirements.
+        </div>
+        <div class="title-meta-row">
+            <span>8 Slides</span>
+            <span>N10-009 Obj 1.2</span>
+            <span>WAN / VPN / SD-WAN</span>
+            <span>Concepts + Context</span>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 2 - WAN vs LAN + TERMINOLOGY -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 8</div>
+        <div class="slide-title">WAN Fundamentals &amp; <span class="accent">Terminology</span></div>
+        <div class="slide-subtitle">Before choosing a WAN technology, understand the physical boundary points.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">WAN vs LAN</div>
+                <div class="card-desc">LAN: local, high speed, you own the infrastructure. WAN: long distance, lower speed relative to LAN, a service provider owns the physical medium. MAN (Metropolitan Area Network) falls between -- city-scale, often fiber-based.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Demarcation Point (Demarc)</div>
+                <div class="card-desc">The physical point where the ISP's responsibility ends and yours begins. Usually a box on the side of the building. Everything on the ISP side is their problem. Everything on your side is yours.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Smart Jack (NIU)</div>
+                <div class="card-desc">An intelligent demarc device the ISP can remotely test and loop back. Helps the ISP diagnose whether the problem is on their side or yours without sending a technician.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">CSU/DSU</div>
+                <div class="card-desc">Channel Service Unit / Data Service Unit. Converts between LAN framing and WAN signaling. Sits between your router and the provider's circuit. Legacy T1/T3 technology -- less common today but still tested.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">CPE (Customer Premises Equipment)</div>
+                <div class="card-desc">Any equipment on your side of the demarc. Routers, switches, firewalls -- anything you own or lease. The ISP may provide a managed CPE device (their router on your site).</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Exam tip:</strong> "Where does the ISP's responsibility end?" -- at the demarcation point. If the smart jack tests clean, the problem is on your side.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 3 - DEDICATED WAN -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 8</div>
+        <div class="slide-title">Dedicated WAN: <span class="accent">MPLS &amp; Metro Ethernet</span></div>
+        <div class="slide-subtitle">Premium connections with guaranteed performance -- for a premium price.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">MPLS (Multiprotocol Label Switching)</div>
+                <div class="card-desc">
+                    Provider-managed WAN that routes traffic using labels instead of IP lookups.
+                    Supports QoS classes -- voice traffic gets priority over file transfers.
+                    Full mesh connectivity between sites without individual point-to-point links.
+                    Expensive but reliable. Being replaced by SD-WAN in many deployments.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Metro Ethernet</div>
+                <div class="card-desc">
+                    Ethernet-based WAN service within a metropolitan area.
+                    Familiar technology -- same Ethernet frames, just carried over the provider's fiber.
+                    Scalable: start at 10 Mbps, increase to 10 Gbps without changing equipment.
+                    Lower cost than MPLS within a metro area.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-green" style="font-size:0.83rem;">
+            <div class="box-label">MPLS Label Stack</div>
+            MPLS inserts a 32-bit label between the Layer 2 and Layer 3 headers. Routers (Label Switch Routers) make forwarding decisions based on the label, not the IP header. This is faster and enables traffic engineering -- the provider can steer specific traffic classes along specific paths.
+        </div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            Your company's VoIP calls between HQ and the branch are choppy on the Internet VPN. You upgrade to MPLS with a voice QoS class. The provider guarantees latency under 30ms and zero packet loss for voice. Problem solved -- at $2,000/month more.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 4 - BROADBAND -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 8</div>
+        <div class="slide-title">Broadband: <span class="accent">DSL, Cable, Fiber</span></div>
+        <div class="slide-subtitle">Consumer and business-grade Internet access technologies.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">DSL (Digital Subscriber Line)</div>
+                <div class="card-desc">Uses existing phone lines. Asymmetric (ADSL): faster download than upload. Symmetric (SDSL): equal both ways. Speed degrades with distance from the central office. Max ~100 Mbps for VDSL2.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Cable (DOCSIS)</div>
+                <div class="card-desc">Uses coaxial cable TV infrastructure. Shared bandwidth in a neighborhood (contention). DOCSIS 3.1 supports up to 10 Gbps downstream. Asymmetric by design. Good availability in urban/suburban areas.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Fiber (FTTH/FTTP)</div>
+                <div class="card-desc">Fiber optic to the premises. Symmetric speeds, low latency, immune to electromagnetic interference. Speeds from 100 Mbps to 10 Gbps. Highest reliability. Limited availability in rural areas.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Cellular (4G LTE / 5G)</div>
+                <div class="card-desc">Wireless WAN via cellular networks. Good for mobile workers, temporary sites, and backup connectivity. 5G offers low latency and multi-Gbps speeds but requires proximity to towers.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Satellite</div>
+                <div class="card-desc">Available almost anywhere with sky visibility. High latency (600ms+ for geostationary, ~30ms for LEO like Starlink). Good for remote/rural locations with no other options. Weather-sensitive.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Choosing the Right Option</div>
+                <div class="card-desc">Fiber for speed and reliability. Cable for cost-effective high bandwidth. DSL where cable/fiber is unavailable. Cellular for mobility or backup. Satellite as last resort due to latency.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 5 - SD-WAN -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 8</div>
+        <div class="slide-title">SD-WAN: <span class="accent">Software-Defined WAN</span></div>
+        <div class="slide-subtitle">Use cheap Internet links like expensive MPLS circuits -- with intelligence.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What SD-WAN Does</div>
+                <div class="card-desc">Abstracts the WAN transport. You can combine MPLS, broadband, LTE, and satellite into a single overlay. A central controller decides which path each application uses based on real-time performance metrics.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Application-Aware Routing</div>
+                <div class="card-desc">SD-WAN identifies applications (voice, video, SaaS, web browsing) and routes them over the best available path. Voice goes over the low-latency link. File transfers go over the cheap broadband link.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why It Matters</div>
+                <div class="card-desc">Reduces WAN costs by 50-70% by replacing expensive MPLS with broadband. Centralized management across all sites. Built-in encryption for all traffic. Faster deployment of new branches.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <div class="box-label">SD-WAN vs Traditional WAN</div>
+            Traditional: each site has an MPLS circuit, configuration is per-device, changes take weeks.
+            SD-WAN: each site has broadband + optional MPLS, configuration is centralized, new sites deploy in hours. The controller pushes policies to all edge devices simultaneously.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 6 - VPN TYPES -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 8</div>
+        <div class="slide-title">VPN Types: <span class="accent">Site-to-Site &amp; Client-to-Site</span></div>
+        <div class="slide-subtitle">Encrypt traffic across untrusted networks. Two models, different use cases.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Site-to-Site VPN</div>
+                <div class="card-desc">
+                    Connects two networks (HQ to branch) permanently. IPSec tunnel between two routers or firewalls.
+                    Users at each site access resources as if they are on the same LAN.
+                    Always-on -- no user interaction required. Transparent to end users.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Client-to-Site (Remote Access VPN)</div>
+                <div class="card-desc">
+                    Individual user connects from a laptop/phone to the corporate network.
+                    Uses VPN client software (AnyConnect, GlobalProtect, WireGuard).
+                    User authenticates, gets a tunnel, receives a corporate IP address.
+                    Common for remote workers and traveling employees.
+                </div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Full Tunnel</div>
+                <div class="card-desc">All traffic from the client goes through the VPN tunnel, including Internet browsing. The corporate network inspects everything. More secure, but higher bandwidth consumption on the VPN concentrator.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Split Tunnel</div>
+                <div class="card-desc">Only corporate-destined traffic goes through the tunnel. Internet traffic goes directly out the user's local connection. Lower bandwidth usage, but the corporate network cannot inspect Internet traffic. Security trade-off.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Exam tip:</strong> Full tunnel = more secure, more bandwidth. Split tunnel = less bandwidth, less visibility. If the question mentions "security concern with VPN" -- split tunnel is usually the answer.
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 7 - VPN PROTOCOLS -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 8</div>
+        <div class="slide-title">VPN Protocols &amp; <span class="accent">Encryption</span></div>
+        <div class="slide-subtitle">The protocols that build the tunnel and protect the data inside it.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">IPSec</div>
+                <div class="card-desc">Industry standard for site-to-site VPNs. Two modes: Transport (encrypts payload only) and Tunnel (encrypts entire original packet). Uses AH (authentication) and ESP (encryption + authentication). Operates at Layer 3.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">SSL/TLS VPN</div>
+                <div class="card-desc">Uses HTTPS (port 443) for the tunnel. Works through most firewalls since port 443 is rarely blocked. Commonly used for client-to-site (remote access). No special client needed for clientless mode -- just a browser.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">WireGuard</div>
+                <div class="card-desc">Modern, lightweight VPN protocol. Smaller codebase (~4,000 lines vs hundreds of thousands for OpenVPN/IPSec). Fast, uses modern cryptography (ChaCha20, Curve25519). Growing adoption for both site-to-site and remote access.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">PPTP -- Deprecated</div>
+                <div class="card-desc">Point-to-Point Tunneling Protocol. Uses TCP port 1723. Encryption is broken (MS-CHAPv2 vulnerabilities). Do not use. If you see it on the exam, it is the wrong answer for "secure VPN."</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">GRE (Generic Routing Encapsulation)</div>
+                <div class="card-desc">Tunneling protocol that encapsulates packets. No encryption by itself. Often paired with IPSec (GRE over IPSec) to get both multicast support (GRE) and encryption (IPSec).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">DMVPN</div>
+                <div class="card-desc">Dynamic Multipoint VPN. Cisco technology that creates a hub-and-spoke VPN topology with dynamic spoke-to-spoke tunnels. Combines GRE, IPSec, and NHRP. Scales well for multi-site deployments.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SLIDE 8 - SUMMARY -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 8 &nbsp;|&nbsp; N10-009 Obj 1.2</div>
+        <div class="slide-title">WAN Technologies -- <span class="accent">Key Takeaways</span></div>
+
+        <div class="scenario-strip">
+            You recommend to leadership: "We replace the $4,000/month MPLS with SD-WAN over two broadband links per site. Voice gets priority routing over the fiber link. File transfers use the cable backup. A site-to-site IPSec tunnel encrypts everything. We deploy the branch in two days instead of six weeks."
+        </div>
+
+        <div class="section-label">5 Facts to Carry Out of This Presentation</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">The <strong>demarcation point</strong> separates ISP responsibility from yours. <strong>Smart jack</strong> allows remote testing. <strong>CSU/DSU</strong> converts LAN framing to WAN signaling.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>MPLS</strong> = label-switched, QoS-capable, provider-managed. <strong>Metro Ethernet</strong> = Ethernet over provider fiber within a city. Both are premium services.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Broadband: <strong>Fiber</strong> (best speed/latency) > <strong>Cable</strong> (shared, asymmetric) > <strong>DSL</strong> (distance-dependent) > <strong>Satellite</strong> (high latency, last resort).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>SD-WAN</strong> overlays multiple transports with application-aware routing. Replaces MPLS at lower cost with centralized management.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>Site-to-site VPN</strong> = network-to-network (IPSec). <strong>Client-to-site</strong> = user-to-network (SSL/TLS). <strong>Full tunnel</strong> = all traffic. <strong>Split tunnel</strong> = corporate only.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Network+ Hub</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 8</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 8;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+        document.getElementById('progress-bar').style.width = (currentSlide / TOTAL_SLIDES) * 100 + '%';
+        document.getElementById('slide-counter').textContent = 'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'web-wan-technologies', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

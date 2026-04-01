@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PBQ: Network Discovery | Network+</title>
+    <style>
+        /* ============================================================
+           ROOT VARIABLES
+           ============================================================ */
+        :root {
+            --bg:          #090910;
+            --bg-card:     #0f0f1a;
+            --bg-panel:    #14141f;
+            --bg-input:    #0a0a14;
+            --border:      rgba(6, 182, 212, 0.18);
+            --border-hi:   rgba(6, 182, 212, 0.55);
+            --cyan:        #06b6d4;
+            --cyan-dim:    rgba(6, 182, 212, 0.12);
+            --cyan-glow:   rgba(6, 182, 212, 0.25);
+            --text:        #e2e8f0;
+            --text-dim:    #64748b;
+            --text-mid:    #94a3b8;
+            --success:     #22c55e;
+            --success-bg:  rgba(34, 197, 94, 0.12);
+            --danger:      #ef4444;
+            --danger-bg:   rgba(239, 68, 68, 0.12);
+            --warn:        #f59e0b;
+            --warn-bg:     rgba(245, 158, 11, 0.1);
+            --terminal-bg: #080810;
+        }
+
+        /* ============================================================
+           RESET & BASE
+           ============================================================ */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* ============================================================
+           NAV BAR
+           ============================================================ */
+        .lab-nav {
+            padding: 11px 20px;
+            background: #0d0d17;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .lab-nav a {
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 0.84rem;
+            transition: color 0.2s;
+        }
+        .lab-nav a:hover { color: var(--cyan); }
+        .lab-nav .badge {
+            background: rgba(6, 182, 212, 0.14);
+            color: var(--cyan);
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            padding: 3px 9px;
+            border-radius: 4px;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        /* ============================================================
+           LAYOUT WRAPPER
+           ============================================================ */
+        .lab-wrap {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+
+        /* ============================================================
+           HEADER
+           ============================================================ */
+        .lab-header {
+            margin-bottom: 2.25rem;
+        }
+        .pbq-tag {
+            display: inline-block;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: var(--cyan);
+            background: var(--cyan-dim);
+            border: 1px solid rgba(6, 182, 212, 0.28);
+            border-radius: 4px;
+            padding: 3px 10px;
+            margin-bottom: 0.75rem;
+        }
+        .lab-header h1 {
+            font-size: 1.65rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 0.9rem;
+            line-height: 1.2;
+        }
+        .scenario-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--cyan);
+            border-radius: 8px;
+            padding: 0.9rem 1.1rem;
+            font-size: 0.88rem;
+            color: var(--text-mid);
+            margin-bottom: 0.9rem;
+        }
+        .scenario-box strong { color: var(--text); }
+        .lab-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+        }
+        .lab-meta span {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+            padding: 3px 9px;
+        }
+
+        /* ============================================================
+           SECTION TITLE
+           ============================================================ */
+        .section-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 1.1rem;
+        }
+
+        /* ============================================================
+           TOPOLOGY
+           ============================================================ */
+        .topology-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        /* SVG-based topology diagram */
+        .topology-diagram {
+            width: 100%;
+            max-width: 700px;
+            display: block;
+            margin: 0 auto 1.4rem;
+        }
+
+        /* CLI panel trigger buttons sit below each switch label */
+        .switch-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            justify-content: center;
+        }
+        .switch-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            min-width: 220px;
+            flex: 1 1 200px;
+            max-width: 320px;
+        }
+        .switch-card-name {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--cyan);
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            margin-bottom: 0.4rem;
+        }
+        .switch-card-ports {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            margin-bottom: 0.75rem;
+        }
+        .btn-cli {
+            background: transparent;
+            border: 1px solid rgba(6, 182, 212, 0.4);
+            color: var(--cyan);
+            font-size: 0.76rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            padding: 5px 14px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.18s, border-color 0.18s;
+        }
+        .btn-cli:hover {
+            background: var(--cyan-dim);
+            border-color: var(--cyan);
+        }
+
+        /* ============================================================
+           TERMINAL PANEL (CLI output overlay)
+           ============================================================ */
+        .cli-panel {
+            display: none;
+            background: var(--terminal-bg);
+            border: 1px solid rgba(6, 182, 212, 0.35);
+            border-radius: 10px;
+            margin-top: 1.25rem;
+            overflow: hidden;
+        }
+        .cli-panel.open { display: block; }
+        .cli-titlebar {
+            background: #0d0d1a;
+            border-bottom: 1px solid rgba(6, 182, 212, 0.18);
+            padding: 7px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .cli-titlebar-name {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--cyan);
+            letter-spacing: 0.6px;
+        }
+        .btn-cli-close {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            font-size: 1rem;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0 4px;
+            transition: color 0.15s;
+        }
+        .btn-cli-close:hover { color: var(--danger); }
+        .cli-output {
+            font-family: 'Courier New', Consolas, monospace;
+            font-size: 0.77rem;
+            line-height: 1.65;
+            color: #a8d8a8;
+            padding: 1rem 1.25rem 1.25rem;
+            white-space: pre;
+            overflow-x: auto;
+        }
+        /* Command prompt lines styled brighter */
+        .cli-output .cmd { color: #7dd3d0; }
+        /* Headers/labels dimmer */
+        .cli-output .hdr { color: var(--text-dim); }
+
+        /* ============================================================
+           INSTRUCTION TIP
+           ============================================================ */
+        .tip {
+            background: var(--warn-bg);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            border-radius: 8px;
+            padding: 0.7rem 1rem;
+            font-size: 0.82rem;
+            color: var(--text-mid);
+            margin-bottom: 1.5rem;
+        }
+        .tip strong { color: var(--warn); }
+
+        /* ============================================================
+           DEVICE TABLE SECTION
+           ============================================================ */
+        .table-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Responsive table wrapper */
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.84rem;
+            min-width: 640px;
+        }
+        thead th {
+            background: rgba(6, 182, 212, 0.08);
+            color: var(--cyan);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.7px;
+            text-transform: uppercase;
+            padding: 9px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(6, 182, 212, 0.22);
+        }
+        tbody tr {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: background 0.15s;
+        }
+        tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
+        tbody tr:last-child { border-bottom: none; }
+        tbody td {
+            padding: 10px 12px;
+            vertical-align: middle;
+            color: var(--text);
+        }
+
+        /* Device name column */
+        .td-device {
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+        }
+
+        /* Pre-filled cell */
+        .prefilled {
+            font-family: 'Courier New', Consolas, monospace;
+            font-size: 0.78rem;
+            color: var(--text-mid);
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 5px;
+            padding: 4px 9px;
+            display: inline-block;
+            white-space: nowrap;
+        }
+        .prefill-label {
+            display: block;
+            font-size: 0.62rem;
+            color: var(--text-dim);
+            margin-top: 3px;
+            letter-spacing: 0.3px;
+        }
+
+        /* Dropdown select */
+        .field-select {
+            background: var(--bg-input);
+            border: 1px solid rgba(6, 182, 212, 0.28);
+            color: var(--text);
+            font-family: 'Courier New', Consolas, monospace;
+            font-size: 0.78rem;
+            padding: 5px 8px;
+            border-radius: 5px;
+            width: 100%;
+            min-width: 130px;
+            cursor: pointer;
+            transition: border-color 0.18s;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 9px center;
+            padding-right: 26px;
+        }
+        .field-select:focus {
+            outline: none;
+            border-color: var(--cyan);
+            box-shadow: 0 0 0 2px var(--cyan-glow);
+        }
+        /* Validation states applied after submit */
+        .field-select.correct {
+            border-color: var(--success);
+            background-color: rgba(34, 197, 94, 0.07);
+        }
+        .field-select.incorrect {
+            border-color: var(--danger);
+            background-color: rgba(239, 68, 68, 0.08);
+        }
+
+        /* ============================================================
+           SUBMIT SECTION
+           ============================================================ */
+        .submit-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        .submit-btn-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+        .btn-submit {
+            background: linear-gradient(135deg, #0891b2, #0e7490);
+            border: none;
+            color: #fff;
+            font-size: 0.88rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            padding: 10px 26px;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: opacity 0.18s, transform 0.12s;
+        }
+        .btn-submit:hover { opacity: 0.88; transform: translateY(-1px); }
+        .btn-submit:active { transform: translateY(0); }
+
+        .btn-reset {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            padding: 10px 22px;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: border-color 0.18s, color 0.18s;
+        }
+        .btn-reset:hover {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        /* ============================================================
+           RESULTS PANEL
+           ============================================================ */
+        .results-panel {
+            display: none;
+        }
+        .results-panel.visible { display: block; }
+
+        .results-score {
+            display: flex;
+            align-items: baseline;
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+            padding: 1rem 1.25rem;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+        .score-num {
+            font-size: 2rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+        .score-num.pass { color: var(--success); }
+        .score-num.fail { color: var(--danger); }
+        .score-denom {
+            font-size: 1.1rem;
+            color: var(--text-dim);
+            font-weight: 600;
+        }
+        .score-verdict {
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: auto;
+        }
+        .score-verdict.pass { color: var(--success); }
+        .score-verdict.fail { color: var(--danger); }
+
+        /* Per-device result rows injected into results table */
+        .result-row-correct td { background: rgba(34, 197, 94, 0.04); }
+        .result-row-incorrect td { background: rgba(239, 68, 68, 0.04); }
+
+        .result-icon {
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+        .result-icon.ok {
+            background: var(--success-bg);
+            color: var(--success);
+        }
+        .result-icon.fail {
+            background: var(--danger-bg);
+            color: var(--danger);
+        }
+
+        /* ============================================================
+           PASS BANNER
+           ============================================================ */
+        .pass-banner {
+            display: none;
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(6, 182, 212, 0.1));
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            margin-top: 1.25rem;
+            text-align: center;
+            color: var(--success);
+            font-weight: 700;
+            font-size: 1rem;
+        }
+        .pass-banner.visible { display: block; }
+        .pass-banner p {
+            color: var(--text-mid);
+            font-weight: 400;
+            font-size: 0.84rem;
+            margin-top: 0.4rem;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Navigation bar -->
+    <nav class="lab-nav">
+        <a href="../index.html">&larr; Network+ Hub</a>
+        <span class="badge">PBQ Lab</span>
+    </nav>
+
+    <div class="lab-wrap">
+
+        <!-- ============================================================
+             HEADER / SCENARIO
+             ============================================================ -->
+        <header class="lab-header">
+            <span class="pbq-tag">Performance-Based Question</span>
+            <h1>Network Discovery Documentation</h1>
+            <div class="scenario-box">
+                <strong>Scenario:</strong> A network technician was recently onboarded. The manager has
+                tasked them with documenting the network using the switches' CLI. Partial information
+                exists from previous documentation. Fill in the missing fields using the information
+                available from the switch CLI output.
+            </div>
+            <div class="lab-meta">
+                <span>CompTIA Network+ Objective 2.1</span>
+                <span>CDP / MAC Address Table / IP Interface</span>
+                <span>6 Devices to Document</span>
+            </div>
+        </header>
+
+        <!-- ============================================================
+             TOPOLOGY + CLI PANELS
+             ============================================================ -->
+        <section class="topology-section">
+            <h2 class="section-title">Network Topology</h2>
+
+            <!-- SVG topology diagram -->
+            <svg class="topology-diagram" viewBox="0 0 680 280" xmlns="http://www.w3.org/2000/svg"
+                 aria-label="Network topology diagram">
+
+                <!-- Core Switch 1 (center top) -->
+                <rect x="270" y="20" width="140" height="44" rx="6"
+                      fill="#0f0f1a" stroke="#06b6d4" stroke-width="1.5"/>
+                <text x="340" y="37" text-anchor="middle" font-family="Segoe UI,sans-serif"
+                      font-size="11" font-weight="700" fill="#06b6d4">Core Switch 1</text>
+                <text x="340" y="53" text-anchor="middle" font-family="Courier New,monospace"
+                      font-size="9" fill="#64748b">Switch-Core</text>
+
+                <!-- Uplink lines Core -> AS1 and Core -> AS2 -->
+                <line x1="290" y1="64" x2="185" y2="152" stroke="#06b6d4"
+                      stroke-width="1.5" stroke-dasharray="5,3"/>
+                <line x1="390" y1="64" x2="495" y2="152" stroke="#06b6d4"
+                      stroke-width="1.5" stroke-dasharray="5,3"/>
+
+                <!-- Access Switch 1 (left) -->
+                <rect x="100" y="152" width="170" height="44" rx="6"
+                      fill="#0f0f1a" stroke="rgba(6,182,212,0.55)" stroke-width="1.5"/>
+                <text x="185" y="169" text-anchor="middle" font-family="Segoe UI,sans-serif"
+                      font-size="11" font-weight="700" fill="#e2e8f0">Access Switch 1</text>
+                <text x="185" y="185" text-anchor="middle" font-family="Courier New,monospace"
+                      font-size="9" fill="#64748b">Switch-A1</text>
+
+                <!-- Access Switch 2 (right) -->
+                <rect x="410" y="152" width="170" height="44" rx="6"
+                      fill="#0f0f1a" stroke="rgba(6,182,212,0.55)" stroke-width="1.5"/>
+                <text x="495" y="169" text-anchor="middle" font-family="Segoe UI,sans-serif"
+                      font-size="11" font-weight="700" fill="#e2e8f0">Access Switch 2</text>
+                <text x="495" y="185" text-anchor="middle" font-family="Courier New,monospace"
+                      font-size="9" fill="#64748b">Switch-A2</text>
+
+                <!-- AS1 downlinks -->
+                <line x1="140" y1="196" x2="65" y2="245" stroke="rgba(100,116,139,0.5)"
+                      stroke-width="1.2"/>
+                <line x1="185" y1="196" x2="185" y2="245" stroke="rgba(100,116,139,0.5)"
+                      stroke-width="1.2"/>
+                <line x1="230" y1="196" x2="305" y2="245" stroke="rgba(100,116,139,0.5)"
+                      stroke-width="1.2"/>
+
+                <!-- AS2 downlinks -->
+                <line x1="455" y1="196" x2="380" y2="245" stroke="rgba(100,116,139,0.5)"
+                      stroke-width="1.2"/>
+                <line x1="495" y1="196" x2="495" y2="245" stroke="rgba(100,116,139,0.5)"
+                      stroke-width="1.2"/>
+                <line x1="535" y1="196" x2="610" y2="245" stroke="rgba(100,116,139,0.5)"
+                      stroke-width="1.2"/>
+
+                <!-- Device nodes AS1 -->
+                <circle cx="65"  cy="252" r="18" fill="#0a0a14"
+                        stroke="rgba(59,130,246,0.6)" stroke-width="1.2"/>
+                <text x="65"  cy="252" y="256" text-anchor="middle"
+                      font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">PC1</text>
+
+                <circle cx="185" cy="252" r="18" fill="#0a0a14"
+                        stroke="rgba(59,130,246,0.6)" stroke-width="1.2"/>
+                <text x="185" y="256" text-anchor="middle"
+                      font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">PC2</text>
+
+                <rect x="285" y="234" width="40" height="28" rx="4" fill="#0a0a14"
+                      stroke="rgba(168,85,247,0.6)" stroke-width="1.2"/>
+                <text x="305" y="252" text-anchor="middle"
+                      font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">SRV1</text>
+
+                <!-- Device nodes AS2 -->
+                <circle cx="380" cy="252" r="18" fill="#0a0a14"
+                        stroke="rgba(59,130,246,0.6)" stroke-width="1.2"/>
+                <text x="380" y="256" text-anchor="middle"
+                      font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">PC3</text>
+
+                <circle cx="495" cy="252" r="18" fill="#0a0a14"
+                        stroke="rgba(59,130,246,0.6)" stroke-width="1.2"/>
+                <text x="495" y="256" text-anchor="middle"
+                      font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">PC4</text>
+
+                <rect x="590" y="234" width="40" height="28" rx="4" fill="#0a0a14"
+                      stroke="rgba(245,158,11,0.6)" stroke-width="1.2"/>
+                <text x="610" y="252" text-anchor="middle"
+                      font-family="Segoe UI,sans-serif" font-size="9" fill="#94a3b8">PRT1</text>
+
+            </svg>
+
+            <!-- Switch CLI cards -->
+            <div class="switch-list">
+
+                <!-- Access Switch 1 card -->
+                <div class="switch-card">
+                    <div class="switch-card-name">Access Switch 1 — Switch-A1</div>
+                    <div class="switch-card-ports">
+                        Gi0/1: PC1 &nbsp;|&nbsp; Gi0/2: PC2 &nbsp;|&nbsp; Gi0/3: Server1
+                    </div>
+                    <button class="btn-cli" onclick="toggleCLI('cli-a1')">View CLI Output</button>
+                </div>
+
+                <!-- Access Switch 2 card -->
+                <div class="switch-card">
+                    <div class="switch-card-name">Access Switch 2 — Switch-A2</div>
+                    <div class="switch-card-ports">
+                        Gi0/1: PC3 &nbsp;|&nbsp; Gi0/2: PC4 &nbsp;|&nbsp; Gi0/3: Printer1
+                    </div>
+                    <button class="btn-cli" onclick="toggleCLI('cli-a2')">View CLI Output</button>
+                </div>
+
+            </div>
+
+            <!-- CLI Panel: Access Switch 1 -->
+            <div class="cli-panel" id="cli-a1">
+                <div class="cli-titlebar">
+                    <span class="cli-titlebar-name">Switch-A1 — CLI Output</span>
+                    <button class="btn-cli-close" onclick="toggleCLI('cli-a1')"
+                            title="Close panel">&times;</button>
+                </div>
+                <div class="cli-output" id="cli-a1-body"></div>
+            </div>
+
+            <!-- CLI Panel: Access Switch 2 -->
+            <div class="cli-panel" id="cli-a2">
+                <div class="cli-titlebar">
+                    <span class="cli-titlebar-name">Switch-A2 — CLI Output</span>
+                    <button class="btn-cli-close" onclick="toggleCLI('cli-a2')"
+                            title="Close panel">&times;</button>
+                </div>
+                <div class="cli-output" id="cli-a2-body"></div>
+            </div>
+
+        </section>
+
+        <!-- ============================================================
+             DEVICE DOCUMENTATION TABLE
+             ============================================================ -->
+        <section class="table-section">
+            <h2 class="section-title">Device Documentation</h2>
+
+            <div class="tip">
+                <strong>Instructions:</strong> Use the switch CLI output above to complete the
+                missing fields. Cells marked "Previously inventoried" are already confirmed.
+                Select the correct value from each dropdown. All fields must be correct to pass.
+            </div>
+
+            <div class="table-wrap">
+                <table id="docTable">
+                    <thead>
+                        <tr>
+                            <th>Device</th>
+                            <th>MAC Address</th>
+                            <th>IP Address</th>
+                            <th>VLAN</th>
+                            <th>Interface</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <!-- Rows injected by buildTable() -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ============================================================
+             SUBMIT / RESET
+             ============================================================ -->
+        <section class="submit-section">
+            <h2 class="section-title">Verification</h2>
+            <p style="font-size:0.86rem; color:var(--text-mid); margin-bottom:1.1rem;">
+                Complete all dropdowns and submit your documentation for grading.
+                Every field must be correct to pass.
+            </p>
+            <div class="submit-btn-row">
+                <button class="btn-submit" onclick="submitDocumentation()">Submit Documentation</button>
+                <button class="btn-reset"  onclick="resetAll()">Reset All</button>
+            </div>
+
+            <!-- Results panel, hidden until submission -->
+            <div class="results-panel" id="resultsPanel">
+
+                <div class="results-score" id="resultsScore">
+                    <span class="score-num" id="scoreNum">0</span>
+                    <span class="score-denom" id="scoreDenom">/ 0 correct</span>
+                    <span class="score-verdict" id="scoreVerdict"></span>
+                </div>
+
+                <!-- Results detail table -->
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Device</th>
+                                <th>Field</th>
+                                <th>Your Answer</th>
+                                <th>Correct Answer</th>
+                                <th>Result</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsBody"></tbody>
+                    </table>
+                </div>
+
+                <!-- Pass banner — shown only on 100% correct -->
+                <div class="pass-banner" id="passBanner">
+                    Documentation Complete — All Fields Verified
+                    <p>
+                        You have successfully identified every device on the network using
+                        MAC address tables, IP interface data, and CDP neighbors output.
+                    </p>
+                </div>
+
+            </div>
+        </section>
+
+    </div><!-- /.lab-wrap -->
+
+    <!-- ============================================================
+         JAVASCRIPT
+         ============================================================ -->
+    <script>
+        /* ------------------------------------------------------------------
+           CLI TEXT CONTENT
+           Raw terminal output for each switch panel.
+           Pre-built as plain strings; rendered into a <pre>-equivalent div.
+           ------------------------------------------------------------------ */
+        var CLI_A1 = [
+            'Switch-A1# show mac address-table',
+            '  VLAN  MAC Address       Type     Ports',
+            '  10    0200.0000.0001    DYNAMIC  Gi0/1',
+            '  10    0200.0000.0002    DYNAMIC  Gi0/2',
+            '  20    0200.0000.0003    DYNAMIC  Gi0/3',
+            '',
+            'Switch-A1# show ip interface brief',
+            'Interface          IP-Address      OK? Method Status   Protocol',
+            'Vlan10             10.10.30.1      YES manual up       up',
+            'GigabitEthernet0/1 unassigned      YES unset  up       up',
+            'GigabitEthernet0/2 unassigned      YES unset  up       up',
+            'GigabitEthernet0/3 unassigned      YES unset  up       up',
+            '',
+            'Switch-A1# show cdp neighbors',
+            'Device ID    Local Intrfce  Platform   Port ID',
+            'PC1          Gig 0/1        PC         Gig 0/1',
+            'PC2          Gig 0/2        PC         Gig 0/1',
+            'Server1      Gig 0/3        Server     Gig 0/1'
+        ].join('\n');
+
+        var CLI_A2 = [
+            'Switch-A2# show mac address-table',
+            '  VLAN  MAC Address       Type     Ports',
+            '  10    0200.0000.0004    DYNAMIC  Gi0/1',
+            '  10    0200.0000.0005    DYNAMIC  Gi0/2',
+            '  30    0200.0000.0006    DYNAMIC  Gi0/3',
+            '',
+            'Switch-A2# show ip interface brief',
+            'Interface          IP-Address      OK? Method Status   Protocol',
+            'Vlan10             10.10.30.2      YES manual up       up',
+            'GigabitEthernet0/1 unassigned      YES unset  up       up',
+            'GigabitEthernet0/2 unassigned      YES unset  up       up',
+            'GigabitEthernet0/3 unassigned      YES unset  up       up'
+        ].join('\n');
+
+        /* ------------------------------------------------------------------
+           DROPDOWN OPTION POOLS
+           Each key maps to an array of [value, label] pairs.
+           'placeholder' is the initial unselected state.
+           ------------------------------------------------------------------ */
+        var OPTS = {
+            mac: [
+                ['', '-- Select --'],
+                ['0200.0000.0001', '0200.0000.0001'],
+                ['0200.0000.0002', '0200.0000.0002'],
+                ['0200.0000.0003', '0200.0000.0003'],
+                ['0200.0000.0004', '0200.0000.0004'],
+                ['0200.0000.0005', '0200.0000.0005'],
+                ['0200.0000.0006', '0200.0000.0006'],
+                ['0200.0000.0007', '0200.0000.0007'],
+                ['0200.0000.0008', '0200.0000.0008'],
+                ['0200.0000.0009', '0200.0000.0009']
+            ],
+            ip: [
+                ['', '-- Select --'],
+                ['10.10.30.51', '10.10.30.51'],
+                ['10.10.30.52', '10.10.30.52'],
+                ['10.10.30.53', '10.10.30.53'],
+                ['10.10.30.54', '10.10.30.54'],
+                ['10.10.60.51', '10.10.60.51'],
+                ['10.10.60.52', '10.10.60.52'],
+                ['10.10.60.53', '10.10.60.53'],
+                ['10.10.60.54', '10.10.60.54']
+            ],
+            vlan: [
+                ['', '-- Select --'],
+                ['10', 'VLAN 10'],
+                ['20', 'VLAN 20'],
+                ['30', 'VLAN 30']
+            ],
+            iface: [
+                ['', '-- Select --'],
+                ['GigabitEthernet0/1', 'GigabitEthernet0/1'],
+                ['GigabitEthernet0/2', 'GigabitEthernet0/2'],
+                ['GigabitEthernet0/3', 'GigabitEthernet0/3'],
+                ['GigabitEthernet0/4', 'GigabitEthernet0/4']
+            ]
+        };
+
+        /* ------------------------------------------------------------------
+           DEVICE DEFINITIONS
+           Each device specifies which fields are pre-filled vs. dropdown.
+           pre: { field: value }  — shown as locked text
+           blank: [field, ...]    — rendered as a dropdown
+           answer: { field: value } — ground truth for grading
+           Fields: mac, ip, vlan, iface
+           ------------------------------------------------------------------ */
+        var DEVICES = [
+            {
+                id: 'pc1',
+                name: 'PC1',
+                pre:   { mac: '0200.0000.0001' },
+                blank: ['ip', 'vlan', 'iface'],
+                answer: {
+                    mac:   '0200.0000.0001',
+                    ip:    '10.10.30.51',
+                    vlan:  '10',
+                    iface: 'GigabitEthernet0/1'
+                }
+            },
+            {
+                id: 'pc2',
+                name: 'PC2',
+                pre:   { ip: '10.10.30.52' },
+                blank: ['mac', 'vlan', 'iface'],
+                answer: {
+                    mac:   '0200.0000.0002',
+                    ip:    '10.10.30.52',
+                    vlan:  '10',
+                    iface: 'GigabitEthernet0/2'
+                }
+            },
+            {
+                id: 'server1',
+                name: 'Server1',
+                pre:   {},
+                blank: ['mac', 'ip', 'vlan', 'iface'],
+                answer: {
+                    mac:   '0200.0000.0003',
+                    ip:    '10.10.60.51',
+                    vlan:  '20',
+                    iface: 'GigabitEthernet0/3'
+                }
+            },
+            {
+                id: 'pc3',
+                name: 'PC3',
+                pre:   { ip: '10.10.30.53' },
+                blank: ['mac', 'vlan', 'iface'],
+                answer: {
+                    mac:   '0200.0000.0004',
+                    ip:    '10.10.30.53',
+                    vlan:  '10',
+                    iface: 'GigabitEthernet0/1'
+                }
+            },
+            {
+                id: 'pc4',
+                name: 'PC4',
+                pre:   {},
+                blank: ['mac', 'ip', 'vlan', 'iface'],
+                answer: {
+                    mac:   '0200.0000.0005',
+                    ip:    '10.10.30.54',
+                    vlan:  '10',
+                    iface: 'GigabitEthernet0/2'
+                }
+            },
+            {
+                id: 'printer1',
+                name: 'Printer1',
+                pre:   {},
+                blank: ['mac', 'ip', 'vlan', 'iface'],
+                answer: {
+                    mac:   '0200.0000.0006',
+                    ip:    '10.10.60.52',
+                    vlan:  '30',
+                    iface: 'GigabitEthernet0/3'
+                }
+            }
+        ];
+
+        /* Field display labels used in the results detail table */
+        var FIELD_LABELS = {
+            mac:   'MAC Address',
+            ip:    'IP Address',
+            vlan:  'VLAN',
+            iface: 'Interface'
+        };
+
+        /* ------------------------------------------------------------------
+           buildTable()
+           Constructs the documentation table rows from DEVICES data.
+           Pre-filled fields are displayed as locked spans.
+           Blank fields are rendered as <select> dropdowns.
+           ------------------------------------------------------------------ */
+        function buildTable() {
+            var tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            var fields = ['mac', 'ip', 'vlan', 'iface'];
+
+            for (var d = 0; d < DEVICES.length; d++) {
+                var dev = DEVICES[d];
+                var tr = document.createElement('tr');
+
+                /* Device name cell */
+                var tdName = document.createElement('td');
+                tdName.className = 'td-device';
+                tdName.textContent = dev.name;
+                tr.appendChild(tdName);
+
+                /* One cell per field */
+                for (var f = 0; f < fields.length; f++) {
+                    var field = fields[f];
+                    var td = document.createElement('td');
+
+                    if (dev.pre.hasOwnProperty(field)) {
+                        /* Pre-filled — locked display */
+                        var span = document.createElement('span');
+                        span.className = 'prefilled';
+                        span.textContent = dev.pre[field];
+                        var small = document.createElement('small');
+                        small.className = 'prefill-label';
+                        small.textContent = 'Previously inventoried';
+                        td.appendChild(span);
+                        td.appendChild(small);
+                    } else {
+                        /* Blank — dropdown */
+                        var sel = document.createElement('select');
+                        sel.className = 'field-select';
+                        sel.id = 'sel-' + dev.id + '-' + field;
+
+                        var pool = OPTS[field];
+                        for (var o = 0; o < pool.length; o++) {
+                            var opt = document.createElement('option');
+                            opt.value = pool[o][0];
+                            opt.textContent = pool[o][1];
+                            sel.appendChild(opt);
+                        }
+                        td.appendChild(sel);
+                    }
+
+                    tr.appendChild(td);
+                }
+
+                tbody.appendChild(tr);
+            }
+        }
+
+        /* ------------------------------------------------------------------
+           toggleCLI(panelId)
+           Shows or hides the specified CLI panel and populates its content
+           on first open (lazy render).
+           ------------------------------------------------------------------ */
+        function toggleCLI(panelId) {
+            var panel = document.getElementById(panelId);
+            var isOpen = panel.classList.contains('open');
+
+            /* Close all panels first */
+            var allPanels = document.querySelectorAll('.cli-panel');
+            for (var i = 0; i < allPanels.length; i++) {
+                allPanels[i].classList.remove('open');
+            }
+
+            /* If it was already open, leave it closed; otherwise open it */
+            if (!isOpen) {
+                panel.classList.add('open');
+
+                /* Lazy-populate the text content */
+                var bodyEl = document.getElementById(panelId + '-body');
+                if (!bodyEl.dataset.populated) {
+                    bodyEl.textContent = (panelId === 'cli-a1') ? CLI_A1 : CLI_A2;
+                    bodyEl.dataset.populated = '1';
+                }
+            }
+        }
+
+        /* ------------------------------------------------------------------
+           getStudentValue(deviceId, field)
+           Returns the student's current selection for a blank field.
+           Returns the pre-filled value for locked fields.
+           ------------------------------------------------------------------ */
+        function getStudentValue(dev, field) {
+            if (dev.pre.hasOwnProperty(field)) {
+                return dev.pre[field];
+            }
+            var sel = document.getElementById('sel-' + dev.id + '-' + field);
+            return sel ? sel.value : '';
+        }
+
+        /* ------------------------------------------------------------------
+           submitDocumentation()
+           Grades all blank fields, applies per-field visual feedback,
+           populates the results panel, and fires ModuleProgress on full pass.
+           ------------------------------------------------------------------ */
+        function submitDocumentation() {
+            var fields = ['mac', 'ip', 'vlan', 'iface'];
+            var totalBlanks = 0;
+            var correctBlanks = 0;
+
+            /* Reset all select styling first */
+            var allSelects = document.querySelectorAll('.field-select');
+            for (var s = 0; s < allSelects.length; s++) {
+                allSelects[s].classList.remove('correct', 'incorrect');
+            }
+
+            /* Build results detail rows */
+            var resultsBody = document.getElementById('resultsBody');
+            resultsBody.innerHTML = '';
+
+            for (var d = 0; d < DEVICES.length; d++) {
+                var dev = DEVICES[d];
+
+                for (var f = 0; f < fields.length; f++) {
+                    var field = fields[f];
+
+                    /* Skip pre-filled cells — they are always correct */
+                    if (dev.pre.hasOwnProperty(field)) { continue; }
+
+                    totalBlanks++;
+
+                    var sel = document.getElementById('sel-' + dev.id + '-' + field);
+                    var studentVal = sel ? sel.value : '';
+                    var correctVal = dev.answer[field];
+                    var isCorrect = (studentVal === correctVal);
+
+                    if (isCorrect) {
+                        correctBlanks++;
+                        if (sel) { sel.classList.add('correct'); }
+                    } else {
+                        if (sel) { sel.classList.add('incorrect'); }
+                    }
+
+                    /* Results detail row */
+                    var tr = document.createElement('tr');
+                    tr.className = isCorrect ? 'result-row-correct' : 'result-row-incorrect';
+
+                    var tdDev = document.createElement('td');
+                    tdDev.textContent = dev.name;
+                    tdDev.style.fontWeight = '600';
+
+                    var tdField = document.createElement('td');
+                    tdField.textContent = FIELD_LABELS[field];
+                    tdField.style.color = 'var(--text-mid)';
+                    tdField.style.fontSize = '0.82rem';
+
+                    var tdStudent = document.createElement('td');
+                    tdStudent.style.fontFamily = 'Courier New, monospace';
+                    tdStudent.style.fontSize = '0.8rem';
+                    tdStudent.textContent = studentVal || '(no selection)';
+                    tdStudent.style.color = isCorrect ? 'var(--success)' : 'var(--danger)';
+
+                    var tdCorrect = document.createElement('td');
+                    tdCorrect.style.fontFamily = 'Courier New, monospace';
+                    tdCorrect.style.fontSize = '0.8rem';
+                    tdCorrect.textContent = correctVal;
+                    tdCorrect.style.color = 'var(--text-mid)';
+
+                    var tdIcon = document.createElement('td');
+                    var iconSpan = document.createElement('span');
+                    iconSpan.className = isCorrect ? 'result-icon ok' : 'result-icon fail';
+                    iconSpan.textContent = isCorrect ? 'Correct' : 'Incorrect';
+                    tdIcon.appendChild(iconSpan);
+
+                    tr.appendChild(tdDev);
+                    tr.appendChild(tdField);
+                    tr.appendChild(tdStudent);
+                    tr.appendChild(tdCorrect);
+                    tr.appendChild(tdIcon);
+                    resultsBody.appendChild(tr);
+                }
+            }
+
+            var passed = (correctBlanks === totalBlanks);
+
+            /* Score display */
+            document.getElementById('scoreNum').textContent = correctBlanks;
+            document.getElementById('scoreNum').className = 'score-num ' + (passed ? 'pass' : 'fail');
+            document.getElementById('scoreDenom').textContent = '/ ' + totalBlanks + ' correct';
+            var verdict = document.getElementById('scoreVerdict');
+            if (passed) {
+                verdict.textContent = 'PASS — All fields documented correctly';
+                verdict.className = 'score-verdict pass';
+            } else {
+                verdict.textContent = 'NEEDS WORK — ' + (totalBlanks - correctBlanks) + ' field(s) incorrect';
+                verdict.className = 'score-verdict fail';
+            }
+
+            /* Pass banner and module completion */
+            var banner = document.getElementById('passBanner');
+            if (passed) {
+                banner.classList.add('visible');
+                if (typeof ModuleProgress !== 'undefined') {
+                    ModuleProgress.complete('web', 'web-pbq-network-discovery', {
+                        returnUrl: '../index.html'
+                    });
+                }
+            } else {
+                banner.classList.remove('visible');
+            }
+
+            /* Show results panel and scroll it into view */
+            var panel = document.getElementById('resultsPanel');
+            panel.classList.add('visible');
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        /* ------------------------------------------------------------------
+           resetAll()
+           Clears all dropdowns, removes validation styling, and hides
+           the results panel.
+           ------------------------------------------------------------------ */
+        function resetAll() {
+            var allSelects = document.querySelectorAll('.field-select');
+            for (var i = 0; i < allSelects.length; i++) {
+                allSelects[i].value = '';
+                allSelects[i].classList.remove('correct', 'incorrect');
+            }
+
+            document.getElementById('resultsPanel').classList.remove('visible');
+            document.getElementById('passBanner').classList.remove('visible');
+            document.getElementById('resultsBody').innerHTML = '';
+        }
+
+        /* ------------------------------------------------------------------
+           INIT
+           ------------------------------------------------------------------ */
+        buildTable();
+
+    </script>
+
+</body>
+</html>

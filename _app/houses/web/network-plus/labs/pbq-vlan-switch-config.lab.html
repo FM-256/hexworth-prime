@@ -1,0 +1,1495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PBQ: VLAN Switch Configuration | Network+</title>
+    <style>
+        /* ============================================================
+           ROOT VARIABLES
+           ============================================================ */
+        :root {
+            --bg:        #090910;
+            --bg-card:   #0f0f1a;
+            --bg-panel:  #14141f;
+            --bg-input:  #0a0a14;
+            --border:    rgba(6, 182, 212, 0.18);
+            --border-hi: rgba(6, 182, 212, 0.55);
+            --cyan:      #06b6d4;
+            --cyan-dim:  rgba(6, 182, 212, 0.12);
+            --cyan-glow: rgba(6, 182, 212, 0.25);
+            --text:      #e2e8f0;
+            --text-dim:  #64748b;
+            --text-mid:  #94a3b8;
+            --success:   #22c55e;
+            --success-bg: rgba(34, 197, 94, 0.12);
+            --danger:    #ef4444;
+            --danger-bg: rgba(239, 68, 68, 0.12);
+            --warn:      #f59e0b;
+            --warn-bg:   rgba(245, 158, 11, 0.1);
+            /* VLAN colour palette */
+            --v10:  #3b82f6;   /* blue  — Servers  */
+            --v10b: rgba(59, 130, 246, 0.18);
+            --v20:  #a855f7;   /* purple — HR      */
+            --v20b: rgba(168, 85, 247, 0.18);
+            --v30:  #f59e0b;   /* amber — Sales    */
+            --v30b: rgba(245, 158, 11, 0.18);
+            --v99:  #06b6d4;   /* cyan  — Native   */
+            --v99b: rgba(6, 182, 212, 0.18);
+            --trunk:#4ade80;   /* green — Trunk    */
+            --trunkb: rgba(74, 222, 128, 0.15);
+            --vdef: #475569;   /* slate — VLAN 1   */
+            --vdefb: rgba(71, 85, 105, 0.25);
+        }
+
+        /* ============================================================
+           RESET & BASE
+           ============================================================ */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* ============================================================
+           NAV BAR
+           ============================================================ */
+        .lab-nav {
+            padding: 11px 20px;
+            background: #0d0d17;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .lab-nav a {
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 0.84rem;
+            transition: color 0.2s;
+        }
+        .lab-nav a:hover { color: var(--cyan); }
+        .lab-nav .badge {
+            background: rgba(6,182,212,0.14);
+            color: var(--cyan);
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.6px;
+            padding: 3px 9px;
+            border-radius: 4px;
+        }
+
+        /* ============================================================
+           LAYOUT
+           ============================================================ */
+        .lab-wrap {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+
+        /* ============================================================
+           HEADER / SCENARIO
+           ============================================================ */
+        .lab-header {
+            background: var(--bg-card);
+            border: 1px solid var(--border-hi);
+            border-radius: 14px;
+            padding: 1.75rem 2rem;
+            margin-bottom: 1.75rem;
+            box-shadow: 0 0 28px var(--cyan-glow);
+        }
+        .lab-header h1 {
+            font-size: 1.7rem;
+            font-weight: 700;
+            color: var(--cyan);
+            margin-bottom: 0.4rem;
+            letter-spacing: -0.3px;
+        }
+        .lab-header .pbq-tag {
+            display: inline-block;
+            background: rgba(239,68,68,0.15);
+            color: #f87171;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            margin-bottom: 0.9rem;
+        }
+        .scenario-box {
+            background: var(--bg-panel);
+            border-left: 3px solid var(--cyan);
+            border-radius: 0 8px 8px 0;
+            padding: 0.9rem 1.2rem;
+            font-size: 0.92rem;
+            color: var(--text-mid);
+            margin-top: 0.75rem;
+        }
+        .scenario-box strong { color: var(--text); }
+        .lab-meta {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+        .lab-meta span { color: var(--text-mid); }
+
+        /* ============================================================
+           VLAN LEGEND
+           ============================================================ */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            margin-bottom: 1.5rem;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.78rem;
+            color: var(--text-mid);
+        }
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        /* ============================================================
+           TOPOLOGY DIAGRAM
+           ============================================================ */
+        .topology-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 1.5rem;
+            margin-bottom: 1.75rem;
+        }
+        .topology-section h2 {
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 1.25rem;
+        }
+
+        .topo-canvas {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            user-select: none;
+        }
+
+        /* Core switch block */
+        .topo-core {
+            background: var(--bg-panel);
+            border: 1.5px solid var(--border-hi);
+            border-radius: 8px;
+            padding: 0.5rem 2rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--cyan);
+            letter-spacing: 0.3px;
+            text-align: center;
+            min-width: 180px;
+        }
+        .topo-core .topo-sub {
+            font-size: 0.68rem;
+            font-weight: 400;
+            color: var(--text-dim);
+            margin-top: 1px;
+        }
+
+        /* Trunk link connector */
+        .topo-connector {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+        }
+        .topo-line {
+            width: 2px;
+            height: 28px;
+            background: var(--trunk);
+            opacity: 0.7;
+        }
+        .topo-trunk-label {
+            background: var(--trunkb);
+            border: 1px solid rgba(74,222,128,0.3);
+            color: var(--trunk);
+            font-size: 0.66rem;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            padding: 1px 6px;
+            border-radius: 3px;
+            margin: 3px 0;
+        }
+
+        /* Access switch block */
+        .topo-switch {
+            background: var(--bg-panel);
+            border: 1.5px solid var(--border-hi);
+            border-radius: 10px;
+            padding: 1rem 1.25rem 1.25rem;
+            min-width: 500px;
+            max-width: 640px;
+            width: 100%;
+        }
+        .topo-switch-header {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--cyan);
+            letter-spacing: 0.4px;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        /* Port grid inside the switch */
+        .port-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 6px;
+        }
+        .port-btn {
+            position: relative;
+            background: var(--bg-input);
+            border: 1.5px solid var(--border);
+            border-radius: 6px;
+            padding: 0.45rem 0.2rem 0.35rem;
+            cursor: pointer;
+            transition: border-color 0.18s, box-shadow 0.18s, transform 0.12s;
+            text-align: center;
+            outline: none;
+        }
+        .port-btn:hover {
+            border-color: var(--cyan);
+            box-shadow: 0 0 10px var(--cyan-glow);
+            transform: translateY(-1px);
+        }
+        .port-btn.active {
+            border-color: var(--cyan);
+            box-shadow: 0 0 14px var(--cyan-glow);
+        }
+        .port-btn.disabled-port {
+            opacity: 0.45;
+        }
+        .port-num {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--text-dim);
+            display: block;
+            margin-bottom: 4px;
+        }
+        .port-indicator {
+            width: 28px;
+            height: 16px;
+            border-radius: 3px;
+            margin: 0 auto;
+            transition: background 0.25s;
+        }
+        .port-vlan-label {
+            font-size: 0.58rem;
+            font-weight: 600;
+            margin-top: 4px;
+            display: block;
+            letter-spacing: 0.2px;
+        }
+
+        /* VLAN colour classes applied to port-indicator and port-btn */
+        .vlan-10  .port-indicator { background: var(--v10); }
+        .vlan-10  .port-vlan-label { color: var(--v10); }
+        .vlan-20  .port-indicator { background: var(--v20); }
+        .vlan-20  .port-vlan-label { color: var(--v20); }
+        .vlan-30  .port-indicator { background: var(--v30); }
+        .vlan-30  .port-vlan-label { color: var(--v30); }
+        .vlan-99  .port-indicator { background: var(--v99); }
+        .vlan-99  .port-vlan-label { color: var(--v99); }
+        .vlan-trunk .port-indicator { background: linear-gradient(135deg, var(--trunk), #22d3ee); }
+        .vlan-trunk .port-vlan-label { color: var(--trunk); }
+        .vlan-1   .port-indicator { background: var(--vdef); }
+        .vlan-1   .port-vlan-label { color: var(--text-dim); }
+
+        /* ============================================================
+           CONFIG PANEL
+           ============================================================ */
+        .config-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 1.5rem;
+            margin-bottom: 1.75rem;
+            transition: border-color 0.25s;
+        }
+        .config-section.has-port {
+            border-color: var(--border-hi);
+        }
+
+        .config-placeholder {
+            text-align: center;
+            padding: 2.5rem 1rem;
+            color: var(--text-dim);
+            font-size: 0.88rem;
+        }
+        .config-placeholder strong {
+            display: block;
+            font-size: 1rem;
+            color: var(--text-mid);
+            margin-bottom: 0.4rem;
+        }
+
+        .config-panel { display: none; }
+        .config-panel.visible { display: block; }
+
+        .config-panel-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.9rem;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .config-panel-header h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--cyan);
+        }
+        .config-panel-header .port-badge {
+            background: var(--cyan-dim);
+            color: var(--cyan);
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        .port-dept {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            margin-left: auto;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        @media (max-width: 620px) {
+            .config-grid { grid-template-columns: 1fr; }
+            .topo-switch { min-width: 0; }
+            .port-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+
+        .config-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+        .config-row.full-width {
+            grid-column: 1 / -1;
+        }
+        .config-row label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-dim);
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+        }
+
+        /* Toggle switch */
+        .toggle-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .toggle {
+            position: relative;
+            width: 42px;
+            height: 22px;
+            flex-shrink: 0;
+        }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle-track {
+            position: absolute;
+            inset: 0;
+            background: #1e1e2e;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 11px;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .toggle input:checked + .toggle-track { background: var(--cyan); border-color: var(--cyan); }
+        .toggle-track::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: #fff;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s;
+        }
+        .toggle input:checked + .toggle-track::after { transform: translateX(20px); }
+        .toggle-label {
+            font-size: 0.82rem;
+            color: var(--text-mid);
+        }
+        .toggle-label.on  { color: var(--success); }
+        .toggle-label.off { color: var(--text-dim); }
+
+        /* Select dropdown */
+        .cfg-select {
+            background: var(--bg-input);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 0.84rem;
+            padding: 0.45rem 0.65rem;
+            width: 100%;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            padding-right: 30px;
+        }
+        .cfg-select:focus {
+            outline: none;
+            border-color: var(--cyan);
+        }
+
+        /* Checkbox group for allowed VLANs */
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.1rem;
+        }
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.78rem;
+            font-weight: 400;
+            color: var(--text-mid);
+            letter-spacing: 0;
+            text-transform: none;
+            cursor: pointer;
+        }
+        .checkbox-group input[type="checkbox"] {
+            accent-color: var(--cyan);
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+        }
+
+        /* Conditional row visibility */
+        .access-only { display: none; }
+        .trunk-only  { display: none; }
+        .access-only.visible { display: flex; flex-direction: column; gap: 0.35rem; }
+        .trunk-only.visible  { display: flex; flex-direction: column; gap: 0.35rem; }
+
+        /* Port action buttons */
+        .port-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.25rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .btn-save {
+            padding: 0.5rem 1.4rem;
+            background: var(--cyan);
+            color: #000;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.84rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.12s;
+        }
+        .btn-save:hover { opacity: 0.85; transform: translateY(-1px); }
+        .btn-reset-port {
+            padding: 0.5rem 1.2rem;
+            background: transparent;
+            color: var(--text-dim);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            font-size: 0.84rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: border-color 0.2s, color 0.2s;
+        }
+        .btn-reset-port:hover { border-color: var(--cyan); color: var(--cyan); }
+
+        /* Save confirmation flash */
+        .save-flash {
+            display: none;
+            font-size: 0.78rem;
+            color: var(--success);
+            align-items: center;
+            gap: 0.3rem;
+            margin-left: auto;
+        }
+        .save-flash.show { display: flex; }
+
+        /* ============================================================
+           SUBMISSION AREA
+           ============================================================ */
+        .submit-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 1.5rem;
+        }
+        .submit-section h2 {
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 1.25rem;
+        }
+        .submit-btn-row {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .btn-submit {
+            padding: 0.65rem 2rem;
+            background: var(--cyan);
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.92rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.12s, box-shadow 0.2s;
+        }
+        .btn-submit:hover {
+            opacity: 0.88;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 18px var(--cyan-glow);
+        }
+        .btn-reset-all {
+            padding: 0.65rem 1.5rem;
+            background: transparent;
+            color: var(--text-dim);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            font-size: 0.92rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: border-color 0.2s, color 0.2s;
+        }
+        .btn-reset-all:hover { border-color: var(--danger); color: var(--danger); }
+
+        /* ============================================================
+           RESULTS PANEL
+           ============================================================ */
+        .results-panel {
+            display: none;
+            margin-top: 1.5rem;
+        }
+        .results-panel.visible { display: block; }
+
+        .results-score {
+            text-align: center;
+            padding: 1.25rem 1rem;
+            background: var(--bg-panel);
+            border-radius: 10px;
+            margin-bottom: 1.25rem;
+        }
+        .results-score .score-num {
+            font-size: 2.8rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+        .results-score .score-num.pass { color: var(--success); }
+        .results-score .score-num.fail { color: var(--danger); }
+        .results-score .score-label {
+            font-size: 0.82rem;
+            color: var(--text-dim);
+            margin-top: 0.3rem;
+        }
+        .results-score .score-verdict {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-top: 0.5rem;
+        }
+        .results-score .score-verdict.pass { color: var(--success); }
+        .results-score .score-verdict.fail { color: var(--danger); }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+            gap: 0.6rem;
+        }
+        .result-port {
+            background: var(--bg-panel);
+            border-radius: 8px;
+            padding: 0.7rem 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-size: 0.82rem;
+            border: 1px solid transparent;
+        }
+        .result-port.correct {
+            border-color: rgba(34, 197, 94, 0.3);
+            background: var(--success-bg);
+        }
+        .result-port.incorrect {
+            border-color: rgba(239, 68, 68, 0.3);
+            background: var(--danger-bg);
+        }
+        .result-icon {
+            font-size: 1rem;
+            flex-shrink: 0;
+            font-style: normal;
+        }
+        .result-port-info { flex: 1; }
+        .result-port-name {
+            font-weight: 700;
+            color: var(--text);
+        }
+        .result-port-msg {
+            color: var(--text-dim);
+            font-size: 0.74rem;
+            margin-top: 1px;
+        }
+        .result-port.correct .result-port-name { color: var(--success); }
+        .result-port.incorrect .result-port-name { color: var(--danger); }
+
+        /* Pass banner */
+        .pass-banner {
+            display: none;
+            background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(6,182,212,0.1));
+            border: 1px solid rgba(34,197,94,0.4);
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            margin-top: 1.25rem;
+            text-align: center;
+            color: var(--success);
+            font-weight: 700;
+            font-size: 1rem;
+        }
+        .pass-banner.visible { display: block; }
+        .pass-banner p {
+            color: var(--text-mid);
+            font-weight: 400;
+            font-size: 0.84rem;
+            margin-top: 0.4rem;
+        }
+
+        /* ============================================================
+           UTILITIES
+           ============================================================ */
+        .section-title {
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 1.25rem;
+        }
+
+        /* Instruction tip */
+        .tip {
+            background: var(--warn-bg);
+            border: 1px solid rgba(245,158,11,0.25);
+            border-radius: 8px;
+            padding: 0.7rem 1rem;
+            font-size: 0.82rem;
+            color: var(--text-mid);
+            margin-bottom: 1.25rem;
+        }
+        .tip strong { color: var(--warn); }
+    </style>
+</head>
+<body>
+
+    <!-- Navigation bar -->
+    <nav class="lab-nav">
+        <a href="../index.html">&larr; Network+ Hub</a>
+        <span class="badge">PBQ LAB</span>
+    </nav>
+
+    <div class="lab-wrap">
+
+        <!-- ============================================================
+             HEADER / SCENARIO
+             ============================================================ -->
+        <header class="lab-header">
+            <span class="pbq-tag">PERFORMANCE-BASED QUESTION</span>
+            <h1>VLAN Switch Port Configuration</h1>
+            <div class="scenario-box">
+                <strong>Scenario:</strong> A network technician replaced an access layer switch and needs to
+                reconfigure it. The switch connects to devices in multiple departments. Configure each port
+                with the correct VLAN assignment based on the topology below.
+            </div>
+            <div class="lab-meta">
+                <span>CompTIA Network+ Objective 2.3</span>
+                <span>Access / Trunk / LACP</span>
+                <span>8 Ports to Configure</span>
+            </div>
+        </header>
+
+        <!-- ============================================================
+             TOPOLOGY DIAGRAM
+             ============================================================ -->
+        <section class="topology-section">
+            <h2 class="section-title">Network Topology</h2>
+
+            <!-- VLAN legend -->
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:var(--v10)"></div>
+                    <span>VLAN 10 &mdash; Servers</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:var(--v20)"></div>
+                    <span>VLAN 20 &mdash; HR</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:var(--v30)"></div>
+                    <span>VLAN 30 &mdash; Sales</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:var(--trunk)"></div>
+                    <span>Trunk (Ports 7&ndash;8)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:var(--vdef)"></div>
+                    <span>VLAN 1 &mdash; Default</span>
+                </div>
+            </div>
+
+            <div class="topo-canvas">
+
+                <!-- Core switch -->
+                <div class="topo-core">
+                    Core Switch (Uplink)
+                    <div class="topo-sub">Distribution Layer</div>
+                </div>
+
+                <!-- Trunk connector -->
+                <div class="topo-connector">
+                    <div class="topo-line"></div>
+                    <div class="topo-trunk-label">TRUNK &mdash; 802.1Q / LACP</div>
+                    <div class="topo-line"></div>
+                </div>
+
+                <!-- Access switch with port grid -->
+                <div class="topo-switch">
+                    <div class="topo-switch-header">Access Switch &mdash; 8 Ports (Click a port to configure)</div>
+                    <div class="port-grid" id="portGrid">
+                        <!-- Ports rendered by JS -->
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ============================================================
+             CONFIG PANEL
+             ============================================================ -->
+        <section class="config-section" id="configSection">
+            <h2 class="section-title">Port Configuration</h2>
+
+            <!-- Placeholder shown when no port is selected -->
+            <div class="config-placeholder" id="configPlaceholder">
+                <strong>No port selected</strong>
+                Click a port in the switch diagram above to open its configuration panel.
+            </div>
+
+            <!-- Active config form (hidden until a port is selected) -->
+            <div class="config-panel" id="configPanel">
+
+                <div class="config-panel-header">
+                    <h3 id="panelPortName">Port 1</h3>
+                    <span class="port-badge" id="panelPortBadge">Fa0/1</span>
+                    <span class="port-dept" id="panelPortDept">Server Room</span>
+                </div>
+
+                <div class="tip">
+                    <strong>Instruction:</strong> Set the port status, mode, and VLAN assignment to match
+                    the correct configuration for this port's department. Press <strong>Save Port</strong>
+                    to apply your changes to the switch diagram.
+                </div>
+
+                <div class="config-grid">
+
+                    <!-- Port Status toggle -->
+                    <div class="config-row">
+                        <label>Port Status</label>
+                        <div class="toggle-wrap">
+                            <label class="toggle">
+                                <input type="checkbox" id="cfgEnabled">
+                                <span class="toggle-track"></span>
+                            </label>
+                            <span class="toggle-label" id="enabledLabel">Disabled</span>
+                        </div>
+                    </div>
+
+                    <!-- Port Mode dropdown -->
+                    <div class="config-row">
+                        <label>Port Mode</label>
+                        <select class="cfg-select" id="cfgMode">
+                            <option value="access">Access</option>
+                            <option value="trunk">Trunk</option>
+                        </select>
+                    </div>
+
+                    <!-- Access: VLAN Assignment (visible when mode = access) -->
+                    <div class="config-row access-only" id="rowAccessVlan">
+                        <label>VLAN Assignment</label>
+                        <select class="cfg-select" id="cfgAccessVlan">
+                            <option value="1">VLAN 1 (Default)</option>
+                            <option value="10">VLAN 10 (Servers)</option>
+                            <option value="20">VLAN 20 (HR)</option>
+                            <option value="30">VLAN 30 (Sales)</option>
+                            <option value="99">VLAN 99 (Native)</option>
+                        </select>
+                    </div>
+
+                    <!-- Trunk: Native VLAN (visible when mode = trunk) -->
+                    <div class="config-row trunk-only" id="rowNativeVlan">
+                        <label>Native VLAN</label>
+                        <select class="cfg-select" id="cfgNativeVlan">
+                            <option value="1">VLAN 1 (Default)</option>
+                            <option value="10">VLAN 10</option>
+                            <option value="20">VLAN 20</option>
+                            <option value="30">VLAN 30</option>
+                            <option value="99">VLAN 99</option>
+                        </select>
+                    </div>
+
+                    <!-- Trunk: Allowed VLANs (visible when mode = trunk) -->
+                    <div class="config-row trunk-only" id="rowAllowedVlans">
+                        <label>Allowed VLANs</label>
+                        <div class="checkbox-group">
+                            <label>
+                                <input type="checkbox" id="cfgAllow10"> VLAN 10
+                            </label>
+                            <label>
+                                <input type="checkbox" id="cfgAllow20"> VLAN 20
+                            </label>
+                            <label>
+                                <input type="checkbox" id="cfgAllow30"> VLAN 30
+                            </label>
+                            <label>
+                                <input type="checkbox" id="cfgAllow99"> VLAN 99
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- LACP toggle -->
+                    <div class="config-row" id="rowLACP">
+                        <label>LACP (Link Aggregation)</label>
+                        <div class="toggle-wrap">
+                            <label class="toggle">
+                                <input type="checkbox" id="cfgLACP">
+                                <span class="toggle-track"></span>
+                            </label>
+                            <span class="toggle-label" id="lacpLabel">Disabled</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Port action buttons -->
+                <div class="port-actions">
+                    <button class="btn-save" id="btnSavePort" onclick="savePort()">Save Port</button>
+                    <button class="btn-reset-port" onclick="resetPort()">Reset to Initial</button>
+                    <span class="save-flash" id="saveFlash">Saved</span>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ============================================================
+             SUBMIT / RESET
+             ============================================================ -->
+        <section class="submit-section">
+            <h2 class="section-title">Verification</h2>
+            <p style="font-size:0.86rem; color:var(--text-mid); margin-bottom:1.1rem;">
+                Configure all 8 ports correctly and then submit your configuration for grading.
+                All 8 ports must be correct to pass.
+            </p>
+            <div class="submit-btn-row">
+                <button class="btn-submit" onclick="submitConfiguration()">Submit Configuration</button>
+                <button class="btn-reset-all" onclick="resetAll()">Reset All Ports</button>
+            </div>
+
+            <!-- Results panel (hidden until submitted) -->
+            <div class="results-panel" id="resultsPanel">
+
+                <div class="results-score" id="resultsScore">
+                    <div class="score-num" id="scoreNum">0/8</div>
+                    <div class="score-label">ports configured correctly</div>
+                    <div class="score-verdict" id="scoreVerdict"></div>
+                </div>
+
+                <div class="results-grid" id="resultsGrid"></div>
+
+                <div class="pass-banner" id="passBanner">
+                    Configuration Verified — All 8 Ports Correct
+                    <p>
+                        You have successfully reconfigured the access switch. VLAN segmentation,
+                        trunk links, and LACP bonding are all operational.
+                    </p>
+                </div>
+
+            </div>
+        </section>
+
+    </div><!-- /.lab-wrap -->
+
+    <!-- ============================================================
+         JAVASCRIPT
+         ============================================================ -->
+    <script>
+        /* ------------------------------------------------------------------
+           PORT METADATA
+           Defines display info and correct answer for each of the 8 ports.
+           ------------------------------------------------------------------ */
+        var PORT_META = [
+            {
+                id: 1,
+                label: 'Fa0/1',
+                dept: 'Server Room',
+                desc: 'Server Room device'
+            },
+            {
+                id: 2,
+                label: 'Fa0/2',
+                dept: 'Server Room',
+                desc: 'Server Room device'
+            },
+            {
+                id: 3,
+                label: 'Fa0/3',
+                dept: 'HR Department',
+                desc: 'HR Department device'
+            },
+            {
+                id: 4,
+                label: 'Fa0/4',
+                dept: 'HR Department',
+                desc: 'HR Department device'
+            },
+            {
+                id: 5,
+                label: 'Fa0/5',
+                dept: 'Sales Floor',
+                desc: 'Sales Floor device'
+            },
+            {
+                id: 6,
+                label: 'Fa0/6',
+                dept: 'Sales Floor',
+                desc: 'Sales Floor device'
+            },
+            {
+                id: 7,
+                label: 'Fa0/7',
+                dept: 'Uplink to Core',
+                desc: 'Trunk uplink (LACP bond)'
+            },
+            {
+                id: 8,
+                label: 'Fa0/8',
+                dept: 'Uplink to Core',
+                desc: 'Trunk uplink (LACP bond)'
+            }
+        ];
+
+        /* ------------------------------------------------------------------
+           CORRECT ANSWERS
+           Each property mirrors what the student must set.
+           allowed: array of VLAN IDs that must be checked on trunk ports.
+           ------------------------------------------------------------------ */
+        var CORRECT = [
+            /* Port 1 */ { enabled: true,  mode: 'access', accessVlan: '10', nativeVlan: '99', allowed: ['10','20','30','99'], lacp: false },
+            /* Port 2 */ { enabled: true,  mode: 'access', accessVlan: '10', nativeVlan: '99', allowed: ['10','20','30','99'], lacp: false },
+            /* Port 3 */ { enabled: true,  mode: 'access', accessVlan: '20', nativeVlan: '99', allowed: ['10','20','30','99'], lacp: false },
+            /* Port 4 */ { enabled: true,  mode: 'access', accessVlan: '20', nativeVlan: '99', allowed: ['10','20','30','99'], lacp: false },
+            /* Port 5 */ { enabled: true,  mode: 'access', accessVlan: '30', nativeVlan: '99', allowed: ['10','20','30','99'], lacp: false },
+            /* Port 6 */ { enabled: true,  mode: 'access', accessVlan: '30', nativeVlan: '99', allowed: ['10','20','30','99'], lacp: false },
+            /* Port 7 */ { enabled: true,  mode: 'trunk',  accessVlan: '1',  nativeVlan: '99', allowed: ['10','20','30','99'], lacp: true  },
+            /* Port 8 */ { enabled: true,  mode: 'trunk',  accessVlan: '1',  nativeVlan: '99', allowed: ['10','20','30','99'], lacp: true  }
+        ];
+
+        /* ------------------------------------------------------------------
+           INITIAL (MISCONFIGURED) STATE
+           This is what the switch looks like after the hardware swap.
+           Students must find and fix each error.
+           ------------------------------------------------------------------ */
+        var INITIAL = [
+            /* Port 1 — Enabled, Access, VLAN 1  (wrong VLAN)              */
+            { enabled: true,  mode: 'access', accessVlan: '1',  nativeVlan: '1',  allowed: ['10','20','30','99'], lacp: false },
+            /* Port 2 — Disabled (wrong — should be enabled, VLAN 10)      */
+            { enabled: false, mode: 'access', accessVlan: '1',  nativeVlan: '1',  allowed: [],                   lacp: false },
+            /* Port 3 — Enabled, Access, VLAN 30 (wrong — should be 20)    */
+            { enabled: true,  mode: 'access', accessVlan: '30', nativeVlan: '1',  allowed: [],                   lacp: false },
+            /* Port 4 — Enabled, Access, VLAN 20 (correct)                 */
+            { enabled: true,  mode: 'access', accessVlan: '20', nativeVlan: '1',  allowed: [],                   lacp: false },
+            /* Port 5 — Enabled, Access, VLAN 20 (wrong — should be 30)    */
+            { enabled: true,  mode: 'access', accessVlan: '20', nativeVlan: '1',  allowed: [],                   lacp: false },
+            /* Port 6 — Enabled, Access, VLAN 30 (correct)                 */
+            { enabled: true,  mode: 'access', accessVlan: '30', nativeVlan: '1',  allowed: [],                   lacp: false },
+            /* Port 7 — Enabled, Trunk, Native VLAN 1 (wrong), LACP off    */
+            { enabled: true,  mode: 'trunk',  accessVlan: '1',  nativeVlan: '1',  allowed: ['10','20','30','99'], lacp: false },
+            /* Port 8 — Disabled, mode not set (wrong — needs trunk + LACP) */
+            { enabled: false, mode: 'access', accessVlan: '1',  nativeVlan: '1',  allowed: [],                   lacp: false }
+        ];
+
+        /* ------------------------------------------------------------------
+           LIVE STATE
+           Deep-copied from INITIAL at load time. Mutated by savePort().
+           ------------------------------------------------------------------ */
+        var portState = [];
+
+        /* Currently selected port index (0-based), or null */
+        var activePort = null;
+
+        /* ------------------------------------------------------------------
+           BOOT
+           ------------------------------------------------------------------ */
+        function init() {
+            deepCopyInitial();
+            renderPortGrid();
+        }
+
+        /* Creates a deep copy of INITIAL into portState */
+        function deepCopyInitial() {
+            portState = [];
+            for (var i = 0; i < INITIAL.length; i++) {
+                var src = INITIAL[i];
+                portState.push({
+                    enabled:    src.enabled,
+                    mode:       src.mode,
+                    accessVlan: src.accessVlan,
+                    nativeVlan: src.nativeVlan,
+                    allowed:    src.allowed.slice(),
+                    lacp:       src.lacp
+                });
+            }
+        }
+
+        /* ------------------------------------------------------------------
+           PORT GRID RENDERING
+           Builds the 8 port buttons inside #portGrid.
+           ------------------------------------------------------------------ */
+        function renderPortGrid() {
+            var grid = document.getElementById('portGrid');
+            grid.innerHTML = '';
+
+            for (var i = 0; i < 8; i++) {
+                var btn = document.createElement('button');
+                btn.className = 'port-btn';
+                btn.id = 'portBtn' + i;
+                btn.setAttribute('aria-label', PORT_META[i].label + ' — ' + PORT_META[i].dept);
+
+                /* Build inner markup via textContent + child elements (no innerHTML with user data) */
+                var numSpan = document.createElement('span');
+                numSpan.className = 'port-num';
+                numSpan.textContent = PORT_META[i].label;
+
+                var indicator = document.createElement('div');
+                indicator.className = 'port-indicator';
+
+                var vlanLabel = document.createElement('span');
+                vlanLabel.className = 'port-vlan-label';
+
+                btn.appendChild(numSpan);
+                btn.appendChild(indicator);
+                btn.appendChild(vlanLabel);
+
+                /* Attach click with closure capturing index */
+                (function(idx) {
+                    btn.addEventListener('click', function() { selectPort(idx); });
+                })(i);
+
+                grid.appendChild(btn);
+                updatePortVisual(i);
+            }
+        }
+
+        /* Updates the colour class and label text on a single port button */
+        function updatePortVisual(idx) {
+            var btn = document.getElementById('portBtn' + idx);
+            if (!btn) { return; }
+
+            var state  = portState[idx];
+            var label  = btn.querySelector('.port-vlan-label');
+
+            /* Remove all vlan colour classes */
+            btn.classList.remove(
+                'vlan-1', 'vlan-10', 'vlan-20', 'vlan-30',
+                'vlan-99', 'vlan-trunk', 'disabled-port', 'active'
+            );
+
+            if (!state.enabled) {
+                btn.classList.add('disabled-port');
+                label.textContent = 'DISABLED';
+            } else if (state.mode === 'trunk') {
+                btn.classList.add('vlan-trunk');
+                label.textContent = 'TRUNK';
+            } else {
+                btn.classList.add('vlan-' + state.accessVlan);
+                label.textContent = 'V' + state.accessVlan;
+            }
+
+            /* Highlight if active */
+            if (activePort === idx) {
+                btn.classList.add('active');
+            }
+        }
+
+        /* ------------------------------------------------------------------
+           PORT SELECTION
+           Loads a port's state into the config panel.
+           ------------------------------------------------------------------ */
+        function selectPort(idx) {
+            /* Deactivate previously selected port */
+            if (activePort !== null) {
+                var prev = document.getElementById('portBtn' + activePort);
+                if (prev) { prev.classList.remove('active'); }
+            }
+
+            activePort = idx;
+
+            var btn = document.getElementById('portBtn' + idx);
+            if (btn) { btn.classList.add('active'); }
+
+            /* Show panel, hide placeholder */
+            document.getElementById('configPlaceholder').style.display = 'none';
+            document.getElementById('configPanel').classList.add('visible');
+            document.getElementById('configSection').classList.add('has-port');
+
+            /* Populate panel fields */
+            var meta  = PORT_META[idx];
+            var state = portState[idx];
+
+            document.getElementById('panelPortName').textContent = 'Port ' + meta.id;
+            document.getElementById('panelPortBadge').textContent = meta.label;
+            document.getElementById('panelPortDept').textContent = meta.dept;
+
+            var enabledCb = document.getElementById('cfgEnabled');
+            enabledCb.checked = state.enabled;
+            updateEnabledLabel(state.enabled);
+
+            document.getElementById('cfgMode').value = state.mode;
+            document.getElementById('cfgAccessVlan').value = state.accessVlan;
+            document.getElementById('cfgNativeVlan').value = state.nativeVlan;
+
+            /* Allowed VLANs checkboxes */
+            document.getElementById('cfgAllow10').checked = state.allowed.indexOf('10') !== -1;
+            document.getElementById('cfgAllow20').checked = state.allowed.indexOf('20') !== -1;
+            document.getElementById('cfgAllow30').checked = state.allowed.indexOf('30') !== -1;
+            document.getElementById('cfgAllow99').checked = state.allowed.indexOf('99') !== -1;
+
+            var lacpCb = document.getElementById('cfgLACP');
+            lacpCb.checked = state.lacp;
+            updateLacpLabel(state.lacp);
+
+            /* Show/hide access vs trunk rows */
+            updateModeRows(state.mode);
+
+            /* Hide save flash */
+            hideSaveFlash();
+        }
+
+        /* ------------------------------------------------------------------
+           MODE ROW VISIBILITY
+           ------------------------------------------------------------------ */
+        function updateModeRows(mode) {
+            var accessRows = document.querySelectorAll('.access-only');
+            var trunkRows  = document.querySelectorAll('.trunk-only');
+
+            for (var i = 0; i < accessRows.length; i++) {
+                accessRows[i].classList.toggle('visible', mode === 'access');
+            }
+            for (var j = 0; j < trunkRows.length; j++) {
+                trunkRows[j].classList.toggle('visible', mode === 'trunk');
+            }
+        }
+
+        /* Live mode dropdown change */
+        document.getElementById('cfgMode').addEventListener('change', function() {
+            updateModeRows(this.value);
+        });
+
+        /* Live enabled toggle change */
+        document.getElementById('cfgEnabled').addEventListener('change', function() {
+            updateEnabledLabel(this.checked);
+        });
+
+        /* Live LACP toggle change */
+        document.getElementById('cfgLACP').addEventListener('change', function() {
+            updateLacpLabel(this.checked);
+        });
+
+        function updateEnabledLabel(on) {
+            var lbl = document.getElementById('enabledLabel');
+            lbl.textContent = on ? 'Enabled' : 'Disabled';
+            lbl.className = 'toggle-label ' + (on ? 'on' : 'off');
+        }
+
+        function updateLacpLabel(on) {
+            var lbl = document.getElementById('lacpLabel');
+            lbl.textContent = on ? 'Enabled' : 'Disabled';
+            lbl.className = 'toggle-label ' + (on ? 'on' : 'off');
+        }
+
+        /* ------------------------------------------------------------------
+           SAVE PORT
+           Reads all panel inputs and writes them into portState[activePort].
+           ------------------------------------------------------------------ */
+        function savePort() {
+            if (activePort === null) { return; }
+
+            var mode = document.getElementById('cfgMode').value;
+            var allowed = [];
+            if (document.getElementById('cfgAllow10').checked) { allowed.push('10'); }
+            if (document.getElementById('cfgAllow20').checked) { allowed.push('20'); }
+            if (document.getElementById('cfgAllow30').checked) { allowed.push('30'); }
+            if (document.getElementById('cfgAllow99').checked) { allowed.push('99'); }
+
+            portState[activePort] = {
+                enabled:    document.getElementById('cfgEnabled').checked,
+                mode:       mode,
+                accessVlan: document.getElementById('cfgAccessVlan').value,
+                nativeVlan: document.getElementById('cfgNativeVlan').value,
+                allowed:    allowed,
+                lacp:       document.getElementById('cfgLACP').checked
+            };
+
+            /* Refresh the port visual in the diagram */
+            updatePortVisual(activePort);
+
+            /* Flash save confirmation */
+            showSaveFlash();
+        }
+
+        /* ------------------------------------------------------------------
+           RESET PORT (single port back to initial state)
+           ------------------------------------------------------------------ */
+        function resetPort() {
+            if (activePort === null) { return; }
+
+            var src = INITIAL[activePort];
+            portState[activePort] = {
+                enabled:    src.enabled,
+                mode:       src.mode,
+                accessVlan: src.accessVlan,
+                nativeVlan: src.nativeVlan,
+                allowed:    src.allowed.slice(),
+                lacp:       src.lacp
+            };
+
+            /* Re-populate the panel with reset values */
+            selectPort(activePort);
+            updatePortVisual(activePort);
+        }
+
+        /* ------------------------------------------------------------------
+           RESET ALL (restores entire switch to broken initial state)
+           ------------------------------------------------------------------ */
+        function resetAll() {
+            deepCopyInitial();
+
+            /* Update all port visuals */
+            for (var i = 0; i < 8; i++) {
+                updatePortVisual(i);
+            }
+
+            /* If a port was open, re-load its panel to reflect reset values */
+            if (activePort !== null) {
+                selectPort(activePort);
+            }
+
+            /* Hide any previous results */
+            document.getElementById('resultsPanel').classList.remove('visible');
+        }
+
+        /* ------------------------------------------------------------------
+           SAVE FLASH HELPERS
+           ------------------------------------------------------------------ */
+        var _flashTimer = null;
+
+        function showSaveFlash() {
+            var el = document.getElementById('saveFlash');
+            el.classList.add('show');
+            if (_flashTimer) { clearTimeout(_flashTimer); }
+            _flashTimer = setTimeout(function() { hideSaveFlash(); }, 1800);
+        }
+
+        function hideSaveFlash() {
+            document.getElementById('saveFlash').classList.remove('show');
+        }
+
+        /* ------------------------------------------------------------------
+           SUBMIT CONFIGURATION
+           Checks all 8 ports against CORRECT array and displays results.
+           ------------------------------------------------------------------ */
+        function submitConfiguration() {
+            var correct = 0;
+            var portResults = [];
+
+            for (var i = 0; i < 8; i++) {
+                var s = portState[i];
+                var c = CORRECT[i];
+                var ok = checkPort(s, c);
+                if (ok) { correct++; }
+                portResults.push({ ok: ok, portIdx: i });
+            }
+
+            var passed = (correct === 8);
+
+            /* Score display */
+            var scoreNum     = document.getElementById('scoreNum');
+            var scoreVerdict = document.getElementById('scoreVerdict');
+
+            scoreNum.textContent = correct + '/8';
+            scoreNum.className   = 'score-num ' + (passed ? 'pass' : 'fail');
+
+            if (passed) {
+                scoreVerdict.textContent = 'PASS — All ports correctly configured';
+                scoreVerdict.className   = 'score-verdict pass';
+            } else {
+                scoreVerdict.textContent = 'NEEDS WORK — ' + (8 - correct) + ' port(s) incorrect';
+                scoreVerdict.className   = 'score-verdict fail';
+            }
+
+            /* Per-port result cards */
+            var grid = document.getElementById('resultsGrid');
+            grid.innerHTML = '';
+
+            for (var j = 0; j < portResults.length; j++) {
+                var r    = portResults[j];
+                var meta = PORT_META[r.portIdx];
+                var card = document.createElement('div');
+                card.className = 'result-port ' + (r.ok ? 'correct' : 'incorrect');
+
+                var icon = document.createElement('i');
+                icon.className = 'result-icon';
+                icon.textContent = r.ok ? '[OK]' : '[X]';
+                icon.setAttribute('aria-hidden', 'true');
+
+                var info = document.createElement('div');
+                info.className = 'result-port-info';
+
+                var nameLine = document.createElement('div');
+                nameLine.className = 'result-port-name';
+                nameLine.textContent = 'Port ' + meta.id + ' (' + meta.label + ')';
+
+                var msgLine = document.createElement('div');
+                msgLine.className = 'result-port-msg';
+                msgLine.textContent = r.ok
+                    ? meta.dept + ' — correct'
+                    : buildMismatchMsg(portState[r.portIdx], CORRECT[r.portIdx]);
+
+                info.appendChild(nameLine);
+                info.appendChild(msgLine);
+                card.appendChild(icon);
+                card.appendChild(info);
+                grid.appendChild(card);
+            }
+
+            /* Pass banner + completion */
+            var banner = document.getElementById('passBanner');
+            if (passed) {
+                banner.classList.add('visible');
+                if (typeof ModuleProgress !== 'undefined') {
+                    ModuleProgress.complete('web', 'web-pbq-vlan-switch', { returnUrl: '../index.html' });
+                }
+            } else {
+                banner.classList.remove('visible');
+            }
+
+            /* Show the results panel */
+            document.getElementById('resultsPanel').classList.add('visible');
+
+            /* Scroll results into view */
+            document.getElementById('resultsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        /* ------------------------------------------------------------------
+           PORT CHECKER
+           Returns true if the student's port config matches the correct answer.
+           For access ports: only enabled, mode, and accessVlan matter.
+           For trunk ports:  enabled, mode, nativeVlan, allowed, and lacp matter.
+           ------------------------------------------------------------------ */
+        function checkPort(s, c) {
+            /* Status must match */
+            if (s.enabled !== c.enabled) { return false; }
+
+            /* Mode must match */
+            if (s.mode !== c.mode) { return false; }
+
+            if (s.mode === 'access') {
+                /* Access port: VLAN assignment */
+                return s.accessVlan === c.accessVlan;
+            }
+
+            /* Trunk port checks */
+            if (s.nativeVlan !== c.nativeVlan) { return false; }
+            if (s.lacp !== c.lacp) { return false; }
+
+            /* Allowed VLANs must contain exactly the required IDs */
+            var correctAllowed = c.allowed.slice().sort().join(',');
+            var studentAllowed = s.allowed.slice().sort().join(',');
+            return studentAllowed === correctAllowed;
+        }
+
+        /* Builds a short mismatch description for the result card */
+        function buildMismatchMsg(s, c) {
+            if (s.enabled !== c.enabled) {
+                return 'Port should be ' + (c.enabled ? 'enabled' : 'disabled');
+            }
+            if (s.mode !== c.mode) {
+                return 'Mode should be ' + c.mode;
+            }
+            if (s.mode === 'access' && s.accessVlan !== c.accessVlan) {
+                return 'Should be VLAN ' + c.accessVlan;
+            }
+            if (s.mode === 'trunk') {
+                if (s.nativeVlan !== c.nativeVlan) {
+                    return 'Native VLAN should be ' + c.nativeVlan;
+                }
+                if (s.lacp !== c.lacp) {
+                    return 'LACP should be ' + (c.lacp ? 'enabled' : 'disabled');
+                }
+                return 'Allowed VLANs incorrect';
+            }
+            return 'Check configuration';
+        }
+
+        /* ------------------------------------------------------------------
+           START
+           ------------------------------------------------------------------ */
+        init();
+    </script>
+
+</body>
+</html>

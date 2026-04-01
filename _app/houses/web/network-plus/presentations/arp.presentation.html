@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARP: Address Resolution Protocol | Network+ N10-009</title>
+    <style>
+        /* =====================================================
+           RESET & BASE
+           ===================================================== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden; /* No scrolling — slides are viewport-fit */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* =====================================================
+           SLIDE SYSTEM — viewport-locked, no overflow
+           ===================================================== */
+        .slide {
+            display: none;
+            position: fixed;
+            inset: 0;
+            padding: 20px 28px 72px; /* bottom clearance for nav bar */
+            overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Inner wrapper — constrains content width */
+        .slide-inner {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* =====================================================
+           PROGRESS BAR
+           ===================================================== */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: #8a5cb5;
+            transition: width 0.4s ease;
+            z-index: 200;
+        }
+
+        /* =====================================================
+           NAVIGATION BAR — fixed bottom
+           ===================================================== */
+        #nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            z-index: 200;
+            padding: 0 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(6, 182, 212, 0.15);
+            color: #06b6d4;
+            border-color: #06b6d4;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.back-btn {
+            font-size: 0.82rem;
+            padding: 8px 16px;
+        }
+
+        #slide-counter {
+            color: #64748b;
+            font-size: 0.82rem;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        #complete-btn {
+            display: none;
+            background: #8a5cb5;
+            color: #fff;
+            border: none;
+            padding: 9px 26px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+
+        #complete-btn:hover {
+            background: #a270d0;
+            transform: translateY(-1px);
+        }
+
+        /* =====================================================
+           SLIDE HEADER — shared across all slides
+           ===================================================== */
+        .slide-meta {
+            font-size: 0.78rem;
+            color: #8a5cb5;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .slide-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            text-align: center;
+            line-height: 1.25;
+        }
+
+        .slide-title span.accent-purple {
+            color: #8a5cb5;
+        }
+
+        .slide-title span.accent-cyan {
+            color: #06b6d4;
+        }
+
+        .slide-subtitle {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        /* =====================================================
+           SCENARIO STRIP — recurring narrative thread
+           ===================================================== */
+        .scenario-strip {
+            background: rgba(138, 92, 181, 0.08);
+            border-left: 3px solid #8a5cb5;
+            border-radius: 0 8px 8px 0;
+            padding: 10px 16px;
+            font-size: 0.88rem;
+            color: #d8b4fe;
+            font-style: italic;
+        }
+
+        /* =====================================================
+           INFO / WARNING / TIP BOXES
+           ===================================================== */
+        .box {
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.875rem;
+        }
+
+        .box-purple {
+            background: rgba(138, 92, 181, 0.08);
+            border: 1px solid rgba(138, 92, 181, 0.3);
+            color: #e9d5ff;
+        }
+
+        .box-cyan {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            color: #cffafe;
+        }
+
+        .box-green {
+            background: rgba(58, 181, 119, 0.08);
+            border: 1px solid rgba(58, 181, 119, 0.35);
+            color: #d1fae5;
+        }
+
+        .box-red {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fee2e2;
+        }
+
+        .box-gold {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            color: #fef3c7;
+        }
+
+        .box-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+            opacity: 0.75;
+        }
+
+        /* =====================================================
+           SLIDE 1 — TITLE
+           ===================================================== */
+        .title-hero {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .title-hero .big-title {
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: #f1f5f9;
+            line-height: 1.2;
+        }
+
+        .title-hero .big-title .purple { color: #8a5cb5; }
+        .title-hero .big-title .cyan   { color: #06b6d4; }
+
+        .title-meta-row {
+            display: flex;
+            gap: 28px;
+            justify-content: center;
+            margin-top: 6px;
+            font-size: 0.82rem;
+            color: #475569;
+        }
+
+        .title-meta-row span {
+            border-left: 2px solid #1e293b;
+            padding-left: 28px;
+        }
+
+        .title-meta-row span:first-child {
+            border-left: none;
+            padding-left: 0;
+        }
+
+        /* =====================================================
+           SLIDE 2 — THE PROBLEM: two-column layout
+           ===================================================== */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .col-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            padding: 16px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .col-card.col-have {
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .col-card.col-need {
+            border: 1px solid rgba(138, 92, 181, 0.3);
+        }
+
+        .col-card-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+        }
+
+        .col-have .col-card-label { color: #06b6d4; }
+        .col-need .col-card-label { color: #8a5cb5; }
+
+        .col-card-value {
+            font-family: 'Courier New', monospace;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .col-have .col-card-value { color: #06b6d4; }
+        .col-need .col-card-value { color: #8a5cb5; }
+
+        .col-card-note {
+            font-size: 0.82rem;
+            color: #64748b;
+            line-height: 1.4;
+        }
+
+        .layer-badge {
+            display: inline-block;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            border-radius: 4px;
+            padding: 2px 8px;
+        }
+
+        .layer-badge.l3 {
+            background: rgba(6, 182, 212, 0.12);
+            color: #06b6d4;
+            border: 1px solid rgba(6, 182, 212, 0.25);
+        }
+
+        .layer-badge.l2 {
+            background: rgba(138, 92, 181, 0.12);
+            color: #c084fc;
+            border: 1px solid rgba(138, 92, 181, 0.25);
+        }
+
+        .bridge-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+
+        .bridge-arrow {
+            color: #8a5cb5;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        /* =====================================================
+           SLIDE 3 — ARP REQUEST/REPLY VISUAL
+           ===================================================== */
+        .arp-flow {
+            display: grid;
+            grid-template-columns: 1fr 40px 1fr 40px 1fr;
+            gap: 0;
+            align-items: center;
+        }
+
+        .flow-node {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 10px 12px;
+            text-align: center;
+            font-size: 0.82rem;
+        }
+
+        .flow-node.node-sender {
+            border: 1px solid rgba(6, 182, 212, 0.35);
+        }
+
+        .flow-node.node-crowd {
+            border: 1px solid rgba(100, 116, 139, 0.3);
+        }
+
+        .flow-node.node-target {
+            border: 1px solid rgba(138, 92, 181, 0.35);
+        }
+
+        .flow-node .fn-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 4px;
+        }
+
+        .node-sender .fn-label { color: #06b6d4; }
+        .node-crowd  .fn-label { color: #64748b; }
+        .node-target .fn-label { color: #8a5cb5; }
+
+        .flow-node .fn-ip {
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            color: #e2e8f0;
+            font-size: 0.88rem;
+        }
+
+        .flow-node .fn-mac {
+            font-family: 'Courier New', monospace;
+            font-size: 0.72rem;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        .flow-arrow-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .arrow-bcast {
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(to right, #06b6d4, #475569);
+            position: relative;
+        }
+
+        .arrow-ucast {
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(to left, #8a5cb5, #475569);
+            position: relative;
+        }
+
+        .arrow-label {
+            font-size: 0.64rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            text-align: center;
+        }
+
+        .arrow-bcast + .arrow-label { color: #06b6d4; }
+        .arrow-ucast + .arrow-label { color: #8a5cb5; }
+
+        .flow-steps {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .flow-step {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 7px;
+            padding: 9px 11px;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            line-height: 1.4;
+        }
+
+        .flow-step .step-num {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: #8a5cb5;
+            margin-bottom: 3px;
+        }
+
+        .flow-step strong {
+            color: #e2e8f0;
+        }
+
+        /* =====================================================
+           SLIDE 4 — ARP CACHE
+           ===================================================== */
+        .terminal-block {
+            background: #0a0a0f;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            line-height: 1.6;
+        }
+
+        .terminal-block .t-header {
+            color: #475569;
+            font-size: 0.75rem;
+            margin-bottom: 4px;
+        }
+
+        .terminal-block .t-line {
+            color: #3ab577;
+        }
+
+        .terminal-block .t-line-dim {
+            color: #94a3b8;
+        }
+
+        .terminal-block .t-line-static {
+            color: #fbbf24;
+        }
+
+        .cache-facts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .cache-fact {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 7px;
+            padding: 10px 12px;
+            font-size: 0.83rem;
+            line-height: 1.45;
+            color: #94a3b8;
+        }
+
+        .cache-fact .cf-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 4px;
+        }
+
+        .cache-fact.cf-dynamic { border-left: 2px solid #06b6d4; }
+        .cache-fact.cf-static  { border-left: 2px solid #fbbf24; }
+
+        .cache-fact.cf-dynamic .cf-label { color: #06b6d4; }
+        .cache-fact.cf-static  .cf-label { color: #fbbf24; }
+
+        .cmd-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .cmd-chip {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            padding: 5px 12px;
+            font-family: 'Courier New', monospace;
+            color: #06b6d4;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            font-size: 0.8rem;
+        }
+
+        .cmd-note {
+            font-size: 0.78rem;
+            color: #475569;
+        }
+
+        /* =====================================================
+           SLIDE 5 — DEFAULT GATEWAY + ARP
+           ===================================================== */
+        .gw-flow {
+            display: grid;
+            grid-template-columns: 1fr 32px 1fr 32px 1fr 32px 1fr;
+            gap: 0;
+            align-items: center;
+        }
+
+        .gw-node {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 10px 10px;
+            text-align: center;
+            font-size: 0.8rem;
+        }
+
+        .gw-node.gn-pc     { border: 1px solid rgba(6, 182, 212, 0.3); }
+        .gw-node.gn-router { border: 1px solid rgba(138, 92, 181, 0.3); }
+        .gw-node.gn-remote { border: 1px solid rgba(100, 116, 139, 0.25); }
+
+        .gw-node .gn-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 4px;
+        }
+
+        .gn-pc     .gn-label { color: #06b6d4; }
+        .gn-router .gn-label { color: #8a5cb5; }
+        .gn-remote .gn-label { color: #64748b; }
+
+        .gw-node .gn-ip {
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: #e2e8f0;
+        }
+
+        .gw-node .gn-note {
+            font-size: 0.7rem;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        .gw-arrow {
+            text-align: center;
+            color: #334155;
+            font-size: 1rem;
+        }
+
+        .gw-arp-box {
+            background: rgba(138, 92, 181, 0.07);
+            border: 1px solid rgba(138, 92, 181, 0.25);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.83rem;
+            color: #e9d5ff;
+            line-height: 1.5;
+        }
+
+        /* =====================================================
+           SLIDE 6 — GRATUITOUS ARP
+           ===================================================== */
+        .garp-diagram {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .garp-announce {
+            background: rgba(138, 92, 181, 0.07);
+            border: 1px solid rgba(138, 92, 181, 0.3);
+            border-radius: 9px;
+            padding: 14px 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            min-width: 260px;
+            flex-shrink: 0;
+        }
+
+        .garp-announce .ga-label {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #8a5cb5;
+            margin-bottom: 6px;
+        }
+
+        .garp-announce .ga-who {
+            color: #8a5cb5;
+            font-weight: 700;
+        }
+
+        .garp-announce .ga-ip {
+            color: #06b6d4;
+        }
+
+        .garp-announce .ga-mac {
+            color: #c084fc;
+        }
+
+        .garp-announce .ga-dest {
+            color: #fbbf24;
+        }
+
+        .garp-uses {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            flex: 1;
+        }
+
+        .garp-use-item {
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 2px solid #8a5cb5;
+            border-radius: 0 6px 6px 0;
+            padding: 8px 12px;
+            font-size: 0.83rem;
+            color: #94a3b8;
+        }
+
+        .garp-use-item strong {
+            color: #c084fc;
+        }
+
+        /* =====================================================
+           SLIDE 7 — ARP SPOOFING / POISONING
+           ===================================================== */
+        .attack-compare {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .attack-pane {
+            border-radius: 9px;
+            padding: 12px 14px;
+            font-size: 0.83rem;
+            line-height: 1.5;
+        }
+
+        .attack-pane.ap-normal {
+            background: rgba(58, 181, 119, 0.06);
+            border: 1px solid rgba(58, 181, 119, 0.25);
+        }
+
+        .attack-pane.ap-poisoned {
+            background: rgba(239, 68, 68, 0.06);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+        }
+
+        .attack-pane .ap-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 6px;
+        }
+
+        .ap-normal   .ap-label { color: #3ab577; }
+        .ap-poisoned .ap-label { color: #f87171; }
+
+        .flow-line {
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin: 2px 0;
+        }
+
+        .flow-line .fl-node { color: #e2e8f0; font-weight: 700; }
+        .flow-line .fl-arrow { color: #475569; }
+        .flow-line .fl-bad  { color: #f87171; font-weight: 700; }
+        .flow-line .fl-good { color: #3ab577; font-weight: 700; }
+
+        .defense-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 7px;
+        }
+
+        .defense-item {
+            background: rgba(58, 181, 119, 0.06);
+            border-left: 2px solid #3ab577;
+            border-radius: 0 6px 6px 0;
+            padding: 7px 12px;
+            font-size: 0.82rem;
+            color: #a7f3d0;
+        }
+
+        /* =====================================================
+           SLIDE 8 — PROXY ARP
+           ===================================================== */
+        .proxy-diagram {
+            display: grid;
+            grid-template-columns: 1fr 40px 1fr 40px 1fr;
+            gap: 0;
+            align-items: center;
+        }
+
+        .proxy-node {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 10px 12px;
+            text-align: center;
+            font-size: 0.8rem;
+        }
+
+        .proxy-node.pn-host   { border: 1px solid rgba(6, 182, 212, 0.3); }
+        .proxy-node.pn-router { border: 1px solid rgba(138, 92, 181, 0.3); }
+        .proxy-node.pn-remote { border: 1px solid rgba(100, 116, 139, 0.25); }
+
+        .proxy-node .pn-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 3px;
+        }
+
+        .pn-host   .pn-label { color: #06b6d4; }
+        .pn-router .pn-label { color: #8a5cb5; }
+        .pn-remote .pn-label { color: #64748b; }
+
+        .proxy-node .pn-ip {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #e2e8f0;
+        }
+
+        .proxy-node .pn-note {
+            font-size: 0.7rem;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        .proxy-arrow {
+            text-align: center;
+            color: #334155;
+            font-size: 1rem;
+        }
+
+        /* =====================================================
+           SLIDE 9 — IPV6 / NDP
+           ===================================================== */
+        .compare-cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .compare-col {
+            border-radius: 9px;
+            padding: 13px 15px;
+        }
+
+        .compare-col.cc-ipv4 {
+            background: rgba(100, 116, 139, 0.06);
+            border: 1px solid rgba(100, 116, 139, 0.25);
+        }
+
+        .compare-col.cc-ipv6 {
+            background: rgba(138, 92, 181, 0.07);
+            border: 1px solid rgba(138, 92, 181, 0.3);
+        }
+
+        .compare-col .cc-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+
+        .cc-ipv4 .cc-label { color: #94a3b8; }
+        .cc-ipv6 .cc-label { color: #c084fc; }
+
+        .compare-row {
+            display: flex;
+            gap: 8px;
+            font-size: 0.82rem;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            color: #94a3b8;
+        }
+
+        .compare-row:last-child {
+            border-bottom: none;
+        }
+
+        .compare-row .cr-key {
+            font-weight: 600;
+            color: #cbd5e1;
+            min-width: 110px;
+            flex-shrink: 0;
+        }
+
+        /* =====================================================
+           SLIDE 10 — SUMMARY
+           ===================================================== */
+        .summary-facts {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .fact-row {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            font-size: 0.875rem;
+        }
+
+        .fact-num {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #8a5cb5;
+            min-width: 22px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .fact-text {
+            color: #cbd5e1;
+        }
+
+        .fact-text code {
+            font-family: 'Courier New', monospace;
+            color: #06b6d4;
+            background: rgba(6, 182, 212, 0.08);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+
+        .summary-scenario {
+            background: rgba(138, 92, 181, 0.07);
+            border: 1px solid rgba(138, 92, 181, 0.3);
+            border-radius: 9px;
+            padding: 14px 18px;
+            font-size: 0.875rem;
+            color: #e9d5ff;
+            line-height: 1.65;
+        }
+
+        .summary-scenario strong {
+            color: #c084fc;
+        }
+
+        /* =====================================================
+           UTILITY
+           ===================================================== */
+        .section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: #475569;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        /* =====================================================
+           RESPONSIVE — compact on shorter viewports
+           ===================================================== */
+        @media (max-height: 700px) {
+            .slide-inner { gap: 9px; }
+            .slide-title { font-size: 1.4rem; }
+            .title-hero .big-title { font-size: 1.9rem; }
+            .flow-steps { gap: 5px; }
+            .box { padding: 9px 12px; }
+        }
+
+        @media (max-width: 768px) {
+            .two-col       { grid-template-columns: 1fr; }
+            .compare-cols  { grid-template-columns: 1fr; }
+            .attack-compare { grid-template-columns: 1fr; }
+            .defense-grid  { grid-template-columns: 1fr; }
+            .flow-steps    { grid-template-columns: repeat(2, 1fr); }
+            .cache-facts   { grid-template-columns: 1fr; }
+            .slide-title   { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Progress bar across very top -->
+<div id="progress-bar" style="width:10%"></div>
+
+<!-- =====================================================================
+     SLIDE 1 — TITLE
+     ===================================================================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 10 &nbsp;|&nbsp; N10-009 Obj 1.1 &nbsp;|&nbsp; Chapter 2</div>
+
+        <div class="title-hero">
+            <div class="big-title">
+                <span class="purple">ARP:</span> The Bridge Between<br>
+                <span class="cyan">IP</span> and <span class="purple">MAC</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                How your computer finds the physical address behind every IP
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            A user reports they can reach the Internet but cannot access the file server at 10.0.1.50 on the local network.
+            You check — the server IS up. Ping by IP fails. What is going on? ARP holds the answer.
+        </div>
+
+        <div class="title-meta-row">
+            <span>10 Slides</span>
+            <span>N10-009 Obj 1.1</span>
+            <span>Data Link / Network Layer</span>
+            <span>Concepts + Context</span>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 2 — THE PROBLEM ARP SOLVES
+     ===================================================================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 10</div>
+        <div class="slide-title">The Problem ARP Solves</div>
+        <div class="slide-subtitle">You know the IP. Your NIC needs the MAC. These are two completely different address spaces.</div>
+
+        <div class="two-col">
+            <div class="col-card col-have">
+                <div class="col-card-label">What You Have</div>
+                <div class="col-card-value">10.0.1.50</div>
+                <div style="margin-top:4px;"><span class="layer-badge l3">Layer 3 — Network</span></div>
+                <div class="col-card-note">
+                    IP addresses are logical. They identify a host on a routed network.
+                    Your application knows the destination IP from DNS or configuration.
+                    But IP alone cannot deliver a frame on Ethernet.
+                </div>
+            </div>
+            <div class="col-card col-need">
+                <div class="col-card-label">What You Need</div>
+                <div class="col-card-value">AA:BB:CC:DD:EE:FF</div>
+                <div style="margin-top:4px;"><span class="layer-badge l2">Layer 2 — Data Link</span></div>
+                <div class="col-card-note">
+                    MAC addresses are physical. Every NIC has one burned in at manufacture.
+                    Ethernet frames use MAC addresses as source and destination.
+                    Without the MAC, the frame cannot be built and sent.
+                </div>
+            </div>
+        </div>
+
+        <div class="bridge-row">
+            <span class="layer-badge l3">IP (L3)</span>
+            <span class="bridge-arrow">&#8594; ARP &#8594;</span>
+            <span class="layer-badge l2">MAC (L2)</span>
+        </div>
+
+        <div class="box box-purple">
+            <div class="box-label">The Gap</div>
+            IP operates at Layer 3. Ethernet operates at Layer 2. When your PC wants to send data to 10.0.1.50,
+            the IP stack hands a packet to the Ethernet layer. Ethernet says: "I need a MAC address, not an IP."
+            ARP is the protocol that resolves this: it asks the network "who has this IP address?" and gets the MAC back.
+            Without ARP, IP addresses would be useless on a local Ethernet network.
+        </div>
+
+        <div class="scenario-strip">
+            The file server at 10.0.1.50 is up. But somewhere between your PC building the Ethernet frame and the server receiving it,
+            the address translation broke down. That is the ARP layer failing.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 3 — HOW ARP WORKS: REQUEST & REPLY
+     ===================================================================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 10</div>
+        <div class="slide-title">How ARP Works — <span class="accent-purple">Request</span> &amp; <span class="accent-cyan">Reply</span></div>
+        <div class="slide-subtitle">A broadcast question followed by a unicast answer. Simple, stateless, and unauthenticated.</div>
+
+        <!-- Visual: sender, network devices, target -->
+        <div class="arp-flow">
+            <div class="flow-node node-sender">
+                <div class="fn-label">Your PC</div>
+                <div class="fn-ip">10.0.1.10</div>
+                <div class="fn-mac">00:AA:11:BB:22:CC</div>
+            </div>
+
+            <div class="flow-arrow-col">
+                <!-- Broadcast arrow going right -->
+                <div style="font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#06b6d4; text-align:center; margin-bottom:2px;">Broadcast</div>
+                <div style="text-align:center; color:#06b6d4; font-size:1rem;">&#8594;</div>
+            </div>
+
+            <div class="flow-node node-crowd">
+                <div class="fn-label">All Devices</div>
+                <div class="fn-ip">FF:FF:FF:FF:FF:FF</div>
+                <div class="fn-mac">10.0.1.x (everyone)</div>
+            </div>
+
+            <div class="flow-arrow-col">
+                <!-- Unicast reply going back left -->
+                <div style="font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:#8a5cb5; text-align:center; margin-bottom:2px;">Unicast</div>
+                <div style="text-align:center; color:#8a5cb5; font-size:1rem;">&#8592;</div>
+            </div>
+
+            <div class="flow-node node-target">
+                <div class="fn-label">File Server</div>
+                <div class="fn-ip">10.0.1.50</div>
+                <div class="fn-mac">AA:BB:CC:DD:EE:FF</div>
+            </div>
+        </div>
+
+        <div class="flow-steps">
+            <div class="flow-step">
+                <div class="step-num">Step 1 — Request</div>
+                Your PC broadcasts: <strong>"Who has 10.0.1.50? Tell 10.0.1.10"</strong>
+                Destination MAC is FF:FF:FF:FF:FF:FF — every device on the segment receives this frame.
+            </div>
+            <div class="flow-step">
+                <div class="step-num">Step 2 — Everyone Checks</div>
+                Every device on the subnet reads the broadcast. Each one checks its own IP.
+                If it does not match, the frame is silently discarded. No reply.
+            </div>
+            <div class="flow-step">
+                <div class="step-num">Step 3 — Reply</div>
+                The server at 10.0.1.50 responds <strong>directly to your MAC</strong> (unicast):
+                "10.0.1.50 is at AA:BB:CC:DD:EE:FF." Nobody else receives this reply.
+            </div>
+            <div class="flow-step">
+                <div class="step-num">Step 4 — Cache Update</div>
+                Your PC stores the mapping in its <strong>ARP cache</strong>:
+                10.0.1.50 &#8594; AA:BB:CC:DD:EE:FF. Future packets skip the broadcast and go direct.
+            </div>
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            <strong>Key rule:</strong> ARP Request = <strong>broadcast</strong> (FF:FF:FF:FF:FF:FF). ARP Reply = <strong>unicast</strong> (back to the requester's MAC only).
+            This is a frequent exam question — do not confuse the two directions.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 4 — THE ARP CACHE
+     ===================================================================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 10</div>
+        <div class="slide-title">The ARP Cache</div>
+        <div class="slide-subtitle">Your PC stores recent IP-to-MAC mappings to avoid broadcasting on every single packet.</div>
+
+        <div class="terminal-block">
+            <div class="t-header">C:\&gt; arp -a</div>
+            <div class="t-header">Interface: 10.0.1.10 --- 0x3</div>
+            <div class="t-header" style="margin-bottom:2px;">&nbsp;&nbsp;Internet Address&nbsp;&nbsp;&nbsp;&nbsp;Physical Address&nbsp;&nbsp;&nbsp;&nbsp;Type</div>
+            <div class="t-line">&nbsp;&nbsp;10.0.1.1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;00-11-22-33-44-55&nbsp;&nbsp;&nbsp;dynamic</div>
+            <div class="t-line">&nbsp;&nbsp;10.0.1.50&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;aa-bb-cc-dd-ee-ff&nbsp;&nbsp;&nbsp;dynamic</div>
+            <div class="t-line-static">&nbsp;&nbsp;10.0.1.255&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ff-ff-ff-ff-ff-ff&nbsp;&nbsp;&nbsp;static</div>
+            <div class="t-line-static">&nbsp;&nbsp;224.0.0.22&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;01-00-5e-00-00-16&nbsp;&nbsp;&nbsp;static</div>
+        </div>
+
+        <div class="cache-facts">
+            <div class="cache-fact cf-dynamic">
+                <div class="cf-label">Dynamic Entries</div>
+                Learned via ARP request/reply. Expire automatically after 2-10 minutes (OS-dependent).
+                When expired, a new ARP broadcast goes out before the next packet is sent.
+                These are the normal, everyday entries.
+            </div>
+            <div class="cache-fact cf-static">
+                <div class="cf-label">Static Entries</div>
+                Permanent — set manually or populated by the OS for broadcast and multicast addresses.
+                Broadcast (FF:FF:FF:FF:FF:FF) and multicast addresses (01:00:5E:xx:xx:xx) are always static.
+                Static entries do not expire and cannot be overwritten by ARP replies.
+            </div>
+        </div>
+
+        <hr class="divider">
+
+        <div style="display:flex; flex-direction:column; gap:7px;">
+            <span class="section-label">Commands</span>
+            <div class="cmd-row">
+                <span class="cmd-chip">arp -a</span>
+                <span class="cmd-note">View the ARP cache (Windows and Linux)</span>
+            </div>
+            <div class="cmd-row">
+                <span class="cmd-chip">arp -d *</span>
+                <span class="cmd-note">Clear all dynamic entries from the cache (Windows)</span>
+            </div>
+            <div class="cmd-row">
+                <span class="cmd-chip">ip neigh</span>
+                <span class="cmd-note">View ARP / neighbor table on Linux</span>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            The file server at 10.0.1.50 had its NIC replaced yesterday. Your ARP cache still holds the old MAC address.
+            Every Ethernet frame you send goes to the wrong hardware address and gets dropped.
+            Run <code style="font-family:monospace; color:#06b6d4;">arp -d 10.0.1.50</code> to clear the stale entry.
+            The next ping triggers a fresh ARP request and discovers the new MAC.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 5 — ARP AND THE DEFAULT GATEWAY
+     ===================================================================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 10</div>
+        <div class="slide-title">ARP and the <span class="accent-purple">Default Gateway</span></div>
+        <div class="slide-subtitle">When the destination is on a different network, you never ARP for the remote IP. You ARP for the gateway.</div>
+
+        <!-- Flow: PC -> ARP for gateway -> Router -> Internet -->
+        <div class="gw-flow">
+            <div class="gw-node gn-pc">
+                <div class="gn-label">Your PC</div>
+                <div class="gn-ip">10.0.1.10</div>
+                <div class="gn-note">Wants 8.8.8.8</div>
+            </div>
+
+            <div class="gw-arrow">&#8594;</div>
+
+            <div class="gw-node gn-router">
+                <div class="gn-label">Gateway (ARP Target)</div>
+                <div class="gn-ip">10.0.1.1</div>
+                <div class="gn-note">Your PC ARPs for this IP, not 8.8.8.8</div>
+            </div>
+
+            <div class="gw-arrow">&#8594;</div>
+
+            <div class="gw-node gn-remote">
+                <div class="gn-label">Internet</div>
+                <div class="gn-ip">8.8.8.8</div>
+                <div class="gn-note">Unreachable by ARP (different network)</div>
+            </div>
+        </div>
+
+        <div class="gw-arp-box">
+            <strong>Why?</strong> ARP is a Layer 2 mechanism. It only works within a single broadcast domain — your local subnet.
+            8.8.8.8 is on a completely different network. You cannot broadcast an ARP request across a router.
+            <br><br>
+            So your PC checks its routing table: "10.0.1.0/24 is local — ARP directly. Everything else — send to gateway 10.0.1.1."
+            Your PC then ARPs for <strong>10.0.1.1</strong> to get the router's MAC address, builds a frame to the router's MAC,
+            and the router takes it from there.
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Exam tip:</strong> "You never ARP for a remote IP. You ARP for the next hop."
+            The destination IP in the packet stays as 8.8.8.8 all the way — but the destination MAC in the Ethernet frame
+            is the router's MAC, not Google's.
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            If your default gateway IP is wrong or its ARP entry is stale, you lose Internet connectivity even though your local network works fine.
+            Always check the gateway's ARP entry when Internet is down but local access is fine.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 6 — GRATUITOUS ARP (GARP)
+     ===================================================================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 10</div>
+        <div class="slide-title">Gratuitous ARP <span class="accent-purple">(GARP)</span></div>
+        <div class="slide-subtitle">A device announces its own IP-to-MAC mapping without being asked. Sent as a broadcast.</div>
+
+        <div class="garp-diagram">
+            <div class="garp-announce">
+                <div class="ga-label">GARP Packet (Broadcast)</div>
+                <div><span class="ga-who">Sender:</span> <span class="ga-ip">10.0.1.50</span></div>
+                <div><span class="ga-who">Sender MAC:</span> <span class="ga-mac">AA:BB:CC:DD:EE:FF</span></div>
+                <div><span class="ga-who">Target IP:</span> <span class="ga-ip">10.0.1.50</span> <span style="color:#475569; font-size:0.75rem;">(same as sender)</span></div>
+                <div><span class="ga-who">Destination:</span> <span class="ga-dest">FF:FF:FF:FF:FF:FF</span></div>
+                <div style="margin-top:8px; font-family:'Segoe UI',sans-serif; font-size:0.78rem; color:#64748b; font-style:italic;">
+                    "Update your caches. I am 10.0.1.50. My MAC is now AA:BB:CC:DD:EE:FF."
+                </div>
+            </div>
+
+            <div class="garp-uses">
+                <div style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:#475569; margin-bottom:2px;">When GARP Is Used</div>
+
+                <div class="garp-use-item">
+                    <strong>IP Conflict Detection</strong> — After acquiring an IP (via DHCP), a host sends a GARP.
+                    If any device replies, there is a conflict. The host backs off.
+                </div>
+                <div class="garp-use-item">
+                    <strong>NIC Replacement</strong> — After swapping a NIC, the admin sends a GARP to push the new MAC
+                    to all neighbor caches without waiting for them to expire.
+                </div>
+                <div class="garp-use-item">
+                    <strong>FHRP Failover (HSRP / VRRP)</strong> — When a standby router takes over the active role,
+                    it sends a GARP so all hosts update their gateway MAC to point at the new active router.
+                </div>
+                <div class="garp-use-item">
+                    <strong>Load Balancer Virtual IPs</strong> — A VIP moving between cluster nodes triggers a GARP
+                    so traffic follows the new owner immediately.
+                </div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            After the server's NIC was replaced, the admin sends a GARP from the server.
+            Every device on the segment immediately updates its ARP cache: 10.0.1.50 now maps to the new MAC.
+            No one needs to wait for their stale entry to expire. Problem solved at the admin level.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 7 — ARP SPOOFING AND POISONING
+     ===================================================================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 10</div>
+        <div class="slide-title">ARP Security — <span class="accent-cyan">Spoofing</span> &amp; <span class="accent-purple">Poisoning</span></div>
+        <div class="slide-subtitle">ARP has no authentication. Any device can claim any IP. That is a fundamental design weakness.</div>
+
+        <div class="attack-compare">
+            <div class="attack-pane ap-normal">
+                <div class="ap-label">Normal Traffic Flow</div>
+                <div class="flow-line">
+                    <span class="fl-node">PC</span>
+                    <span class="fl-arrow"> &#8594; ARP for 10.0.1.1 &#8594; </span>
+                    <span class="fl-node">Router</span>
+                </div>
+                <div class="flow-line">
+                    <span class="fl-node">Router</span>
+                    <span class="fl-arrow"> &#8594; "10.0.1.1 is at </span>
+                    <span class="fl-good">11:22:33:44:55:66</span>
+                    <span class="fl-arrow">" &#8594; </span>
+                    <span class="fl-node">PC</span>
+                </div>
+                <div class="flow-line" style="margin-top:6px;">
+                    <span class="fl-node">PC</span>
+                    <span class="fl-arrow"> &#8594; frames to </span>
+                    <span class="fl-good">11:22:33:44:55:66</span>
+                    <span class="fl-arrow"> &#8594; </span>
+                    <span class="fl-node">Router</span>
+                    <span class="fl-arrow"> &#8594; Internet</span>
+                </div>
+            </div>
+
+            <div class="attack-pane ap-poisoned">
+                <div class="ap-label">Poisoned (ARP Spoof Attack)</div>
+                <div class="flow-line">
+                    <span class="fl-node">Attacker</span>
+                    <span class="fl-arrow"> &#8594; fake reply: "10.0.1.1 is at </span>
+                    <span class="fl-bad">AA:BB:CC:00:00:01</span>
+                    <span class="fl-arrow">" &#8594; </span>
+                    <span class="fl-node">PC</span>
+                </div>
+                <div class="flow-line">
+                    <span class="fl-node">PC</span>
+                    <span class="fl-arrow"> overwrites cache: 10.0.1.1 = </span>
+                    <span class="fl-bad">attacker MAC</span>
+                </div>
+                <div class="flow-line" style="margin-top:6px;">
+                    <span class="fl-node">PC</span>
+                    <span class="fl-arrow"> &#8594; all traffic &#8594; </span>
+                    <span class="fl-bad">Attacker</span>
+                    <span class="fl-arrow"> &#8594; Router</span>
+                    <span style="color:#f87171; font-size:0.75rem;"> (MITM)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            <strong>Enables:</strong> Man-in-the-middle (MITM) attacks, traffic interception, session hijacking, credential theft,
+            and SSL stripping. The victim sees no disruption — traffic still flows, just through the attacker.
+        </div>
+
+        <span class="section-label">Defenses</span>
+
+        <div class="defense-grid">
+            <div class="defense-item">Dynamic ARP Inspection (DAI) on the switch — validates ARP packets against DHCP Snooping table</div>
+            <div class="defense-item">DHCP Snooping — builds trusted IP-MAC-port binding table that DAI checks against</div>
+            <div class="defense-item">Static ARP entries for critical hosts (gateway) — cannot be overwritten by spoofed replies</div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Exam tip:</strong> ARP poisoning is a <strong>Layer 2</strong> attack. Dynamic ARP Inspection (DAI) on the switch is the primary defense.
+            DAI requires DHCP Snooping to be enabled first so it has a binding table to validate against.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 8 — PROXY ARP
+     ===================================================================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 10</div>
+        <div class="slide-title">Proxy ARP</div>
+        <div class="slide-subtitle">A router answers ARP requests on behalf of hosts that live on a different subnet.</div>
+
+        <div class="proxy-diagram">
+            <div class="proxy-node pn-host">
+                <div class="pn-label">Host A</div>
+                <div class="pn-ip">192.168.1.10</div>
+                <div class="pn-note">No default gateway configured</div>
+            </div>
+
+            <div class="proxy-arrow">&#8594;</div>
+
+            <div class="proxy-node pn-router">
+                <div class="pn-label">Router (Proxy ARP)</div>
+                <div class="pn-ip">192.168.1.1 / 192.168.2.1</div>
+                <div class="pn-note">Answers ARP for 192.168.2.x with its own MAC</div>
+            </div>
+
+            <div class="proxy-arrow">&#8594;</div>
+
+            <div class="proxy-node pn-remote">
+                <div class="pn-label">Host B</div>
+                <div class="pn-ip">192.168.2.50</div>
+                <div class="pn-note">On a different subnet</div>
+            </div>
+        </div>
+
+        <div class="box box-purple">
+            <div class="box-label">How It Works</div>
+            Host A wants to reach 192.168.2.50. It has no default gateway configured, so it ARPs directly for that IP.
+            Normally that broadcast cannot cross a subnet boundary. With Proxy ARP enabled, the router intercepts the request,
+            checks its routing table, and replies with <strong>its own MAC address</strong> on behalf of 192.168.2.50.
+            Host A sends traffic to the router's MAC, and the router forwards it to 192.168.2.50 normally.
+            Host A never knows it is talking through a router.
+        </div>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            <strong>Why it is generally bad practice:</strong> It masks misconfiguration (missing default gateway), inflates ARP tables,
+            and can cause security or routing issues. Hosts should always have a properly configured default gateway.
+            Proxy ARP is a bandage, not a solution.
+        </div>
+
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <span class="section-label">Disable on Cisco:</span>
+            <span class="cmd-chip">no ip proxy-arp</span>
+            <span style="font-size:0.78rem; color:#475569;">Applied per interface. Disabled by default on modern IOS versions.</span>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 9 — IPV6: NO MORE ARP
+     ===================================================================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 10</div>
+        <div class="slide-title">IPv6 — <span class="accent-purple">No More ARP</span></div>
+        <div class="slide-subtitle">IPv6 replaced ARP entirely with Neighbor Discovery Protocol (NDP), which uses ICMPv6 and multicast.</div>
+
+        <div class="compare-cols">
+            <div class="compare-col cc-ipv4">
+                <div class="cc-label">IPv4 — ARP</div>
+                <div class="compare-row">
+                    <span class="cr-key">Protocol</span>
+                    <span>ARP (its own Layer 2/3 protocol)</span>
+                </div>
+                <div class="compare-row">
+                    <span class="cr-key">Request Type</span>
+                    <span>Ethernet Broadcast (FF:FF:FF:FF:FF:FF)</span>
+                </div>
+                <div class="compare-row">
+                    <span class="cr-key">Scope</span>
+                    <span>Entire broadcast domain receives every ARP request</span>
+                </div>
+                <div class="compare-row">
+                    <span class="cr-key">Security</span>
+                    <span>None — no authentication, trivially spoofed</span>
+                </div>
+                <div class="compare-row">
+                    <span class="cr-key">Scalability</span>
+                    <span>Broadcast storms in large flat networks</span>
+                </div>
+            </div>
+
+            <div class="compare-col cc-ipv6">
+                <div class="cc-label">IPv6 — NDP (Neighbor Discovery Protocol)</div>
+                <div class="compare-row">
+                    <span class="cr-key">Protocol</span>
+                    <span>NDP — built on ICMPv6 (RFC 4861)</span>
+                </div>
+                <div class="compare-row">
+                    <span class="cr-key">Request Type</span>
+                    <span>Neighbor Solicitation — sent to Solicited-Node Multicast address</span>
+                </div>
+                <div class="compare-row">
+                    <span class="cr-key">Scope</span>
+                    <span>Only the target device (and possibly a small multicast group) receives it</span>
+                </div>
+                <div class="compare-row">
+                    <span class="cr-key">Security</span>
+                    <span>Optional SEND (Secure Neighbor Discovery) with cryptographic signatures</span>
+                </div>
+                <div class="compare-row">
+                    <span class="cr-key">Scalability</span>
+                    <span>Multicast is far more efficient than broadcast at scale</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-purple" style="font-size:0.83rem;">
+            <div class="box-label">Solicited-Node Multicast Address</div>
+            When a device joins a network with IPv6 address 2001:db8::1234:5678, it automatically joins the multicast group
+            FF02::1:FF34:5678 (last 24 bits of its address). Neighbor Solicitations go to that multicast group,
+            so only the target device wakes up to process them. Far more efficient than blasting every device on the subnet.
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Exam tip:</strong> IPv6 does <strong>NOT</strong> use ARP. It uses <strong>NDP</strong> with <strong>ICMPv6</strong> Neighbor Solicitation messages.
+            If an exam question says "ARP is used to resolve addresses in IPv6," that is false.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 10 — SUMMARY + COMPLETE
+     ===================================================================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 10 &nbsp;|&nbsp; N10-009 Obj 1.1</div>
+        <div class="slide-title">ARP: Solved</div>
+
+        <div class="summary-scenario">
+            The file server's NIC was replaced yesterday. Your ARP cache still holds the old MAC address.
+            Every Ethernet frame your PC builds uses that stale hardware address — the switch forwards it nowhere,
+            the server never sees it, and ping fails. The server is up; the mapping is just wrong.
+            <br><br>
+            Run <strong>arp -d 10.0.1.50</strong> to clear the stale entry. On the next ping, your PC broadcasts an ARP request:
+            "Who has 10.0.1.50?" The server replies with its new MAC. Your PC caches the correct mapping.
+            Frame is built, delivered, ping succeeds. <strong>Problem solved.</strong>
+        </div>
+
+        <span class="section-label">5 Facts to Carry Out of This Presentation</span>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">ARP resolves Layer 3 IP addresses to Layer 2 MAC addresses within a local broadcast domain.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">ARP Request = <code>broadcast</code> (FF:FF:FF:FF:FF:FF). ARP Reply = <code>unicast</code> back to the requester only.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Dynamic ARP cache entries expire in 2-10 minutes. Clear stale entries with <code>arp -d 10.0.1.50</code> or <code>arp -d *</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">For remote destinations, you ARP for the default <code>gateway</code>, not the destination IP. ARP cannot cross router boundaries.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">ARP has no authentication — it is vulnerable to poisoning. Defense: DAI (Dynamic ARP Inspection) + DHCP Snooping on the switch. IPv6 replaced ARP with NDP.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     NAVIGATION BAR
+     ===================================================================== -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Network+ Hub</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 10</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<!-- =====================================================================
+     PRESENTATION LOGIC
+     ===================================================================== -->
+<script>
+    /* State */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 10;
+
+    /* Navigate to a specific slide number (1-indexed) */
+    function goToSlide(n) {
+        /* Clamp to valid range */
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Hide current slide */
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        /* Show new slide */
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update progress bar */
+        const pct = (currentSlide / TOTAL_SLIDES) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+
+        /* Update counter */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Update nav button states */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show/hide complete button on final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard navigation — arrows only (no spacebar to avoid accessibility conflicts) */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            goToSlide(currentSlide + 1);
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            goToSlide(currentSlide - 1);
+        }
+    });
+
+    /* Initialize on load */
+    goToSlide(1);
+</script>
+
+<!-- Module completion — own script block per spec -->
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'web-arp', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

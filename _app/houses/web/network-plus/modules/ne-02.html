@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NE-02: TCP/IP Protocol Suite | Network Essentials</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #090910;
+            --bg-card: #111120;
+            --accent: #06b6d4;
+            --accent-dim: rgba(6, 182, 212, 0.12);
+            --green: #10b981;
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text-primary); line-height: 1.7; }
+        .ne-header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 14px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .ne-header-left { display: flex; align-items: center; gap: 15px; }
+        .ne-badge { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .ne-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .ne-breadcrumb { font-size: 0.8rem; color: var(--text-secondary); }
+        .ne-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+        .ne-breadcrumb a:hover { color: var(--accent); }
+        .ne-back { color: var(--text-secondary); text-decoration: none; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; transition: all 0.2s; }
+        .ne-back:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-content { max-width: 820px; margin: 0 auto; padding: 30px 25px 60px; }
+        .ne-objectives { background: var(--accent-dim); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 0 8px 8px 0; margin-bottom: 30px; }
+        .ne-objectives h2 { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+        .ne-objectives ul { list-style: none; }
+        .ne-objectives li { padding: 4px 0; padding-left: 20px; position: relative; color: var(--text-secondary); font-size: 0.92rem; }
+        .ne-objectives li::before { content: '>'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+        .ne-section { margin-bottom: 35px; }
+        .ne-section-title { font-size: 1.3rem; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .ne-section-title::before { content: ''; width: 3px; height: 20px; background: var(--accent); border-radius: 2px; }
+        .ne-text { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .ne-code { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 14px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; color: var(--text-secondary); white-space: pre-wrap; }
+        .ne-code .prompt { color: var(--green); }
+        .ne-code .comment { color: #6a737d; }
+        .ne-code .highlight { color: var(--accent); }
+        .ne-code .value { color: #f0883e; }
+        .ne-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+        .ne-table th { background: var(--bg-card); color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--border); font-weight: 600; }
+        .ne-table td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text-secondary); }
+        .ne-table tr:hover td { background: rgba(6, 182, 212, 0.04); }
+        .ne-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+        .ne-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: border-color 0.2s; }
+        .ne-card:hover { border-color: var(--accent); }
+        .ne-card strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 0.9rem; }
+        .ne-card span { color: var(--text-secondary); font-size: 0.85rem; }
+        .ne-callout { background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 16px 20px; margin: 18px 0; }
+        .ne-callout strong { color: var(--green); }
+        .ne-callout p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px; }
+        .ne-takeaways { background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(6, 182, 212, 0.04)); border: 1px solid var(--accent); border-radius: 8px; padding: 20px; margin: 30px 0; }
+        .ne-takeaways h3 { color: var(--accent); margin-bottom: 12px; font-size: 1rem; }
+        .ne-takeaways ul { list-style: none; }
+        .ne-takeaways li { padding: 5px 0; padding-left: 24px; position: relative; color: var(--text-secondary); font-size: 0.9rem; }
+        .ne-takeaways li::before { content: '\2713'; position: absolute; left: 0; color: var(--green); font-weight: bold; }
+        .ne-nav { display: flex; justify-content: space-between; padding: 16px 0; margin-top: 30px; border-top: 1px solid var(--border); }
+        .ne-nav-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+        .ne-nav-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+        .ne-nav-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .ne-nav-btn.primary:hover { background: #0891b2; }
+        .ne-inline-code { background: #0d1117; padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: var(--accent); }
+        @media (max-width: 700px) { .ne-card-grid { grid-template-columns: 1fr; } .ne-content { padding: 20px 15px 40px; } }
+    </style>
+</head>
+<body>
+    <header class="ne-header">
+        <div class="ne-header-left">
+            <span class="ne-badge">NE-02</span>
+            <h1>TCP/IP Protocol Suite</h1>
+        </div>
+        <div class="ne-breadcrumb">
+            <a href="../index.html">Network+</a> / NE-02
+        </div>
+        <a href="../index.html" class="ne-back">&lt; Network+ Hub</a>
+    </header>
+
+    <div class="ne-content">
+        <div class="ne-objectives">
+            <h2>Learning Objectives</h2>
+            <ul>
+                <li>Compare TCP and UDP and know when each is appropriate</li>
+                <li>Describe the TCP three-way handshake and four-way teardown</li>
+                <li>Explain port numbers, well-known ports, and socket pairs</li>
+                <li>Read a TCP segment header and identify key fields</li>
+                <li>Understand windowing, flow control, and congestion management</li>
+            </ul>
+        </div>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">TCP vs UDP at a Glance</h2>
+            <table class="ne-table">
+                <thead>
+                    <tr><th>Feature</th><th>TCP</th><th>UDP</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Connection</td><td>Connection-oriented (handshake)</td><td>Connectionless</td></tr>
+                    <tr><td>Reliability</td><td>Guaranteed delivery, retransmission</td><td>Best-effort, no guarantees</td></tr>
+                    <tr><td>Ordering</td><td>Sequence numbers ensure order</td><td>No ordering</td></tr>
+                    <tr><td>Flow Control</td><td>Sliding window</td><td>None</td></tr>
+                    <tr><td>Header Size</td><td>20-60 bytes</td><td>8 bytes</td></tr>
+                    <tr><td>Speed</td><td>Slower (overhead)</td><td>Faster (minimal overhead)</td></tr>
+                    <tr><td>Use Cases</td><td>Web, email, file transfer, SSH</td><td>DNS, DHCP, VoIP, streaming, gaming</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">TCP Segment Structure</h2>
+            <p class="ne-text">Every TCP segment contains a header with critical control information. Understanding these fields is essential for packet analysis and troubleshooting.</p>
+            <div class="ne-code">
+<span class="comment">/* TCP Header (20 bytes minimum) */</span>
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|       <span class="highlight">Source Port</span>              |      <span class="highlight">Destination Port</span>        |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                    <span class="value">Sequence Number</span>                            |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                 <span class="value">Acknowledgment Number</span>                        |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+| Offset| Res |<span class="highlight">U|A|P|R|S|F</span>|          <span class="value">Window Size</span>              |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|          Checksum             |       Urgent Pointer          |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+<span class="comment">/* Flags: URG, ACK, PSH, RST, SYN, FIN */</span>
+            </div>
+            <p class="ne-text"><strong style="color:var(--accent)">Sequence Number:</strong> Tracks byte position in the data stream. Enables ordered reassembly.</p>
+            <p class="ne-text"><strong style="color:var(--accent)">Acknowledgment Number:</strong> The next byte the receiver expects. Confirms receipt of all prior data.</p>
+            <p class="ne-text"><strong style="color:var(--accent)">Window Size:</strong> How many bytes the receiver can accept before needing an ACK. Controls flow rate.</p>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">The Three-Way Handshake</h2>
+            <p class="ne-text">TCP establishes a connection before any data is exchanged. This ensures both sides are ready, agrees on initial sequence numbers, and negotiates parameters like MSS (Maximum Segment Size).</p>
+            <div class="ne-code">
+<span class="comment">/* Connection Establishment */</span>
+<span class="highlight">Step 1:</span> Client --> Server   [<span class="value">SYN</span>]  seq=100
+   <span class="comment">// Client picks ISN (Initial Sequence Number), sets SYN flag</span>
+
+<span class="highlight">Step 2:</span> Server --> Client   [<span class="value">SYN-ACK</span>]  seq=300, ack=101
+   <span class="comment">// Server picks its own ISN, acknowledges client's ISN+1</span>
+
+<span class="highlight">Step 3:</span> Client --> Server   [<span class="value">ACK</span>]  seq=101, ack=301
+   <span class="comment">// Client acknowledges server's ISN+1. Connection ESTABLISHED.</span>
+            </div>
+
+            <h2 class="ne-section-title" style="margin-top:30px">The Four-Way Teardown</h2>
+            <p class="ne-text">Either side can initiate connection termination. The four-way process allows each direction to close independently (half-close).</p>
+            <div class="ne-code">
+<span class="highlight">Step 1:</span> Client --> Server   [<span class="value">FIN, ACK</span>]
+   <span class="comment">// Client says "I'm done sending"</span>
+
+<span class="highlight">Step 2:</span> Server --> Client   [<span class="value">ACK</span>]
+   <span class="comment">// Server acknowledges the FIN</span>
+
+<span class="highlight">Step 3:</span> Server --> Client   [<span class="value">FIN, ACK</span>]
+   <span class="comment">// Server says "I'm done too"</span>
+
+<span class="highlight">Step 4:</span> Client --> Server   [<span class="value">ACK</span>]
+   <span class="comment">// Client acknowledges. Connection CLOSED.</span>
+   <span class="comment">// Client enters TIME_WAIT (2x MSL) before fully releasing.</span>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Port Numbers</h2>
+            <p class="ne-text">Port numbers identify specific services and applications on a host. Combined with an IP address, they form a <strong style="color:var(--accent)">socket</strong> (e.g., 192.168.1.10:443). A connection is uniquely identified by the 5-tuple: protocol, source IP, source port, destination IP, destination port.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr><th>Range</th><th>Name</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>0 - 1023</td><td>Well-Known Ports</td><td>Reserved for common services (assigned by IANA)</td></tr>
+                    <tr><td>1024 - 49151</td><td>Registered Ports</td><td>Assigned to specific applications on request</td></tr>
+                    <tr><td>49152 - 65535</td><td>Dynamic / Ephemeral</td><td>Assigned temporarily to client connections</td></tr>
+                </tbody>
+            </table>
+
+            <p class="ne-text" style="margin-top:16px"><strong style="color:var(--accent)">Essential ports to memorize:</strong></p>
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>Web &amp; Email</strong>
+                    <span>HTTP: 80 | HTTPS: 443 | SMTP: 25 | POP3: 110 | IMAP: 143</span>
+                </div>
+                <div class="ne-card">
+                    <strong>File Transfer</strong>
+                    <span>FTP: 20/21 | SFTP/SSH: 22 | TFTP: 69 | SMB: 445</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Network Services</strong>
+                    <span>DNS: 53 | DHCP: 67/68 | NTP: 123 | SNMP: 161/162</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Remote Access</strong>
+                    <span>SSH: 22 | Telnet: 23 | RDP: 3389 | VNC: 5900</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Flow Control and Windowing</h2>
+            <p class="ne-text">TCP uses a sliding window mechanism to control how much data can be sent before requiring an acknowledgment. The receiver advertises its <strong style="color:var(--accent)">window size</strong> -- the amount of buffer space available. The sender must not exceed this limit.</p>
+            <div class="ne-code">
+<span class="comment">/* Sliding Window Example */</span>
+Sender window size: <span class="value">4 segments</span>
+
+<span class="highlight">Sent & ACKed:</span>  [1] [2] [3]
+<span class="highlight">Sent, waiting:</span> [4] [5] [6] [7]  <span class="comment"><-- current window</span>
+<span class="highlight">Not yet sent:</span>  [8] [9] [10] ...
+
+<span class="comment">/* When ACK for segment 4 arrives, window slides forward:
+   [5] [6] [7] [8] become the new window. */</span>
+
+<span class="comment">/* Congestion control algorithms (Slow Start, Congestion
+   Avoidance) dynamically adjust the effective window size
+   based on network conditions. */</span>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">UDP Datagram Structure</h2>
+            <p class="ne-text">UDP is deliberately simple. Its 8-byte header contains only four fields -- just enough to deliver data to the right port. No sequencing, no acknowledgment, no retransmission. Applications that use UDP handle reliability themselves (if needed).</p>
+            <div class="ne-code">
+<span class="comment">/* UDP Header (8 bytes total) */</span>
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|       <span class="highlight">Source Port</span>              |      <span class="highlight">Destination Port</span>        |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|          <span class="value">Length</span>                |          <span class="value">Checksum</span>            |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+<span class="comment">/* Why use UDP? When speed matters more than reliability:
+   - DNS queries (small, fast lookups)
+   - VoIP (a dropped packet = brief silence, not a retransmission delay)
+   - Gaming (stale position data is useless -- send the new one)
+   - DHCP (client doesn't have an IP yet to establish TCP) */</span>
+            </div>
+        </section>
+
+        <section class="ne-section">
+            <h2 class="ne-section-title">Practical: Reading a Packet Capture</h2>
+            <p class="ne-text">In a Wireshark capture, you can identify the three-way handshake by filtering for TCP flags:</p>
+            <div class="ne-code">
+<span class="comment">/* Wireshark display filter for handshakes */</span>
+<span class="prompt">Filter:</span> tcp.flags.syn == 1
+
+<span class="comment">/* Example capture output */</span>
+No.  Time     Source          Dest            Info
+<span class="value">1</span>    0.000    192.168.1.50    93.184.216.34   <span class="highlight">TCP 74 49152->443 [SYN]</span>
+<span class="value">2</span>    0.023    93.184.216.34   192.168.1.50    <span class="highlight">TCP 74 443->49152 [SYN,ACK]</span>
+<span class="value">3</span>    0.024    192.168.1.50    93.184.216.34   <span class="highlight">TCP 66 49152->443 [ACK]</span>
+<span class="value">4</span>    0.025    192.168.1.50    93.184.216.34   TLS Client Hello
+            </div>
+            <div class="ne-callout">
+                <strong>Key Insight:</strong>
+                <p>The time between packet 1 and packet 2 (0.023s) is the Round Trip Time (RTT). This is one of the most important network performance metrics. High RTT means latency issues -- critical for VoIP, gaming, and real-time applications.</p>
+            </div>
+        </section>
+
+        <div class="ne-takeaways">
+            <h3>Key Takeaways</h3>
+            <ul>
+                <li>TCP is connection-oriented with guaranteed delivery; UDP is connectionless and fast</li>
+                <li>TCP uses SYN/SYN-ACK/ACK to establish connections and FIN/ACK to tear them down</li>
+                <li>Port numbers identify services: 0-1023 well-known, 49152-65535 ephemeral</li>
+                <li>TCP flow control uses sliding windows; the receiver advertises available buffer space</li>
+                <li>UDP has only 8 bytes of header overhead -- used where speed beats reliability</li>
+                <li>A socket = IP address + port number; a connection = 5-tuple (protocol, src IP, src port, dst IP, dst port)</li>
+            </ul>
+        </div>
+
+        <nav class="ne-nav">
+            <a href="ne-01.html" class="ne-nav-btn">&lt; Previous: OSI Model</a>
+            <a href="ne-03.html" class="ne-nav-btn primary">Next: IP Addressing &amp; Subnetting &gt;</a>
+        </nav>
+    </div>
+
+    <script>
+        (function() {
+        })();
+    </script>
+<div style="text-align:center;padding:30px 20px 40px;">
+    <button onclick="completeModule()" style="background:#22c55e;color:#fff;border:none;padding:14px 36px;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 2px 8px rgba(34,197,94,0.3);transition:all 0.2s;">Complete Module</button>
+</div>
+<script>
+function completeModule() {
+    if (window.ModuleProgress) {
+        ModuleProgress.complete('web', 'web-ne-02', { returnUrl: 'ne-03.html' });
+    } else {
+        window.location.href = 'ne-03.html';
+    }
+}
+</script>
+</body>
+</html>

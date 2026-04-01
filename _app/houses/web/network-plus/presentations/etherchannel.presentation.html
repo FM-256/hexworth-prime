@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EtherChannel &amp; Link Aggregation | Network+ N10-009</title>
+    <style>
+        /* =====================================================
+           RESET & BASE
+           ===================================================== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden; /* No scrolling — slides are viewport-fit */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* =====================================================
+           SLIDE SYSTEM — viewport-locked, no overflow
+           ===================================================== */
+        .slide {
+            display: none;
+            position: fixed;
+            inset: 0;
+            padding: 20px 28px 72px; /* bottom clearance for nav bar */
+            overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Inner wrapper — constrains content width */
+        .slide-inner {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* =====================================================
+           PROGRESS BAR
+           ===================================================== */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: #3ab577;
+            transition: width 0.4s ease;
+            z-index: 200;
+        }
+
+        /* =====================================================
+           NAVIGATION BAR — fixed bottom
+           ===================================================== */
+        #nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            z-index: 200;
+            padding: 0 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(58, 181, 119, 0.15);
+            color: #3ab577;
+            border-color: #3ab577;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.back-btn {
+            font-size: 0.82rem;
+            padding: 8px 16px;
+        }
+
+        #slide-counter {
+            color: #64748b;
+            font-size: 0.82rem;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        #complete-btn {
+            display: none;
+            background: #3ab577;
+            color: #000;
+            border: none;
+            padding: 9px 26px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            letter-spacing: 0.02em;
+        }
+
+        #complete-btn:hover {
+            background: #4fcf8a;
+            transform: translateY(-1px);
+        }
+
+        /* =====================================================
+           SLIDE HEADER
+           ===================================================== */
+        .slide-meta {
+            font-size: 0.78rem;
+            color: #3ab577;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .slide-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            text-align: center;
+            line-height: 1.25;
+        }
+
+        .slide-title .accent       { color: #3ab577; }
+        .slide-title .accent-gold  { color: #fbbf24; }
+        .slide-title .accent-red   { color: #ef4444; }
+
+        .slide-subtitle {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        /* =====================================================
+           SCENARIO STRIP
+           ===================================================== */
+        .scenario-strip {
+            background: rgba(58, 181, 119, 0.08);
+            border-left: 3px solid #3ab577;
+            border-radius: 0 8px 8px 0;
+            padding: 10px 16px;
+            font-size: 0.88rem;
+            color: #a7f3d0;
+            font-style: italic;
+        }
+
+        /* =====================================================
+           INFO BOXES
+           ===================================================== */
+        .box {
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.875rem;
+        }
+
+        .box-green {
+            background: rgba(58, 181, 119, 0.08);
+            border: 1px solid rgba(58, 181, 119, 0.35);
+            color: #d1fae5;
+        }
+
+        .box-cyan {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            color: #cffafe;
+        }
+
+        .box-red {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fee2e2;
+        }
+
+        .box-gold {
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            color: #fef3c7;
+        }
+
+        .box-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+            opacity: 0.75;
+        }
+
+        /* =====================================================
+           CONCEPT CARDS
+           ===================================================== */
+        .concept-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .concept-grid.three-col {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .c-card {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 8px;
+            padding: 12px 14px;
+            border-left: 3px solid transparent;
+        }
+
+        .c-card.green  { border-left-color: #3ab577; }
+        .c-card.cyan   { border-left-color: #06b6d4; }
+        .c-card.gold   { border-left-color: #fbbf24; }
+        .c-card.red    { border-left-color: #ef4444; }
+        .c-card.blue   { border-left-color: #60a5fa; }
+
+        .c-card:hover { background: rgba(255, 255, 255, 0.07); }
+
+        .c-card .cc-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 4px;
+        }
+
+        .c-card.green .cc-label { color: #3ab577; }
+        .c-card.cyan  .cc-label { color: #06b6d4; }
+        .c-card.gold  .cc-label { color: #fbbf24; }
+        .c-card.red   .cc-label { color: #ef4444; }
+        .c-card.blue  .cc-label { color: #60a5fa; }
+
+        .c-card .cc-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            margin-bottom: 4px;
+        }
+
+        .c-card .cc-body {
+            font-size: 0.82rem;
+            color: #94a3b8;
+            line-height: 1.45;
+        }
+
+        /* =====================================================
+           LINK BUNDLE DIAGRAM
+           ===================================================== */
+        .bundle-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .sw-node {
+            background: rgba(255, 255, 255, 0.04);
+            border: 2px solid rgba(58, 181, 119, 0.4);
+            border-radius: 10px;
+            padding: 12px 18px;
+            text-align: center;
+            min-width: 110px;
+        }
+
+        .sw-node .sn-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+
+        .sw-node .sn-name {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #3ab577;
+        }
+
+        .link-bundle {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .link-line {
+            width: 120px;
+            height: 3px;
+            border-radius: 2px;
+        }
+
+        .link-line.active { background: #3ab577; }
+        .link-line.blocked { background: #ef4444; opacity: 0.5; }
+        .link-line.bundled { background: linear-gradient(90deg, #3ab577, #06b6d4); }
+
+        .link-label {
+            font-size: 0.72rem;
+            color: #64748b;
+            text-align: center;
+            margin-top: 2px;
+        }
+
+        /* =====================================================
+           MATRIX TABLE — mode compatibility
+           ===================================================== */
+        .matrix-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+
+        .matrix-table th, .matrix-table td {
+            border: 1px solid rgba(255,255,255,0.07);
+            padding: 8px 12px;
+            text-align: center;
+        }
+
+        .matrix-table thead th {
+            background: rgba(58, 181, 119, 0.1);
+            color: #3ab577;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .matrix-table tbody th {
+            background: rgba(255,255,255,0.03);
+            color: #94a3b8;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .cell-yes  { background: rgba(58, 181, 119, 0.1); color: #86efac; font-weight: 700; }
+        .cell-no   { background: rgba(239, 68, 68, 0.07); color: #fca5a5; }
+        .cell-dep  { background: rgba(251, 191, 36, 0.08); color: #fde68a; font-style: italic; }
+
+        /* =====================================================
+           TERMINAL BLOCK
+           ===================================================== */
+        .terminal-block {
+            background: #0a0a0f;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            line-height: 1.6;
+        }
+
+        .terminal-block .t-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: #3ab577;
+            margin-bottom: 4px;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .t-cmd  { color: #3ab577; }
+        .t-out  { color: #94a3b8; }
+        .t-hi   { color: #06b6d4; font-weight: 700; }
+        .t-note { color: #475569; font-style: italic; font-family: 'Segoe UI', sans-serif; font-size: 0.77rem; }
+
+        /* =====================================================
+           SUMMARY
+           ===================================================== */
+        .summary-facts {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .fact-row {
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            font-size: 0.875rem;
+        }
+
+        .fact-num {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #3ab577;
+            min-width: 22px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .fact-text { color: #cbd5e1; }
+
+        .fact-text code {
+            font-family: 'Courier New', monospace;
+            color: #3ab577;
+            background: rgba(58, 181, 119, 0.1);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+
+        .summary-scenario {
+            background: rgba(58, 181, 119, 0.07);
+            border: 1px solid rgba(58, 181, 119, 0.3);
+            border-radius: 9px;
+            padding: 14px 18px;
+            font-size: 0.875rem;
+            color: #a7f3d0;
+            line-height: 1.65;
+        }
+
+        .summary-scenario strong { color: #3ab577; }
+
+        /* =====================================================
+           UTILITY
+           ===================================================== */
+        .section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: #475569;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        /* =====================================================
+           RESPONSIVE
+           ===================================================== */
+        @media (max-height: 700px) {
+            .slide-inner { gap: 9px; }
+            .slide-title { font-size: 1.4rem; }
+        }
+
+        @media (max-width: 768px) {
+            .concept-grid { grid-template-columns: 1fr; }
+            .concept-grid.three-col { grid-template-columns: 1fr 1fr; }
+            .bundle-diagram { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Progress bar across very top -->
+<div id="progress-bar" style="width:12.5%"></div>
+
+<!-- =====================================================================
+     SLIDE 1 — TITLE
+     ===================================================================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 8 &nbsp;|&nbsp; N10-009 Obj 2.3 &nbsp;|&nbsp; Layer 2</div>
+
+        <div style="text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;">
+            <div style="font-size:2.4rem; font-weight:800; color:#f1f5f9; line-height:1.2;">
+                EtherChannel:<br>
+                <span style="color:#3ab577;">Bundle Links</span>, Beat STP
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                More bandwidth between switches without STP blocking your investment.
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            You need more bandwidth between your access and distribution switches. You add a second cable — STP blocks it
+            to prevent loops. EtherChannel bundles multiple physical links into one logical channel that STP sees as a single link.
+        </div>
+
+        <div style="display:flex; gap:28px; justify-content:center; margin-top:6px; font-size:0.82rem; color:#475569;">
+            <span>8 Slides</span>
+            <span style="border-left:2px solid #1e293b; padding-left:28px;">N10-009 Obj 2.3</span>
+            <span style="border-left:2px solid #1e293b; padding-left:28px;">Link Aggregation</span>
+            <span style="border-left:2px solid #1e293b; padding-left:28px;">LACP / PAgP</span>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 2 — THE STP PROBLEM
+     ===================================================================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 8</div>
+        <div class="slide-title">The Problem: <span class="accent-red">STP Blocks Redundancy</span></div>
+        <div class="slide-subtitle">Spanning Tree prevents loops by putting redundant links into blocking state — a necessary but frustrating tradeoff.</div>
+
+        <div class="bundle-diagram">
+            <div class="sw-node">
+                <div class="sn-label">Access Switch</div>
+                <div class="sn-name">SW-ACCESS</div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px; align-items:center;">
+                <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
+                    <div class="link-line active"></div>
+                    <div class="link-label" style="color:#3ab577;">Active (forwarding)</div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
+                    <div class="link-line blocked"></div>
+                    <div class="link-label" style="color:#ef4444;">Blocked by STP</div>
+                </div>
+            </div>
+            <div class="sw-node">
+                <div class="sn-label">Distribution Switch</div>
+                <div class="sn-name">SW-DIST</div>
+            </div>
+        </div>
+
+        <div class="concept-grid">
+            <div class="c-card red">
+                <div class="cc-label">Without EtherChannel</div>
+                <div class="cc-title">Bandwidth wasted, no failover speed</div>
+                <div class="cc-body">
+                    You run two 1Gbps links. STP elects one as active, blocks the other. You get 1Gbps effective bandwidth.
+                    If the active link fails, STP convergence takes 30-50 seconds (classic STP) to unblock the redundant link.
+                </div>
+            </div>
+            <div class="c-card green">
+                <div class="cc-label">With EtherChannel</div>
+                <div class="cc-title">Combined bandwidth, instant failover</div>
+                <div class="cc-body">
+                    EtherChannel groups both links into one logical interface. STP sees a single link — no blocking.
+                    You get up to 2Gbps aggregate bandwidth with load balancing. If one member link fails, traffic
+                    instantly shifts to the remaining links — sub-second recovery.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-green" style="font-size:0.83rem;">
+            <strong>What STP sees:</strong> EtherChannel presents the bundle as one logical interface to STP.
+            STP treats it as a single path, so it does not block any member links. The aggregation is transparent to Layer 2 protocols.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 3 — LACP vs PAgP
+     ===================================================================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 8</div>
+        <div class="slide-title">LACP vs <span class="accent">PAgP</span></div>
+        <div class="slide-subtitle">Two negotiation protocols — one open standard, one Cisco-only.</div>
+
+        <div class="concept-grid three-col">
+            <div class="c-card blue">
+                <div class="cc-label">LACP — 802.3ad</div>
+                <div class="cc-title">Industry Standard</div>
+                <div class="cc-body">
+                    Link Aggregation Control Protocol. IEEE 802.3ad standard (now part of 802.1AX). Works between
+                    different vendor switches. The exam-preferred and production-preferred choice.
+                    Modes: <strong style="color:#60a5fa;">active</strong> (initiates) and <strong style="color:#60a5fa;">passive</strong> (responds, waits).
+                </div>
+            </div>
+            <div class="c-card cyan">
+                <div class="cc-label">PAgP — Cisco Proprietary</div>
+                <div class="cc-title">Cisco-Only</div>
+                <div class="cc-body">
+                    Port Aggregation Protocol. Only works between Cisco devices.
+                    Modes: <strong style="color:#06b6d4;">desirable</strong> (initiates) and <strong style="color:#06b6d4;">auto</strong> (responds, waits).
+                    Same behavior as LACP active/passive — just different names and a different wire protocol.
+                </div>
+            </div>
+            <div class="c-card gold">
+                <div class="cc-label">Static / On Mode</div>
+                <div class="cc-title">No negotiation</div>
+                <div class="cc-body">
+                    Sets the channel unconditionally with no protocol. Both sides must be set to <strong style="color:#fbbf24;">on</strong>.
+                    Fastest to configure, most dangerous — no detection of misconfiguration. If one side fails silently,
+                    the other side continues sending into a broken channel.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            <strong>Key difference — negotiation:</strong> LACP and PAgP actively exchange protocol data units (PDUs) to
+            confirm both sides agree to form the channel. Static mode has no such verification — mismatches are silent failures.
+            Always prefer LACP in multi-vendor environments.
+        </div>
+
+        <div class="scenario-strip">
+            Your access switch is Cisco, your distribution switch is also Cisco. You could use either LACP or PAgP.
+            Use LACP — when you eventually replace a switch with a different vendor, you will not need to reconfigure.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 4 — MODE COMPATIBILITY MATRIX
+     ===================================================================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 8</div>
+        <div class="slide-title">Mode Compatibility <span class="accent">Matrix</span></div>
+        <div class="slide-subtitle">Whether a channel forms depends on the mode combination on both sides. Know this table.</div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+            <div>
+                <div class="section-label" style="margin-bottom:8px;">LACP (802.3ad)</div>
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th>Side A \ Side B</th>
+                            <th>Active</th>
+                            <th>Passive</th>
+                            <th>On</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th>Active</th>
+                            <td class="cell-yes">Forms</td>
+                            <td class="cell-yes">Forms</td>
+                            <td class="cell-no">No</td>
+                        </tr>
+                        <tr>
+                            <th>Passive</th>
+                            <td class="cell-yes">Forms</td>
+                            <td class="cell-no">No</td>
+                            <td class="cell-no">No</td>
+                        </tr>
+                        <tr>
+                            <th>On</th>
+                            <td class="cell-no">No</td>
+                            <td class="cell-no">No</td>
+                            <td class="cell-yes">Forms</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div>
+                <div class="section-label" style="margin-bottom:8px;">PAgP (Cisco)</div>
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th>Side A \ Side B</th>
+                            <th>Desirable</th>
+                            <th>Auto</th>
+                            <th>On</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th>Desirable</th>
+                            <td class="cell-yes">Forms</td>
+                            <td class="cell-yes">Forms</td>
+                            <td class="cell-no">No</td>
+                        </tr>
+                        <tr>
+                            <th>Auto</th>
+                            <td class="cell-yes">Forms</td>
+                            <td class="cell-no">No</td>
+                            <td class="cell-no">No</td>
+                        </tr>
+                        <tr>
+                            <th>On</th>
+                            <td class="cell-no">No</td>
+                            <td class="cell-no">No</td>
+                            <td class="cell-yes">Forms</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Critical rule:</strong> passive/passive and auto/auto do NOT form a channel — both sides are waiting for
+            the other to initiate. At least one side must actively negotiate. Never mix LACP and PAgP on the same channel.
+        </div>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            <strong>On + On caveat:</strong> Works, but neither side is monitoring the channel health. A silent failure on
+            one side causes the other to keep sending into a black hole. Only use "on" mode in a controlled lab environment.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 5 — REQUIREMENTS
+     ===================================================================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 8</div>
+        <div class="slide-title">EtherChannel <span class="accent">Requirements</span></div>
+        <div class="slide-subtitle">All member links must be identical. One mismatch prevents the channel from forming.</div>
+
+        <div class="concept-grid three-col">
+            <div class="c-card green">
+                <div class="cc-label">Speed &amp; Duplex</div>
+                <div class="cc-title">Must match</div>
+                <div class="cc-body">All interfaces in the bundle must run at the same speed (e.g., all 1Gbps) and duplex (full-duplex). You cannot mix 100Mbps and 1Gbps members.</div>
+            </div>
+            <div class="c-card green">
+                <div class="cc-label">VLAN Configuration</div>
+                <div class="cc-title">Must match</div>
+                <div class="cc-body">If access ports: same access VLAN. If trunk ports: same allowed VLAN list, same native VLAN, same trunk encapsulation. Any mismatch suspends the channel.</div>
+            </div>
+            <div class="c-card green">
+                <div class="cc-label">Port Mode</div>
+                <div class="cc-title">Must match</div>
+                <div class="cc-body">All members must be the same: all access or all trunk. You cannot mix access and trunk ports in the same EtherChannel bundle.</div>
+            </div>
+            <div class="c-card cyan">
+                <div class="cc-label">Spanning Tree</div>
+                <div class="cc-title">Same STP configuration</div>
+                <div class="cc-body">STP parameters (port cost, priority) should match across members. STP operates on the Port-Channel interface, not individual member ports.</div>
+            </div>
+            <div class="c-card gold">
+                <div class="cc-label">Max Members</div>
+                <div class="cc-title">Up to 8 active links</div>
+                <div class="cc-body">LACP supports up to 8 active + 8 standby links (16 total configured). PAgP supports up to 8 active. Cisco's EtherChannel typically supports 8 active member ports per bundle.</div>
+            </div>
+            <div class="c-card blue">
+                <div class="cc-label">Same Switch</div>
+                <div class="cc-title">Or MLAG/VSS for multi-chassis</div>
+                <div class="cc-body">Standard EtherChannel requires all member ports on the same switch. Multi-chassis variants (VSS, vPC, MLAG) span two physical chassis for redundancy at the switch level.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 6 — CONFIGURATION
+     ===================================================================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 8</div>
+        <div class="slide-title">Configuration <span class="accent">Basics</span></div>
+        <div class="slide-subtitle">Bundle Gi0/1 and Gi0/2 into Port-Channel 1 using LACP.</div>
+
+        <div class="concept-grid">
+            <div class="terminal-block">
+                <div class="t-label">Create LACP EtherChannel (access side)</div>
+                <div class="t-cmd">SW-ACCESS(config)# interface range gi0/1 - 2</div>
+                <div class="t-cmd">SW-ACCESS(config-if-range)# channel-group 1 mode active</div>
+                <div class="t-cmd">SW-ACCESS(config-if-range)# exit</div>
+                <div>&nbsp;</div>
+                <div class="t-cmd">SW-ACCESS(config)# interface port-channel 1</div>
+                <div class="t-cmd">SW-ACCESS(config-if)# switchport trunk encapsulation dot1q</div>
+                <div class="t-cmd">SW-ACCESS(config-if)# switchport mode trunk</div>
+                <div class="t-cmd">SW-ACCESS(config-if)# switchport trunk allowed vlan 10,20</div>
+            </div>
+            <div class="terminal-block">
+                <div class="t-label">Distribution side (passive is fine here)</div>
+                <div class="t-cmd">SW-DIST(config)# interface range gi0/1 - 2</div>
+                <div class="t-cmd">SW-DIST(config-if-range)# channel-group 1 mode passive</div>
+                <div class="t-cmd">SW-DIST(config-if-range)# exit</div>
+                <div>&nbsp;</div>
+                <div class="t-cmd">SW-DIST(config)# interface port-channel 1</div>
+                <div class="t-cmd">SW-DIST(config-if)# switchport trunk encapsulation dot1q</div>
+                <div class="t-cmd">SW-DIST(config-if)# switchport mode trunk</div>
+                <div class="t-cmd">SW-DIST(config-if)# switchport trunk allowed vlan 10,20</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Configuration order matters:</strong> Configure the physical member ports first, then configure the
+            Port-Channel interface. Member ports inherit the Port-Channel configuration. Any mismatch between member port
+            configs and the Port-Channel config causes the member to be suspended (err-disabled or individually blocked).
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 7 — LOAD BALANCING
+     ===================================================================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 8</div>
+        <div class="slide-title">Load Balancing <span class="accent">&amp; Troubleshooting</span></div>
+        <div class="slide-subtitle">EtherChannel does not split a single flow across links — it hashes flows to links.</div>
+
+        <div class="concept-grid">
+            <div class="c-card green">
+                <div class="cc-label">How Load Balancing Works</div>
+                <div class="cc-title">Per-flow, not per-packet</div>
+                <div class="cc-body">
+                    A hash algorithm assigns each traffic flow to one member link. The same conversation always
+                    takes the same link (maintaining packet order). Common hash inputs: src/dst MAC, src/dst IP,
+                    src/dst port. All flows get distributed across available links — the more flows, the better the spread.
+                </div>
+            </div>
+            <div class="c-card cyan">
+                <div class="cc-label">Changing the Hash Method</div>
+                <div class="cc-title">Tune for your traffic pattern</div>
+                <div class="cc-body">
+                    If most traffic comes from one IP (e.g., a single server farm), src-ip hashing puts it all on
+                    one link. Switch to src-dst-ip to spread it. Configure globally: <code style="font-family:monospace; color:#06b6d4;">port-channel load-balance src-dst-ip</code>.
+                    Verify: <code style="font-family:monospace; color:#06b6d4;">show etherchannel load-balance</code>.
+                </div>
+            </div>
+        </div>
+
+        <div class="section-label" style="margin-top:2px;">Troubleshooting Commands</div>
+
+        <div class="terminal-block">
+            <div class="t-label">Verify channel status and member ports</div>
+            <div class="t-cmd">SW1# show etherchannel summary</div>
+            <div>&nbsp;</div>
+            <div class="t-out">Flags: D-down  P-bundled  s-suspended  I-stand-alone  H-Hot-standby</div>
+            <div class="t-out">       R-Layer3  S-Layer2  U-in use  f-failed-alloc  M-not in use</div>
+            <div>&nbsp;</div>
+            <div class="t-out">Number of channel-groups in use: 1</div>
+            <div class="t-out">Group  Port-channel  Protocol    Ports</div>
+            <div class="t-hi">1      Po1(SU)       LACP        Gi0/1(P)   Gi0/2(P)</div>
+            <div class="t-note">SU = Layer2 in use. P = bundled in port-channel. This is healthy.</div>
+        </div>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            <strong>Suspended state (s flag):</strong> A member port is suspended due to a configuration mismatch.
+            Check that speed, duplex, VLAN, and port mode all match across every member link. One bad port suspends itself
+            but leaves the rest of the channel intact.
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     SLIDE 8 — SUMMARY + COMPLETE
+     ===================================================================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 8 &nbsp;|&nbsp; N10-009 Obj 2.3</div>
+        <div class="slide-title">EtherChannel: More Bandwidth, One Logical Link</div>
+
+        <div class="summary-scenario">
+            You ran a second cable between your access and distribution switches. STP blocked it. After configuring
+            EtherChannel with <strong>LACP active/passive</strong>, STP now sees one logical Port-Channel interface.
+            Both physical links are active and load-balancing traffic. If one fails, the other carries the full load
+            within milliseconds. You doubled your bandwidth without STP ever knowing.
+        </div>
+
+        <div class="section-label">5 Facts to Carry Out of This Presentation</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">EtherChannel bundles physical links into one logical Port-Channel interface — STP sees it as a single link, so nothing is blocked.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">LACP (802.3ad) is the open standard. PAgP is Cisco-only. Prefer LACP. Modes: active/passive (LACP) and desirable/auto (PAgP).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">passive/passive and auto/auto do NOT form a channel. At least one side must actively initiate.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">All member links must match: same speed, duplex, VLAN config, and port mode. One mismatch suspends that member.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Troubleshoot with <code>show etherchannel summary</code>. Healthy members show <code>P</code> (bundled). Suspended members show <code>s</code>.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+     NAVIGATION BAR
+     ===================================================================== -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Network+ Hub</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 8</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<!-- =====================================================================
+     PRESENTATION LOGIC
+     ===================================================================== -->
+<script>
+    /* State */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 8;
+
+    /* Navigate to a specific slide number (1-indexed) */
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update progress bar */
+        const pct = (currentSlide / TOTAL_SLIDES) * 100;
+        document.getElementById('progress-bar').style.width = pct + '%';
+
+        /* Update counter */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Update nav button states */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show/hide complete button on final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            goToSlide(currentSlide + 1);
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            goToSlide(currentSlide - 1);
+        }
+    });
+
+    /* Initialize on load */
+    goToSlide(1);
+</script>
+
+<!-- Module completion -->
+<script>
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('web', 'web-etherchannel', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

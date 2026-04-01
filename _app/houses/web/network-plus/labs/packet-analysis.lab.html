@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Packet Analysis Lab | Network+</title>
+    <style>
+        :root {
+            --web-primary: #60a5fa;
+            --web-secondary: #3b82f6;
+            --web-dark: #1e3a5f;
+            --web-glow: rgba(96, 165, 250, 0.3);
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a24;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .lab-container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--web-primary);
+            text-decoration: none;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+        .back-link:hover { color: #93c5fd; transform: translateX(-5px); }
+
+        .lab-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+            border-radius: 16px;
+            border: 1px solid var(--web-primary);
+            box-shadow: 0 0 30px var(--web-glow);
+        }
+        .lab-header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--web-primary), #93c5fd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 1rem; margin-bottom: 1rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+        .meta-item { display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); }
+
+        .progress-section {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(96, 165, 250, 0.2);
+        }
+        .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .progress-bar { height: 12px; background: var(--bg-tertiary); border-radius: 6px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--web-primary), var(--success)); border-radius: 6px; transition: width 0.5s ease; }
+
+        .exercise {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(96, 165, 250, 0.2);
+            transition: all 0.3s ease;
+        }
+        .exercise:hover { border-color: var(--web-primary); box-shadow: 0 0 20px var(--web-glow); }
+        .exercise.completed { border-color: var(--success); background: linear-gradient(135deg, var(--bg-secondary), rgba(34, 197, 94, 0.1)); }
+
+        .exercise-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+        .exercise-number {
+            width: 50px; height: 50px;
+            background: linear-gradient(135deg, var(--web-primary), var(--web-secondary));
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; font-weight: bold;
+        }
+        .exercise-title h2 { font-size: 1.4rem; color: var(--text-primary); }
+        .exercise-title .time { color: var(--text-secondary); font-size: 0.9rem; }
+
+        .objective {
+            background: var(--bg-tertiary);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid var(--web-primary);
+        }
+        .objective strong { color: var(--web-primary); }
+
+        .content-section { margin-bottom: 1.5rem; }
+        .content-section h3 {
+            color: var(--web-primary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .packet-display {
+            background: #000;
+            padding: 1.5rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            overflow-x: auto;
+            white-space: pre;
+            color: var(--web-primary);
+            border: 1px solid var(--web-dark);
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .packet-display .highlight { color: var(--warning); font-weight: bold; }
+        .packet-display .danger { color: var(--danger); font-weight: bold; }
+        .packet-display .info { color: #93c5fd; }
+        .packet-display .success-text { color: var(--success); }
+
+        .question-block {
+            background: var(--bg-tertiary);
+            border: 1px solid rgba(96, 165, 250, 0.2);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .question-block label {
+            display: block;
+            color: var(--web-primary);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .question-block input, .question-block select {
+            width: 100%;
+            padding: 10px 14px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-family: 'Courier New', monospace;
+        }
+        .question-block input:focus, .question-block select:focus {
+            outline: none;
+            border-color: var(--web-primary);
+            box-shadow: 0 0 10px var(--web-glow);
+        }
+
+        .check-btn {
+            padding: 10px 24px;
+            background: linear-gradient(135deg, var(--web-primary), var(--web-secondary));
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 0.5rem;
+        }
+        .check-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px var(--web-glow); }
+
+        .feedback {
+            padding: 10px 16px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            display: none;
+        }
+        .feedback.correct { display: block; background: rgba(34, 197, 94, 0.15); border: 1px solid var(--success); color: var(--success); }
+        .feedback.incorrect { display: block; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: var(--danger); }
+
+        .tip-box {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid var(--warning);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        .tip-box strong { color: var(--warning); }
+
+        .completion-btn {
+            width: 100%;
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, var(--web-primary), var(--web-secondary));
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        .completion-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px var(--web-glow); }
+        .completion-btn.completed { background: var(--success); }
+
+        .concept-card {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border-left: 3px solid var(--web-primary);
+        }
+        .concept-card h4 { color: var(--web-primary); margin-bottom: 0.5rem; }
+        .concept-card p { color: var(--text-secondary); font-size: 0.9rem; }
+
+        .layer-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.85rem;
+        }
+        .layer-table th, .layer-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border: 1px solid rgba(96, 165, 250, 0.2);
+        }
+        .layer-table th { background: var(--web-dark); color: var(--web-primary); }
+        .layer-table tr:nth-child(even) { background: var(--bg-tertiary); }
+
+        @media (max-width: 768px) {
+            .lab-container { padding: 1rem; }
+            .lab-header h1 { font-size: 1.8rem; }
+            .packet-display { font-size: 0.7rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <a href="../index.html" class="back-link">&larr; Network+ Hub</a>
+
+        <header class="lab-header">
+            <h1>Packet Analysis Lab</h1>
+            <p class="subtitle">Examine HTTP, DNS, TCP, ARP, and ICMP packets to identify traffic patterns and suspicious activity</p>
+            <div class="lab-meta">
+                <span class="meta-item">90 minutes</span>
+                <span class="meta-item">Intermediate</span>
+                <span class="meta-item">6 Exercises</span>
+            </div>
+        </header>
+
+        <div class="progress-section">
+            <div class="progress-header">
+                <span>Lab Progress</span>
+                <span id="progressText">0 / 6 exercises</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Exercise 1: Reading TCP Packets -->
+        <div class="exercise" id="exercise1">
+            <div class="exercise-header">
+                <div class="exercise-number">1</div>
+                <div class="exercise-title">
+                    <h2>Reading TCP Packets</h2>
+                    <span class="time">15 minutes</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Objective:</strong> Analyze a TCP three-way handshake capture and identify source/destination information.
+            </div>
+
+            <div class="content-section">
+                <h3>Captured Packets</h3>
+                <div class="packet-display">No.  Time       Source          Destination     Protocol  Info
+<span class="info">1    0.000000</span>   <span class="highlight">192.168.1.105</span>   <span class="highlight">93.184.216.34</span>   TCP       <span class="success-text">54321 > 443 [SYN] Seq=0 Win=65535</span>
+<span class="info">2    0.023451</span>   <span class="highlight">93.184.216.34</span>   <span class="highlight">192.168.1.105</span>   TCP       <span class="success-text">443 > 54321 [SYN, ACK] Seq=0 Ack=1 Win=65535</span>
+<span class="info">3    0.023890</span>   <span class="highlight">192.168.1.105</span>   <span class="highlight">93.184.216.34</span>   TCP       <span class="success-text">54321 > 443 [ACK] Seq=1 Ack=1 Win=65535</span>
+<span class="info">4    0.024100</span>   <span class="highlight">192.168.1.105</span>   <span class="highlight">93.184.216.34</span>   TLSv1.3   Client Hello
+<span class="info">5    0.048200</span>   <span class="highlight">93.184.216.34</span>   <span class="highlight">192.168.1.105</span>   TLSv1.3   Server Hello, Certificate, Finished
+<span class="info">6    0.049000</span>   <span class="highlight">192.168.1.105</span>   <span class="highlight">93.184.216.34</span>   TLSv1.3   Finished
+<span class="info">7    0.050100</span>   <span class="highlight">192.168.1.105</span>   <span class="highlight">93.184.216.34</span>   TLSv1.3   Application Data [443 bytes]</span></div>
+            </div>
+
+            <div class="content-section">
+                <h3>Questions</h3>
+                <div class="question-block">
+                    <label>Q1: What is the client's IP address?</label>
+                    <input type="text" id="q1_1" placeholder="e.g., 10.0.0.1">
+                    <button class="check-btn" onclick="checkAnswer('q1_1', '192.168.1.105', 'fb1_1')">Check</button>
+                    <div class="feedback" id="fb1_1"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q2: What destination port is being used? What service runs there?</label>
+                    <input type="text" id="q1_2" placeholder="e.g., 80 / HTTP">
+                    <button class="check-btn" onclick="checkAnswer('q1_2', '443', 'fb1_2', true)">Check</button>
+                    <div class="feedback" id="fb1_2"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q3: Which packets form the TCP three-way handshake? (packet numbers)</label>
+                    <input type="text" id="q1_3" placeholder="e.g., 1,2,3">
+                    <button class="check-btn" onclick="checkAnswer('q1_3', '1,2,3', 'fb1_3', true)">Check</button>
+                    <div class="feedback" id="fb1_3"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q4: What TLS version is negotiated?</label>
+                    <input type="text" id="q1_4" placeholder="e.g., TLS 1.2">
+                    <button class="check-btn" onclick="checkAnswer('q1_4', '1.3', 'fb1_4', true)">Check</button>
+                    <div class="feedback" id="fb1_4"></div>
+                </div>
+            </div>
+
+            <button class="completion-btn" onclick="completeExercise(1)">Mark Exercise Complete</button>
+        </div>
+
+        <!-- Exercise 2: DNS Packet Analysis -->
+        <div class="exercise" id="exercise2">
+            <div class="exercise-header">
+                <div class="exercise-number">2</div>
+                <div class="exercise-title">
+                    <h2>DNS Query &amp; Response Analysis</h2>
+                    <span class="time">15 minutes</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Objective:</strong> Examine DNS queries and responses to understand name resolution and detect anomalies.
+            </div>
+
+            <div class="content-section">
+                <h3>DNS Traffic Capture</h3>
+                <div class="packet-display">No.  Time       Source          Destination     Protocol  Info
+<span class="info">1</span>    0.000000   192.168.1.105   <span class="highlight">8.8.8.8</span>         DNS       <span class="success-text">Standard query A www.example.com</span>
+<span class="info">2</span>    0.015230   8.8.8.8         192.168.1.105   DNS       <span class="success-text">Standard query response A 93.184.216.34</span>
+<span class="info">3</span>    0.100000   192.168.1.105   8.8.8.8         DNS       Standard query A mail.example.com
+<span class="info">4</span>    0.118400   8.8.8.8         192.168.1.105   DNS       Standard query response CNAME mx1.example.com A 93.184.216.50
+<span class="info">5</span>    1.200000   <span class="danger">192.168.1.42</span>    <span class="danger">185.220.101.1</span>   DNS       <span class="danger">Standard query TXT aGVsbG8gd29ybGQ=.evil-c2.net</span>
+<span class="info">6</span>    1.250000   185.220.101.1   192.168.1.42    DNS       <span class="danger">Standard query response TXT "Y21kPXdob2FtaQ=="</span>
+<span class="info">7</span>    2.300000   <span class="danger">192.168.1.42</span>    <span class="danger">185.220.101.1</span>   DNS       <span class="danger">Standard query TXT bHMgLWxh.evil-c2.net</span>
+<span class="info">8</span>    2.350000   185.220.101.1   192.168.1.42    DNS       <span class="danger">Standard query response TXT "ZGF0YT0vc2VjcmV0cy50eHQ="</span></div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Analyst Tip:</strong> DNS TXT records with Base64-encoded subdomains querying unknown domains are a classic indicator of DNS tunneling / C2 communication.
+            </div>
+
+            <div class="content-section">
+                <h3>Questions</h3>
+                <div class="question-block">
+                    <label>Q1: What DNS server is being queried by the legitimate traffic?</label>
+                    <input type="text" id="q2_1" placeholder="IP address">
+                    <button class="check-btn" onclick="checkAnswer('q2_1', '8.8.8.8', 'fb2_1')">Check</button>
+                    <div class="feedback" id="fb2_1"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q2: What IP address resolved for www.example.com?</label>
+                    <input type="text" id="q2_2" placeholder="IP address">
+                    <button class="check-btn" onclick="checkAnswer('q2_2', '93.184.216.34', 'fb2_2')">Check</button>
+                    <div class="feedback" id="fb2_2"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q3: Which host is exhibiting suspicious DNS behavior?</label>
+                    <input type="text" id="q2_3" placeholder="IP address">
+                    <button class="check-btn" onclick="checkAnswer('q2_3', '192.168.1.42', 'fb2_3')">Check</button>
+                    <div class="feedback" id="fb2_3"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q4: What type of attack do packets 5-8 suggest? (DNS ____)</label>
+                    <input type="text" id="q2_4" placeholder="Attack type">
+                    <button class="check-btn" onclick="checkAnswer('q2_4', 'tunnel', 'fb2_4', true)">Check</button>
+                    <div class="feedback" id="fb2_4"></div>
+                </div>
+            </div>
+
+            <button class="completion-btn" onclick="completeExercise(2)">Mark Exercise Complete</button>
+        </div>
+
+        <!-- Exercise 3: HTTP Traffic Analysis -->
+        <div class="exercise" id="exercise3">
+            <div class="exercise-header">
+                <div class="exercise-number">3</div>
+                <div class="exercise-title">
+                    <h2>HTTP Traffic Analysis</h2>
+                    <span class="time">20 minutes</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Objective:</strong> Analyze HTTP requests and responses to spot suspicious activity and identify SQL injection attempts.
+            </div>
+
+            <div class="content-section">
+                <h3>HTTP Request/Response Capture</h3>
+                <div class="packet-display"><span class="info">--- Packet 12: HTTP Request ---</span>
+<span class="highlight">GET /api/users?id=1 HTTP/1.1</span>
+Host: app.example.com
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)
+Accept: application/json
+Cookie: session=eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoiam9obiJ9
+
+<span class="info">--- Packet 13: HTTP Response ---</span>
+<span class="success-text">HTTP/1.1 200 OK</span>
+Content-Type: application/json
+Content-Length: 89
+{"id":1,"name":"John Doe","email":"john@example.com","role":"user"}
+
+<span class="info">--- Packet 18: HTTP Request (SUSPICIOUS) ---</span>
+<span class="danger">GET /api/users?id=1 OR 1=1-- HTTP/1.1</span>
+Host: app.example.com
+User-Agent: <span class="danger">sqlmap/1.7.2</span>
+Accept: */*
+
+<span class="info">--- Packet 19: HTTP Response ---</span>
+<span class="success-text">HTTP/1.1 200 OK</span>
+Content-Type: application/json
+Content-Length: 1847
+<span class="danger">[{"id":1,"name":"John Doe","email":"john@example.com","role":"user"},
+ {"id":2,"name":"Admin","email":"admin@example.com","role":"admin","password_hash":"$2b$12..."},
+ {"id":3,"name":"Jane Smith","email":"jane@example.com","role":"user"}, ...]</span></div>
+            </div>
+
+            <div class="content-section">
+                <h3>Questions</h3>
+                <div class="question-block">
+                    <label>Q1: What type of attack is being attempted in packet 18?</label>
+                    <input type="text" id="q3_1" placeholder="Attack type">
+                    <button class="check-btn" onclick="checkAnswer('q3_1', 'sql injection', 'fb3_1', true)">Check</button>
+                    <div class="feedback" id="fb3_1"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q2: What automated tool is the attacker using? (check User-Agent)</label>
+                    <input type="text" id="q3_2" placeholder="Tool name">
+                    <button class="check-btn" onclick="checkAnswer('q3_2', 'sqlmap', 'fb3_2', true)">Check</button>
+                    <div class="feedback" id="fb3_2"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q3: Was the attack successful? (yes/no)</label>
+                    <input type="text" id="q3_3" placeholder="yes or no">
+                    <button class="check-btn" onclick="checkAnswer('q3_3', 'yes', 'fb3_3', true)">Check</button>
+                    <div class="feedback" id="fb3_3"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q4: What sensitive data was exposed in the response?</label>
+                    <input type="text" id="q3_4" placeholder="What data leaked?">
+                    <button class="check-btn" onclick="checkAnswer('q3_4', 'password', 'fb3_4', true)">Check</button>
+                    <div class="feedback" id="fb3_4"></div>
+                </div>
+            </div>
+
+            <button class="completion-btn" onclick="completeExercise(3)">Mark Exercise Complete</button>
+        </div>
+
+        <!-- Exercise 4: ARP Traffic Analysis -->
+        <div class="exercise" id="exercise4">
+            <div class="exercise-header">
+                <div class="exercise-number">4</div>
+                <div class="exercise-title">
+                    <h2>ARP Traffic &amp; Spoofing Detection</h2>
+                    <span class="time">15 minutes</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Objective:</strong> Analyze ARP traffic to understand MAC-to-IP resolution and detect ARP spoofing attacks.
+            </div>
+
+            <div class="content-section">
+                <h3>ARP Reference</h3>
+                <div class="concept-card">
+                    <h4>How ARP Works</h4>
+                    <p>ARP (Address Resolution Protocol) maps IP addresses to MAC addresses on a local network. A device broadcasts "Who has 10.0.0.1?" and the owner replies "10.0.0.1 is at AA:BB:CC:DD:EE:01". Results are cached in the ARP table.</p>
+                </div>
+            </div>
+
+            <div class="content-section">
+                <h3>ARP Traffic Capture</h3>
+                <div class="packet-display">No.  Time       Source MAC          Dest MAC            Op    Info
+<span class="info">1</span>    0.000000   <span class="highlight">AA:BB:CC:11:22:01</span>   FF:FF:FF:FF:FF:FF   REQ   Who has 10.0.0.1? Tell 10.0.0.100
+<span class="info">2</span>    0.000450   <span class="highlight">AA:BB:CC:11:22:99</span>   AA:BB:CC:11:22:01   REP   <span class="success-text">10.0.0.1 is at AA:BB:CC:11:22:99</span>
+<span class="info">3</span>    0.500000   AA:BB:CC:11:22:02   FF:FF:FF:FF:FF:FF   REQ   Who has 10.0.0.1? Tell 10.0.0.101
+<span class="info">4</span>    0.500300   AA:BB:CC:11:22:99   AA:BB:CC:11:22:02   REP   10.0.0.1 is at AA:BB:CC:11:22:99
+
+<span class="danger">--- 5 seconds later: Suspicious gratuitous ARP ---</span>
+<span class="info">5</span>    5.100000   <span class="danger">AA:BB:CC:66:77:88</span>   FF:FF:FF:FF:FF:FF   REP   <span class="danger">10.0.0.1 is at AA:BB:CC:66:77:88</span>
+<span class="info">6</span>    5.200000   <span class="danger">AA:BB:CC:66:77:88</span>   FF:FF:FF:FF:FF:FF   REP   <span class="danger">10.0.0.1 is at AA:BB:CC:66:77:88</span>
+<span class="info">7</span>    5.300000   <span class="danger">AA:BB:CC:66:77:88</span>   FF:FF:FF:FF:FF:FF   REP   <span class="danger">10.0.0.1 is at AA:BB:CC:66:77:88</span>
+<span class="info">8</span>    5.400000   <span class="danger">AA:BB:CC:66:77:88</span>   AA:BB:CC:11:22:01   REP   <span class="danger">10.0.0.1 is at AA:BB:CC:66:77:88</span>
+<span class="info">9</span>    5.500000   <span class="danger">AA:BB:CC:66:77:88</span>   AA:BB:CC:11:22:02   REP   <span class="danger">10.0.0.1 is at AA:BB:CC:66:77:88</span></div>
+            </div>
+
+            <div class="content-section">
+                <h3>Questions</h3>
+                <div class="question-block">
+                    <label>Q1: What is the legitimate MAC address for the gateway (10.0.0.1)?</label>
+                    <input type="text" id="q4_1" placeholder="MAC address">
+                    <button class="check-btn" onclick="checkAnswer('q4_1', 'AA:BB:CC:11:22:99', 'fb4_1')">Check</button>
+                    <div class="feedback" id="fb4_1"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q2: What is the attacker's MAC address?</label>
+                    <input type="text" id="q4_2" placeholder="MAC address">
+                    <button class="check-btn" onclick="checkAnswer('q4_2', 'AA:BB:CC:66:77:88', 'fb4_2')">Check</button>
+                    <div class="feedback" id="fb4_2"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q3: What type of attack is shown in packets 5-9?</label>
+                    <input type="text" id="q4_3" placeholder="Attack type">
+                    <button class="check-btn" onclick="checkAnswer('q4_3', 'arp spoof', 'fb4_3', true)">Check</button>
+                    <div class="feedback" id="fb4_3"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q4: Why is the attacker sending unsolicited ARP replies? What is the goal?</label>
+                    <input type="text" id="q4_4" placeholder="Goal of this attack">
+                    <button class="check-btn" onclick="checkAnswer('q4_4', 'man in the middle', 'fb4_4', true)">Check</button>
+                    <div class="feedback" id="fb4_4"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q5: What Layer 2 security feature prevents this attack on managed switches?</label>
+                    <input type="text" id="q4_5" placeholder="Security feature name">
+                    <button class="check-btn" onclick="checkAnswer('q4_5', 'dynamic arp inspection', 'fb4_5', true)">Check</button>
+                    <div class="feedback" id="fb4_5"></div>
+                </div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Defense Tip:</strong> Enable Dynamic ARP Inspection (DAI) on managed switches. DAI validates ARP packets against the DHCP snooping binding table and drops packets with forged source MAC/IP pairs.
+            </div>
+
+            <button class="completion-btn" onclick="completeExercise(4)">Mark Exercise Complete</button>
+        </div>
+
+        <!-- Exercise 5: ICMP Analysis -->
+        <div class="exercise" id="exercise5">
+            <div class="exercise-header">
+                <div class="exercise-number">5</div>
+                <div class="exercise-title">
+                    <h2>ICMP Traffic &amp; Reconnaissance</h2>
+                    <span class="time">15 minutes</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Objective:</strong> Identify normal vs. suspicious ICMP traffic. Detect ping sweeps, oversized packets, and ICMP tunneling.
+            </div>
+
+            <div class="content-section">
+                <h3>ICMP Traffic Capture</h3>
+                <div class="packet-display">No.  Time        Source          Destination      Type   Code  Bytes  Info
+<span class="info">1</span>    0.000000    192.168.1.50    10.0.0.5         8      0     64     <span class="success-text">Echo Request  id=0x1234 seq=1</span>
+<span class="info">2</span>    0.012300    10.0.0.5        192.168.1.50     0      0     64     <span class="success-text">Echo Reply    id=0x1234 seq=1</span>
+<span class="info">3</span>    1.001000    192.168.1.50    10.0.0.5         8      0     64     Echo Request  id=0x1234 seq=2
+<span class="info">4</span>    1.014500    10.0.0.5        192.168.1.50     0      0     64     Echo Reply    id=0x1234 seq=2
+
+<span class="danger">--- Suspicious ICMP Activity ---</span>
+<span class="info">5</span>    5.000000    <span class="danger">192.168.1.42</span>    10.0.0.1         8      0     64     <span class="danger">Echo Request  seq=1</span>
+<span class="info">6</span>    5.000010    <span class="danger">192.168.1.42</span>    10.0.0.2         8      0     64     <span class="danger">Echo Request  seq=1</span>
+<span class="info">7</span>    5.000020    <span class="danger">192.168.1.42</span>    10.0.0.3         8      0     64     <span class="danger">Echo Request  seq=1</span>
+<span class="info">8</span>    5.000030    <span class="danger">192.168.1.42</span>    10.0.0.4         8      0     64     <span class="danger">Echo Request  seq=1</span>
+<span class="info">9</span>    5.000040    <span class="danger">192.168.1.42</span>    10.0.0.5         8      0     64     <span class="danger">Echo Request  seq=1</span>
+...
+<span class="info">260</span>   5.025500    <span class="danger">192.168.1.42</span>    10.0.0.254       8      0     64     <span class="danger">Echo Request  seq=1</span>
+
+<span class="danger">--- Anomalous ICMP ---</span>
+<span class="info">300</span>   10.000000   <span class="danger">192.168.1.42</span>    <span class="danger">45.33.32.156</span>    8      0     <span class="danger">1400</span>   <span class="danger">Echo Request  [data: 1336 bytes payload]</span>
+<span class="info">301</span>   10.050000   45.33.32.156    192.168.1.42     0      0     <span class="danger">1400</span>   <span class="danger">Echo Reply    [data: 1336 bytes payload]</span></div>
+            </div>
+
+            <div class="content-section">
+                <h3>ICMP Type Reference</h3>
+                <table class="layer-table">
+                    <tr><th>Type</th><th>Code</th><th>Description</th></tr>
+                    <tr><td>0</td><td>0</td><td>Echo Reply (ping response)</td></tr>
+                    <tr><td>3</td><td>0-15</td><td>Destination Unreachable</td></tr>
+                    <tr><td>8</td><td>0</td><td>Echo Request (ping)</td></tr>
+                    <tr><td>11</td><td>0-1</td><td>Time Exceeded (traceroute)</td></tr>
+                </table>
+            </div>
+
+            <div class="content-section">
+                <h3>Questions</h3>
+                <div class="question-block">
+                    <label>Q1: Packets 1-4 show normal ping traffic. What ICMP types are request and reply?</label>
+                    <input type="text" id="q5_1" placeholder="e.g., request=X, reply=Y">
+                    <button class="check-btn" onclick="checkAnswer('q5_1', '8', 'fb5_1', true)">Check</button>
+                    <div class="feedback" id="fb5_1"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q2: What type of reconnaissance is happening in packets 5-260?</label>
+                    <input type="text" id="q5_2" placeholder="Type of scan">
+                    <button class="check-btn" onclick="checkAnswer('q5_2', 'ping sweep', 'fb5_2', true)">Check</button>
+                    <div class="feedback" id="fb5_2"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q3: Normal ping payloads are ~32-56 bytes. Packet 300 has 1336 bytes. What does this suggest?</label>
+                    <input type="text" id="q5_3" placeholder="What is this?">
+                    <button class="check-btn" onclick="checkAnswer('q5_3', 'icmp tunnel', 'fb5_3', true)">Check</button>
+                    <div class="feedback" id="fb5_3"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q4: What host is performing reconnaissance?</label>
+                    <input type="text" id="q5_4" placeholder="IP address">
+                    <button class="check-btn" onclick="checkAnswer('q5_4', '192.168.1.42', 'fb5_4')">Check</button>
+                    <div class="feedback" id="fb5_4"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q5: How many hosts are being scanned in the ping sweep? (10.0.0.1 to 10.0.0.254)</label>
+                    <input type="text" id="q5_5" placeholder="Number">
+                    <button class="check-btn" onclick="checkAnswer('q5_5', '254', 'fb5_5')">Check</button>
+                    <div class="feedback" id="fb5_5"></div>
+                </div>
+            </div>
+
+            <button class="completion-btn" onclick="completeExercise(5)">Mark Exercise Complete</button>
+        </div>
+
+        <!-- Exercise 6: Suspicious Traffic Patterns -->
+        <div class="exercise" id="exercise6">
+            <div class="exercise-header">
+                <div class="exercise-number">6</div>
+                <div class="exercise-title">
+                    <h2>Attack Chain: Pattern Recognition</h2>
+                    <span class="time">20 minutes</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Objective:</strong> Analyze a mixed traffic capture to identify the full attack chain: reconnaissance, exploitation, and command-and-control.
+            </div>
+
+            <div class="content-section">
+                <h3>Mixed Traffic Capture</h3>
+                <div class="packet-display">No.  Time        Source          Destination      Protocol  Bytes  Info
+<span class="info">1</span>    08:01:00    192.168.1.50    10.0.0.5         TCP       60     22 > 49152 [SYN,ACK]
+<span class="info">2</span>    08:01:01    192.168.1.50    10.0.0.5         SSH       200    Encrypted packet
+<span class="info">3</span>    08:15:30    <span class="danger">192.168.1.42</span>    <span class="danger">10.0.0.1</span>         TCP       60     <span class="danger">SYN > port 21</span>
+<span class="info">4</span>    08:15:30    <span class="danger">192.168.1.42</span>    <span class="danger">10.0.0.1</span>         TCP       60     <span class="danger">SYN > port 22</span>
+<span class="info">5</span>    08:15:30    <span class="danger">192.168.1.42</span>    <span class="danger">10.0.0.1</span>         TCP       60     <span class="danger">SYN > port 23</span>
+<span class="info">6</span>    08:15:30    <span class="danger">192.168.1.42</span>    <span class="danger">10.0.0.1</span>         TCP       60     <span class="danger">SYN > port 25</span>
+<span class="info">7</span>    08:15:30    <span class="danger">192.168.1.42</span>    <span class="danger">10.0.0.1</span>         TCP       60     <span class="danger">SYN > port 80</span>
+<span class="info">8</span>    08:15:31    <span class="danger">192.168.1.42</span>    <span class="danger">10.0.0.1</span>         TCP       60     <span class="danger">SYN > port 443</span>
+<span class="info">9</span>    08:15:31    <span class="danger">192.168.1.42</span>    <span class="danger">10.0.0.1</span>         TCP       60     <span class="danger">SYN > port 445</span>
+<span class="info">10</span>   08:15:31    <span class="danger">192.168.1.42</span>    <span class="danger">10.0.0.1</span>         TCP       60     <span class="danger">SYN > port 3306</span>
+<span class="info">11</span>   08:15:31    <span class="danger">192.168.1.42</span>    <span class="danger">10.0.0.1</span>         TCP       60     <span class="danger">SYN > port 3389</span>
+<span class="info">12</span>   08:16:00    <span class="danger">192.168.1.42</span>    <span class="danger">10.0.0.2</span>         TCP       60     <span class="danger">SYN > port 21</span>
+...
+<span class="info">45</span>   08:30:00    192.168.1.42    <span class="danger">45.33.32.156</span>    TCP       60     <span class="danger">49200 > 4444 [SYN]</span>
+<span class="info">46</span>   08:30:01    45.33.32.156    192.168.1.42    TCP       60     <span class="danger">4444 > 49200 [SYN,ACK]</span>
+<span class="info">47</span>   08:30:05    192.168.1.42    45.33.32.156    TCP       1500   <span class="danger">PSH,ACK [1460 bytes] port 4444</span></div>
+            </div>
+
+            <div class="content-section">
+                <h3>Analysis Questions</h3>
+                <div class="question-block">
+                    <label>Q1: What type of reconnaissance is 192.168.1.42 performing in packets 3-11?</label>
+                    <input type="text" id="q6_1" placeholder="Type of scan">
+                    <button class="check-btn" onclick="checkAnswer('q6_1', 'port scan', 'fb6_1', true)">Check</button>
+                    <div class="feedback" id="fb6_1"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q2: What well-known port is targeted that could indicate database access?</label>
+                    <input type="text" id="q6_2" placeholder="Port number">
+                    <button class="check-btn" onclick="checkAnswer('q6_2', '3306', 'fb6_2')">Check</button>
+                    <div class="feedback" id="fb6_2"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q3: Port 4444 in packets 45-47 is associated with what common tool?</label>
+                    <input type="text" id="q6_3" placeholder="Tool name">
+                    <button class="check-btn" onclick="checkAnswer('q6_3', 'metasploit', 'fb6_3', true)">Check</button>
+                    <div class="feedback" id="fb6_3"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q4: What is the likely attack sequence? (scan -> ??? -> C2)</label>
+                    <input type="text" id="q6_4" placeholder="Middle step">
+                    <button class="check-btn" onclick="checkAnswer('q6_4', 'exploit', 'fb6_4', true)">Check</button>
+                    <div class="feedback" id="fb6_4"></div>
+                </div>
+                <div class="question-block">
+                    <label>Q5: Map this to the Cyber Kill Chain. Which 3 phases are visible?</label>
+                    <input type="text" id="q6_5" placeholder="Three phases">
+                    <button class="check-btn" onclick="checkAnswer('q6_5', 'reconnaissance', 'fb6_5', true)">Check</button>
+                    <div class="feedback" id="fb6_5"></div>
+                </div>
+            </div>
+
+            <div class="tip-box">
+                <strong>SOC Analyst Tip:</strong> The attack chain here is: Reconnaissance (port scan) &rarr; Exploitation (compromised a service) &rarr; Command &amp; Control (reverse shell on port 4444). This is a textbook Lockheed Martin Cyber Kill Chain example.
+            </div>
+
+            <button class="completion-btn" onclick="completeExercise(6)">Mark Lab Complete</button>
+        </div>
+    </div>
+
+    <script>
+        var STORAGE_KEY = 'web_packet_analysis_lab_v2';
+        var TOTAL = 6;
+        var completedExercises = [];
+
+        function loadProgress() {
+            var saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                completedExercises = JSON.parse(saved);
+                completedExercises.forEach(function(num) {
+                    var exercise = document.getElementById('exercise' + num);
+                    if (exercise) {
+                        exercise.classList.add('completed');
+                        var btn = exercise.querySelector('.completion-btn');
+                        btn.classList.add('completed');
+                        btn.textContent = 'Completed';
+                    }
+                });
+            }
+            updateProgress();
+        }
+
+        function saveProgress() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(completedExercises));
+        }
+
+        function updateProgress() {
+            var completed = completedExercises.length;
+            var percent = (completed / TOTAL) * 100;
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = completed + ' / ' + TOTAL + ' exercises';
+        }
+
+        function checkAnswer(inputId, correctAnswer, feedbackId, fuzzy) {
+            var input = document.getElementById(inputId);
+            var feedback = document.getElementById(feedbackId);
+            var userAnswer = input.value.trim().toLowerCase();
+            var correct = correctAnswer.toLowerCase();
+
+            feedback.className = 'feedback';
+
+            if (fuzzy ? (userAnswer.indexOf(correct) !== -1 || correct.indexOf(userAnswer) !== -1) : userAnswer === correct) {
+                feedback.className = 'feedback correct';
+                feedback.textContent = 'Correct!';
+            } else {
+                feedback.className = 'feedback incorrect';
+                feedback.textContent = 'Not quite. Expected: ' + correctAnswer;
+            }
+        }
+
+        function completeExercise(num) {
+            if (completedExercises.indexOf(num) === -1) {
+                completedExercises.push(num);
+                var exercise = document.getElementById('exercise' + num);
+                exercise.classList.add('completed');
+                var btn = exercise.querySelector('.completion-btn');
+                btn.classList.add('completed');
+                btn.textContent = 'Completed';
+                saveProgress();
+                updateProgress();
+
+                if (completedExercises.length === TOTAL) {
+                    if (typeof ModuleProgress !== 'undefined') {
+                        ModuleProgress.complete('web', 'web-packet-analysis', { returnToDashboard: false });
+                    }
+                    setTimeout(function() {
+                        alert('Congratulations! You have completed the Packet Analysis Lab.\n\nYou can now read packet captures, identify protocols at each layer, and spot attack patterns in network traffic.');
+                    }, 500);
+                }
+            }
+        }
+
+        loadProgress();
+    </script>
+
+    <script src="../../../../components/TrailHunter.js"></script>
+</body>
+</html>
