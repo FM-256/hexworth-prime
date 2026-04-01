@@ -2601,6 +2601,9 @@
             tdActive.textContent = lastActive;
 
             var tdActions = document.createElement('td');
+            tdActions.style.whiteSpace = 'nowrap';
+
+            // Detail button — view student progress breakdown
             var viewBtn = document.createElement('button');
             viewBtn.className = 'row-btn';
             viewBtn.textContent = 'Detail';
@@ -2609,6 +2612,36 @@
                 showStudentDetail(student);
             });
             tdActions.appendChild(viewBtn);
+
+            // Withdraw button — soft-remove, keeps data for records
+            var withdrawBtn = document.createElement('button');
+            withdrawBtn.className = 'row-btn';
+            withdrawBtn.style.color = 'var(--vc-amber)';
+            withdrawBtn.style.borderColor = 'rgba(251,191,36,0.3)';
+            withdrawBtn.textContent = 'Withdraw';
+            // Don't show withdraw for already-withdrawn students
+            if (student.status === 'withdrawn') {
+                withdrawBtn.textContent = 'Withdrawn';
+                withdrawBtn.disabled = true;
+                withdrawBtn.style.opacity = '0.5';
+            }
+            withdrawBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                withdrawStudent(student);
+            });
+            tdActions.appendChild(withdrawBtn);
+
+            // Remove button — hard delete, permanent
+            var removeBtn = document.createElement('button');
+            removeBtn.className = 'row-btn';
+            removeBtn.style.color = 'var(--vc-red)';
+            removeBtn.style.borderColor = 'rgba(248,113,113,0.3)';
+            removeBtn.textContent = 'Remove';
+            removeBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                removeStudentFromClass(student);
+            });
+            tdActions.appendChild(removeBtn);
 
             [tdName, tdCompleted, tdScore, tdProgress, tdActive, tdActions].forEach(function(td) {
                 tr.appendChild(td);
@@ -3113,6 +3146,41 @@
         document.body.appendChild(overlay);
         overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
     };
+
+    // ── Withdraw Student (soft-remove — data preserved) ──
+    function withdrawStudent(student) {
+        var name = student.displayName || student.email || student.uid;
+        if (!confirm('Withdraw "' + name + '" from this class?\n\nTheir progress data will be preserved for records but they will be marked as withdrawn.')) return;
+
+        FirebaseAuth.callFunction('withdrawStudent', {
+            tenantSlug: _tenantId,
+            classId: _activeClass.classId,
+            studentUid: student.uid || student.studentUid
+        }).then(function() {
+            toast(name + ' withdrawn.', 'success');
+            loadStudentProgress();
+        }).catch(function(err) {
+            toast('Withdraw failed: ' + err.message, 'error');
+        });
+    }
+
+    // ── Remove Student (hard delete — permanent, cannot be undone) ──
+    function removeStudentFromClass(student) {
+        var name = student.displayName || student.email || student.uid;
+        var confirmText = prompt('Remove "' + name + '" permanently?\n\nThis deletes ALL their progress data and cannot be undone.\n\nType REMOVE to confirm:');
+        if (confirmText !== 'REMOVE') return;
+
+        FirebaseAuth.callFunction('removeStudent', {
+            tenantSlug: _tenantId,
+            classId: _activeClass.classId,
+            studentUid: student.uid || student.studentUid
+        }).then(function() {
+            toast(name + ' permanently removed.', 'warning');
+            loadStudentProgress();
+        }).catch(function(err) {
+            toast('Remove failed: ' + err.message, 'error');
+        });
+    }
 
     window.InstructorApp = {
         openCreateAssignment: openCreateAssignment,

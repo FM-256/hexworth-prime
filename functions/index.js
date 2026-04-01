@@ -3566,6 +3566,84 @@ exports.adminDeleteClass = onCall(cfOptions, async (request) => {
     return { classId, message: 'Class deleted.' };
 });
 
+/**
+ * withdrawStudent — Soft-remove a student from a class.
+ * Sets status to 'withdrawn' on the progress doc. Data preserved for records.
+ * Input: { tenantSlug, classId, studentUid }
+ * Callable by: admin or tenant admin (uid in adminUids)
+ */
+exports.withdrawStudent = onCall(cfOptions, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
+
+    const { tenantSlug, classId, studentUid } = request.data || {};
+    if (!tenantSlug || !classId || !studentUid) {
+        throw new HttpsError('invalid-argument', 'Missing tenantSlug, classId, or studentUid.');
+    }
+
+    // Verify caller is admin or tenant admin
+    const tenantDoc = await db.doc(`tenants/${tenantSlug}`).get();
+    if (!tenantDoc.exists) throw new HttpsError('not-found', 'Tenant not found.');
+    const isAdmin = request.auth.token.admin === true;
+    const isTenantAdmin = (tenantDoc.data().adminUids || []).includes(request.auth.uid);
+    if (!isAdmin && !isTenantAdmin) {
+        throw new HttpsError('permission-denied', 'Only admins can withdraw students.');
+    }
+
+    // Mark as withdrawn — preserve all progress data for records
+    const progressRef = db.doc(`tenants/${tenantSlug}/classes/${classId}/progress/${studentUid}`);
+    const progressDoc = await progressRef.get();
+    if (!progressDoc.exists) throw new HttpsError('not-found', 'Student not found in class.');
+
+    await progressRef.update({
+        status: 'withdrawn',
+        withdrawnAt: FieldValue.serverTimestamp(),
+        withdrawnBy: request.auth.uid
+    });
+
+    return { success: true, studentUid, action: 'withdrawn' };
+});
+
+/**
+ * removeStudent — Hard-delete a student from a class.
+ * Deletes progress doc and enrollment doc permanently. Decrements student count.
+ * Input: { tenantSlug, classId, studentUid }
+ * Callable by: admin or tenant admin (uid in adminUids)
+ */
+exports.removeStudent = onCall(cfOptions, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
+
+    const { tenantSlug, classId, studentUid } = request.data || {};
+    if (!tenantSlug || !classId || !studentUid) {
+        throw new HttpsError('invalid-argument', 'Missing tenantSlug, classId, or studentUid.');
+    }
+
+    // Verify caller is admin or tenant admin
+    const tenantDoc = await db.doc(`tenants/${tenantSlug}`).get();
+    if (!tenantDoc.exists) throw new HttpsError('not-found', 'Tenant not found.');
+    const isAdmin = request.auth.token.admin === true;
+    const isTenantAdmin = (tenantDoc.data().adminUids || []).includes(request.auth.uid);
+    if (!isAdmin && !isTenantAdmin) {
+        throw new HttpsError('permission-denied', 'Only admins can remove students.');
+    }
+
+    const batch = db.batch();
+
+    // Delete progress doc
+    batch.delete(db.doc(`tenants/${tenantSlug}/classes/${classId}/progress/${studentUid}`));
+
+    // Delete enrollment lookup doc
+    batch.delete(db.doc(`enrollments/${studentUid}`));
+
+    // Decrement student count
+    batch.update(db.doc(`tenants/${tenantSlug}/classes/${classId}`), {
+        studentCount: FieldValue.increment(-1)
+    });
+
+    await batch.commit();
+
+    return { success: true, studentUid, action: 'removed' };
+});
+
 // ═══════════════════════════════════════════════════════════════════════════
 // UNIFIED ENROLLMENT — Lobby join code resolution + class enrollment
 // ═══════════════════════════════════════════════════════════════════════════
