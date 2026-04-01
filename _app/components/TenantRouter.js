@@ -33,17 +33,24 @@ const TenantRouter = (function() {
     var _hubUrl = null;
 
     // ── Dashboard variant file mapping ──────────────────
+    // Maps the branding.dashboardVariant config value to the actual HTML file.
+    // When a variant isn't in this map, falls back to index.html (the default loader).
     var VARIANT_FILES = {
         'command-center': 'dashboard-command-center.html',
         'clean-ops':      'dashboard-clean-ops.html',
         'tactical-hud':   'dashboard-tactical-hud.html',
-        'enterprise':     'dashboard-enterprise.html'
+        'enterprise':     'dashboard-enterprise.html',
+        'academy':        'dashboard-academy.html',
+        'federal':        'dashboard-federal.html',
+        'nightshift':     'dashboard-nightshift.html',
+        'minimalist':     'dashboard-minimalist.html',
+        'campus':         'dashboard-campus.html'
     };
 
     // ── Initialize from sessionStorage ──────────────────
     function _init() {
         try {
-            var raw = sessionStorage.getItem('hexworth_tenant');
+            var raw = sessionStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant');
             if (!raw) return;
             _tenant = JSON.parse(raw);
             if (!_tenant || !_tenant.slug) return;
