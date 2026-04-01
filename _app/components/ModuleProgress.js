@@ -202,7 +202,13 @@ const ModuleProgress = (function() {
      */
     function tryClassProgressSync(moduleId, moduleType, metadata) {
         try {
-            var tenantSlug = sessionStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant_slug');
+            // hexworth_tenant may be a JSON config object (set by lobby/dashboard)
+            // or a plain slug string (legacy). Extract the slug either way.
+            var tenantRaw = sessionStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant_slug');
+            var tenantSlug = null;
+            if (tenantRaw) {
+                try { tenantSlug = JSON.parse(tenantRaw).slug; } catch(e) { tenantSlug = tenantRaw; }
+            }
             var classId = sessionStorage.getItem('hexworth_class') || localStorage.getItem('hexworth_class_id');
             if (!tenantSlug || !classId) return; // Not in a class
 
