@@ -2515,11 +2515,12 @@ exports.getTenantConfig = onRequest({ region: 'us-central1', cors: true }, async
                 allowAnonymous: tenant.auth.allowAnonymous,
                 allowGoogleSSO: tenant.auth.allowGoogleSSO
                 // Don't expose SAML/OIDC configs
-            }
+            },
+            adminUids: tenant.adminUids || []
         };
 
-        // Cache for 5 minutes (branding doesn't change often)
-        res.set('Cache-Control', 'public, max-age=300');
+        // Cache for 30 seconds
+        res.set('Cache-Control', 'public, max-age=30');
         res.json(publicConfig);
 
     } catch (error) {
@@ -3002,7 +3003,18 @@ exports.getStudentProgress = onCall(cfOptions, async (request) => {
         progressSnap.forEach(doc => {
             const data = doc.data();
             students.push({
+                uid: doc.id,
                 studentUid: doc.id,
+                displayName: data.displayName || '',
+                email: data.email || '',
+                enrolledAt: data.enrolledAt || null,
+                lastActive: data.lastActive || null,
+                currentChapter: data.currentChapter || 1,
+                chaptersCompleted: data.chaptersCompleted || [],
+                modulesCompleted: data.modulesCompleted || [],
+                quizScores: data.quizScores || {},
+                labsCompleted: data.labsCompleted || [],
+                totalTimeSpent: data.totalTimeSpent || 0,
                 assignments: data.assignments || {}
             });
         });
@@ -3038,7 +3050,7 @@ exports.getStudentProgress = onCall(cfOptions, async (request) => {
 
 // Valid values for input validation
 const VALID_TIERS = ['analyst', 'team', 'academy', 'enterprise'];
-const VALID_DASHBOARD_VARIANTS = ['command-center', 'clean-ops', 'tactical-hud', 'enterprise'];
+const VALID_DASHBOARD_VARIANTS = ['command-center', 'clean-ops', 'tactical-hud', 'enterprise', 'academy', 'federal', 'nightshift', 'minimalist', 'campus'];
 
 /**
  * Helper: build a default tenant document from required fields.
@@ -3070,13 +3082,14 @@ function buildTenantDoc(slug, name, tier) {
                 series: [],
                 houses: [],
                 hubs: [],
+                courses: [],
                 features: {
-                    vsMode: tier === 'academy' || tier === 'enterprise',
-                    chatbots: tier === 'enterprise',
-                    bugHunting: true,
-                    codeRunner: true,
-                    wiresharkHub: true,
-                    forensicsHub: true
+                    vsMode: false,
+                    chatbots: false,
+                    bugHunting: false,
+                    codeRunner: false,
+                    wiresharkHub: false,
+                    forensicsHub: false
                 }
             },
             maxSeats: tier === 'analyst' ? 1 :
@@ -3173,9 +3186,9 @@ exports.adminCreateTenant = onCall(cfOptions, async (request) => {
         throw new HttpsError('invalid-argument', 'Invalid tier. Must be: ' + VALID_TIERS.join(', '));
     }
 
-    // Check slug uniqueness
+    // Check slug uniqueness — allow re-creation if previously soft-deleted
     const existing = await db.doc(`tenants/${slug}`).get();
-    if (existing.exists) {
+    if (existing.exists && existing.data().status !== 'deleted') {
         throw new HttpsError('already-exists', `Tenant "${slug}" already exists.`);
     }
 
@@ -3199,20 +3212,33 @@ exports.adminCreateTenant = onCall(cfOptions, async (request) => {
     if (licensing) {
         if (licensing.maxSeats) tenantDoc.licensing.maxSeats = parseInt(licensing.maxSeats);
         if (licensing.expiresAt) tenantDoc.licensing.expiresAt = licensing.expiresAt;
+
+        // Apply content access (courses, houses, series, hubs, features)
+        if (licensing.contentAccess && typeof licensing.contentAccess === 'object') {
+            const ca = licensing.contentAccess;
+            if (Array.isArray(ca.houses))  tenantDoc.licensing.contentAccess.houses  = ca.houses;
+            if (Array.isArray(ca.series))  tenantDoc.licensing.contentAccess.series  = ca.series;
+            if (Array.isArray(ca.hubs))    tenantDoc.licensing.contentAccess.hubs    = ca.hubs;
+            if (Array.isArray(ca.courses)) tenantDoc.licensing.contentAccess.courses = ca.courses;
+            if (ca.features && typeof ca.features === 'object') {
+                tenantDoc.licensing.contentAccess.features = ca.features;
+            }
+        }
     }
 
-    // Apply feature overrides
-    if (features && typeof features === 'object') {
+    // Apply feature overrides (legacy path — direct features param)
+    if (features && typeof features === 'object' && !licensing?.contentAccess?.features) {
         Object.keys(features).forEach(key => {
-            if (tenantDoc.licensing.contentAccess.features.hasOwnProperty(key)) {
-                tenantDoc.licensing.contentAccess.features[key] = !!features[key];
-            }
+            tenantDoc.licensing.contentAccess.features[key] = !!features[key];
         });
     }
 
-    // Apply admin UIDs
+    // Apply admin UIDs — always include the creator
     if (adminUids && Array.isArray(adminUids)) {
         tenantDoc.adminUids = adminUids.filter(uid => typeof uid === 'string' && uid.trim());
+    }
+    if (!tenantDoc.adminUids.includes(request.auth.uid)) {
+        tenantDoc.adminUids.push(request.auth.uid);
     }
 
     // Write to Firestore
@@ -3281,8 +3307,23 @@ exports.adminUpdateTenant = onCall(cfOptions, async (request) => {
         firestoreUpdates['licensing.expiresAt'] = updates.expiresAt;
     }
 
-    // Features
-    if (updates.features && typeof updates.features === 'object') {
+    // Content access arrays (courses, houses, series, hubs)
+    if (updates.contentAccess && typeof updates.contentAccess === 'object') {
+        const ca = updates.contentAccess;
+        if (Array.isArray(ca.houses))  firestoreUpdates['licensing.contentAccess.houses']  = ca.houses;
+        if (Array.isArray(ca.series))  firestoreUpdates['licensing.contentAccess.series']  = ca.series;
+        if (Array.isArray(ca.hubs))    firestoreUpdates['licensing.contentAccess.hubs']    = ca.hubs;
+        if (Array.isArray(ca.courses)) firestoreUpdates['licensing.contentAccess.courses'] = ca.courses;
+        // Features from contentAccess take precedence over legacy features param
+        if (ca.features && typeof ca.features === 'object') {
+            Object.keys(ca.features).forEach(key => {
+                firestoreUpdates[`licensing.contentAccess.features.${key}`] = !!ca.features[key];
+            });
+        }
+    }
+
+    // Features (legacy path — only if contentAccess.features wasn't provided)
+    if (updates.features && typeof updates.features === 'object' && !(updates.contentAccess && updates.contentAccess.features)) {
         Object.keys(updates.features).forEach(key => {
             firestoreUpdates[`licensing.contentAccess.features.${key}`] = !!updates.features[key];
         });
@@ -3330,4 +3371,994 @@ exports.adminDeleteTenant = onCall(cfOptions, async (request) => {
     });
 
     return { slug, message: `Tenant "${slug}" has been deactivated.` };
+});
+
+/**
+ * adminPurgeDeletedTenants — Hard-deletes all tenant docs with status 'deleted'.
+ * Permanently removes data from Firestore. Admin only.
+ */
+exports.adminPurgeDeletedTenants = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    const snapshot = await db.collection('tenants')
+        .where('status', '==', 'deleted')
+        .get();
+
+    if (snapshot.empty) {
+        return { purged: 0, message: 'No deleted tenants to purge.' };
+    }
+
+    const batch = db.batch();
+    const slugs = [];
+    snapshot.forEach(doc => {
+        slugs.push(doc.id);
+        batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+    return { purged: slugs.length, slugs, message: `Purged ${slugs.length} deleted tenant(s).` };
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CLASS MANAGEMENT — CRUD for tenant classes (Phase 2)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * adminCreateClass — Creates a class under a tenant.
+ * Input: { tenantSlug, name, courseId, joinCode, startDate, endDate, settings, instructorUid? }
+ */
+exports.adminCreateClass = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    const { tenantSlug, name, courseId, joinCode, startDate, endDate, settings, instructorUid } = request.data || {};
+
+    if (!tenantSlug) throw new HttpsError('invalid-argument', 'Missing tenantSlug.');
+    if (!name || typeof name !== 'string') throw new HttpsError('invalid-argument', 'Class name is required.');
+    if (!courseId) throw new HttpsError('invalid-argument', 'Course is required.');
+
+    // Validate tenant exists
+    const tenantDoc = await db.doc(`tenants/${tenantSlug}`).get();
+    if (!tenantDoc.exists) throw new HttpsError('not-found', `Tenant "${tenantSlug}" not found.`);
+
+    // Generate or validate join code
+    let code = (joinCode || '').trim().toUpperCase();
+    if (!code || code.length < 4) {
+        // Auto-generate: course prefix + 4 random chars
+        const prefixMap = { 'network-plus': 'NP', 'cyberops': 'CO', 'aplus-core1': 'A1', 'aplus-core2': 'A2', 'md-100': 'MD', 'md-101': 'ME', 'feh': 'FH' };
+        const prefix = prefixMap[courseId] || 'HX';
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let rand = '';
+        for (let i = 0; i < 4; i++) rand += chars.charAt(Math.floor(Math.random() * chars.length));
+        code = prefix + '-' + rand;
+    }
+
+    // Check join code uniqueness across classes and tournaments
+    try {
+        const existing = await db.collectionGroup('classes')
+            .where('joinCode', '==', code)
+            .limit(1)
+            .get();
+        if (!existing.empty) {
+            throw new HttpsError('already-exists', `Join code "${code}" is already in use.`);
+        }
+    } catch (e) {
+        // FAILED_PRECONDITION = index still building — skip uniqueness check
+        if (e.code === 9 || e.code === 'already-exists') {
+            if (e.code === 'already-exists') throw e;
+            console.warn('[adminCreateClass] CollectionGroup index not ready, skipping uniqueness check');
+        } else {
+            throw e;
+        }
+    }
+
+    try {
+        const tournCheck = await db.collection('tournaments')
+            .where('joinCode', '==', code)
+            .limit(1)
+            .get();
+        if (!tournCheck.empty) {
+            throw new HttpsError('already-exists', `Join code "${code}" conflicts with a tournament.`);
+        }
+    } catch (e) {
+        if (e.code === 'already-exists') throw e;
+        console.warn('[adminCreateClass] Tournament check failed, proceeding:', e.message);
+    }
+
+    const classDoc = {
+        name: name,
+        courseId: courseId,
+        joinCode: code,
+        instructorUid: instructorUid || request.auth.uid,
+        instructorEmail: request.auth.token.email || '',
+        status: 'active',
+        startDate: startDate || null,
+        endDate: endDate || null,
+        settings: {
+            sequentialChapters: settings?.sequentialChapters !== false,
+            passingScore: settings?.passingScore || 70,
+            requireQuiz: settings?.requireQuiz !== false
+        },
+        studentCount: 0,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+    };
+
+    const ref = await db.collection(`tenants/${tenantSlug}/classes`).add(classDoc);
+
+    return { classId: ref.id, joinCode: code, message: `Class "${name}" created.` };
+});
+
+/**
+ * adminListClasses — Lists all classes for a tenant.
+ * Input: { tenantSlug }
+ */
+exports.adminListClasses = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    const { tenantSlug } = request.data || {};
+    if (!tenantSlug) throw new HttpsError('invalid-argument', 'Missing tenantSlug.');
+
+    const snap = await db.collection(`tenants/${tenantSlug}/classes`)
+        .orderBy('createdAt', 'desc')
+        .get();
+
+    const classes = [];
+    snap.forEach(doc => {
+        classes.push({ id: doc.id, ...doc.data() });
+    });
+
+    return { classes };
+});
+
+/**
+ * adminUpdateClass — Updates a class within a tenant.
+ * Input: { tenantSlug, classId, updates }
+ */
+exports.adminUpdateClass = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    const { tenantSlug, classId, updates } = request.data || {};
+    if (!tenantSlug || !classId) throw new HttpsError('invalid-argument', 'Missing tenantSlug or classId.');
+    if (!updates || typeof updates !== 'object') throw new HttpsError('invalid-argument', 'Updates required.');
+
+    const classRef = db.doc(`tenants/${tenantSlug}/classes/${classId}`);
+    const classDoc = await classRef.get();
+    if (!classDoc.exists) throw new HttpsError('not-found', 'Class not found.');
+
+    const allowed = ['name', 'status', 'startDate', 'endDate'];
+    const firestoreUpdates = { updatedAt: FieldValue.serverTimestamp() };
+
+    allowed.forEach(field => {
+        if (updates[field] !== undefined) firestoreUpdates[field] = updates[field];
+    });
+
+    if (updates.settings && typeof updates.settings === 'object') {
+        if (updates.settings.sequentialChapters !== undefined) firestoreUpdates['settings.sequentialChapters'] = !!updates.settings.sequentialChapters;
+        if (updates.settings.passingScore !== undefined) firestoreUpdates['settings.passingScore'] = parseInt(updates.settings.passingScore);
+        if (updates.settings.requireQuiz !== undefined) firestoreUpdates['settings.requireQuiz'] = !!updates.settings.requireQuiz;
+    }
+
+    await classRef.update(firestoreUpdates);
+    return { classId, message: 'Class updated.' };
+});
+
+/**
+ * adminDeleteClass — Deletes a class and all its progress docs.
+ * Input: { tenantSlug, classId }
+ */
+exports.adminDeleteClass = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+
+    const { tenantSlug, classId } = request.data || {};
+    if (!tenantSlug || !classId) throw new HttpsError('invalid-argument', 'Missing tenantSlug or classId.');
+
+    const classRef = db.doc(`tenants/${tenantSlug}/classes/${classId}`);
+    const classDoc = await classRef.get();
+    if (!classDoc.exists) throw new HttpsError('not-found', 'Class not found.');
+
+    // Delete all progress subdocs first
+    const progressSnap = await db.collection(`tenants/${tenantSlug}/classes/${classId}/progress`).get();
+    const batch = db.batch();
+    progressSnap.forEach(doc => batch.delete(doc.ref));
+    batch.delete(classRef);
+    await batch.commit();
+
+    return { classId, message: 'Class deleted.' };
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UNIFIED ENROLLMENT — Lobby join code resolution + class enrollment
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * resolveJoinCode — Looks up a join code across classes and tournaments.
+ * Returns the type and metadata so the lobby knows what to render.
+ * Input: { code: string }
+ * Returns: { type: 'class'|'tournament'|'not_found', ...metadata }
+ */
+exports.resolveJoinCode = onCall(cfOptions, async (request) => {
+    // No auth required — resolving a code only reads public class metadata
+    const { code } = request.data || {};
+    if (!code || typeof code !== 'string' || code.trim().length < 4) {
+        throw new HttpsError('invalid-argument', 'Join code must be at least 4 characters.');
+    }
+
+    const cleanCode = code.trim().toUpperCase();
+    const uid = request.auth ? request.auth.uid : null;
+
+    // 1. Check tenant classes (collectionGroup query on 'classes')
+    const classSnap = await db.collectionGroup('classes')
+        .where('joinCode', '==', cleanCode)
+        .where('status', '==', 'active')
+        .limit(1)
+        .get();
+
+    if (!classSnap.empty) {
+        const classDoc = classSnap.docs[0];
+        const classData = classDoc.data();
+        // Extract tenantId from the document path: tenants/{tenantId}/classes/{classId}
+        const pathParts = classDoc.ref.path.split('/');
+        const tenantSlug = pathParts[1];
+
+        // Check if student is already enrolled (only if authenticated)
+        let alreadyEnrolled = false;
+        if (uid) {
+            const progressDoc = await db.doc(`tenants/${tenantSlug}/classes/${classDoc.id}/progress/${uid}`).get();
+            alreadyEnrolled = progressDoc.exists;
+        }
+
+        return {
+            type: 'class',
+            tenantSlug: tenantSlug,
+            classId: classDoc.id,
+            className: classData.name || '',
+            courseId: classData.courseId || '',
+            instructorName: classData.instructorName || '',
+            startDate: classData.startDate || null,
+            endDate: classData.endDate || null,
+            alreadyEnrolled: alreadyEnrolled
+        };
+    }
+
+    // 2. Check tournaments
+    const tournSnap = await db.collection('tournaments')
+        .where('joinCode', '==', cleanCode)
+        .where('status', 'in', ['lobby', 'active'])
+        .limit(1)
+        .get();
+
+    if (!tournSnap.empty) {
+        const tournDoc = tournSnap.docs[0];
+        const tournData = tournDoc.data();
+        return {
+            type: 'tournament',
+            tournamentId: tournDoc.id,
+            name: tournData.name || '',
+            status: tournData.status,
+            teamCount: tournData.teamCount || 0,
+            maxTeams: tournData.maxTeams || 32
+        };
+    }
+
+    // 3. Nothing found
+    return { type: 'not_found' };
+});
+
+/**
+ * enrollInClass — Enrolls an authenticated student in a tenant class.
+ * Validates class is active, tenant is active, student not already enrolled,
+ * seat limits not exceeded. Writes progress doc scaffold.
+ * Input: { tenantSlug, classId }
+ */
+exports.enrollInClass = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { tenantSlug, classId, displayName: clientName, callsign: clientCallsign } = request.data || {};
+    const uid = request.auth.uid;
+    const email = request.auth.token.email || '';
+    const displayName = (clientName && clientName.trim()) || request.auth.token.name || email.split('@')[0] || 'Student';
+    const callsign = (clientCallsign && clientCallsign.trim()) || '';
+
+    if (!tenantSlug || typeof tenantSlug !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing tenantSlug.');
+    }
+    if (!classId || typeof classId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing classId.');
+    }
+
+    // Verify tenant exists and is active
+    const tenantDoc = await db.doc(`tenants/${tenantSlug}`).get();
+    if (!tenantDoc.exists) {
+        throw new HttpsError('not-found', 'Organization not found.');
+    }
+    if (tenantDoc.data().status !== 'active') {
+        throw new HttpsError('failed-precondition', 'Organization is not active.');
+    }
+
+    // Verify class exists and is active
+    const classRef = db.doc(`tenants/${tenantSlug}/classes/${classId}`);
+    const classDoc = await classRef.get();
+    if (!classDoc.exists) {
+        throw new HttpsError('not-found', 'Class not found.');
+    }
+    const classData = classDoc.data();
+    if (classData.status !== 'active') {
+        throw new HttpsError('failed-precondition', 'This class is not currently accepting enrollments.');
+    }
+
+    // Check seat limits
+    const maxSeats = tenantDoc.data().licensing?.maxSeats || 9999;
+    const currentCount = classData.studentCount || 0;
+    if (currentCount >= maxSeats) {
+        throw new HttpsError('resource-exhausted', 'Class is full. Contact your instructor.');
+    }
+
+    // Check if already enrolled
+    const progressRef = db.doc(`tenants/${tenantSlug}/classes/${classId}/progress/${uid}`);
+    const existingProgress = await progressRef.get();
+    if (existingProgress.exists) {
+        // Already enrolled — return success without re-writing
+        return {
+            success: true,
+            alreadyEnrolled: true,
+            tenantSlug,
+            classId,
+            courseId: classData.courseId || ''
+        };
+    }
+
+    // Enroll: write progress doc scaffold + increment student count
+    const batch = db.batch();
+
+    batch.set(progressRef, {
+        displayName: displayName,
+        callsign: callsign,
+        email: email,
+        isGuest: !email || request.auth.token.firebase?.sign_in_provider === 'anonymous',
+        enrolledAt: FieldValue.serverTimestamp(),
+        lastActive: FieldValue.serverTimestamp(),
+        currentChapter: 1,
+        chaptersCompleted: [],
+        modulesCompleted: [],
+        quizScores: {},
+        labsCompleted: [],
+        totalTimeSpent: 0
+    });
+
+    batch.update(classRef, {
+        studentCount: FieldValue.increment(1)
+    });
+
+    // Write enrollment lookup doc — allows any page to discover this
+    // student's tenant/class without depending on localStorage.
+    // Read by syncClassProgress CF and client-side tenant context restore.
+    batch.set(db.doc(`enrollments/${uid}`), {
+        tenantSlug: tenantSlug,
+        classId: classId,
+        courseId: classData.courseId || '',
+        enrolledAt: FieldValue.serverTimestamp()
+    });
+
+    await batch.commit();
+
+    return {
+        success: true,
+        alreadyEnrolled: false,
+        tenantSlug,
+        classId,
+        courseId: classData.courseId || '',
+        className: classData.name || ''
+    };
+});
+
+/**
+ * syncClassProgress — Student submits a module or quiz completion to their class progress.
+ * Input: { moduleId, type: 'module'|'quiz'|'lab', score? }
+ *   Optional: { tenantSlug, classId } — if omitted, looks up from enrollments/{uid}
+ * Merges into the student's progress doc at tenants/{slug}/classes/{classId}/progress/{uid}
+ */
+exports.syncClassProgress = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    let { tenantSlug, classId, moduleId, type, score } = request.data || {};
+    const uid = request.auth.uid;
+
+    if (!moduleId) {
+        throw new HttpsError('invalid-argument', 'Missing moduleId.');
+    }
+
+    // If tenant/class not provided by client, look up from enrollment doc.
+    // This removes the dependency on localStorage/sessionStorage — the server
+    // knows where the student is enrolled via Firestore.
+    if (!tenantSlug || !classId) {
+        const enrollDoc = await db.doc(`enrollments/${uid}`).get();
+        if (!enrollDoc.exists) {
+            return { success: false, reason: 'not_enrolled' };
+        }
+        const enroll = enrollDoc.data();
+        tenantSlug = enroll.tenantSlug;
+        classId = enroll.classId;
+    }
+
+    if (!tenantSlug || !classId) {
+        return { success: false, reason: 'no_enrollment_found' };
+    }
+
+    const progressRef = db.doc(`tenants/${tenantSlug}/classes/${classId}/progress/${uid}`);
+    const progressDoc = await progressRef.get();
+
+    if (!progressDoc.exists) {
+        // Not enrolled — silently ignore
+        return { success: false, reason: 'not_enrolled' };
+    }
+
+    const updates = {
+        lastActive: FieldValue.serverTimestamp()
+    };
+
+    if (type === 'quiz' && score !== undefined) {
+        updates[`quizScores.${moduleId}`] = Number(score);
+    }
+
+    if (type === 'module' || type === 'presentation' || type === 'tool') {
+        updates.modulesCompleted = FieldValue.arrayUnion(moduleId);
+    }
+
+    if (type === 'lab') {
+        updates.labsCompleted = FieldValue.arrayUnion(moduleId);
+    }
+
+    await progressRef.update(updates);
+
+    return { success: true, moduleId, type };
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SIGNAL C2 — Command & Control for Hardware Projects
+// ═══════════════════════════════════════════════════════════════════════════
+// Real backend for the C2 dashboard. Devices (ESP32, Arduino, Pi) call
+// these endpoints to register, check in, receive commands, and report
+// results. Dashboard operators use dispatch to send commands.
+//
+// Auth model:
+//   Devices: Bearer token (deviceKey) generated at registration
+//   Dashboard: Firebase Auth (admin only)
+//
+// Firestore collections:
+//   c2_devices/{deviceId}     — registered devices + latest status
+//   c2_commands/{commandId}   — command queue + results
+//   c2_logs/{deviceId}/entries — activity log
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Generate a secure device key and ID.
+ */
+function generateDeviceCredentials() {
+    const id = 'd_' + crypto.randomBytes(4).toString('hex');
+    const key = 'sk_' + crypto.randomBytes(24).toString('hex');
+    return { id, key };
+}
+
+/**
+ * Validate a device key against Firestore.
+ * Returns the device doc if valid, throws if not.
+ */
+async function validateDeviceKey(authHeader) {
+    if (!authHeader || !authHeader.startsWith('Bearer sk_')) {
+        throw new HttpsError('unauthenticated', 'Missing or invalid device key.');
+    }
+    const key = authHeader.replace('Bearer ', '');
+
+    // Look up device by key
+    const snap = await db.collection('c2_devices')
+        .where('deviceKey', '==', key)
+        .limit(1)
+        .get();
+
+    if (snap.empty) {
+        throw new HttpsError('permission-denied', 'Invalid device key.');
+    }
+    return snap.docs[0];
+}
+
+/**
+ * c2Register — Register a new hardware device.
+ *
+ * Called once when a device is first provisioned.
+ * Returns a deviceId and deviceKey for all future communication.
+ */
+exports.c2Register = onRequest(cfOptions, async (req, res) => {
+    // CORS headers
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
+
+    try {
+        const { deviceType, projectId, name, firmware, capabilities } = req.body;
+
+        if (!deviceType || !name) {
+            res.status(400).json({ error: 'deviceType and name are required.' });
+            return;
+        }
+
+        // Generate credentials
+        const creds = generateDeviceCredentials();
+
+        // Determine check-in intervals based on device type
+        const intervals = {
+            esp32:   { checkIn: 30, commandPoll: 5 },
+            arduino: { checkIn: 60, commandPoll: 10 },
+            pi:      { checkIn: 15, commandPoll: 3 },
+            ducky:   { checkIn: 10, commandPoll: 2 }
+        };
+        const interval = intervals[deviceType] || intervals.esp32;
+
+        // Store in Firestore
+        await db.doc(`c2_devices/${creds.id}`).set({
+            deviceId: creds.id,
+            deviceKey: creds.key,
+            name: name,
+            type: deviceType,
+            projectId: projectId || null,
+            firmware: firmware || '0.0.0',
+            capabilities: capabilities || [],
+            status: 'registered',
+            lastCheckIn: null,
+            ip: null,
+            rssi: null,
+            uptime: 0,
+            freeHeap: null,
+            sensors: {},
+            checkInInterval: interval.checkIn,
+            commandPollInterval: interval.commandPoll,
+            registeredAt: FieldValue.serverTimestamp()
+        });
+
+        // Log registration
+        await db.collection(`c2_logs/${creds.id}/entries`).add({
+            type: 'registration',
+            timestamp: FieldValue.serverTimestamp(),
+            data: { deviceType, projectId, name, firmware }
+        });
+
+        res.status(201).json({
+            deviceId: creds.id,
+            deviceKey: creds.key,
+            checkInInterval: interval.checkIn,
+            commandPollInterval: interval.commandPoll
+        });
+    } catch (e) {
+        console.error('c2Register error:', e);
+        res.status(500).json({ error: 'Registration failed.' });
+    }
+});
+
+/**
+ * c2CheckIn — Device heartbeat.
+ *
+ * Called every N seconds by the device. Reports status, IP, sensors.
+ * Returns ack + pending command count.
+ */
+exports.c2CheckIn = onRequest(cfOptions, async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
+
+    try {
+        const deviceDoc = await validateDeviceKey(req.headers.authorization);
+        const { uptime, ip, rssi, freeHeap, firmware, sensors } = req.body;
+        const deviceId = deviceDoc.id;
+
+        // Update device status
+        await deviceDoc.ref.update({
+            status: 'online',
+            lastCheckIn: FieldValue.serverTimestamp(),
+            uptime: uptime || 0,
+            ip: ip || null,
+            rssi: rssi || null,
+            freeHeap: freeHeap || null,
+            firmware: firmware || deviceDoc.data().firmware,
+            sensors: sensors || {}
+        });
+
+        // Count pending commands for this device
+        const pendingSnap = await db.collection('c2_commands')
+            .where('deviceId', '==', deviceId)
+            .where('status', '==', 'pending')
+            .get();
+
+        res.json({ ack: true, pendingCommands: pendingSnap.size });
+    } catch (e) {
+        if (e instanceof HttpsError) { res.status(403).json({ error: e.message }); return; }
+        console.error('c2CheckIn error:', e);
+        res.status(500).json({ error: 'Check-in failed.' });
+    }
+});
+
+/**
+ * c2GetCommands — Device fetches pending commands.
+ *
+ * Returns all pending commands for the device, marks them as delivered.
+ */
+exports.c2GetCommands = onRequest(cfOptions, async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'GET') { res.status(405).json({ error: 'Method not allowed' }); return; }
+
+    try {
+        const deviceDoc = await validateDeviceKey(req.headers.authorization);
+        const deviceId = deviceDoc.id;
+
+        // Get pending commands
+        const snap = await db.collection('c2_commands')
+            .where('deviceId', '==', deviceId)
+            .where('status', '==', 'pending')
+            .orderBy('issuedAt', 'asc')
+            .get();
+
+        const commands = [];
+        const batch = db.batch();
+
+        snap.forEach(doc => {
+            const data = doc.data();
+
+            // Check expiry
+            if (data.expiresAt && data.expiresAt.toDate() < new Date()) {
+                batch.update(doc.ref, { status: 'expired' });
+                return;
+            }
+
+            commands.push({
+                commandId: doc.id,
+                action: data.action,
+                params: data.params || {},
+                issuedAt: data.issuedAt ? data.issuedAt.toDate().toISOString() : null
+            });
+
+            // Mark as delivered
+            batch.update(doc.ref, {
+                status: 'delivered',
+                deliveredAt: FieldValue.serverTimestamp()
+            });
+        });
+
+        await batch.commit();
+        res.json({ commands });
+    } catch (e) {
+        if (e instanceof HttpsError) { res.status(403).json({ error: e.message }); return; }
+        console.error('c2GetCommands error:', e);
+        res.status(500).json({ error: 'Failed to fetch commands.' });
+    }
+});
+
+/**
+ * c2Result — Device reports command execution result.
+ *
+ * Called after a device executes a command. Stores the result and
+ * updates the command status.
+ */
+exports.c2Result = onRequest(cfOptions, async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
+
+    try {
+        const deviceDoc = await validateDeviceKey(req.headers.authorization);
+        const { commandId, status, result, executionTime } = req.body;
+
+        if (!commandId || !status) {
+            res.status(400).json({ error: 'commandId and status are required.' });
+            return;
+        }
+
+        // Verify the command belongs to this device
+        const cmdRef = db.doc(`c2_commands/${commandId}`);
+        const cmdDoc = await cmdRef.get();
+
+        if (!cmdDoc.exists || cmdDoc.data().deviceId !== deviceDoc.id) {
+            res.status(404).json({ error: 'Command not found for this device.' });
+            return;
+        }
+
+        // Update command with result
+        await cmdRef.update({
+            status: status === 'success' ? 'completed' : status,
+            result: result || null,
+            executionTime: executionTime || null,
+            completedAt: FieldValue.serverTimestamp()
+        });
+
+        // Log the result
+        await db.collection(`c2_logs/${deviceDoc.id}/entries`).add({
+            type: 'command-result',
+            timestamp: FieldValue.serverTimestamp(),
+            data: {
+                commandId,
+                action: cmdDoc.data().action,
+                status,
+                executionTime,
+                resultSize: result ? JSON.stringify(result).length : 0
+            }
+        });
+
+        res.json({ ack: true });
+    } catch (e) {
+        if (e instanceof HttpsError) { res.status(403).json({ error: e.message }); return; }
+        console.error('c2Result error:', e);
+        res.status(500).json({ error: 'Failed to store result.' });
+    }
+});
+
+/**
+ * c2Dispatch — Dashboard operator sends a command to a device.
+ *
+ * Requires Firebase admin authentication. Queues a command for the
+ * specified device to pick up on its next poll.
+ */
+exports.c2Dispatch = onCall(cfOptions, async (request) => {
+    // Require admin
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
+    const email = request.auth.token.email || '';
+    const isAdmin = request.auth.token.admin === true || ADMIN_EMAILS.includes(email);
+    if (!isAdmin) throw new HttpsError('permission-denied', 'Admin access required.');
+
+    const { deviceId, action, params, ttl } = request.data;
+
+    if (!deviceId || !action) {
+        throw new HttpsError('invalid-argument', 'deviceId and action are required.');
+    }
+
+    // Verify the device exists
+    const deviceDoc = await db.doc(`c2_devices/${deviceId}`).get();
+    if (!deviceDoc.exists) {
+        throw new HttpsError('not-found', `Device ${deviceId} not found.`);
+    }
+
+    // Verify the action is in the device's capabilities (optional enforcement)
+    const caps = deviceDoc.data().capabilities || [];
+    if (caps.length > 0 && !caps.includes(action)) {
+        throw new HttpsError('invalid-argument',
+            `Device ${deviceId} does not support action "${action}". Capabilities: ${caps.join(', ')}`);
+    }
+
+    // Calculate expiry
+    const ttlSeconds = ttl || 300; // default 5 minutes
+    const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
+
+    // Create command
+    const cmdRef = await db.collection('c2_commands').add({
+        deviceId,
+        action,
+        params: params || {},
+        status: 'pending',
+        issuedAt: FieldValue.serverTimestamp(),
+        expiresAt,
+        issuedBy: request.auth.uid,
+        result: null,
+        deliveredAt: null,
+        completedAt: null,
+        executionTime: null
+    });
+
+    // Log the dispatch
+    await db.collection(`c2_logs/${deviceId}/entries`).add({
+        type: 'command-dispatched',
+        timestamp: FieldValue.serverTimestamp(),
+        data: {
+            commandId: cmdRef.id,
+            action,
+            params: params || {},
+            issuedBy: email,
+            ttl: ttlSeconds
+        }
+    });
+
+    return { commandId: cmdRef.id, queued: true };
+});
+
+/**
+ * c2ListDevices — Dashboard lists all registered devices.
+ *
+ * Returns all devices with their current status. Admin only.
+ */
+exports.c2ListDevices = onCall(cfOptions, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
+    const email = request.auth.token.email || '';
+    const isAdmin = request.auth.token.admin === true || ADMIN_EMAILS.includes(email);
+    if (!isAdmin) throw new HttpsError('permission-denied', 'Admin access required.');
+
+    const snap = await db.collection('c2_devices')
+        .orderBy('lastCheckIn', 'desc')
+        .get();
+
+    const devices = [];
+    const now = Date.now();
+
+    snap.forEach(doc => {
+        const data = doc.data();
+        // Determine online/offline/stale status based on last check-in
+        let liveStatus = 'offline';
+        if (data.lastCheckIn) {
+            const lastMs = data.lastCheckIn.toMillis();
+            const intervalMs = (data.checkInInterval || 30) * 1000;
+            const elapsed = now - lastMs;
+            if (elapsed < intervalMs * 2) liveStatus = 'online';
+            else if (elapsed < intervalMs * 10) liveStatus = 'stale';
+            else liveStatus = 'offline';
+        } else {
+            liveStatus = 'registered'; // never checked in
+        }
+
+        devices.push({
+            deviceId: doc.id,
+            name: data.name,
+            type: data.type,
+            projectId: data.projectId,
+            firmware: data.firmware,
+            capabilities: data.capabilities,
+            status: liveStatus,
+            lastCheckIn: data.lastCheckIn ? data.lastCheckIn.toDate().toISOString() : null,
+            ip: data.ip,
+            rssi: data.rssi,
+            uptime: data.uptime,
+            sensors: data.sensors,
+            registeredAt: data.registeredAt ? data.registeredAt.toDate().toISOString() : null
+        });
+    });
+
+    return { devices, count: devices.length };
+});
+
+// ─── CTF Tournament: Flag Submission ──────────────────────────────
+// Server-side flag validation for CTF tournaments.
+// Hashes the submitted flag with the challenge's salt and compares
+// to the stored hash. Updates team score and challenge solveCount.
+
+exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required.');
+
+    const { tournamentId, challengeId, flag } = request.data || {};
+    if (!tournamentId || !challengeId || !flag) {
+        throw new HttpsError('invalid-argument', 'tournamentId, challengeId, and flag are required.');
+    }
+
+    const uid = request.auth.uid;
+
+    // 1. Load tournament — verify it's active or frozen
+    const tRef = db.collection('tournaments').doc(tournamentId);
+    const tSnap = await tRef.get();
+    if (!tSnap.exists) throw new HttpsError('not-found', 'Tournament not found.');
+    const tournament = tSnap.data();
+
+    if (tournament.status !== 'active' && tournament.status !== 'frozen') {
+        throw new HttpsError('failed-precondition', 'Tournament is not accepting submissions.');
+    }
+
+    // 2. Find which team this user belongs to
+    const teamsSnap = await tRef.collection('teams').get();
+    let userTeamId = null;
+    let userTeamData = null;
+    teamsSnap.forEach(doc => {
+        const data = doc.data();
+        if (data.members && data.members.includes(uid)) {
+            userTeamId = doc.id;
+            userTeamData = data;
+        }
+    });
+
+    if (!userTeamId) {
+        throw new HttpsError('failed-precondition', 'You are not on a team in this tournament.');
+    }
+
+    // 3. Check if team already solved this challenge
+    if (userTeamData.solves && userTeamData.solves.includes(challengeId)) {
+        throw new HttpsError('already-exists', 'Your team already solved this challenge.');
+    }
+
+    // 4. Rate limiting — max 1 submission per team per challenge per 10 seconds
+    const recentSubs = await tRef.collection('submissions')
+        .where('teamId', '==', userTeamId)
+        .where('challengeId', '==', challengeId)
+        .orderBy('timestamp', 'desc')
+        .limit(1)
+        .get();
+
+    if (!recentSubs.empty) {
+        const lastSub = recentSubs.docs[0].data();
+        if (lastSub.timestamp) {
+            const lastTime = lastSub.timestamp.toDate ? lastSub.timestamp.toDate().getTime() : 0;
+            if (Date.now() - lastTime < 10000) {
+                throw new HttpsError('resource-exhausted', 'Too fast. Wait 10 seconds between attempts.');
+            }
+        }
+    }
+
+    // 5. Load challenge and verify flag
+    const chRef = tRef.collection('challenges').doc(challengeId);
+    const chSnap = await chRef.get();
+    if (!chSnap.exists) throw new HttpsError('not-found', 'Challenge not found.');
+    const challenge = chSnap.data();
+
+    // Hash the submitted flag with the challenge's salt
+    const submittedHash = 'sha256:' + crypto
+        .createHash('sha256')
+        .update(challenge.flagSalt + ':' + flag)
+        .digest('hex');
+
+    const correct = submittedHash === challenge.flagHash;
+
+    // 6. Record the submission
+    await tRef.collection('submissions').add({
+        teamId: userTeamId,
+        teamName: userTeamData.name || 'Unknown',
+        challengeId: challengeId,
+        submittedFlag: flag,
+        correct: correct,
+        points: correct ? (challenge.currentPoints || challenge.points || 0) : 0,
+        submittedBy: uid,
+        submittedByName: request.auth.token.name || request.auth.token.email || uid,
+        timestamp: FieldValue.serverTimestamp()
+    });
+
+    // 7. If correct — update team score, challenge solveCount, tournament stats
+    if (correct) {
+        const pointsAwarded = challenge.currentPoints || challenge.points || 0;
+
+        // Update team
+        await tRef.collection('teams').doc(userTeamId).update({
+            score: FieldValue.increment(pointsAwarded),
+            solves: FieldValue.arrayUnion(challengeId),
+            lastSolveTime: FieldValue.serverTimestamp()
+        });
+
+        // Update challenge solve count
+        const newSolveCount = (challenge.solveCount || 0) + 1;
+        const chUpdate = { solveCount: newSolveCount };
+
+        // Dynamic scoring: recalculate currentPoints
+        if (tournament.scoringModel === 'dynamic' && tournament.dynamicConfig) {
+            const cfg = tournament.dynamicConfig;
+            const initial = cfg.initialPoints || 500;
+            const floor = cfg.minPoints || 50;
+            const decay = cfg.decayRate || 0.85;
+            chUpdate.currentPoints = Math.max(floor, Math.floor(initial * Math.pow(decay, newSolveCount)));
+        }
+
+        await chRef.update(chUpdate);
+
+        // Update tournament stats
+        await tRef.update({
+            totalSubmissions: FieldValue.increment(1),
+            totalSolves: FieldValue.increment(1)
+        });
+
+        return {
+            correct: true,
+            points: pointsAwarded,
+            message: 'Correct! +' + pointsAwarded + ' points'
+        };
+    }
+
+    // 8. Incorrect — just increment submission count
+    await tRef.update({
+        totalSubmissions: FieldValue.increment(1)
+    });
+
+    return {
+        correct: false,
+        points: 0,
+        message: 'Incorrect flag.'
+    };
 });

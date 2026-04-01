@@ -202,24 +202,22 @@ const ModuleProgress = (function() {
      */
     function tryClassProgressSync(moduleId, moduleType, metadata) {
         try {
-            // hexworth_tenant may be a JSON config object (set by lobby/dashboard)
-            // or a plain slug string (legacy). Extract the slug either way.
-            var tenantRaw = sessionStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant_slug');
-            var tenantSlug = null;
-            if (tenantRaw) {
-                try { tenantSlug = JSON.parse(tenantRaw).slug; } catch(e) { tenantSlug = tenantRaw; }
-            }
-            var classId = sessionStorage.getItem('hexworth_class') || localStorage.getItem('hexworth_class_id');
-            if (!tenantSlug || !classId) return; // Not in a class
-
-            // Build the payload for the Cloud Function
+            // Build payload — tenant/class info is optional. The CF looks up
+            // the student's enrollment from Firestore (enrollments/{uid}) if
+            // not provided. This eliminates the localStorage dependency.
             var payload = {
-                tenantSlug: tenantSlug,
-                classId: classId,
                 moduleId: moduleId,
                 type: moduleType || 'module',
                 score: metadata && metadata.score != null ? metadata.score : undefined
             };
+
+            // Include tenant/class if available in storage (speeds up CF — skips lookup)
+            var tenantRaw = sessionStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant_slug');
+            if (tenantRaw) {
+                try { payload.tenantSlug = JSON.parse(tenantRaw).slug; } catch(e) { payload.tenantSlug = tenantRaw; }
+            }
+            var classId = sessionStorage.getItem('hexworth_class') || localStorage.getItem('hexworth_class_id');
+            if (classId) payload.classId = classId;
 
             // If FirebaseAuth is already loaded, call immediately
             if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.callFunction) {

@@ -76,9 +76,10 @@ service cloud.firestore {
       }
     }
 
-    // Flag registry — server-side only (admin SDK writes, no client access)
+    // Flag registry — admin can read (for tournament challenge setup), no client access
+    // Cloud Functions use admin SDK for validation (bypasses rules)
     match /flag_registry/{boxId} {
-      allow read: if false;
+      allow read: if isAdmin();
       allow write: if false;
     }
 
@@ -358,6 +359,75 @@ service cloud.firestore {
         );
         allow write: if request.auth != null && request.auth.uid == studentUid;
       }
+    }
+
+    // ─── Signal C2 — Hardware Command & Control ──────────────────
+    // Devices use HTTP endpoints (Cloud Functions) with deviceKey auth.
+    // Dashboard reads are admin-only via Firestore direct access.
+    // All writes go through Cloud Functions (admin SDK bypasses rules).
+
+    // C2 device registry — admin read for dashboard, CF writes
+    match /c2_devices/{deviceId} {
+      allow read: if isAdmin();
+      allow write: if false;  // Cloud Functions only
+    }
+
+    // C2 command queue — admin read for dashboard, CF writes
+    match /c2_commands/{commandId} {
+      allow read: if isAdmin();
+      allow write: if false;  // Cloud Functions only
+    }
+
+    // C2 activity logs — admin read for dashboard, CF writes
+    match /c2_logs/{deviceId}/entries/{entryId} {
+      allow read: if isAdmin();
+      allow write: if false;  // Cloud Functions only
+    }
+
+    // ─── CTF Tournament System ─────────────────────────────────────
+    // Tournament metadata — public read (podium page), admin write
+    match /tournaments/{tournamentId} {
+      allow read: if true;  // Public — podium and lobby pages need this pre-auth
+      allow create, update, delete: if isAdmin();
+
+      // Challenges — public read for lobby/board display
+      // Flags are stored as SHA-256 hashes (flagHash field) so public read is safe.
+      // The raw flag is never stored in Firestore — only the salted hash.
+      // Cloud Functions validate submissions by hashing the attempt and comparing.
+      match /challenges/{challengeId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+
+      // Teams — public read (podium shows rankings), Cloud Functions manage joins/scoring
+      match /teams/{teamId} {
+        allow read: if true;  // Public — live podium needs this
+        allow create: if request.auth != null;  // Authenticated users can create teams
+        allow update: if request.auth != null && (
+          // Team captain can update roster
+          resource.data.captain == request.auth.uid ||
+          // Admin can update anything
+          isAdmin()
+        );
+        allow delete: if isAdmin();
+      }
+
+      // Submissions — admin can read all, team members read own team's
+      match /submissions/{submissionId} {
+        allow read: if request.auth != null;
+        allow write: if false;  // Cloud Functions only (ctfSubmitFlag)
+      }
+    }
+
+    // ─── Cohorts (REMOVED) ──────────────────────────────────
+    // Cohort system consolidated into tenants/classes. See TENANT_COHORT_CONSOLIDATION.md.
+
+    // ─── Enrollment Lookup ─────────────────────────────────
+    // Fast lookup doc written at enrollment time by enrollInClass CF.
+    // Read by syncClassProgress CF to find student's tenant/class.
+    // Students can read their own enrollment. Written only by CF (admin SDK).
+    match /enrollments/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
     }
   }
 }
