@@ -2903,30 +2903,138 @@
             return;
         }
 
-        var totalPts = _assignments.reduce(function(sum, a) { return sum + (a.points || 0); }, 0);
-        var active   = _assignments.filter(function(a) { return a.status === 'active'; }).length;
-        var draft    = _assignments.filter(function(a) { return a.status === 'draft'; }).length;
-        var archived = _assignments.filter(function(a) { return a.status === 'archived'; }).length;
-
-        var completionCount = 0;
-        _studentData.forEach(function(s) {
-            var assignments = s.assignments || {};
-            Object.keys(assignments).forEach(function(k) {
-                if (assignments[k].status === 'completed' || assignments[k].status === 'graded') {
-                    completionCount++;
-                }
-            });
-        });
-
+        var isCourse = _activeClass.courseId && typeof NETWORK_PLUS_MAP !== 'undefined';
         var msg = document.getElementById('confirm-msg');
         var sub = document.getElementById('confirm-sub');
-        msg.textContent = 'Class Report — ' + (_activeClass.name || _activeClass.classId);
-        sub.textContent = [
-            'Assignments: ' + _assignments.length + ' (' + active + ' active, ' + draft + ' draft, ' + archived + ' archived)',
-            'Total points available: ' + totalPts.toLocaleString(),
-            'Students enrolled: ' + _studentData.length,
-            'Total completions: ' + completionCount
-        ].join(' | ');
+
+        if (isCourse) {
+            // ── Course-based class report ──
+            var totalStudents = _studentData.length;
+            var withdrawn = _studentData.filter(function(s) { return s.status === 'withdrawn'; }).length;
+            var active = totalStudents - withdrawn;
+            var chapters = NETWORK_PLUS_MAP.chapters;
+            var totalItems = 0;
+            chapters.forEach(function(ch) { totalItems += ch.items.length; });
+
+            // Aggregate stats across all students
+            var totalModules = 0, totalQuizzes = 0, totalLabs = 0, totalScore = 0, quizCount = 0;
+            var now = Date.now();
+            var DAY = 86400000;
+            var atRisk = [];
+            var performers = [];
+
+            _studentData.forEach(function(s) {
+                if (s.status === 'withdrawn') return;
+                var mods = (s.modulesCompleted || []).length;
+                var quizzes = Object.values(s.quizScores || {});
+                var labs = (s.labsCompleted || []).length;
+                totalModules += mods;
+                totalLabs += labs;
+                totalQuizzes += quizzes.length;
+                quizzes.forEach(function(sc) { totalScore += sc; quizCount++; });
+
+                var itemCount = mods + quizzes.length + labs;
+                performers.push({ name: s.displayName || s.email || 'Unknown', items: itemCount, quizAvg: quizzes.length > 0 ? Math.round(quizzes.reduce(function(a,b){return a+b;},0) / quizzes.length) : 0 });
+
+                // At risk: no activity in 7+ days
+                var lastTs = 0;
+                if (s.lastActive) {
+                    lastTs = s.lastActive._seconds ? s.lastActive._seconds * 1000 : new Date(s.lastActive).getTime();
+                }
+                if (!lastTs || (now - lastTs) > 7 * DAY) {
+                    atRisk.push(s.displayName || s.email || 'Unknown');
+                }
+            });
+
+            performers.sort(function(a, b) { return b.items - a.items; });
+            var avgScore = quizCount > 0 ? Math.round(totalScore / quizCount) : 0;
+            var overallPct = (totalItems * active) > 0 ? Math.round(((totalModules + totalQuizzes + totalLabs) / (totalItems * active)) * 100) : 0;
+
+            // Chapter completion summary
+            var chSummary = chapters.map(function(ch) {
+                var chCompleted = 0;
+                _studentData.forEach(function(s) {
+                    if (s.status === 'withdrawn') return;
+                    var mods = s.modulesCompleted || [];
+                    var quizzes = s.quizScores || {};
+                    var labs = s.labsCompleted || [];
+                    ch.items.forEach(function(item) {
+                        if (mods.indexOf(item.id) !== -1 || quizzes[item.id] != null || labs.indexOf(item.id) !== -1) chCompleted++;
+                    });
+                });
+                var chPct = (ch.items.length * active) > 0 ? Math.round((chCompleted / (ch.items.length * active)) * 100) : 0;
+                return 'Ch' + ch.num + ': ' + chPct + '%';
+            }).join(' | ');
+
+            // Build report HTML
+            var html = '<div style="text-align:left;font-size:0.82rem;line-height:1.8;color:var(--vc-text);">';
+
+            html += '<div style="font-size:1rem;font-weight:700;color:var(--vc-primary);margin-bottom:12px;">Class Report — ' + (_activeClass.name || _activeClass.classId) + '</div>';
+
+            html += '<div style="margin-bottom:14px;padding:12px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:8px;">';
+            html += '<strong>Overview</strong><br>';
+            html += 'Students: ' + active + ' active' + (withdrawn > 0 ? ', ' + withdrawn + ' withdrawn' : '') + '<br>';
+            html += 'Course: ' + NETWORK_PLUS_MAP.title + '<br>';
+            html += 'Overall completion: <strong style="color:var(--vc-primary);">' + overallPct + '%</strong>';
+            html += '</div>';
+
+            html += '<div style="margin-bottom:14px;padding:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;">';
+            html += '<strong>Progress Summary</strong><br>';
+            html += 'Modules completed: ' + totalModules + '<br>';
+            html += 'Quizzes taken: ' + totalQuizzes + (quizCount > 0 ? ' (avg: ' + avgScore + '%)' : '') + '<br>';
+            html += 'Labs completed: ' + totalLabs;
+            html += '</div>';
+
+            html += '<div style="margin-bottom:14px;padding:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;">';
+            html += '<strong>Chapter Completion</strong><br>';
+            html += '<span style="font-size:0.75rem;color:var(--vc-text-dim);">' + chSummary + '</span>';
+            html += '</div>';
+
+            if (performers.length > 0) {
+                html += '<div style="margin-bottom:14px;padding:12px;background:rgba(74,222,128,0.05);border:1px solid rgba(74,222,128,0.15);border-radius:8px;">';
+                html += '<strong style="color:var(--vc-green);">Top Performers</strong><br>';
+                performers.slice(0, 5).forEach(function(p, i) {
+                    html += (i + 1) + '. ' + p.name + ' — ' + p.items + ' items' + (p.quizAvg > 0 ? ', ' + p.quizAvg + '% quiz avg' : '') + '<br>';
+                });
+                html += '</div>';
+            }
+
+            if (atRisk.length > 0) {
+                html += '<div style="padding:12px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.15);border-radius:8px;">';
+                html += '<strong style="color:var(--vc-red);">At Risk (no activity in 7+ days)</strong><br>';
+                html += atRisk.join(', ');
+                html += '</div>';
+            }
+
+            html += '</div>';
+
+            msg.innerHTML = html;
+            sub.textContent = '';
+        } else {
+            // ── Assignment-based class report (original) ──
+            var totalPts = _assignments.reduce(function(sum, a) { return sum + (a.points || 0); }, 0);
+            var activeA  = _assignments.filter(function(a) { return a.status === 'active'; }).length;
+            var draft    = _assignments.filter(function(a) { return a.status === 'draft'; }).length;
+            var archived = _assignments.filter(function(a) { return a.status === 'archived'; }).length;
+
+            var completionCount = 0;
+            _studentData.forEach(function(s) {
+                var assignments = s.assignments || {};
+                Object.keys(assignments).forEach(function(k) {
+                    if (assignments[k].status === 'completed' || assignments[k].status === 'graded') {
+                        completionCount++;
+                    }
+                });
+            });
+
+            msg.textContent = 'Class Report — ' + (_activeClass.name || _activeClass.classId);
+            sub.textContent = [
+                'Assignments: ' + _assignments.length + ' (' + activeA + ' active, ' + draft + ' draft, ' + archived + ' archived)',
+                'Total points available: ' + totalPts.toLocaleString(),
+                'Students enrolled: ' + _studentData.length,
+                'Total completions: ' + completionCount
+            ].join(' | ');
+        }
 
         document.getElementById('btn-confirm-action').style.display = 'none';
         document.getElementById('modal-confirm').querySelector('.modal-title').textContent = 'Class Report';
