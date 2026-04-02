@@ -2788,83 +2788,178 @@
     }
 
     function showStudentDetail(student) {
-        var assignments = student.assignments || {};
-
         document.getElementById('students-panel').style.display       = 'none';
         document.getElementById('student-detail-panel').style.display = 'block';
 
+        var isCourse = _activeClass && _activeClass.courseId && typeof NETWORK_PLUS_MAP !== 'undefined';
+        var name = student.displayName || student.email || student.studentUid || student.uid;
+
         document.getElementById('student-detail-title').textContent = 'Student Detail';
-        document.getElementById('detail-student-name').textContent  = student.studentUid;
-        document.getElementById('detail-student-uid').textContent   = 'UID: ' + student.studentUid;
+        document.getElementById('detail-student-name').textContent  = name;
+        document.getElementById('detail-student-uid').textContent   = student.email || 'UID: ' + (student.studentUid || student.uid);
 
-        var totalScore = Object.keys(assignments).reduce(function(sum, k) {
-            return sum + (assignments[k].score || 0);
-        }, 0);
-        document.getElementById('detail-total-score').textContent = totalScore.toLocaleString();
-
-        // Build per-assignment breakdown table
         var wrap = document.getElementById('student-assignments-wrap');
-        if (_assignments.length === 0) {
-            wrap.innerHTML = '<div class="empty-state"><div class="empty-state-title">No assignments in this class</div></div>';
-            return;
-        }
 
-        var table = document.createElement('table');
-        table.className = 'data-table';
+        if (isCourse) {
+            // ── Course-based student detail ──
+            var mods = student.modulesCompleted || [];
+            var quizzes = student.quizScores || {};
+            var labs = student.labsCompleted || [];
+            var quizValues = Object.values(quizzes);
+            var quizAvg = quizValues.length > 0 ? Math.round(quizValues.reduce(function(a,b){return a+b;},0) / quizValues.length) : 0;
+            var totalCompleted = mods.length + quizValues.length + labs.length;
+            var totalItems = 0;
+            NETWORK_PLUS_MAP.chapters.forEach(function(ch) { totalItems += ch.items.length; });
+            var overallPct = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
 
-        var thead = document.createElement('thead');
-        var hr = document.createElement('tr');
-        ['#', 'Assignment', 'Type', 'Status', 'Score', 'Submitted'].forEach(function(col) {
-            var th = document.createElement('th');
-            th.textContent = col;
-            hr.appendChild(th);
-        });
-        thead.appendChild(hr);
-        table.appendChild(thead);
+            // Build a lookup set for fast completion checking
+            var completedSet = {};
+            mods.forEach(function(id) { completedSet[id] = 'module'; });
+            Object.keys(quizzes).forEach(function(id) { completedSet[id] = 'quiz'; });
+            labs.forEach(function(id) { completedSet[id] = 'lab'; });
 
-        var tbody = document.createElement('tbody');
-        _assignments.forEach(function(a) {
-            var progress = assignments[a.assignmentId] || { status: 'not_started' };
-            var tr = document.createElement('tr');
+            // Score display — show quiz average for course students
+            document.getElementById('detail-total-score').textContent = quizAvg > 0 ? quizAvg + '% avg' : '--';
 
-            var tdOrder = document.createElement('td');
-            var badge = document.createElement('span');
-            badge.className = 'order-badge';
-            badge.textContent = a.order || '--';
-            tdOrder.appendChild(badge);
+            // Enrolled and last active dates
+            var enrolled = '--';
+            if (student.enrolledAt) {
+                var eTs = student.enrolledAt._seconds ? new Date(student.enrolledAt._seconds * 1000) : new Date(student.enrolledAt);
+                if (!isNaN(eTs.getTime())) enrolled = formatDate(eTs);
+            }
+            var lastActive = '--';
+            if (student.lastActive) {
+                var laTs = student.lastActive._seconds ? new Date(student.lastActive._seconds * 1000) : new Date(student.lastActive);
+                if (!isNaN(laTs.getTime())) lastActive = formatDate(laTs);
+            }
 
-            var tdTitle = document.createElement('td');
-            tdTitle.textContent = a.title;
+            // Build detail HTML
+            var html = '';
 
-            var tdType = document.createElement('td');
-            var typeBadge = document.createElement('span');
-            typeBadge.className = 'type-badge ' + (a.contentType || 'module');
-            typeBadge.textContent = a.contentType || '--';
-            tdType.appendChild(typeBadge);
+            // Summary bar
+            html += '<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">';
+            html += '<div style="flex:1;min-width:120px;padding:10px 14px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:8px;">';
+            html += '<div style="font-size:1.2rem;font-weight:700;color:var(--vc-primary);">' + overallPct + '%</div>';
+            html += '<div style="font-size:0.7rem;color:var(--vc-text-dim);">Overall</div></div>';
+            html += '<div style="flex:1;min-width:120px;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;">';
+            html += '<div style="font-size:1.2rem;font-weight:700;color:var(--vc-text);">' + totalCompleted + '/' + totalItems + '</div>';
+            html += '<div style="font-size:0.7rem;color:var(--vc-text-dim);">Items Done</div></div>';
+            html += '<div style="flex:1;min-width:120px;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;">';
+            html += '<div style="font-size:1.2rem;font-weight:700;color:var(--vc-text);">' + (quizAvg > 0 ? quizAvg + '%' : '--') + '</div>';
+            html += '<div style="font-size:0.7rem;color:var(--vc-text-dim);">Quiz Avg</div></div>';
+            html += '<div style="flex:1;min-width:120px;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;">';
+            html += '<div style="font-size:0.7rem;color:var(--vc-text-dim);">Enrolled: ' + enrolled + '</div>';
+            html += '<div style="font-size:0.7rem;color:var(--vc-text-dim);">Active: ' + lastActive + '</div></div>';
+            html += '</div>';
 
-            var tdStatus = document.createElement('td');
-            var statusBadge = document.createElement('span');
-            statusBadge.className = 'progress-status ' + (progress.status || 'not_started');
-            statusBadge.textContent = (progress.status || 'not_started').replace(/_/g, ' ');
-            tdStatus.appendChild(statusBadge);
+            // Chapter breakdown
+            var typeColors = { module: '#3b82f6', presentation: '#8b5cf6', tool: '#06b6d4', lab: '#f59e0b', quiz: '#22c55e' };
 
-            var tdScore = document.createElement('td');
-            tdScore.style.fontWeight = '700';
-            tdScore.textContent = progress.score != null ? progress.score.toLocaleString() : '--';
+            NETWORK_PLUS_MAP.chapters.forEach(function(ch) {
+                var chDone = 0;
+                ch.items.forEach(function(item) { if (completedSet[item.id]) chDone++; });
+                var chPct = ch.items.length > 0 ? Math.round((chDone / ch.items.length) * 100) : 0;
+                var chColor = chPct === 100 ? 'var(--vc-green)' : chPct > 0 ? 'var(--vc-amber)' : 'var(--vc-text-dim)';
 
-            var tdSubmitted = document.createElement('td');
-            tdSubmitted.style.color = 'var(--vc-text-dim)';
-            tdSubmitted.textContent = progress.submittedAt ? formatDate(new Date(progress.submittedAt)) : '--';
+                html += '<div style="margin-bottom:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:6px;overflow:hidden;">';
+                // Chapter header — clickable to expand
+                html += '<div style="padding:8px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'\':\'none\'">';
+                html += '<span style="font-size:0.7rem;font-weight:700;color:var(--vc-primary);width:28px;">Ch' + ch.num + '</span>';
+                html += '<span style="flex:1;font-size:0.82rem;color:var(--vc-text);">' + ch.title + '</span>';
+                html += '<span style="font-size:0.72rem;color:' + chColor + ';font-weight:600;">' + chDone + '/' + ch.items.length + '</span>';
+                html += '</div>';
 
-            [tdOrder, tdTitle, tdType, tdStatus, tdScore, tdSubmitted].forEach(function(td) {
-                tr.appendChild(td);
+                // Chapter items — hidden by default
+                html += '<div style="padding:2px 12px 6px;display:none;">';
+                ch.items.forEach(function(item) {
+                    var done = !!completedSet[item.id];
+                    var icon = done ? '<span style="color:var(--vc-green);">&#10003;</span>' : '<span style="color:var(--vc-text-dim);">&#10007;</span>';
+                    var scoreText = '';
+                    if (quizzes[item.id] != null) scoreText = ' — ' + quizzes[item.id] + '%';
+                    var typeColor = typeColors[item.type] || '#64748b';
+
+                    html += '<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:0.78rem;border-bottom:1px solid rgba(255,255,255,0.03);">';
+                    html += icon;
+                    html += '<span style="font-size:0.65rem;text-transform:uppercase;color:' + typeColor + ';width:60px;flex-shrink:0;">' + item.type + '</span>';
+                    html += '<span style="flex:1;color:' + (done ? 'var(--vc-text)' : 'var(--vc-text-dim)') + ';">' + item.title + scoreText + '</span>';
+                    html += '</div>';
+                });
+                html += '</div></div>';
             });
-            tbody.appendChild(tr);
-        });
 
-        table.appendChild(tbody);
-        wrap.innerHTML = '';
-        wrap.appendChild(table);
+            wrap.innerHTML = html;
+
+        } else {
+            // ── Assignment-based student detail (original) ──
+            var assignments = student.assignments || {};
+
+            var totalScore = Object.keys(assignments).reduce(function(sum, k) {
+                return sum + (assignments[k].score || 0);
+            }, 0);
+            document.getElementById('detail-total-score').textContent = totalScore.toLocaleString();
+
+            if (_assignments.length === 0) {
+                wrap.innerHTML = '<div class="empty-state"><div class="empty-state-title">No assignments in this class</div></div>';
+                return;
+            }
+
+            var table = document.createElement('table');
+            table.className = 'data-table';
+
+            var thead = document.createElement('thead');
+            var hr = document.createElement('tr');
+            ['#', 'Assignment', 'Type', 'Status', 'Score', 'Submitted'].forEach(function(col) {
+                var th = document.createElement('th');
+                th.textContent = col;
+                hr.appendChild(th);
+            });
+            thead.appendChild(hr);
+            table.appendChild(thead);
+
+            var tbody = document.createElement('tbody');
+            _assignments.forEach(function(a) {
+                var progress = assignments[a.assignmentId] || { status: 'not_started' };
+                var tr = document.createElement('tr');
+
+                var tdOrder = document.createElement('td');
+                var badge = document.createElement('span');
+                badge.className = 'order-badge';
+                badge.textContent = a.order || '--';
+                tdOrder.appendChild(badge);
+
+                var tdTitle = document.createElement('td');
+                tdTitle.textContent = a.title;
+
+                var tdType = document.createElement('td');
+                var typeBadge = document.createElement('span');
+                typeBadge.className = 'type-badge ' + (a.contentType || 'module');
+                typeBadge.textContent = a.contentType || '--';
+                tdType.appendChild(typeBadge);
+
+                var tdStatus = document.createElement('td');
+                var statusBadge = document.createElement('span');
+                statusBadge.className = 'progress-status ' + (progress.status || 'not_started');
+                statusBadge.textContent = (progress.status || 'not_started').replace(/_/g, ' ');
+                tdStatus.appendChild(statusBadge);
+
+                var tdScore = document.createElement('td');
+                tdScore.style.fontWeight = '700';
+                tdScore.textContent = progress.score != null ? progress.score.toLocaleString() : '--';
+
+                var tdSubmitted = document.createElement('td');
+                tdSubmitted.style.color = 'var(--vc-text-dim)';
+                tdSubmitted.textContent = progress.submittedAt ? formatDate(new Date(progress.submittedAt)) : '--';
+
+                [tdOrder, tdTitle, tdType, tdStatus, tdScore, tdSubmitted].forEach(function(td) {
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+
+            table.appendChild(tbody);
+            wrap.innerHTML = '';
+            wrap.appendChild(table);
+        }
     }
 
     function closeStudentDetail() {
