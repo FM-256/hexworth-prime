@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <script src="/components/TenantRouter.js"></script>
     <script src="/components/TenantShell.js"></script>
+    <!-- Course content map — used by Course Progress tab to show per-item completion -->
+    <script src="/tenant/network-plus-map.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Loading...</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1307,10 +1309,13 @@
                         </div>
                     </div>
 
-                    <!-- Tab navigation -->
-                    <div class="tab-nav">
-                        <button class="tab-btn active" onclick="InstructorApp.switchTab('assignments', this)">
+                    <!-- Tab navigation — Course Progress tab added dynamically for course-based classes -->
+                    <div class="tab-nav" id="main-tab-nav">
+                        <button class="tab-btn active" onclick="InstructorApp.switchTab('assignments', this)" id="tab-btn-assignments">
                             Assignments
+                        </button>
+                        <button class="tab-btn" onclick="InstructorApp.switchTab('course-progress', this)" id="tab-btn-course-progress" style="display:none;">
+                            Course Progress
                         </button>
                         <button class="tab-btn" onclick="InstructorApp.switchTab('students', this)">
                             Student Progress
@@ -1329,6 +1334,22 @@
                                     <img class="empty-state-icon" src="/assets/images/icons/icon-clipboard.webp" alt="">
                                     <div class="empty-state-title">No assignments yet</div>
                                     <div class="empty-state-sub">Create your first mission above</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Course Progress tab — shows per-chapter, per-item completion rates -->
+                    <div id="tab-course-progress" class="tab-pane">
+                        <div class="vc-panel">
+                            <div class="vc-panel-head">
+                                <span class="vc-panel-title">Course Progress</span>
+                                <span class="vc-panel-meta" id="course-progress-meta">--</span>
+                            </div>
+                            <div id="course-progress-wrap">
+                                <div class="empty-state">
+                                    <img class="empty-state-icon" src="/assets/images/icons/icon-barchart.webp" alt="">
+                                    <div class="empty-state-title">Loading course structure...</div>
                                 </div>
                             </div>
                         </div>
@@ -1879,6 +1900,18 @@
         document.getElementById('no-class-prompt').style.display  = 'none';
         document.getElementById('class-pane').style.display = 'block';
 
+        // Show/hide Course Progress tab based on class type
+        var cpBtn = document.getElementById('tab-btn-course-progress');
+        if (cls.courseId && typeof NETWORK_PLUS_MAP !== 'undefined') {
+            // Course-based class — show Course Progress tab, auto-switch to it
+            cpBtn.style.display = '';
+            // Auto-switch to Course Progress tab for course classes
+            InstructorApp.switchTab('course-progress', cpBtn);
+        } else {
+            // Assignment-based class — hide Course Progress tab
+            cpBtn.style.display = 'none';
+        }
+
         // Close any open student detail
         closeStudentDetail();
 
@@ -1886,6 +1919,11 @@
         showTabLoading('assignments');
         showTabLoading('students');
         await Promise.all([loadAssignments(), loadStudentProgress()]);
+
+        // Render course progress after student data is loaded
+        if (cls.courseId && typeof NETWORK_PLUS_MAP !== 'undefined') {
+            renderCourseProgress();
+        }
     }
 
     // ── Inline create-class form ──────────────────────────────────────────────
@@ -2482,6 +2520,97 @@
                 }
             });
         }
+    }
+
+    /**
+     * renderCourseProgress — Shows per-chapter, per-item completion rates.
+     * Only renders for course-based classes (has courseId).
+     * Reads from NETWORK_PLUS_MAP (loaded as external script) and
+     * cross-references against _studentData[].modulesCompleted and quizScores.
+     */
+    function renderCourseProgress() {
+        var wrap = document.getElementById('course-progress-wrap');
+        var meta = document.getElementById('course-progress-meta');
+
+        // Only works if we have the course map and student data
+        if (typeof NETWORK_PLUS_MAP === 'undefined' || !_studentData || _studentData.length === 0) {
+            wrap.innerHTML = '<div class="empty-state"><div class="empty-state-title">No data available</div><div class="empty-state-sub">Students need to complete content for progress to appear.</div></div>';
+            return;
+        }
+
+        var chapters = NETWORK_PLUS_MAP.chapters;
+        var totalStudents = _studentData.length;
+        var totalItems = 0;
+        var totalCompleted = 0;
+
+        // Build a set of completed module IDs per student for fast lookup
+        var studentCompletions = _studentData.map(function(s) {
+            var set = {};
+            (s.modulesCompleted || []).forEach(function(id) { set[id] = true; });
+            Object.keys(s.quizScores || {}).forEach(function(id) { set[id] = true; });
+            (s.labsCompleted || []).forEach(function(id) { set[id] = true; });
+            return set;
+        });
+
+        var html = '';
+
+        // Render each chapter as a collapsible section
+        chapters.forEach(function(ch) {
+            var chCompleted = 0;
+            var chTotal = ch.items.length * totalStudents;
+
+            // Build item rows
+            var itemRows = '';
+            ch.items.forEach(function(item) {
+                totalItems++;
+                // Count how many students completed this item
+                var completedCount = 0;
+                studentCompletions.forEach(function(set) {
+                    if (set[item.id]) completedCount++;
+                });
+                totalCompleted += completedCount;
+                chCompleted += completedCount;
+
+                var pct = totalStudents > 0 ? Math.round((completedCount / totalStudents) * 100) : 0;
+                // Color code: green > 70%, amber > 30%, red <= 30%
+                var barColor = pct > 70 ? 'var(--vc-green)' : pct > 30 ? 'var(--vc-amber)' : 'var(--vc-red, #ef4444)';
+                // Type badge color
+                var typeColors = { module: '#3b82f6', presentation: '#8b5cf6', tool: '#06b6d4', lab: '#f59e0b', quiz: '#22c55e' };
+                var typeColor = typeColors[item.type] || '#64748b';
+
+                itemRows +=
+                    '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);">' +
+                        '<span style="font-size:0.65rem;text-transform:uppercase;color:' + typeColor + ';width:70px;flex-shrink:0;font-weight:600;">' + item.type + '</span>' +
+                        '<span style="flex:1;font-size:0.82rem;color:var(--vc-text);">' + item.title + '</span>' +
+                        '<span style="width:50px;text-align:right;font-size:0.78rem;color:var(--vc-text-dim);">' + completedCount + '/' + totalStudents + '</span>' +
+                        '<div style="width:80px;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;flex-shrink:0;">' +
+                            '<div style="height:100%;width:' + pct + '%;background:' + barColor + ';border-radius:3px;transition:width 0.3s;"></div>' +
+                        '</div>' +
+                        '<span style="width:35px;text-align:right;font-size:0.72rem;color:var(--vc-text-dim);">' + pct + '%</span>' +
+                    '</div>';
+            });
+
+            var chPct = chTotal > 0 ? Math.round((chCompleted / chTotal) * 100) : 0;
+            var chBarColor = chPct > 70 ? 'var(--vc-green)' : chPct > 30 ? 'var(--vc-amber)' : 'var(--vc-red, #ef4444)';
+
+            html +=
+                '<div style="margin-bottom:16px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:8px;overflow:hidden;">' +
+                    '<div style="padding:12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;background:rgba(255,255,255,0.02);" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'\':\'none\'">' +
+                        '<span style="font-size:0.72rem;color:var(--vc-primary);font-weight:700;width:24px;">Ch' + ch.num + '</span>' +
+                        '<span style="flex:1;font-size:0.88rem;font-weight:600;color:var(--vc-text);">' + ch.title + '</span>' +
+                        '<span style="font-size:0.75rem;color:var(--vc-text-dim);">' + ch.items.length + ' items</span>' +
+                        '<div style="width:100px;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;">' +
+                            '<div style="height:100%;width:' + chPct + '%;background:' + chBarColor + ';border-radius:3px;"></div>' +
+                        '</div>' +
+                        '<span style="font-size:0.75rem;font-weight:600;color:' + chBarColor + ';">' + chPct + '%</span>' +
+                    '</div>' +
+                    '<div style="padding:4px 16px 8px;display:none;">' + itemRows + '</div>' +
+                '</div>';
+        });
+
+        var overallPct = (totalItems * totalStudents) > 0 ? Math.round((totalCompleted / (totalItems * totalStudents)) * 100) : 0;
+        meta.textContent = overallPct + '% overall · ' + totalItems + ' items · ' + totalStudents + ' students';
+        wrap.innerHTML = html;
     }
 
     function renderStudentsTable() {
