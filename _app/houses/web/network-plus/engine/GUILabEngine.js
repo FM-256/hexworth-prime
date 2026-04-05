@@ -1,7 +1,32 @@
 /* ============================================================
    GUI Lab Engine — Hexworth Prime (Network+ / CCNA)
-   Simulated device management GUIs for hands-on configuration labs.
-   Self-contained IIFE. Injects own CSS. No dependencies.
+
+   Simulates real device management interfaces (Windows NIC properties,
+   Cisco/Juniper/pfSense/UniFi web consoles, command prompts, Device
+   Manager, Services console) for hands-on configuration labs.
+
+   Students interact with a desktop environment — double-click icons
+   to open windows, configure adapters, run CLI commands, and verify
+   tasks. The engine validates task completion against simulated state
+   (adapter configs, connectivity, service status, command history).
+
+   Architecture:
+   - Self-contained IIFE, injects own CSS (~1000 lines), no dependencies
+   - Config-driven: lab content defined in configs/*.config.js
+   - State engine: adapters, services, connectivity derived from config
+   - Simulated CLI: ipconfig, ping, tracert, nslookup (Windows) or
+     ip addr, nmcli, dig, systemctl (Linux) based on config.osType
+   - Task verification: 10 verification types (command_run, adapter_config,
+     connectivity, ping_success, state_value, state_match, custom, etc.)
+   - Window manager: drag, resize, minimize, maximize, focus, cascade
+   - Scoring: task points + time bonus for early completion
+
+   Usage:
+     <script src="engine/GUILabEngine.js"></script>
+     <script src="../configs/gui-ne01-wireshark.config.js"></script>
+     <script>
+       GUILabEngine.init(LAB_CONFIG, document.getElementById('lab'));
+     </script>
    ============================================================ */
 
 const GUILabEngine = (() => {
@@ -9,22 +34,23 @@ const GUILabEngine = (() => {
 
     // ─────────────────────────────────────────────────────────
     // INTERNAL STATE
+    // All mutable state lives here. Reset via _reset().
     // ─────────────────────────────────────────────────────────
 
-    let _config = null;
-    let _container = null;
-    let _state = {};
-    let _windows = {};
-    let _windowOrder = [];
-    let _zIndex = 100;
-    let _clockInterval = null;
-    let _startTime = 0;
-    let _elapsed = 0;
-    let _paused = false;
-    let _taskPanelOpen = true;
-    let _completedTasks = [];
-    let _commandHistory = [];
-    let _listeners = [];
+    let _config = null;          // Lab configuration (from configs/*.config.js)
+    let _container = null;       // DOM element the engine renders into
+    let _state = {};             // Simulated device state (adapters, services, connectivity)
+    let _windows = {};           // Open window registry: { appId: { el, title, ... } }
+    let _windowOrder = [];       // Z-order stack for window focus management
+    let _zIndex = 100;           // Incrementing z-index counter for window layering
+    let _clockInterval = null;   // setInterval handle for the countdown timer
+    let _startTime = 0;          // Date.now() when lab started (for elapsed calculation)
+    let _elapsed = 0;            // Seconds elapsed since lab start
+    let _paused = false;         // Timer pause flag (not currently exposed in UI)
+    let _taskPanelOpen = true;   // Whether the right-side task panel is expanded
+    let _completedTasks = [];    // Array of completed task IDs
+    let _commandHistory = [];    // Raw command strings entered in any terminal window
+    let _listeners = [];         // State change subscribers (fn(state) callbacks)
 
     // ─────────────────────────────────────────────────────────
     // CSS INJECTION
@@ -1011,14 +1037,17 @@ const GUILabEngine = (() => {
 
     // ─────────────────────────────────────────────────────────
     // UTILITIES
+    // Shared helper functions used throughout the engine.
     // ─────────────────────────────────────────────────────────
 
+    /** Escape HTML entities to prevent XSS when inserting user-provided text into the DOM. */
     function _esc(str) {
         const d = document.createElement('div');
         d.textContent = str;
         return d.innerHTML;
     }
 
+    /** Shorthand DOM element factory — creates element with optional class and innerHTML. */
     function _el(tag, cls, html) {
         const el = document.createElement(tag);
         if (cls) el.className = cls;
@@ -1026,6 +1055,7 @@ const GUILabEngine = (() => {
         return el;
     }
 
+    /** Show a temporary toast notification (3s visible, 300ms fade). Types: 'success', 'error', 'warning', 'info'. */
     function _notify(msg, type) {
         const n = _el('div', 'gle-notification ' + (type || 'info'));
         n.textContent = msg;
@@ -1037,40 +1067,64 @@ const GUILabEngine = (() => {
         }, 3000);
     }
 
+    /** Format seconds as M:SS for the countdown timer display. */
     function _formatTime(seconds) {
         const m = Math.floor(seconds / 60);
         const s = seconds % 60;
         return m + ':' + (s < 10 ? '0' : '') + s;
     }
 
+    /** Deep clone via JSON round-trip. Safe for plain objects (no functions, dates, undefined). */
     function _deepClone(obj) {
         return JSON.parse(JSON.stringify(obj));
     }
 
     // ─────────────────────────────────────────────────────────
     // STATE ENGINE
+    // Manages the simulated device state — network adapters,
+    // Windows services, connectivity status, and device manager
+    // tree. State is initialized from config.initialState and
+    // mutated by user actions (CLI commands, GUI toggles, etc.).
     // ─────────────────────────────────────────────────────────
 
+    /**
+     * Initialize state from config. Deep-clones initialState so the
+     * original config is never mutated (allows clean reset). Also
+     * creates internal tracking arrays for task verification.
+     */
     function _initState() {
         _state = _deepClone(_config.initialState || {});
-        // Ensure required structures
+        // Ensure required structures exist even if config omits them
         if (!_state.adapters) _state.adapters = [];
         if (!_state.services) _state.services = [];
         if (!_state.connectivity) _state.connectivity = { gateway: false, internet: false, dns: false };
         if (!_state.deviceManager) _state.deviceManager = {};
         if (!_state.webMgmt) _state.webMgmt = {};
-        // Command run log for verification
+        // Internal tracking arrays — used by _verifyTask() to check
+        // what commands the student ran and what windows they opened
         _state._commandsRun = [];
         _state._windowsOpened = [];
     }
 
+    /** Find a network adapter by name in the simulated state. */
     function _getAdapter(name) {
         return _state.adapters.find(a => a.name === name);
     }
 
+    /**
+     * Recalculate connectivity flags (gateway, internet, DNS) based on
+     * current adapter configuration. This is the "physics engine" of the
+     * network simulation — it determines what's reachable.
+     *
+     * Logic mirrors real networking:
+     * - Gateway reachable if an enabled adapter has an IP in the same subnet
+     * - Internet reachable if gateway is reachable and no firewall blocks outbound
+     * - DNS works if internet works, DNS servers are configured, and DNS Client service is running
+     * - APIPA addresses (169.254.x.x) and 0.0.0.0 mean no valid config
+     */
     function _updateConnectivity() {
         const conn = _state.connectivity;
-        // Check if any adapter has valid config
+        // Find first enabled + connected adapter (simulates primary NIC)
         const active = _state.adapters.find(a => a.enabled && a.connected);
         if (!active) {
             conn.gateway = false;
@@ -1079,11 +1133,11 @@ const GUILabEngine = (() => {
             return;
         }
 
-        // Gateway reachable if adapter has valid IP in same subnet as gateway
         const ip = active.ip || '';
         const gw = active.gateway || '';
         const mask = active.mask || '255.255.255.0';
 
+        // No gateway configured, or APIPA/zeroed IP = no connectivity
         if (!gw || gw === '' || ip.startsWith('169.254') || ip === '0.0.0.0') {
             conn.gateway = false;
             conn.internet = false;
@@ -1091,21 +1145,22 @@ const GUILabEngine = (() => {
             return;
         }
 
-        // Check same subnet
+        // Gateway reachable only if IP and gateway are in the same subnet
         conn.gateway = _sameSubnet(ip, gw, mask);
 
-        // Check for firewall blocking
+        // Internet blocked if Windows Firewall is running with outbound block enabled
         const fwBlocking = (_state.services || []).some(s =>
             s.name === 'Windows Firewall' && s.status === 'running' && s.blockOutbound
         );
         conn.internet = conn.gateway && !fwBlocking;
 
-        // DNS works if internet works and DNS servers configured and DNS Client running
+        // DNS requires: internet + configured DNS servers + DNS Client service running
         const dnsClient = (_state.services || []).find(s => s.name === 'DNS Client');
         const hasDNS = active.dns && active.dns.some(d => d && d !== '');
         conn.dns = conn.internet && hasDNS && (!dnsClient || dnsClient.status === 'running');
     }
 
+    /** Compare two IPs against a subnet mask using bitwise AND. Returns true if same subnet. */
     function _sameSubnet(ip1, ip2, mask) {
         const a = _ipToNum(ip1);
         const b = _ipToNum(ip2);
@@ -1114,6 +1169,7 @@ const GUILabEngine = (() => {
         return (a & m) === (b & m);
     }
 
+    /** Convert dotted-quad IP string to 32-bit unsigned integer. Returns null if invalid. */
     function _ipToNum(ip) {
         if (!ip) return null;
         const parts = ip.split('.');
@@ -1122,20 +1178,23 @@ const GUILabEngine = (() => {
         for (let i = 0; i < 4; i++) {
             const p = parseInt(parts[i], 10);
             if (isNaN(p) || p < 0 || p > 255) return null;
-            n = (n << 8) | p;
+            n = (n << 8) | p;  // Shift left and OR each octet
         }
-        return n >>> 0;
+        return n >>> 0;  // Unsigned right-shift to ensure positive 32-bit
     }
 
+    /** Validate that a string is a well-formed IPv4 address. */
     function _isValidIP(ip) {
         return _ipToNum(ip) !== null;
     }
 
+    /** Called after any state mutation — recalculates connectivity and notifies listeners. */
     function _onStateChange() {
         _updateConnectivity();
         _broadcastStateChange();
     }
 
+    /** Notify all registered state change listeners. Errors in listeners are caught to prevent cascade. */
     function _broadcastStateChange() {
         _listeners.forEach(fn => {
             try { fn(_state); } catch (e) { console.error('[GUILab] Listener error:', e); }
@@ -1144,8 +1203,17 @@ const GUILabEngine = (() => {
 
     // ─────────────────────────────────────────────────────────
     // SIMULATED COMMAND PROCESSOR
+    // Routes CLI input to the appropriate command handler based
+    // on config.osType ('linux' or Windows default). Every command
+    // is logged to _state._commandsRun for task verification.
+    //
+    // Windows commands: ipconfig, ping, tracert, nslookup, netstat,
+    //   arp, route, nbtstat, netsh
+    // Linux commands: ip addr/route/link, ping, traceroute, dig,
+    //   nslookup, ss, nmcli, cat, systemctl, journalctl
     // ─────────────────────────────────────────────────────────
 
+    /** Parse and dispatch a command entered in the simulated terminal. Returns output string. */
     function _processCommand(input) {
         const raw = input.trim();
         if (!raw) return '';
@@ -1349,17 +1417,23 @@ const GUILabEngine = (() => {
     }
 
     // ── Helper: subnet math for Linux output ─────────────────
+    // These functions convert between dotted-quad masks and CIDR
+    // notation, and compute broadcast/network addresses for the
+    // simulated 'ip addr' and 'ip route' command output.
 
+    /** Convert subnet mask '255.255.255.0' to CIDR prefix length 24. Counts set bits. */
     function _maskToCidr(mask) {
         return mask.split('.').reduce((c, o) => c + (parseInt(o) >>> 0).toString(2).replace(/0/g, '').length, 0);
     }
 
+    /** Compute broadcast address: OR each octet with the inverse of the mask. */
     function _getBroadcast(ip, mask) {
         const ipParts = ip.split('.').map(Number);
         const maskParts = mask.split('.').map(Number);
         return ipParts.map((p, i) => (p | (~maskParts[i] & 255))).join('.');
     }
 
+    /** Compute network address: AND each octet with the mask. */
     function _getNetwork(ip, mask) {
         const ipParts = ip.split('.').map(Number);
         const maskParts = mask.split('.').map(Number);
@@ -1705,8 +1779,24 @@ const GUILabEngine = (() => {
 
     // ─────────────────────────────────────────────────────────
     // TASK VERIFICATION
+    // Checks whether a lab task's completion conditions are met
+    // by examining the current simulated state. Each task has a
+    // verify object with a type that determines the check:
+    //
+    //   command_run     — student ran a specific command
+    //   window_opened   — student opened a specific window type
+    //   service_state   — a service is in the expected status
+    //   adapter_config  — adapter has correct IP/mask/gateway/DNS/DHCP
+    //   adapter_enabled — adapter is enabled
+    //   connectivity    — gateway/internet/dns flags match expected
+    //   ping_success    — student ran ping AND internet is reachable
+    //   dns_flushed     — student ran ipconfig /flushdns
+    //   state_value     — arbitrary state path equals expected value
+    //   state_match     — multiple state paths all match
+    //   custom          — arbitrary function(state) returns boolean
     // ─────────────────────────────────────────────────────────
 
+    /** Evaluate a task's verification conditions against current state. Returns boolean. */
     function _verifyTask(task) {
         const v = task.verify;
         if (!v) return false;
@@ -1794,6 +1884,7 @@ const GUILabEngine = (() => {
         }
     }
 
+    /** Traverse a dotted path ('webMgmt.firewall.rule1.enabled') to read a nested value. */
     function _getNestedValue(obj, path) {
         const parts = path.split('.');
         let cur = obj;
@@ -1804,6 +1895,7 @@ const GUILabEngine = (() => {
         return cur;
     }
 
+    /** Traverse a dotted path and set the leaf value. Creates intermediate objects if missing. */
     function _setNestedValue(obj, path, value) {
         const parts = path.split('.');
         let cur = obj;
@@ -1816,8 +1908,13 @@ const GUILabEngine = (() => {
 
     // ─────────────────────────────────────────────────────────
     // SCORING
+    // Points = (completed tasks * taskPoints) + time bonus.
+    // Time bonus is proportional to remaining time if ALL
+    // tasks are completed before the timer expires.
+    // Default: 50 pts/task, 100 pts max time bonus, 30 min.
     // ─────────────────────────────────────────────────────────
 
+    /** Calculate current score: task points + optional time bonus for early completion. */
     function _calculateScore() {
         const scoring = _config.scoring || {};
         const taskPoints = scoring.taskPoints || 50;
@@ -1845,8 +1942,12 @@ const GUILabEngine = (() => {
 
     // ─────────────────────────────────────────────────────────
     // DOM: ROOT STRUCTURE
+    // Builds the full desktop environment: desktop area with
+    // icons, taskbar at the bottom, task panel on the right,
+    // start overlay (lab briefing), and completion overlay.
     // ─────────────────────────────────────────────────────────
 
+    /** Build the complete lab UI from scratch. Called on init and reset. */
     function _buildRoot() {
         _container.innerHTML = '';
         _container.className = 'gle-root';
@@ -2066,8 +2167,17 @@ const GUILabEngine = (() => {
 
     // ─────────────────────────────────────────────────────────
     // DOM: WINDOWS
+    // Window manager for the simulated desktop. Each window has:
+    // - Title bar with drag, minimize, maximize, close buttons
+    // - Optional menu bar and toolbar
+    // - Content area (renders based on window type)
+    // - Status bar and resize handle
+    // Windows cascade position and maintain z-order focus stack.
+    // Window types: network_adapter, cmd, device_manager,
+    //   services, web_mgmt (generic configurable management UI)
     // ─────────────────────────────────────────────────────────
 
+    /** Launch a window from a desktop icon definition. Focuses if already open. */
     function _launchWindow(iconDef) {
         const appId = iconDef.id;
         const windowType = iconDef.window;
@@ -3082,6 +3192,11 @@ const GUILabEngine = (() => {
         });
     }
 
+    /**
+     * Show the completion overlay with final score, breakdown, and time.
+     * Also reports completion to ModuleProgress (platform XP system)
+     * so the lab counts toward the student's Web house progress.
+     */
     function _showCompletion() {
         _stopTimer();
 
@@ -3119,8 +3234,13 @@ const GUILabEngine = (() => {
 
     // ─────────────────────────────────────────────────────────
     // TIMER
+    // Countdown from config.duration (default 1800s = 30 min).
+    // Visual states: normal (green), warning (<5 min, yellow),
+    // critical (<1 min, red with pulse animation).
+    // Timer expiry triggers _showCompletion() with current progress.
     // ─────────────────────────────────────────────────────────
 
+    /** Start the countdown timer. Updates every second. */
     function _startTimer() {
         _startTime = Date.now();
         _elapsed = 0;
@@ -3161,8 +3281,12 @@ const GUILabEngine = (() => {
 
     // ─────────────────────────────────────────────────────────
     // RESET
+    // Full lab reset — clears all state, windows, progress,
+    // and re-renders from the original config. Used by the
+    // "Retry Lab" button on the completion overlay.
     // ─────────────────────────────────────────────────────────
 
+    /** Reset the entire lab to initial state and rebuild the UI. */
     function _reset() {
         _stopTimer();
         _windows = {};
