@@ -2,6 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Firebase SDK — required for LIVE mode (Firestore + Functions) -->
+    <script src="/__/firebase/10.12.2/firebase-app-compat.js"></script>
+    <script src="/__/firebase/10.12.2/firebase-auth-compat.js"></script>
+    <script src="/__/firebase/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="/__/firebase/10.12.2/firebase-functions-compat.js"></script>
+    <script src="/__/firebase/init.js"></script>
+    <!-- Auth bridge — loads existing Firebase session for LIVE mode -->
+    <script src="../../components/FirebaseAuth.js"></script>
     <!-- Access Control — requires house sorting before access -->
     <script src="../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
@@ -167,6 +175,63 @@
         }
 
         .topbar-spacer { flex: 1; }
+
+        /* Mode Toggle — SIM / LIVE */
+        .mode-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .mode-toggle-btn {
+            padding: 6px 14px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            font-family: monospace;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .mode-toggle-btn:hover { color: var(--text); }
+        .mode-toggle-btn.active-sim {
+            background: var(--accent-dim);
+            color: var(--accent);
+            border-right: 1px solid var(--border);
+        }
+        .mode-toggle-btn.active-live {
+            background: rgba(34, 197, 94, 0.12);
+            color: #4ade80;
+            border-left: 1px solid var(--border);
+        }
+        .mode-indicator {
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            padding: 3px 8px;
+            border-radius: 3px;
+            margin-left: 8px;
+        }
+        .mode-indicator.sim {
+            background: var(--accent-dim);
+            color: var(--accent);
+        }
+        .mode-indicator.live {
+            background: rgba(34, 197, 94, 0.12);
+            color: #4ade80;
+            animation: livePulse 2s ease infinite;
+        }
+        @keyframes livePulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
 
         /* Agent count status pill */
         .conn-status {
@@ -1097,14 +1162,21 @@
         <div class="topbar-brand">
             <div class="c2-logo">C2</div>
             <div class="topbar-title">
-                <span>HEXWORTH C2</span> &mdash; Command and Control Training Simulator
-                <sub>Signal House &bull; Red Team Hardware &bull; Simulated Environment</sub>
+                <span>HEXWORTH C2</span> &mdash; Command and Control
+                <sub>Signal House &bull; Hardware Operations &bull; <span id="modeSubtitle">Simulated Environment</span></sub>
             </div>
         </div>
 
         <div class="topbar-spacer"></div>
 
-        <!-- Simulated connection status — updates dynamically -->
+        <!-- Mode Toggle: SIM / LIVE -->
+        <div class="mode-toggle">
+            <button class="mode-toggle-btn active-sim" id="btnModeSim" onclick="switchMode('sim')">SIM</button>
+            <button class="mode-toggle-btn" id="btnModeLive" onclick="switchMode('live')">LIVE</button>
+        </div>
+        <span class="mode-indicator sim" id="modeIndicator">SIMULATION</span>
+
+        <!-- Connection status — updates dynamically -->
         <div class="conn-status" id="connStatus">
             <div class="conn-dot"></div>
             <span id="connStatusText">3 agents online</span>
@@ -1141,6 +1213,7 @@
                 <button class="tab-btn" data-tab="map">Network Map</button>
                 <button class="tab-btn" data-tab="loot">Loot Vault</button>
                 <button class="tab-btn" data-tab="log">Activity Log</button>
+                <button class="tab-btn" data-tab="manual" style="margin-left:auto;color:var(--accent);border-color:var(--accent);">Field Manual</button>
             </nav>
 
             <!-- ==============================================================
@@ -1259,6 +1332,184 @@
                 </div>
                 <div class="log-scroll" id="logScroll">
                     <!-- Log entries injected by JS -->
+                </div>
+            </div>
+
+            <!-- ==============================================================
+                 TAB: FIELD MANUAL
+                 ============================================================== -->
+            <div class="tab-panel" id="tab-manual" style="padding:24px;overflow-y:auto;max-height:calc(100vh - 120px);">
+
+                <div style="max-width:800px;margin:0 auto;">
+
+                    <!-- Header -->
+                    <div style="text-align:center;margin-bottom:32px;padding-bottom:20px;border-bottom:1px solid var(--border);">
+                        <div style="font-size:28px;font-weight:900;color:var(--accent);letter-spacing:0.06em;">HEXWORTH C2</div>
+                        <div style="font-size:13px;color:var(--text-muted);margin-top:4px;letter-spacing:0.15em;text-transform:uppercase;">Field Manual &mdash; Command &amp; Control Operations</div>
+                        <div style="font-size:11px;color:var(--text-dim);margin-top:8px;">Signal House &bull; Hardware Security Division &bull; v1.0</div>
+                    </div>
+
+                    <!-- What is C2 -->
+                    <div style="margin-bottom:28px;">
+                        <h2 style="font-size:16px;color:var(--accent);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--accent);">What is Command &amp; Control?</h2>
+                        <p style="color:var(--text-muted);font-size:13px;line-height:1.8;margin-bottom:10px;">
+                            Command and Control (C2) is the infrastructure an operator uses to communicate with deployed devices. In offensive security, C2 frameworks (Cobalt Strike, Sliver, Mythic) let red team operators send commands to implants on target machines and receive results back. In defensive security, understanding C2 is how you detect and disrupt adversary operations.
+                        </p>
+                        <p style="color:var(--text-muted);font-size:13px;line-height:1.8;margin-bottom:10px;">
+                            <strong style="color:var(--text);">Hexworth C2 is the educational version.</strong> Instead of controlling software implants on computers, you control <em>hardware devices you built</em> &mdash; ESP32 boards, Raspberry Pis, Arduino projects, USB duckies. The C2 pattern is identical: devices check in, receive commands, execute them, and report results. The difference is the context: your devices, your network, your lab.
+                        </p>
+                    </div>
+
+                    <!-- Two Modes -->
+                    <div style="margin-bottom:28px;">
+                        <h2 style="font-size:16px;color:var(--accent);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--accent);">Two Modes</h2>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px;">
+                            <!-- SIM -->
+                            <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;">
+                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                                    <span style="background:rgba(220,38,38,0.12);color:var(--accent);padding:3px 10px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:0.08em;">SIM</span>
+                                    <span style="font-size:13px;font-weight:600;color:var(--text);">Simulation Mode</span>
+                                </div>
+                                <p style="color:var(--text-muted);font-size:12px;line-height:1.7;">
+                                    Simulated agents with pre-programmed responses. No real devices, no network calls. Use this to learn the C2 interface, practice commands, and understand how operators interact with agents.
+                                </p>
+                                <ul style="color:var(--text-dim);font-size:11px;margin-top:10px;padding-left:16px;line-height:1.8;">
+                                    <li>5 simulated agents (USB implant, Pi backdoor, ESP32 beacon, etc.)</li>
+                                    <li>Pre-scripted command responses</li>
+                                    <li>No authentication required</li>
+                                    <li>Safe to explore &mdash; nothing real happens</li>
+                                </ul>
+                            </div>
+
+                            <!-- LIVE -->
+                            <div style="background:var(--card);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:16px;">
+                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                                    <span style="background:rgba(34,197,94,0.12);color:#4ade80;padding:3px 10px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:0.08em;">LIVE</span>
+                                    <span style="font-size:13px;font-weight:600;color:var(--text);">Live Hardware Mode</span>
+                                </div>
+                                <p style="color:var(--text-muted);font-size:12px;line-height:1.7;">
+                                    Real devices you built in Signal House projects. Devices check in via HTTPS to Firebase Cloud Functions. You send real commands and receive real results. This is a working C2 system.
+                                </p>
+                                <ul style="color:var(--text-dim);font-size:11px;margin-top:10px;padding-left:16px;line-height:1.8;">
+                                    <li>Real devices registered via the C2 API</li>
+                                    <li>Firestore real-time sync &mdash; devices appear instantly</li>
+                                    <li>Admin authentication required (Firebase Auth)</li>
+                                    <li>Commands dispatched via Cloud Functions</li>
+                                    <li>Results stored in Firestore, visible in real time</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- How to Use SIM Mode -->
+                    <div style="margin-bottom:28px;">
+                        <h2 style="font-size:16px;color:var(--accent);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--accent);">Using SIM Mode</h2>
+                        <ol style="color:var(--text-muted);font-size:13px;line-height:2;padding-left:20px;">
+                            <li>Click an <strong style="color:var(--text);">agent</strong> in the left sidebar to select it</li>
+                            <li>Review the agent details &mdash; hostname, IP, OS, implant type</li>
+                            <li>Type commands in the <strong style="color:var(--text);">terminal input</strong> at the bottom of the Agent Console tab</li>
+                            <li>Try: <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:3px;color:var(--accent);">help</code> to see available commands for the selected agent</li>
+                            <li>Try: <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:3px;color:var(--accent);">sysinfo</code>, <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:3px;color:var(--accent);">netstat</code>, <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:3px;color:var(--accent);">ps</code>, <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:3px;color:var(--accent);">screenshot</code></li>
+                            <li>Explore the <strong style="color:var(--text);">Network Map</strong> tab to see agent topology</li>
+                            <li>Check the <strong style="color:var(--text);">Loot Vault</strong> for captured data</li>
+                            <li>Review the <strong style="color:var(--text);">Activity Log</strong> for a timeline of all operations</li>
+                        </ol>
+                    </div>
+
+                    <!-- How to Use LIVE Mode -->
+                    <div style="margin-bottom:28px;">
+                        <h2 style="font-size:16px;color:#4ade80;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #4ade80;">Using LIVE Mode</h2>
+                        <ol style="color:var(--text-muted);font-size:13px;line-height:2;padding-left:20px;">
+                            <li><strong style="color:var(--text);">Sign in</strong> on the main Hexworth site first (admin account required)</li>
+                            <li>Click the <strong style="color:#4ade80;">LIVE</strong> toggle in the topbar</li>
+                            <li>The sidebar shows real devices registered with the C2 backend</li>
+                            <li>Click a device to see its live status, IP, firmware, sensors, and capabilities</li>
+                            <li>Type a command matching the device's capabilities (e.g., <code style="background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:3px;color:#4ade80;">wifi-scan</code> for an ESP32)</li>
+                            <li>The command is queued in Firestore &mdash; the device picks it up on its next poll</li>
+                            <li>Results appear when the device reports back</li>
+                        </ol>
+                    </div>
+
+                    <!-- Registering a Device -->
+                    <div style="margin-bottom:28px;">
+                        <h2 style="font-size:16px;color:var(--accent);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--accent);">Connecting Hardware Projects</h2>
+                        <p style="color:var(--text-muted);font-size:13px;line-height:1.8;margin-bottom:10px;">
+                            Each Signal House hardware project (ESP32, Pi, Arduino) can connect to the C2 backend. When you build a project, the guide includes code to register with the C2 API and check in periodically. The device appears in LIVE mode automatically.
+                        </p>
+                        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-top:12px;">
+                            <div style="font-size:11px;color:var(--text-dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">Compatible Projects</div>
+                            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                                <span style="background:rgba(220,38,38,0.08);color:var(--accent);padding:4px 10px;border-radius:4px;font-size:11px;">SG-33 Rubber Ducky</span>
+                                <span style="background:rgba(220,38,38,0.08);color:var(--accent);padding:4px 10px;border-radius:4px;font-size:11px;">SG-68 Rogue AP</span>
+                                <span style="background:rgba(220,38,38,0.08);color:var(--accent);padding:4px 10px;border-radius:4px;font-size:11px;">SG-64 BLE Scanner</span>
+                                <span style="background:rgba(220,38,38,0.08);color:var(--accent);padding:4px 10px;border-radius:4px;font-size:11px;">SG-60 LoRa Comms</span>
+                                <span style="background:rgba(220,38,38,0.08);color:var(--accent);padding:4px 10px;border-radius:4px;font-size:11px;">SG-09 Network Probe</span>
+                                <span style="background:rgba(220,38,38,0.08);color:var(--accent);padding:4px 10px;border-radius:4px;font-size:11px;">SG-43+ Pi Servers</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Architecture -->
+                    <div style="margin-bottom:28px;">
+                        <h2 style="font-size:16px;color:var(--accent);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--accent);">Architecture</h2>
+                        <div style="background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:20px;font-family:monospace;font-size:11px;color:var(--text-muted);line-height:1.8;white-space:pre;">Device (ESP32/Pi/Arduino)
+    |
+    | HTTPS POST (heartbeat every 30s)
+    v
+Cloud Functions (Firebase)
+    |
+    | Read/Write
+    v
+Firestore Database
+    c2_devices/    &mdash; device registry + status
+    c2_commands/   &mdash; command queue + results
+    c2_logs/       &mdash; activity history
+    ^
+    | onSnapshot (real-time)
+    |
+C2 Dashboard (this page)
+    |
+    | Dispatch command (Cloud Function)
+    v
+Device picks up command on next poll</div>
+                    </div>
+
+                    <!-- Security Notice -->
+                    <div style="margin-bottom:28px;">
+                        <h2 style="font-size:16px;color:#eab308;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #eab308;">Security &amp; Ethics</h2>
+                        <div style="background:rgba(234,179,8,0.05);border:1px solid rgba(234,179,8,0.15);border-radius:8px;padding:16px;">
+                            <p style="color:var(--text-muted);font-size:12px;line-height:1.8;margin-bottom:10px;">
+                                Hexworth C2 operates exclusively within your own lab environment. All devices you control are hardware you physically built and own. All communication goes through your Firebase project over HTTPS.
+                            </p>
+                            <ul style="color:var(--text-dim);font-size:11px;line-height:1.8;padding-left:16px;">
+                                <li>Only control devices you built and own</li>
+                                <li>Never deploy on networks you do not have written authorization to test</li>
+                                <li>The C2 pattern teaches how adversaries operate &mdash; use this knowledge for defense</li>
+                                <li>Admin authentication is required for all command dispatch operations</li>
+                                <li>All activity is logged in Firestore with timestamps and operator identity</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Keyboard Shortcuts -->
+                    <div style="margin-bottom:28px;">
+                        <h2 style="font-size:16px;color:var(--accent);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--accent);">Keyboard Shortcuts</h2>
+                        <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;font-size:12px;">
+                            <kbd style="background:var(--card);padding:4px 8px;border-radius:4px;color:var(--accent);font-family:monospace;text-align:center;border:1px solid var(--border);">Enter</kbd>
+                            <span style="color:var(--text-muted);padding-top:4px;">Execute command</span>
+                            <kbd style="background:var(--card);padding:4px 8px;border-radius:4px;color:var(--accent);font-family:monospace;text-align:center;border:1px solid var(--border);">Arrow Up</kbd>
+                            <span style="color:var(--text-muted);padding-top:4px;">Previous command (history)</span>
+                            <kbd style="background:var(--card);padding:4px 8px;border-radius:4px;color:var(--accent);font-family:monospace;text-align:center;border:1px solid var(--border);">Arrow Down</kbd>
+                            <span style="color:var(--text-muted);padding-top:4px;">Next command (history)</span>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div style="text-align:center;padding-top:20px;border-top:1px solid var(--border);color:var(--text-dim);font-size:10px;letter-spacing:0.08em;">
+                        HEXWORTH PRIME &bull; SIGNAL HOUSE &bull; C2 FIELD MANUAL v1.0
+                    </div>
+
                 </div>
             </div>
 
@@ -2138,7 +2389,330 @@ Tip: All commands are simulated for training purposes.`;
         bootSequence();
     }
 
-    document.addEventListener('DOMContentLoaded', init);
+    /* =========================================================================
+     * MODE SWITCHING — SIM vs LIVE
+     * SIM mode: uses the hardcoded AGENTS array and simulated responses.
+     * LIVE mode: reads from Firestore c2_devices collection in real time.
+     * =========================================================================*/
+
+    let currentMode = 'sim'; // 'sim' or 'live'
+    let liveUnsubscribe = null; // Firestore onSnapshot listener
+    let LIVE_AGENTS = []; // populated from Firestore in live mode
+
+    function switchMode(mode) {
+        if (mode === currentMode) return;
+        currentMode = mode;
+
+        // Update toggle buttons
+        var btnSim = document.getElementById('btnModeSim');
+        var btnLive = document.getElementById('btnModeLive');
+        var indicator = document.getElementById('modeIndicator');
+        var subtitle = document.getElementById('modeSubtitle');
+
+        btnSim.className = 'mode-toggle-btn' + (mode === 'sim' ? ' active-sim' : '');
+        btnLive.className = 'mode-toggle-btn' + (mode === 'live' ? ' active-live' : '');
+
+        if (mode === 'sim') {
+            indicator.className = 'mode-indicator sim';
+            indicator.textContent = 'SIMULATION';
+            subtitle.textContent = 'Simulated Environment';
+            // Disconnect live listener
+            if (liveUnsubscribe) { liveUnsubscribe(); liveUnsubscribe = null; }
+            // Restore sim data
+            renderAgentList();
+            var terminal = document.getElementById('terminal');
+            if (terminal) {
+                terminal.innerHTML = '';
+                appendTerminal('[*] Switched to SIM MODE', 'info');
+                appendTerminal('[+] Loaded ' + AGENTS.length + ' simulated agents', '');
+            }
+            bootSequence();
+        } else {
+            indicator.className = 'mode-indicator live';
+            indicator.textContent = 'LIVE';
+            subtitle.textContent = 'Live Hardware — Firestore Connected';
+
+            // Clear sim data from sidebar immediately
+            var agentList = document.getElementById('agentList');
+            if (agentList) agentList.innerHTML = '<div style="padding:20px;text-align:center;color:#555;font-size:12px;">Connecting to Firestore...</div>';
+            document.getElementById('connStatusText').textContent = 'connecting...';
+            document.getElementById('agentCountBadge').textContent = '...';
+
+            // Clear sim agent details
+            var detail = document.getElementById('agentDetail');
+            if (detail) detail.innerHTML = '';
+            selectedAgentId = null;
+
+            // Clear terminal
+            var terminal = document.getElementById('terminal');
+            if (terminal) terminal.innerHTML = '';
+
+            // Start live listener
+            startLiveMode();
+        }
+    }
+
+    function startLiveMode() {
+        // Check if Firebase is available
+        if (typeof firebase === 'undefined' || !firebase.firestore) {
+            appendTerminal('[!] Firebase SDK not loaded. Cannot enter LIVE mode.', 'error');
+            appendTerminal('[*] Ensure Firebase scripts are loaded.', 'info');
+            switchMode('sim');
+            return;
+        }
+
+        var terminal = document.getElementById('terminal');
+        if (terminal) {
+            terminal.innerHTML = '';
+            appendTerminal('[*] Connecting to Hexworth C2 backend...', 'info');
+        }
+
+        // Check authentication — must be signed in as admin
+        var user = firebase.auth().currentUser;
+        if (!user) {
+            appendTerminal('[!] Not signed in. LIVE mode requires admin authentication.', 'error');
+            appendTerminal('[*] Signing in anonymously for read access...', 'info');
+
+            // Try to use FirebaseAuth bridge if available
+            firebase.auth().onAuthStateChanged(function(u) {
+                if (u) {
+                    appendTerminal('[+] Authenticated as: ' + (u.email || u.uid), '');
+                    connectLiveFirestore();
+                } else {
+                    appendTerminal('[!] No auth session. Sign in via the main site first, then return here.', 'error');
+                    appendTerminal('[*] Falling back to SIM mode.', 'info');
+                    setTimeout(function() { switchMode('sim'); }, 2000);
+                }
+            });
+            return;
+        }
+
+        appendTerminal('[+] Authenticated as: ' + (user.email || user.uid), '');
+        connectLiveFirestore();
+    }
+
+    function connectLiveFirestore() {
+        var terminal = document.getElementById('terminal');
+        appendTerminal('[+] Firestore listener active — c2_devices collection', '');
+
+        // Real-time listener on c2_devices collection
+        var db = firebase.firestore();
+        liveUnsubscribe = db.collection('c2_devices')
+            .onSnapshot(function(snapshot) {
+                LIVE_AGENTS = [];
+                var now = Date.now();
+
+                snapshot.forEach(function(doc) {
+                    var data = doc.data();
+
+                    // Determine live status from lastCheckIn timestamp
+                    var liveStatus = 'offline';
+                    if (data.lastCheckIn) {
+                        var lastMs = data.lastCheckIn.toMillis();
+                        var intervalMs = (data.checkInInterval || 30) * 1000;
+                        var elapsed = now - lastMs;
+                        if (elapsed < intervalMs * 2) liveStatus = 'online';
+                        else if (elapsed < intervalMs * 10) liveStatus = 'stale';
+                        else liveStatus = 'offline';
+                    } else {
+                        liveStatus = 'registered';
+                    }
+
+                    // Map Firestore device to the agent format the dashboard expects
+                    LIVE_AGENTS.push({
+                        id: doc.id,
+                        label: data.name || doc.id,
+                        codename: (data.name || '').toUpperCase().replace(/\s+/g, '-'),
+                        type: data.type || 'unknown',
+                        hostname: data.name || doc.id,
+                        ip: data.ip || '—',
+                        mac: '—',
+                        os: data.type + ' / ' + (data.firmware || '?'),
+                        status: liveStatus,
+                        capabilities: data.capabilities || [],
+                        lastCheckin: data.lastCheckIn ? timeAgo(data.lastCheckIn.toMillis()) : 'never',
+                        sensors: data.sensors || {},
+                        projectId: data.projectId || null,
+                        uptime: data.uptime || 0,
+                        rssi: data.rssi || null,
+                        freeHeap: data.freeHeap || null,
+                        // Sim-compat fields
+                        deployDate: data.registeredAt ? new Date(data.registeredAt.toMillis()).toLocaleDateString() : '—',
+                        beaconInterval: (data.checkInInterval || 30) + 's',
+                        protocol: 'HTTPS',
+                        commands: data.capabilities || []
+                    });
+                });
+
+                // Render with live data
+                renderLiveAgentList();
+
+                // Update connection status
+                var onlineCount = LIVE_AGENTS.filter(function(a) { return a.status === 'online'; }).length;
+                document.getElementById('connStatusText').textContent = onlineCount + ' device' + (onlineCount !== 1 ? 's' : '') + ' online';
+                document.getElementById('agentCountBadge').textContent = LIVE_AGENTS.length + ' devices';
+
+                appendTerminal('[+] Live update: ' + LIVE_AGENTS.length + ' devices (' + onlineCount + ' online)', '');
+            }, function(error) {
+                appendTerminal('[!] Firestore error: ' + error.message, 'error');
+            });
+    }
+
+    function timeAgo(ms) {
+        var elapsed = Date.now() - ms;
+        if (elapsed < 60000) return Math.floor(elapsed / 1000) + 's ago';
+        if (elapsed < 3600000) return Math.floor(elapsed / 60000) + 'm ago';
+        if (elapsed < 86400000) return Math.floor(elapsed / 3600000) + 'h ago';
+        return Math.floor(elapsed / 86400000) + 'd ago';
+    }
+
+    /* Render agent list in live mode — same HTML structure as sim */
+    function renderLiveAgentList() {
+        var container = document.getElementById('agentList');
+        if (!container) return;
+
+        container.innerHTML = LIVE_AGENTS.map(function(agent) {
+            var statusColor = agent.status === 'online' ? '#22c55e' :
+                              agent.status === 'stale' ? '#eab308' : '#555';
+            var statusLabel = agent.status === 'online' ? 'ONLINE' :
+                              agent.status === 'stale' ? 'STALE' :
+                              agent.status === 'registered' ? 'NEW' : 'OFFLINE';
+            var selected = agent.id === selectedAgentId ? ' selected' : '';
+
+            return '<div class="agent-card' + selected + '" onclick="selectLiveAgent(\'' + agent.id + '\')">' +
+                '<div class="agent-card-top">' +
+                    '<span class="agent-name">' + escapeHtml(agent.label) + '</span>' +
+                    '<span class="agent-type-badge">' + escapeHtml(agent.type) + '</span>' +
+                '</div>' +
+                '<div class="agent-meta">' +
+                    '<div class="agent-meta-row"><span>IP</span><span>' + escapeHtml(agent.ip) + '</span></div>' +
+                    '<div class="agent-meta-row"><span>Project</span><span>' + escapeHtml(agent.projectId || '—') + '</span></div>' +
+                    '<div class="agent-meta-row"><span>RSSI</span><span>' + (agent.rssi || '—') + ' dBm</span></div>' +
+                '</div>' +
+                '<div class="agent-checkin">' +
+                    '<div style="width:6px;height:6px;border-radius:50%;background:' + statusColor + ';flex-shrink:0"></div>' +
+                    '<span class="checkin-time">' + statusLabel + ' &bull; ' + agent.lastCheckin + '</span>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    /* Select a live agent and show details */
+    function selectLiveAgent(agentId) {
+        selectedAgentId = agentId;
+        var agent = LIVE_AGENTS.find(function(a) { return a.id === agentId; });
+        if (!agent) return;
+
+        renderLiveAgentList();
+
+        // Render detail panel
+        var detail = document.getElementById('agentDetail');
+        if (detail) {
+            detail.innerHTML =
+                '<div class="detail-header">' +
+                    '<h2>' + escapeHtml(agent.label) + '</h2>' +
+                    '<span class="agent-type-badge">' + escapeHtml(agent.type) + '</span>' +
+                '</div>' +
+                '<div class="detail-grid">' +
+                    '<div class="detail-item"><span class="detail-label">Device ID</span><span class="detail-value">' + escapeHtml(agent.id) + '</span></div>' +
+                    '<div class="detail-item"><span class="detail-label">IP Address</span><span class="detail-value">' + escapeHtml(agent.ip) + '</span></div>' +
+                    '<div class="detail-item"><span class="detail-label">Firmware</span><span class="detail-value">' + escapeHtml(agent.os) + '</span></div>' +
+                    '<div class="detail-item"><span class="detail-label">Uptime</span><span class="detail-value">' + agent.uptime + 's</span></div>' +
+                    '<div class="detail-item"><span class="detail-label">RSSI</span><span class="detail-value">' + (agent.rssi || '—') + ' dBm</span></div>' +
+                    '<div class="detail-item"><span class="detail-label">Free Heap</span><span class="detail-value">' + (agent.freeHeap ? (agent.freeHeap / 1024).toFixed(1) + ' KB' : '—') + '</span></div>' +
+                    '<div class="detail-item"><span class="detail-label">Project</span><span class="detail-value">' + escapeHtml(agent.projectId || '—') + '</span></div>' +
+                    '<div class="detail-item"><span class="detail-label">Check-in</span><span class="detail-value">' + agent.lastCheckin + '</span></div>' +
+                '</div>' +
+                '<div class="detail-header" style="margin-top:16px"><h3>Capabilities</h3></div>' +
+                '<div style="display:flex;flex-wrap:wrap;gap:6px;padding:8px 0">' +
+                    agent.capabilities.map(function(c) {
+                        return '<span class="agent-type-badge">' + escapeHtml(c) + '</span>';
+                    }).join('') +
+                '</div>' +
+                (Object.keys(agent.sensors).length > 0 ?
+                    '<div class="detail-header" style="margin-top:16px"><h3>Sensor Data</h3></div>' +
+                    '<div class="detail-grid">' +
+                        Object.entries(agent.sensors).map(function(entry) {
+                            return '<div class="detail-item"><span class="detail-label">' + escapeHtml(entry[0]) + '</span><span class="detail-value">' + escapeHtml(String(entry[1])) + '</span></div>';
+                        }).join('') +
+                    '</div>'
+                : '');
+        }
+
+        // Clear and update terminal
+        var terminal = document.getElementById('terminal');
+        if (terminal) {
+            terminal.innerHTML = '';
+            appendTerminal('[*] Selected live device: ' + agent.label + ' (' + agent.id + ')', 'info');
+            appendTerminal('[+] Type: ' + agent.type + ' | Status: ' + agent.status, '');
+            appendTerminal('[+] Capabilities: ' + agent.capabilities.join(', '), '');
+            appendTerminal('', '');
+            appendTerminal('[*] Use the command input to dispatch actions to this device.', 'info');
+            appendTerminal('[*] Available commands: ' + agent.capabilities.join(', '), '');
+        }
+    }
+
+    /* Override processCommand to handle live mode dispatch */
+    var _origProcessCommand = typeof processCommand === 'function' ? processCommand : null;
+
+    // Wrap command processing to handle both modes
+    var _processCommandPatched = false;
+    function patchProcessCommand() {
+        if (_processCommandPatched) return;
+        _processCommandPatched = true;
+
+        var origFn = processCommand;
+        processCommand = function(rawInput) {
+            if (currentMode === 'sim') {
+                // Use original sim handler
+                origFn(rawInput);
+                return;
+            }
+
+            // LIVE MODE — dispatch command via Cloud Function
+            if (!rawInput || !rawInput.trim()) return;
+            var parts = rawInput.trim().split(/\s+/);
+            var action = parts[0];
+            var args = parts.slice(1).join(' ');
+
+            if (!selectedAgentId) {
+                appendTerminal('[!] No device selected. Click a device in the sidebar.', 'error');
+                return;
+            }
+
+            var agent = LIVE_AGENTS.find(function(a) { return a.id === selectedAgentId; });
+            if (!agent) {
+                appendTerminal('[!] Device not found.', 'error');
+                return;
+            }
+
+            appendTerminal('hexc2@' + agent.label + ' > ' + escapeHtml(rawInput), 'prompt');
+            appendTerminal('[*] Dispatching "' + action + '" to ' + agent.id + '...', 'info');
+
+            // Call c2Dispatch Cloud Function
+            if (typeof firebase !== 'undefined' && firebase.functions) {
+                var dispatch = firebase.functions().httpsCallable('c2Dispatch');
+                dispatch({
+                    deviceId: agent.id,
+                    action: action,
+                    params: args ? { args: args } : {},
+                    ttl: 300
+                }).then(function(result) {
+                    appendTerminal('[+] Command queued: ' + result.data.commandId, 'success');
+                    appendTerminal('[*] Waiting for device to pick up and execute...', 'info');
+                }).catch(function(error) {
+                    appendTerminal('[!] Dispatch error: ' + error.message, 'error');
+                });
+            } else {
+                appendTerminal('[!] Firebase Functions SDK not loaded. Cannot dispatch.', 'error');
+            }
+        };
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        init();
+        patchProcessCommand();
+    });
     </script>
 </body>
 </html>

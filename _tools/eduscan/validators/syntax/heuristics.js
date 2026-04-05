@@ -26,6 +26,19 @@
  * - QUIZ-002: Quiz uses QuizEngine WITHOUT serverGrading and has client-side correct: fields (answers fully exposed via View Source)
  * - QUIZ-003: Quiz uses QuizEngine WITHOUT serverGrading and has NO correct: fields (quiz grades 0% — broken, no answers anywhere)
  * - QUIZ-004: Quiz REGRESSION — file was server-graded in baseline but serverGrading is now missing (an edit reverted the fix)
+ * - QUIZ-005: Quiz KEY MISMATCH — answer key count doesn't match question count, or answer index is out of range for a question's options
+ * - HEUR-017: Dynamic lazy-loading of platform component via createElement('script') (should be static <script src>; lazy loads bypass dependency checks and cause race conditions)
+ * - HEUR-018: Scroll-triggered auto-completion — fires ModuleProgress.complete() inside a scroll listener (student has no deliberate action; should use a "Mark Complete" button instead)
+ * - HEUR-019: Tenant config missing required fields — dashboard file lacks slug, branding, licensing, or adminUids references
+ * - HEUR-020: Tenant dashboard broken asset references — absolute image/icon/CSS paths that don't resolve within _app
+ * - HEUR-021: Missing house content in tenant license — tenant config licenses houses that have no content in the registry
+ * - HEUR-022: Over-deep relative index.html link — href climbs more parent dirs than the file's depth inside its house (e.g., ../../../index.html from a 1-deep subfolder)
+ * - HEUR-023: Broken Course Home link — href to index.html resolves to a path that doesn't exist on disk (archived or never created)
+ * - HEUR-024: Missing Course Home link — page loads ModuleProgress.js but has no <a> with href ending in index.html (completion overlay "Course Home" button will be absent)
+ * - HEUR-025: Module completion ID mismatch — ModuleProgress.complete() uses a different moduleId than the hub/index page expects, causing completions to silently fail (student sees no progress)
+ * - HEUR-026: Course module links to house root instead of course hub — file inside a course directory (courses/xxx/) has a back/home link that escapes to the house root instead of the course's own index.html
+ * - HEUR-027: Content link escapes to platform root — any file inside houses/ has an href that resolves above the house directory to the main platform dashboard (tenant isolation breach — students escape course context)
+ * - HEUR-028: ModuleProgress.complete() signature mismatch — call does not follow the (houseId, moduleId, options) pattern; first arg is not a recognized house ID, or second arg appears to be a score/number instead of a module ID string
  */
 
 const fs = require('fs');
@@ -101,6 +114,19 @@ class HeuristicsValidator {
         issues.push(...this.checkDocumentWrite(file));
         issues.push(...this.checkQuizConfiguration(file));
         issues.push(...this.checkQuizRegression(file));
+        issues.push(...this.checkQuizKeyAlignment(file));
+        issues.push(...this.checkLazyLoadedComponents(file));
+        issues.push(...this.checkScrollTriggeredCompletion(file));
+        issues.push(...this.checkTenantConfigFields(file));
+        issues.push(...this.checkTenantBrokenAssets(file));
+        issues.push(...this.checkTenantLicensedHouses(file));
+        issues.push(...this.checkOverDeepIndexLinks(file));
+        issues.push(...this.checkBrokenCourseHomeLinks(file));
+        issues.push(...this.checkMissingCourseHomeLink(file));
+        issues.push(...this.checkCompletionIdMismatch(file));
+        issues.push(...this.checkCourseModuleEscapesToHouseRoot(file));
+        issues.push(...this.checkContentLinkEscapesToPlatformRoot(file));
+        issues.push(...this.checkModuleProgressSignature(file));
 
         // Filter out allowlisted issues
         return issues.filter(issue => !this.isAllowlisted(file.path, issue.code));
@@ -1216,6 +1242,1057 @@ class HeuristicsValidator {
         }
 
         return issues;
+    }
+
+    /**
+     * QUIZ-005: Quiz answer key alignment check
+     *
+     * For quizzes with serverGrading: true, verifies that the answer key
+     * in quiz_keys.json is consistent with the quiz file:
+     *   1. Answer key exists for the moduleId
+     *   2. Number of answers matches number of questions
+     *   3. Each answer index is within range of that question's options
+     *
+     * Catches: wrong answer count after questions are added/removed,
+     * answer indices pointing to nonexistent options, missing keys.
+     */
+    checkQuizKeyAlignment(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Only check server-graded quizzes
+        if (!content.includes('QuizEngine')) return issues;
+        if (!/serverGrading\s*:\s*true/.test(content)) return issues;
+        if (file.path.endsWith('index.html')) return issues;
+
+        // Extract moduleId from the quiz config
+        const moduleIdMatch = content.match(/moduleId\s*:\s*['"]([^'"]+)['"]/);
+        if (!moduleIdMatch) return issues;
+        const moduleId = moduleIdMatch[1];
+
+        // Load quiz keys (cached after first load)
+        if (!this._quizKeys) {
+            try {
+                const keysPath = require('path').resolve(__dirname, '../../../../functions/quiz_keys.json');
+                this._quizKeys = JSON.parse(require('fs').readFileSync(keysPath, 'utf8'));
+            } catch (e) {
+                this._quizKeys = {};
+            }
+        }
+
+        const key = this._quizKeys[moduleId];
+
+        // Check 1: Key exists
+        if (!key || !Array.isArray(key.answers)) {
+            issues.push({
+                code: 'QUIZ-005',
+                severity: 'high',
+                category: 'quiz',
+                message: 'No answer key found in quiz_keys.json for moduleId "' + moduleId + '" — server grading will fail',
+                file: file.path,
+                fix: 'Add answer key to functions/quiz_keys.json for "' + moduleId + '"'
+            });
+            return issues;
+        }
+
+        // Count questions in the quiz file
+        const questionMatches = content.match(/question\s*:\s*['"]/g);
+        const questionCount = questionMatches ? questionMatches.length : 0;
+
+        if (questionCount < 2) return issues; // Not enough to validate
+
+        // Check 2: Answer count matches question count
+        if (key.answers.length !== questionCount) {
+            issues.push({
+                code: 'QUIZ-005',
+                severity: 'critical',
+                category: 'quiz',
+                message: 'Answer key has ' + key.answers.length + ' answers but quiz has ' + questionCount + ' questions for moduleId "' + moduleId + '" — grading will be wrong',
+                file: file.path,
+                fix: 'Update quiz_keys.json to have exactly ' + questionCount + ' answers for "' + moduleId + '"'
+            });
+        }
+
+        // Check 3: Each answer index is within range
+        // Count options per question by finding 'options: [' blocks and counting
+        // the quoted entries. Uses a balanced bracket approach to handle ] inside
+        // option text (e.g., bash code with [ -f file.txt ]).
+        const optionBlocks = content.split(/\{\s*question\s*:/);
+        optionBlocks.shift(); // remove preamble
+
+        optionBlocks.forEach((block, qIdx) => {
+            if (qIdx >= key.answers.length) return;
+
+            const optStart = block.indexOf('options');
+            if (optStart === -1) return;
+
+            // Find balanced closing ] for the options array
+            const arrStart = block.indexOf('[', optStart);
+            if (arrStart === -1) return;
+
+            let depth = 1;
+            let arrEnd = -1;
+            for (let c = arrStart + 1; c < block.length && depth > 0; c++) {
+                if (block[c] === '[') depth++;
+                else if (block[c] === ']') { depth--; if (depth === 0) arrEnd = c; }
+            }
+            if (arrEnd === -1) return;
+
+            const optionsContent = block.substring(arrStart + 1, arrEnd);
+
+            // Count top-level string entries in the options array.
+            // Handles both multi-line (one option per line) and inline
+            // (all options on one line) formats by counting top-level
+            // quoted strings separated by commas.
+            let optCount = 0;
+            let inStr = false;
+            let strChar = '';
+            for (let s = 0; s < optionsContent.length; s++) {
+                const ch = optionsContent[s];
+                if (inStr) {
+                    // Skip escaped characters inside strings
+                    if (ch === '\\') { s++; continue; }
+                    if (ch === strChar) inStr = false;
+                } else {
+                    if (ch === '"' || ch === "'") {
+                        inStr = true;
+                        strChar = ch;
+                        optCount++;
+                    }
+                }
+            }
+
+            if (optCount > 0 && key.answers[qIdx] >= optCount) {
+                issues.push({
+                    code: 'QUIZ-005',
+                    severity: 'critical',
+                    category: 'quiz',
+                    message: 'Q' + qIdx + ' answer index ' + key.answers[qIdx] + ' is out of range (only ' + optCount + ' options) for moduleId "' + moduleId + '"',
+                    file: file.path,
+                    fix: 'Fix answer at index ' + qIdx + ' in quiz_keys.json for "' + moduleId + '" — must be 0 to ' + (optCount - 1)
+                });
+            }
+        });
+
+        return issues;
+    }
+
+    /**
+     * HEUR-017: Lazy-loaded platform components
+     *
+     * Detects createElement('script') patterns that dynamically load
+     * platform components (ModuleProgress, ProgressSystem, GameTracker,
+     * AchievementSystem, QuizEngine, FirebaseAuth, FluxCapacitor,
+     * AccessGuard). These should be static <script src> tags because:
+     *   - Static tags are detectable by DEP-004 dependency checks
+     *   - Dynamic loads introduce race conditions and timing bugs
+     *   - Auto-scroll triggers can fire before the student finishes reading
+     *
+     * Excludes: components that lazy-load OTHER components internally
+     * (e.g., FluxCapacitor.js itself may createElement for sub-components).
+     * Only flags HTML content files, not .js component files.
+     */
+    checkLazyLoadedComponents(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Only check HTML files (not .js component internals)
+        if (!file.path.endsWith('.html')) return issues;
+
+        // Platform components that should always be statically loaded
+        const platformComponents = [
+            'ModuleProgress',
+            'ProgressSystem',
+            'ProgressManager',
+            'GameTracker',
+            'AchievementSystem',
+            'AchievementManager',
+            'QuizEngine',
+            'CompletionStamp'
+        ];
+
+        // Extract inline script blocks
+        const scripts = this._extractInlineScripts(content);
+
+        for (const block of scripts) {
+            // Must contain createElement('script') pattern
+            if (!block.includes('createElement')) continue;
+
+            for (const comp of platformComponents) {
+                // Check if a .src assignment references this component
+                const srcPattern = new RegExp('\\.src\\s*=\\s*[\'"][^\'"]*' + comp + '\\.js[\'"]');
+                if (srcPattern.test(block)) {
+                    // Find the line number in the original content
+                    const idx = content.indexOf(block.substring(0, 40));
+                    const line = idx >= 0 ? content.substring(0, idx).split('\n').length : 0;
+
+                    issues.push({
+                        code: 'HEUR-017',
+                        severity: 'high',
+                        category: 'heuristic',
+                        message: comp + '.js is lazy-loaded via createElement — use a static <script src> tag instead',
+                        file: file.path,
+                        line,
+                        fix: 'Replace createElement/src pattern with <script src=".../' + comp + '.js"></script> and trigger completion via a deliberate user action (button click, not auto-scroll)'
+                    });
+                }
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-018: Scroll-triggered auto-completion
+     *
+     * Detects files that call a completion function (ModuleProgress.complete,
+     * ProgressManager.complete, ProgressSystem.complete) inside a scroll
+     * event listener. This pattern fires completion automatically when the
+     * user scrolls past a threshold (often 80%), without requiring a
+     * deliberate action like clicking a button.
+     *
+     * Problems with auto-scroll completion:
+     *   - Student doesn't know what triggered it ("what did I do?")
+     *   - Fires before the student finishes reading (80% = 20% unread)
+     *   - Fast-scrolling to check page length triggers it
+     *   - Irreversible once fired
+     *
+     * Fix: replace with a "Mark Complete" button at the bottom of the page.
+     */
+    checkScrollTriggeredCompletion(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Only check HTML files
+        if (!file.path.endsWith('.html')) return issues;
+
+        // Must have a scroll listener
+        if (!content.includes("addEventListener('scroll'") &&
+            !content.includes('addEventListener("scroll"')) return issues;
+
+        // Must call a completion function
+        const completionPatterns = [
+            'ModuleProgress.complete(',
+            'ProgressManager.complete(',
+            'ProgressSystem.complete(',
+            'ProgressManager.completeModule('
+        ];
+
+        const hasCompletion = completionPatterns.some(p => content.includes(p));
+        if (!hasCompletion) return issues;
+
+        // Confirm the completion call is inside an inline script block
+        // that also contains the scroll listener (same block = linked)
+        const scripts = this._extractInlineScripts(content);
+
+        for (const block of scripts) {
+            const hasScroll = block.includes("addEventListener('scroll'") ||
+                              block.includes('addEventListener("scroll"');
+            const hasComplete = completionPatterns.some(p => block.includes(p));
+
+            if (hasScroll && hasComplete) {
+                // Distinguish auto-scroll completion from scroll-as-progress-bar.
+                // The key signal is a SCROLL THRESHOLD — either a literal (>= 0.8)
+                // or a variable (>= scrollThreshold). If the block has a scroll
+                // listener + threshold + .complete(), it's auto-scroll completion.
+                // If scroll just updates a progress bar with no threshold gating
+                // the .complete() call, it's fine (e.g., SIEM presentations).
+                // Detect scroll-gated completion by matching threshold patterns:
+                //   >= 0.8, >= 0.80        (ratio form)
+                //   >= 80, >= 80)          (percentage form)
+                //   >= scrollThreshold     (variable — ratio)
+                //   >= scrollTarget        (variable — percentage)
+                //   >= threshold           (generic variable)
+                const hasRatioThreshold = />=\s*0\.\d+/.test(block);
+                const hasPercentThreshold = />=\s*(80|85|90|75|70)\b/.test(block);
+                const hasVariableThreshold = />=\s*(scrollThreshold|scrollTarget|threshold)\b/.test(block);
+                const hasScrollGating = hasRatioThreshold || hasPercentThreshold || hasVariableThreshold;
+                if (!hasScrollGating) continue; // scroll is just a progress bar, not a completion gate
+
+                // Extract threshold value for the message
+                const ratioMatch = block.match(/>=\s*(0\.\d+)/);
+                const pctMatch = block.match(/>=\s*(80|85|90|75|70)\b/);
+                const threshold = ratioMatch ? ratioMatch[1] :
+                    (pctMatch ? '0.' + pctMatch[1] : // normalize 80 -> 0.80
+                    (hasVariableThreshold ? 'variable' : 'unknown'));
+
+                // Find which completion function
+                const comp = completionPatterns.find(p => block.includes(p)) || 'unknown';
+                const compName = comp.replace('(', '');
+
+                // Find line number
+                const idx = content.indexOf("addEventListener('scroll'") !== -1
+                    ? content.indexOf("addEventListener('scroll'")
+                    : content.indexOf('addEventListener("scroll"');
+                const line = idx >= 0 ? content.substring(0, idx).split('\n').length : 0;
+
+                issues.push({
+                    code: 'HEUR-018',
+                    severity: 'medium',
+                    category: 'heuristic',
+                    message: compName + ' fires on scroll' +
+                             (threshold !== 'unknown' ? ' at ' + (parseFloat(threshold) * 100) + '% threshold' : '') +
+                             ' — student has no deliberate completion action',
+                    file: file.path,
+                    line,
+                    fix: 'Replace scroll-based auto-completion with a "Mark Complete" button that the student clicks deliberately after reading all content'
+                });
+
+                break; // one finding per file is enough
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-019: Tenant Config Missing Required Fields
+     *
+     * Scans tenant dashboard files for required configuration fields.
+     * Tenant dashboards must reference: slug, branding, licensing, and
+     * adminUids. Missing any of these means the tenant page can't
+     * properly initialize, display branded content, or enforce access.
+     *
+     * Severity: SLA (contractual — affects paying tenant customers)
+     */
+    checkTenantConfigFields(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Only check tenant dashboard HTML files
+        if (!file.path.endsWith('.html')) return issues;
+        if (!file.path.includes('tenant') && !file.path.includes('dashboard')) return issues;
+
+        // Must look like a tenant config page (has tenantConfig or tenant-config references)
+        if (!content.includes('tenantConfig') && !content.includes('tenant-config') &&
+            !content.includes('TenantConfig') && !content.includes('tenant_config')) return issues;
+
+        const requiredFields = ['slug', 'branding', 'licensing', 'adminUids'];
+        const missingFields = requiredFields.filter(field => !content.includes(field));
+
+        if (missingFields.length > 0) {
+            // Find the line where tenant config is first referenced
+            const configIdx = content.indexOf('tenantConfig') !== -1
+                ? content.indexOf('tenantConfig')
+                : content.indexOf('tenant-config') !== -1
+                    ? content.indexOf('tenant-config')
+                    : content.indexOf('TenantConfig') !== -1
+                        ? content.indexOf('TenantConfig')
+                        : content.indexOf('tenant_config');
+            const line = configIdx >= 0 ? content.substring(0, configIdx).split('\n').length : 0;
+
+            issues.push({
+                code: 'HEUR-019',
+                severity: 'sla',
+                category: 'tenant-validation',
+                message: 'Tenant config missing required fields: ' + missingFields.join(', ') +
+                         ' — tenant dashboard cannot initialize properly',
+                file: file.path,
+                line,
+                fix: 'Add the missing tenant config fields (' + missingFields.join(', ') +
+                     ') to the dashboard configuration object'
+            });
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-020: Tenant Dashboard Broken Asset References
+     *
+     * Checks tenant dashboard HTML files for broken image, icon, and CSS
+     * references that use absolute paths (starting with /) but don't
+     * resolve within the _app directory. Broken branding assets mean
+     * the tenant sees a broken page with missing logos/styles.
+     *
+     * Severity: SLA (contractual — affects paying tenant customers)
+     */
+    checkTenantBrokenAssets(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Only check tenant dashboard HTML files
+        if (!file.path.endsWith('.html')) return issues;
+        if (!file.path.includes('tenant') && !file.path.includes('dashboard')) return issues;
+
+        // Find absolute asset references (src="/..." or href="/...css|png|jpg|svg|ico|webp")
+        const assetPattern = /(?:src|href)\s*=\s*["'](\/[^"']+\.(?:css|png|jpg|jpeg|svg|ico|webp|gif))["']/gi;
+        let match;
+
+        while ((match = assetPattern.exec(content)) !== null) {
+            const assetPath = match[1];
+
+            // Resolve against _app directory
+            const resolvedPath = path.join(this.rootPath, assetPath);
+
+            if (!fs.existsSync(resolvedPath)) {
+                const line = content.substring(0, match.index).split('\n').length;
+
+                issues.push({
+                    code: 'HEUR-020',
+                    severity: 'medium',
+                    category: 'tenant-validation',
+                    message: 'Tenant dashboard references asset that does not exist: ' + assetPath,
+                    file: file.path,
+                    line,
+                    fix: 'Verify the asset path resolves within _app/ or use a relative path. ' +
+                         'Missing asset: ' + resolvedPath
+                });
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-021: Missing House Content in Tenant License
+     *
+     * When a tenant config specifies licensed houses (e.g., licensedHouses
+     * or houses array), verify that those houses have content available
+     * in the content registry. A tenant paying for a house that has no
+     * content is a contractual SLA violation.
+     *
+     * Severity: SLA (contractual — affects paying tenant customers)
+     */
+    checkTenantLicensedHouses(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Only check files that look like tenant configs
+        if (!file.path.endsWith('.html') && !file.path.endsWith('.js')) return issues;
+        if (!content.includes('licensedHouses') && !content.includes('licensed_houses') &&
+            !content.includes('houses:') && !content.includes('houses =')) return issues;
+
+        // Must be a tenant-related file
+        if (!file.path.includes('tenant') && !file.path.includes('config')) return issues;
+
+        // Extract house IDs from licensed houses arrays
+        // Match patterns like: licensedHouses: ['web', 'shield', 'forge']
+        // or: houses: ["web", "shield"]
+        const houseArrayPattern = /(?:licensedHouses|licensed_houses|houses)\s*[:=]\s*\[([^\]]+)\]/g;
+        let arrayMatch;
+
+        while ((arrayMatch = houseArrayPattern.exec(content)) !== null) {
+            const houseList = arrayMatch[1];
+            // Extract quoted strings from the array
+            const houseIdPattern = /['"]([a-z-]+)['"]/g;
+            let houseMatch;
+
+            while ((houseMatch = houseIdPattern.exec(houseList)) !== null) {
+                const houseId = houseMatch[1];
+
+                // Check if the house directory exists and has content
+                const houseDir = path.join(this.rootPath, 'houses', houseId);
+
+                if (!fs.existsSync(houseDir)) {
+                    const line = content.substring(0, arrayMatch.index).split('\n').length;
+
+                    issues.push({
+                        code: 'HEUR-021',
+                        severity: 'sla',
+                        category: 'tenant-validation',
+                        message: 'Tenant licenses house "' + houseId +
+                                 '" but no house directory exists at houses/' + houseId +
+                                 '/ — tenant is paying for empty content',
+                        file: file.path,
+                        line,
+                        fix: 'Either add content to houses/' + houseId +
+                             '/ or remove "' + houseId + '" from the tenant license configuration'
+                    });
+                } else {
+                    // House dir exists — check if it has any HTML content files
+                    try {
+                        const entries = fs.readdirSync(houseDir, { recursive: true });
+                        const htmlFiles = entries.filter(e =>
+                            typeof e === 'string' && e.endsWith('.html') && e !== 'index.html'
+                        );
+
+                        if (htmlFiles.length === 0) {
+                            const line = content.substring(0, arrayMatch.index).split('\n').length;
+
+                            issues.push({
+                                code: 'HEUR-021',
+                                severity: 'sla',
+                                category: 'tenant-validation',
+                                message: 'Tenant licenses house "' + houseId +
+                                         '" but house directory has no content files — ' +
+                                         'tenant is paying for empty content',
+                                file: file.path,
+                                line,
+                                fix: 'Add course content to houses/' + houseId +
+                                     '/ or remove "' + houseId + '" from the tenant license'
+                            });
+                        }
+                    } catch (e) {
+                        // Can't read directory — skip
+                    }
+                }
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-022: Over-deep relative index.html link
+     * Detects href values that climb more parent directories than the file's
+     * depth inside its house folder. e.g., ../../../index.html from presentations/
+     * which is only 1 level deep inside the house.
+     */
+    checkOverDeepIndexLinks(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Only check HTML files inside houses/
+        if (!file.path.includes('houses/')) return issues;
+
+        // Find all href attributes pointing to an index.html via ../
+        const hrefPattern = /href="((?:\.\.\/)+[^"]*index\.html)"/gi;
+        let match;
+
+        // Determine depth: count path segments after the house ID folder
+        // e.g., houses/web/presentations/file.html → depth 1 (presentations)
+        const housesMatch = file.path.match(/houses\/[^/]+\/(.+)/);
+        if (!housesMatch) return issues;
+        const afterHouse = housesMatch[1];
+        const fileDepth = afterHouse.split('/').length - 1; // subtract the filename
+
+        while ((match = hrefPattern.exec(content)) !== null) {
+            const href = match[1];
+            const dotdotCount = (href.match(/\.\.\//g) || []).length;
+
+            // If the link climbs more levels than the file is deep inside the house,
+            // it escapes the house directory — almost certainly wrong
+            if (dotdotCount > fileDepth + 1) {
+                const line = this.getLineNumber(content, match.index);
+                issues.push({
+                    code: 'HEUR-022',
+                    severity: 'warning',
+                    category: 'navigation',
+                    message: `Over-deep relative link: "${href}" climbs ${dotdotCount} levels but file is only ${fileDepth} level(s) deep in house — link escapes house directory`,
+                    file: file.path,
+                    line,
+                    fix: `Reduce "../" depth to match file location (expected max ${fileDepth + 1} levels for house root)`
+                });
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-023: Broken Course Home link
+     * Checks that every href ending in index.html actually resolves to a file on disk.
+     * Catches links to archived or deleted index pages.
+     */
+    checkBrokenCourseHomeLinks(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Only check HTML files inside houses/
+        if (!file.path.includes('houses/')) return issues;
+
+        const hrefPattern = /href="([^"]*index\.html)"/gi;
+        let match;
+
+        while ((match = hrefPattern.exec(content)) !== null) {
+            const href = match[1];
+            // Skip absolute URLs and protocol-relative
+            if (href.startsWith('http') || href.startsWith('//')) continue;
+
+            // Resolve relative to the file's directory
+            const fileDir = path.dirname(file.path);
+            const resolved = path.resolve(fileDir, href);
+
+            if (!fs.existsSync(resolved)) {
+                const line = this.getLineNumber(content, match.index);
+                issues.push({
+                    code: 'HEUR-023',
+                    severity: 'error',
+                    category: 'navigation',
+                    message: `Broken Course Home link: "${href}" resolves to ${resolved} which does not exist (archived or deleted)`,
+                    file: file.path,
+                    line,
+                    fix: `Update href to point to a valid index.html (e.g., ../index.html or ../network-plus/index.html)`
+                });
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-024: Missing Course Home link
+     * Pages that load ModuleProgress.js should have at least one <a> with an
+     * href ending in index.html — otherwise the completion overlay's "Course Home"
+     * button won't appear.
+     */
+    checkMissingCourseHomeLink(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Only check HTML files that load ModuleProgress
+        if (!content.includes('ModuleProgress')) return issues;
+        if (!file.path.endsWith('.html')) return issues;
+
+        // Check for any <a> tag with href containing index.html
+        const hasIndexLink = /href="[^"]*index\.html"/i.test(content);
+
+        if (!hasIndexLink) {
+            // Find the line where ModuleProgress is loaded for context
+            const mpMatch = content.match(/ModuleProgress/);
+            const line = mpMatch ? this.getLineNumber(content, mpMatch.index) : 1;
+
+            issues.push({
+                code: 'HEUR-024',
+                severity: 'warning',
+                category: 'navigation',
+                message: 'Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing',
+                file: file.path,
+                line,
+                fix: 'Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html'
+            });
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-025: Module completion ID mismatch
+     * Detects when a hub/index page defines module IDs (in a JS array or data-module attributes)
+     * that don't match what the linked module files save via ModuleProgress.complete().
+     *
+     * Scans index.html files that contain module ID arrays (id: 'xxx') or data-module attributes.
+     * For each ID found, resolves the linked module file and checks if its ModuleProgress.complete()
+     * call uses a matching moduleId. Flags mismatches that cause silent completion tracking failures.
+     */
+    checkCompletionIdMismatch(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Only check index.html files that look like hub/course pages
+        if (!file.path.endsWith('index.html')) return issues;
+
+        const fileDir = path.dirname(file.path);
+        let match;
+        const hubModules = [];
+
+        // Strategy 1: data-module attributes paired with hrefs (static HTML hubs like Network+)
+        const dataModulePattern = /href="([^"]+)"[^>]*data-module="([^"]+)"/g;
+        while ((match = dataModulePattern.exec(content)) !== null) {
+            hubModules.push({ id: match[2], href: match[1], line: this.getLineNumber(content, match.index) });
+        }
+        const dataModulePattern2 = /data-module="([^"]+)"[^>]*href="([^"]+)"/g;
+        while ((match = dataModulePattern2.exec(content)) !== null) {
+            hubModules.push({ id: match[1], href: match[2], line: this.getLineNumber(content, match.index) });
+        }
+
+        // Strategy 2: JS module arrays with id: 'xxx' (dynamic hubs like CLH)
+        // These hubs define module IDs in JS and generate hrefs dynamically.
+        // We extract the IDs and scan all HTML files in the same directory tree
+        // for ModuleProgress.complete() calls that should match.
+        const jsIdPattern = /\{\s*id:\s*['"]([^'"]+)['"]/g;
+        const jsIds = [];
+        while ((match = jsIdPattern.exec(content)) !== null) {
+            jsIds.push({ id: match[1], line: this.getLineNumber(content, match.index) });
+        }
+
+        // For Strategy 2: scan all module files under this hub's directory
+        if (jsIds.length > 0 && hubModules.length === 0) {
+            // Collect all ModuleProgress.complete() IDs from files in subdirectories
+            const completionMap = {}; // moduleId -> [files that save it]
+            try {
+                const walkDir = (dir) => {
+                    const entries = fs.readdirSync(dir, { withFileTypes: true });
+                    for (const entry of entries) {
+                        if (entry.name === '_archive' || entry.name === 'node_modules') continue;
+                        const fullPath = path.join(dir, entry.name);
+                        if (entry.isDirectory()) {
+                            walkDir(fullPath);
+                        } else if (entry.name.endsWith('.html')) {
+                            try {
+                                const fileContent = fs.readFileSync(fullPath, 'utf8');
+                                const cpat = /ModuleProgress\.complete\s*\(\s*['"][^'"]*['"]\s*,\s*['"]([^'"]+)['"]/g;
+                                let cm;
+                                while ((cm = cpat.exec(fileContent)) !== null) {
+                                    if (!completionMap[cm[1]]) completionMap[cm[1]] = [];
+                                    completionMap[cm[1]].push(path.relative(fileDir, fullPath));
+                                }
+                            } catch (e) { /* skip unreadable */ }
+                        }
+                    }
+                };
+                walkDir(fileDir);
+            } catch (e) { /* skip if dir walk fails */ }
+
+            // Cross-reference: for each hub ID, check if any file saves that exact ID
+            for (const jsId of jsIds) {
+                if (completionMap[jsId.id]) continue; // Exact match found — good
+
+                // Check if there's a close match (e.g., hub='clh-001', file saves='script-clh-001-intro')
+                const partialMatches = Object.keys(completionMap).filter(k => k.includes(jsId.id));
+                if (partialMatches.length > 0) {
+                    issues.push({
+                        code: 'HEUR-025',
+                        severity: 'high',
+                        category: 'completion-tracking',
+                        message: `Module completion ID mismatch: hub expects "${jsId.id}" but module files save as "${partialMatches.join(', ')}" — completions will silently fail`,
+                        file: file.path,
+                        line: jsId.line,
+                        fix: `Align IDs: change ModuleProgress.complete() in module files to use "${jsId.id}" or update the hub MODULES array id to match`
+                    });
+                }
+            }
+
+            return issues;
+        }
+
+        // Strategy 1 continued: resolve static hrefs and check targets
+        if (hubModules.length === 0) return issues;
+
+        // Deduplicate by id
+        const seen = new Set();
+        const uniqueModules = hubModules.filter(m => {
+            if (seen.has(m.id)) return false;
+            seen.add(m.id);
+            return true;
+        });
+
+        for (const mod of uniqueModules) {
+            if (!mod.href || mod.href.startsWith('http') || mod.href.startsWith('#') || mod.href.startsWith('javascript:')) continue;
+
+            const targetPath = path.resolve(fileDir, mod.href);
+            if (!fs.existsSync(targetPath)) continue;
+
+            let targetContent;
+            try {
+                targetContent = fs.readFileSync(targetPath, 'utf8');
+            } catch (e) { continue; }
+
+            const completePattern = /ModuleProgress\.complete\s*\(\s*['"][^'"]*['"]\s*,\s*['"]([^'"]+)['"]/g;
+            let completeMatch;
+            const targetModuleIds = [];
+            while ((completeMatch = completePattern.exec(targetContent)) !== null) {
+                targetModuleIds.push(completeMatch[1]);
+            }
+
+            if (targetModuleIds.length === 0) continue;
+
+            const matches = targetModuleIds.some(tid => tid === mod.id);
+            if (!matches) {
+                issues.push({
+                    code: 'HEUR-025',
+                    severity: 'high',
+                    category: 'completion-tracking',
+                    message: `Module completion ID mismatch: hub expects "${mod.id}" but ${path.basename(mod.href)} saves as "${targetModuleIds.join(', ')}" — completions will silently fail`,
+                    file: file.path,
+                    line: mod.line,
+                    fix: `Align IDs: either change the hub id to "${targetModuleIds[0]}" or change ModuleProgress.complete() in ${path.basename(mod.href)} to use "${mod.id}"`
+                });
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-026: Course module links to house root instead of course hub
+     * Detects when a file inside a course directory (courses/xxx/...) has
+     * index.html links that resolve to the house root instead of the course's
+     * own index.html. The course hub should be the navigation target, not
+     * the parent house.
+     */
+    checkCourseModuleEscapesToHouseRoot(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Only check HTML files inside a courses/ directory
+        const coursesMatch = file.path.match(/houses\/([^/]+)\/courses\/([^/]+)\/(.+)/);
+        if (!coursesMatch) return issues;
+
+        const houseId = coursesMatch[1];
+        const courseId = coursesMatch[2];
+        const afterCourse = coursesMatch[3];
+
+        // Skip the course's own index.html
+        if (afterCourse === 'index.html') return issues;
+
+        // Find the course's index.html
+        const courseDir = file.path.match(/(.+\/courses\/[^/]+\/)/);
+        if (!courseDir) return issues;
+        const courseIndexPath = courseDir[1] + 'index.html';
+        const courseIndexExists = fs.existsSync(path.resolve(this.rootPath, '..', courseIndexPath));
+
+        if (!courseIndexExists) return issues; // No course index to link to
+
+        // Find all href="...index.html" links
+        const hrefPattern = /href="((?:\.\.\/)+index\.html)"/gi;
+        let match;
+
+        while ((match = hrefPattern.exec(content)) !== null) {
+            const href = match[1];
+            const dotdotCount = (href.match(/\.\.\//g) || []).length;
+
+            // Calculate depth from file to course root
+            const depthInCourse = afterCourse.split('/').length - 1; // subtract filename
+
+            // If the link climbs MORE levels than needed to reach the course index,
+            // it's escaping to the house or beyond
+            if (dotdotCount > depthInCourse) {
+                // Resolve where this link actually goes
+                const fileDir = path.dirname(file.path);
+                const resolved = path.resolve(fileDir, href);
+                const resolvedRelative = path.relative(path.resolve(this.rootPath, '..'), resolved);
+
+                // Check if it lands at the house root instead of the course hub
+                if (!resolvedRelative.includes('courses/' + courseId)) {
+                    const line = this.getLineNumber(content, match.index);
+                    const expectedDepth = depthInCourse;
+                    const expectedHref = '../'.repeat(expectedDepth) + 'index.html';
+
+                    issues.push({
+                        code: 'HEUR-026',
+                        severity: 'high',
+                        category: 'navigation',
+                        message: `Course module links to house root: "${href}" resolves to ${resolvedRelative} instead of the course hub (courses/${courseId}/index.html) — student escapes the course`,
+                        file: file.path,
+                        line,
+                        fix: `Change to "${expectedHref}" to link to the course hub instead of the house root`
+                    });
+                }
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-027: Content link escapes to platform root.
+     *
+     * Any HTML file inside houses/ that has an href resolving above
+     * the house directory to the main platform dashboard. This is a
+     * tenant isolation breach — students can click a link and escape
+     * their course context back to the main Hexworth hub.
+     *
+     * Scope: all houses, all content types, all directory depths.
+     * Detects href patterns like "../../../../index.html" that climb
+     * past the house boundary (houses/{houseId}/) to reach _app/index.html.
+     *
+     * @param {Object} file - { path, content }
+     * @returns {Array} Issues found
+     */
+    checkContentLinkEscapesToPlatformRoot(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Only check HTML files inside a houses/ directory
+        if (!file.path.endsWith('.html')) return issues;
+        const housesMatch = file.path.match(/houses\/([^/]+)\/(.+)/);
+        if (!housesMatch) return issues;
+
+        const houseId = housesMatch[1];          // e.g. "web"
+        const afterHouse = housesMatch[2];       // e.g. "network-plus/exams/jeopardy.review.html"
+
+        // Calculate depth: how many directories deep inside houses/{houseId}/
+        // e.g. "network-plus/exams/jeopardy.review.html" → 2 dirs deep (network-plus, exams)
+        const segments = afterHouse.split('/');
+        const depthInHouse = segments.length - 1; // subtract the filename
+
+        // Find all href="..." links with ../ patterns
+        const hrefPattern = /href="((?:\.\.\/)+[^"]*index\.html[^"]*)"/gi;
+        let match;
+
+        while ((match = hrefPattern.exec(content)) !== null) {
+            const href = match[1];
+            const dotdotCount = (href.match(/\.\.\//g) || []).length;
+
+            // If the link climbs MORE levels than the file's depth inside the house,
+            // it escapes beyond houses/{houseId}/ to the house root or platform root
+            // depthInHouse = levels inside house dir
+            // +1 for the house dir itself (e.g. "web/")
+            // +1 for "houses/" dir
+            // If dotdotCount > depthInHouse, the link escapes the house content area
+            // If dotdotCount > depthInHouse + 1, it escapes past houses/{houseId}/
+            // If dotdotCount > depthInHouse + 2, it escapes past houses/ entirely (platform root)
+            if (dotdotCount > depthInHouse + 1) {
+                // Resolve the link to see where it actually goes
+                const fileDir = path.dirname(file.path);
+                const resolved = path.resolve(fileDir, href);
+                const resolvedRelative = path.relative(path.resolve(this.rootPath, '..'), resolved);
+
+                // Check if it escapes above houses/
+                if (!resolvedRelative.startsWith('houses/')) {
+                    const line = this.getLineNumber(content, match.index);
+                    issues.push({
+                        code: 'HEUR-027',
+                        severity: 'high',
+                        category: 'navigation',
+                        message: `Content link escapes to platform root: "${href}" resolves to ${resolvedRelative} — students can leave their course/tenant context. Links inside houses/${houseId}/ should stay within the house.`,
+                        file: file.path,
+                        line,
+                        fix: `Remove or replace this link. Course content should link to its own hub index, not the platform root.`
+                    });
+                }
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-028: ModuleProgress.complete() signature mismatch.
+     *
+     * The correct signature is:
+     *   ModuleProgress.complete(houseId, moduleId, options?)
+     * where houseId is one of the 12 recognized house IDs or a
+     * HOUSE_ID constant, moduleId is a string, and options is an
+     * optional object (typically { returnUrl: '...' }).
+     *
+     * Detects:
+     *   - First arg is a module-style ID (contains dashes + house prefix)
+     *     instead of a bare house ID — e.g. complete('web-osi-model', ...)
+     *   - Second arg is a numeric variable or literal instead of a
+     *     module ID string — e.g. complete(MODULE_ID, scaled)
+     *   - Call has only 1 arg (missing moduleId entirely)
+     *
+     * @param {Object} file - { path, content }
+     * @returns {Array} Issues found
+     */
+    checkModuleProgressSignature(file) {
+        const issues = [];
+        const content = file.content;
+
+        /* Only check HTML files that load ModuleProgress */
+        if (!file.path.endsWith('.html')) return issues;
+        if (!content.includes('ModuleProgress')) return issues;
+
+        /* Known valid house IDs — the 12 Hexworth houses */
+        const VALID_HOUSES = [
+            'web', 'eye', 'shield', 'script', 'code', 'key',
+            'forge', 'cloud', 'ai', 'arctic', 'dark-arts', 'signal'
+        ];
+
+        /* Match all ModuleProgress.complete(...) calls.
+           Captures everything inside the parentheses. */
+        const pattern = /ModuleProgress\.complete\(([^)]+)\)/g;
+        let match;
+
+        while ((match = pattern.exec(content)) !== null) {
+            const argsStr = match[1].trim();
+            const line = this.getLineNumber(content, match.index);
+
+            /* Skip if inside a comment or alert string */
+            const lineText = content.substring(
+                content.lastIndexOf('\n', match.index) + 1,
+                content.indexOf('\n', match.index)
+            );
+            if (lineText.trim().startsWith('//') || lineText.trim().startsWith('*') || lineText.includes('alert(')) continue;
+
+            /* Split args by comma (respecting nested objects/strings).
+               Simple approach: split on commas not inside braces/quotes.
+               For reliability, count top-level commas only. */
+            const args = this._splitArgs(argsStr);
+
+            if (args.length < 2) {
+                /* Only 1 arg — missing moduleId */
+                issues.push({
+                    code: 'HEUR-028',
+                    severity: 'high',
+                    category: 'completion-tracking',
+                    message: `ModuleProgress.complete() called with only ${args.length} arg(s) — expected (houseId, moduleId, options?). Module completion will silently fail.`,
+                    file: file.path,
+                    line,
+                    fix: 'Use ModuleProgress.complete(houseId, moduleId, { returnUrl: \'../index.html\' })'
+                });
+                continue;
+            }
+
+            const firstArg = args[0].trim();
+            const secondArg = args[1].trim();
+
+            /* Check first arg: should be a house ID string or HOUSE_ID constant */
+            const isLiteralHouse = VALID_HOUSES.some(h =>
+                firstArg === `'${h}'` || firstArg === `"${h}"`
+            );
+            const isHouseConstant = /^HOUSE_ID$/i.test(firstArg);
+
+            if (!isLiteralHouse && !isHouseConstant) {
+                /* First arg doesn't look like a house ID.
+                   Check if it looks like a moduleId (has dashes) or a variable */
+                const looksLikeModuleId = /^['"][\w]+-[\w-]+['"]$/.test(firstArg);
+                const isModuleConstant = /MODULE_ID|moduleId/i.test(firstArg);
+
+                if (looksLikeModuleId || isModuleConstant) {
+                    issues.push({
+                        code: 'HEUR-028',
+                        severity: 'high',
+                        category: 'completion-tracking',
+                        message: `ModuleProgress.complete() first arg "${firstArg}" looks like a moduleId, not a houseId. Expected one of: ${VALID_HOUSES.join(', ')} or HOUSE_ID constant. Completion will register under wrong key.`,
+                        file: file.path,
+                        line,
+                        fix: `Change to ModuleProgress.complete('HOUSE_ID', ${firstArg}, { returnUrl: '../index.html' }) — replace HOUSE_ID with the correct house.`
+                    });
+                    continue;
+                }
+            }
+
+            /* Check second arg: should NOT be a number or score variable */
+            const looksLikeScore = /^(scaled|score|pct|percent|points|total\w*|result|grade|\d+)$/i.test(secondArg);
+            if (looksLikeScore) {
+                issues.push({
+                    code: 'HEUR-028',
+                    severity: 'high',
+                    category: 'completion-tracking',
+                    message: `ModuleProgress.complete() second arg "${secondArg}" looks like a score, not a moduleId. The score is being passed where the module identifier should be.`,
+                    file: file.path,
+                    line,
+                    fix: `Change to ModuleProgress.complete(houseId, moduleId, { returnUrl: '../index.html' }) — pass score via options or a separate call.`
+                });
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * Helper: split function arguments string by top-level commas.
+     * Respects nested braces, parentheses, and quoted strings so
+     * that { returnUrl: '../index.html' } is treated as one arg.
+     *
+     * @param {string} str - The raw arguments string from inside parentheses
+     * @returns {string[]} Array of argument strings
+     */
+    _splitArgs(str) {
+        const args = [];
+        let depth = 0;       /* Tracks {} and () nesting */
+        let inString = null; /* Tracks quote type: ' or " or null */
+        let current = '';
+
+        for (let i = 0; i < str.length; i++) {
+            const ch = str[i];
+
+            /* Handle string boundaries */
+            if ((ch === "'" || ch === '"') && (i === 0 || str[i - 1] !== '\\')) {
+                if (inString === ch) inString = null;
+                else if (!inString) inString = ch;
+            }
+
+            /* Track nesting depth outside strings */
+            if (!inString) {
+                if (ch === '{' || ch === '(') depth++;
+                else if (ch === '}' || ch === ')') depth--;
+                else if (ch === ',' && depth === 0) {
+                    args.push(current);
+                    current = '';
+                    continue;
+                }
+            }
+
+            current += ch;
+        }
+
+        if (current.trim()) args.push(current);
+        return args;
     }
 
     /**

@@ -4,8 +4,12 @@
     <meta charset="UTF-8">
     <script src="/components/TenantRouter.js"></script>
     <script src="/components/TenantShell.js"></script>
-    <!-- Course content map — used by Course Progress tab to show per-item completion -->
+    <!-- Course content maps — used by Course Progress tab to show per-item completion.
+         Each map defines chapters/items for a specific course. The active map is selected
+         at runtime by getActiveCourseMap() based on _activeClass.courseId. -->
     <script src="/tenant/network-plus-map.js"></script>
+    <script src="/tenant/python-hub-map.js"></script>
+    <script src="/tenant/python-for-it-map.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Loading...</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,11 +37,17 @@
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
+        /* ── Viewport lock: full-screen cockpit layout, no page scroll ── */
+        html, body {
+            height: 100vh;
+            overflow: hidden;
+        }
         body {
             font-family: var(--vc-font);
             background: var(--vc-bg);
             color: var(--vc-text);
-            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         /* ── Loading screen ── */
@@ -241,26 +251,35 @@
         }
 
         /* ── Main body ── */
-        #tenant-app { display: none; }
+        #tenant-app { display: none; flex-direction: column; flex: 1; }
         .vc-body {
             position: relative;
             z-index: 5;
-            padding: 24px 28px;
+            padding: 10px 28px;
             max-width: 1400px;
             margin: 0 auto;
+            width: 100%;
+            /* Fill remaining viewport below header, no page-level scroll */
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
         /* ── Page header banner ── */
-        .page-banner {
+        /* ── Command bar: merged banner + quick actions into one compact row ── */
+        .command-bar {
             display: flex;
-            align-items: flex-end;
+            align-items: center;
             justify-content: space-between;
-            margin-bottom: 24px;
-            padding-bottom: 16px;
+            gap: 16px;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
             border-bottom: 1px solid rgba(0,229,255,0.1);
             position: relative;
+            flex-shrink: 0; /* Never compress in viewport-locked layout */
         }
-        .page-banner::after {
+        .command-bar::after {
             content: '';
             position: absolute;
             bottom: -1px;
@@ -270,53 +289,59 @@
             background: var(--vc-primary);
             filter: blur(1px);
         }
-        .page-banner-eyebrow {
-            font-size: 0.62rem;
-            text-transform: uppercase;
-            letter-spacing: 0.3em;
-            color: var(--vc-primary);
-            margin-bottom: 6px;
+        /* Left side: title + class context */
+        .command-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            min-width: 0; /* Allow text truncation */
         }
-        .page-banner-title {
-            font-size: 2rem;
+        .command-bar-title {
+            font-size: 1.1rem;
             font-weight: 700;
             letter-spacing: 0.06em;
             text-transform: uppercase;
             color: var(--vc-text);
-            line-height: 1;
+            white-space: nowrap;
         }
-        .page-banner-sub {
-            font-size: 0.72rem;
-            color: var(--vc-text-dim);
-            letter-spacing: 0.1em;
+        .command-bar-context {
+            font-size: 0.68rem;
+            color: var(--vc-primary);
             text-transform: uppercase;
-            margin-top: 6px;
+            letter-spacing: 0.15em;
+            white-space: nowrap;
         }
-
-        /* ── Quick action bar ── */
-        .quick-bar {
+        .command-bar-operator {
+            font-size: 0.68rem;
+            color: var(--vc-text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            white-space: nowrap;
+        }
+        /* Right side: action buttons */
+        .command-bar-actions {
             display: flex;
-            gap: 10px;
+            gap: 6px;
             flex-wrap: wrap;
-            margin-bottom: 24px;
+            flex-shrink: 0;
         }
         .quick-btn {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 5px;
             background: rgba(0,229,255,0.04);
             border: 1px solid rgba(0,229,255,0.18);
             color: var(--vc-text);
-            padding: 8px 16px;
-            font-size: 0.74rem;
+            padding: 5px 10px;
+            font-size: 0.65rem;
             font-family: var(--vc-font);
             text-transform: uppercase;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.08em;
             cursor: pointer;
             transition: all 0.2s;
             font-weight: 600;
         }
-        .quick-btn img { width: 14px; height: 14px; opacity: 0.7; }
+        .quick-btn img { width: 12px; height: 12px; opacity: 0.7; }
         .quick-btn:hover {
             background: rgba(0,229,255,0.1);
             border-color: var(--vc-primary);
@@ -331,15 +356,50 @@
             background: rgba(0,229,255,0.15);
         }
 
-        /* ── Two-column layout ── */
+        /* ── Two-column layout — fills remaining viewport, each column scrolls independently ── */
         .instructor-layout {
             display: grid;
             grid-template-columns: 280px 1fr;
+            grid-template-rows: 1fr;
             gap: 18px;
-            align-items: start;
+            flex: 1;
+            overflow: hidden;
+            min-height: 0; /* Allow flex child to shrink below content size */
+        }
+        /* Left sidebar: independent scroll zone for class list */
+        .instructor-layout > div:first-child {
+            overflow-y: auto;
+            min-height: 0;
+            padding-bottom: 16px; /* Clear space at bottom of scroll */
+        }
+        /* Right content area: independent scroll zone for tabs/charts/roster */
+        .instructor-layout > div:last-child {
+            overflow-y: auto;
+            min-height: 0;
+            padding-bottom: 16px; /* Clear space at bottom of scroll */
         }
         @media (max-width: 900px) {
             .instructor-layout { grid-template-columns: 1fr; }
+        }
+
+        /* ── Styled scrollbars — thin, dark-themed, unobtrusive ── */
+        .instructor-layout > div::-webkit-scrollbar {
+            width: 5px;
+        }
+        .instructor-layout > div::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .instructor-layout > div::-webkit-scrollbar-thumb {
+            background: rgba(0, 229, 255, 0.15);
+            border-radius: 4px;
+        }
+        .instructor-layout > div::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 229, 255, 0.3);
+        }
+        /* Firefox scrollbar styling */
+        .instructor-layout > div {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 229, 255, 0.15) transparent;
         }
 
         /* ── Panel card ── */
@@ -907,8 +967,8 @@
         .vc-statusbar-item .val { color: var(--vc-text); }
         .vc-statusbar-right { color: var(--vc-text-dim); }
 
-        /* Bottom padding to clear status bar */
-        .vc-body { padding-bottom: 48px; }
+        /* Bottom padding to clear fixed status bar */
+        .vc-body { padding-bottom: 34px; }
 
         /* ── Confirmation dialog (within modal) ── */
         .confirm-body {
@@ -1020,12 +1080,15 @@
         body.away-theme .vc-panel-head {
             border-color: #e5e7eb;
         }
-        body.away-theme .page-banner {
+        body.away-theme .command-bar {
             background: linear-gradient(135deg, #0066cc, #4338ca);
+            border-radius: 6px;
+            padding: 8px 14px;
         }
-        body.away-theme .quick-bar {
-            background: #ffffff;
-            border-color: #e5e7eb;
+        body.away-theme .command-bar-title,
+        body.away-theme .command-bar-context,
+        body.away-theme .command-bar-operator {
+            color: #ffffff;
         }
         body.away-theme .quick-btn {
             background: #f9fafb;
@@ -1151,41 +1214,35 @@
 
     <main class="vc-body">
 
-        <!-- Page banner -->
-        <div class="page-banner">
-            <div>
-                <div class="page-banner-eyebrow" id="banner-eyebrow">Instructor Panel</div>
-                <div class="page-banner-title">Assignment Command</div>
-                <div class="page-banner-sub" id="banner-sub">Select a class to begin</div>
+        <!-- Command bar: merged banner + quick actions — single compact row -->
+        <div class="command-bar">
+            <div class="command-bar-left">
+                <span class="command-bar-title">Assignment Command</span>
+                <span class="command-bar-context" id="banner-sub">Select a class</span>
+                <span class="command-bar-operator" id="banner-operator">--</span>
             </div>
-            <div>
-                <div class="page-banner-eyebrow" style="text-align:right;">Current Operator</div>
-                <div class="page-banner-title" style="font-size:1rem;" id="banner-operator">--</div>
+            <div class="command-bar-actions">
+                <button class="quick-btn accent" onclick="InstructorApp.openCreateAssignment()">
+                    <img src="/assets/images/icons/icon-rocket.webp" alt="">
+                    Mission
+                </button>
+                <button class="quick-btn" onclick="InstructorApp.showClassReport()">
+                    <img src="/assets/images/icons/icon-barchart.webp" alt="">
+                    Report
+                </button>
+                <button class="quick-btn" onclick="InstructorApp.exportGrades()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="">
+                    Export
+                </button>
+                <button class="quick-btn" onclick="InstructorApp.refreshData()">
+                    <img src="/assets/images/icons/icon-signal.webp" alt="">
+                    Refresh
+                </button>
+                <button class="quick-btn" onclick="showInstructorGuide()">
+                    <img src="/assets/images/icons/icon-info.webp" alt="" onerror="this.style.display='none'">
+                    Guide
+                </button>
             </div>
-        </div>
-
-        <!-- Quick action bar -->
-        <div class="quick-bar">
-            <button class="quick-btn accent" onclick="InstructorApp.openCreateAssignment()">
-                <img src="/assets/images/icons/icon-rocket.webp" alt="">
-                Create Mission
-            </button>
-            <button class="quick-btn" onclick="InstructorApp.showClassReport()">
-                <img src="/assets/images/icons/icon-barchart.webp" alt="">
-                View Class Report
-            </button>
-            <button class="quick-btn" onclick="InstructorApp.exportGrades()">
-                <img src="/assets/images/icons/icon-clipboard.webp" alt="">
-                Export Grades
-            </button>
-            <button class="quick-btn" onclick="InstructorApp.refreshData()">
-                <img src="/assets/images/icons/icon-signal.webp" alt="">
-                Refresh Data
-            </button>
-            <button class="quick-btn" onclick="showInstructorGuide()" style="margin-left:auto;">
-                <img src="/assets/images/icons/icon-info.webp" alt="" onerror="this.style.display='none'">
-                ? Guide
-            </button>
         </div>
 
         <!-- Main two-column layout -->
@@ -1317,8 +1374,14 @@
                         <button class="tab-btn" onclick="InstructorApp.switchTab('course-progress', this)" id="tab-btn-course-progress" style="display:none;">
                             Course Progress
                         </button>
-                        <button class="tab-btn" onclick="InstructorApp.switchTab('students', this)">
+                        <button class="tab-btn" onclick="InstructorApp.switchTab('students', this)" id="tab-btn-students">
                             Student Progress
+                        </button>
+                        <button class="tab-btn" onclick="InstructorApp.switchTab('roster', this)" id="tab-btn-roster">
+                            Roster
+                        </button>
+                        <button class="tab-btn" onclick="InstructorApp.switchTab('analytics', this)" id="tab-btn-analytics" style="display:none;">
+                            Analytics
                         </button>
                     </div>
 
@@ -1339,18 +1402,19 @@
                         </div>
                     </div>
 
-                    <!-- Course Progress tab — shows per-chapter, per-item completion rates -->
+                    <!-- Course Progress tab — auto-opens full-screen overlay -->
                     <div id="tab-course-progress" class="tab-pane">
                         <div class="vc-panel">
                             <div class="vc-panel-head">
                                 <span class="vc-panel-title">Course Progress</span>
                                 <span class="vc-panel-meta" id="course-progress-meta">--</span>
                             </div>
-                            <div id="course-progress-wrap">
-                                <div class="empty-state">
-                                    <img class="empty-state-icon" src="/assets/images/icons/icon-barchart.webp" alt="">
-                                    <div class="empty-state-title">Loading course structure...</div>
-                                </div>
+                            <div class="vc-panel-body" style="text-align:center;padding:40px 16px;">
+                                <div style="font-size:0.82rem;color:var(--vc-text-dim);margin-bottom:12px;">Course progress opens as a full-screen view.</div>
+                                <button class="quick-btn accent" onclick="InstructorApp.renderCourseProgress()" style="margin:0 auto;">
+                                    <img src="/assets/images/icons/icon-barchart.webp" alt="">
+                                    Open Course Progress
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1367,30 +1431,32 @@
                                 <!-- Summary stat cards -->
                                 <div id="analytics-stats" style="display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;"></div>
 
-                                <!-- Chart row -->
-                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
-                                    <div style="background:rgba(0,0,0,0.2); border:1px solid rgba(0,229,255,0.08); border-radius:8px; padding:16px;">
+                                <!-- Chart row: two donuts + chapter bar -->
+                                <div style="display:grid; grid-template-columns:1fr 1fr 2fr; gap:16px; margin-bottom:16px;">
+                                    <!-- Donut 1: Student Status -->
+                                    <div style="background:rgba(0,0,0,0.2); border:1px solid rgba(0,229,255,0.08); border-radius:8px; padding:16px; max-width:280px;">
                                         <div style="font-size:0.75rem; color:var(--vc-text-dim); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px;">Student Status</div>
-                                        <canvas id="chart-status" height="200"></canvas>
+                                        <canvas id="chart-status" height="120"></canvas>
                                     </div>
+                                    <!-- Donut 2: Chapter Health — identifies chapters needing refresher -->
+                                    <div style="background:rgba(0,0,0,0.2); border:1px solid rgba(0,229,255,0.08); border-radius:8px; padding:16px; max-width:280px;">
+                                        <div style="font-size:0.75rem; color:var(--vc-text-dim); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px;">Chapter Health</div>
+                                        <canvas id="chart-chapter-health" height="120"></canvas>
+                                    </div>
+                                    <!-- Bar: Chapter Progress -->
                                     <div style="background:rgba(0,0,0,0.2); border:1px solid rgba(0,229,255,0.08); border-radius:8px; padding:16px;">
                                         <div style="font-size:0.75rem; color:var(--vc-text-dim); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px;">Chapter Progress</div>
                                         <canvas id="chart-chapters" height="200"></canvas>
                                     </div>
                                 </div>
-                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-                                    <div style="background:rgba(0,0,0,0.2); border:1px solid rgba(0,229,255,0.08); border-radius:8px; padding:16px;">
-                                        <div style="font-size:0.75rem; color:var(--vc-text-dim); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px;">Quiz Score Distribution</div>
-                                        <canvas id="chart-quiz-dist" height="200"></canvas>
-                                    </div>
-                                    <div style="background:rgba(0,0,0,0.2); border:1px solid rgba(0,229,255,0.08); border-radius:8px; padding:16px;">
-                                        <div style="font-size:0.75rem; color:var(--vc-text-dim); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px;">Module Completions</div>
-                                        <canvas id="chart-modules" height="200"></canvas>
-                                    </div>
-                                </div>
+                                <!-- Quiz Score Distribution + Module Completions moved to Analytics tab -->
                             </div>
                         </div>
 
+                    </div>
+
+                    <!-- Roster tab — student table + detail view -->
+                    <div id="tab-roster" class="tab-pane">
                         <div class="vc-panel" id="students-panel">
                             <div class="vc-panel-head">
                                 <span class="vc-panel-title">Operative Roster</span>
@@ -1424,6 +1490,30 @@
                                 </div>
                             </div>
                             <div id="student-assignments-wrap"></div>
+                        </div>
+                    </div>
+
+                    <!-- Analytics tab — Quiz Score Distribution + Module Completions -->
+                    <div id="tab-analytics" class="tab-pane">
+                        <div class="vc-panel">
+                            <div class="vc-panel-head">
+                                <span class="vc-panel-title">Analytics</span>
+                                <span class="vc-panel-meta">Quiz & Module Breakdown</span>
+                            </div>
+                            <div class="vc-panel-body">
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                                    <!-- Quiz Score Distribution: grade breakdown (A-F) across all attempts -->
+                                    <div style="background:rgba(0,0,0,0.2); border:1px solid rgba(0,229,255,0.08); border-radius:8px; padding:16px;">
+                                        <div style="font-size:0.75rem; color:var(--vc-text-dim); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px;">Quiz Score Distribution</div>
+                                        <canvas id="chart-quiz-dist" height="200"></canvas>
+                                    </div>
+                                    <!-- Module Completions: per-module completion counts -->
+                                    <div style="background:rgba(0,0,0,0.2); border:1px solid rgba(0,229,255,0.08); border-radius:8px; padding:16px;">
+                                        <div style="font-size:0.75rem; color:var(--vc-text-dim); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px;">Module Completions</div>
+                                        <canvas id="chart-modules" height="200"></canvas>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -1603,6 +1693,23 @@
     var _studentData  = [];          // Student progress rows for the active class
     var _sessionStart = Date.now();
 
+    /**
+     * getActiveCourseMap — Returns the course content map for the active class.
+     * Maps courseId to the corresponding global variable loaded from <script> tags.
+     * Returns null if no map exists for the course or no class is active.
+     */
+    var COURSE_MAPS = {
+        'network-plus': function() { return typeof NETWORK_PLUS_MAP !== 'undefined' ? NETWORK_PLUS_MAP : null; },
+        'python-hub':   function() { return typeof PYTHON_HUB_MAP   !== 'undefined' ? PYTHON_HUB_MAP   : null; },
+        'python-for-it': function() { return typeof PYTHON_FOR_IT_MAP !== 'undefined' ? PYTHON_FOR_IT_MAP : null; } /* Python for IT (COP1034C) */
+    };
+
+    function getActiveCourseMap() {
+        if (!_activeClass || !_activeClass.courseId) return null;
+        var getter = COURSE_MAPS[_activeClass.courseId];
+        return getter ? getter() : null;
+    }
+
     // Callable function references (initialized after Firebase loads)
     var _fnCreate    = null;
     var _fnUpdate    = null;
@@ -1707,7 +1814,7 @@
             document.title = platformName + ' — Instructor Panel';
             document.getElementById('header-name').textContent   = platformName;
             document.getElementById('header-tenant-id').textContent = _tenantId.toUpperCase();
-            document.getElementById('banner-eyebrow').textContent   = _tenantId.toUpperCase() + ' // Instructor Panel';
+            // Tenant ID already shown in header; eyebrow merged into command bar
             document.getElementById('statusbar-operator').textContent = (_currentUser.displayName || _currentUser.email || 'INSTRUCTOR').toUpperCase();
             document.getElementById('banner-operator').textContent    = (_currentUser.displayName || _currentUser.email || '').toUpperCase();
 
@@ -1717,7 +1824,7 @@
             // Reveal app
             loaderEl.classList.add('fade-out');
             setTimeout(function() { loaderEl.remove(); }, 500);
-            appEl.style.display = 'block';
+            appEl.style.display = 'flex';
 
         } catch (err) {
             loaderText.textContent    = 'Initialization failed';
@@ -1900,16 +2007,19 @@
         document.getElementById('no-class-prompt').style.display  = 'none';
         document.getElementById('class-pane').style.display = 'block';
 
-        // Show/hide Course Progress tab based on class type
+        // Show/hide course-specific tabs based on class type
         var cpBtn = document.getElementById('tab-btn-course-progress');
-        if (cls.courseId && typeof NETWORK_PLUS_MAP !== 'undefined') {
-            // Course-based class — show Course Progress tab, auto-switch to it
+        var anBtn = document.getElementById('tab-btn-analytics');
+        if (cls.courseId && getActiveCourseMap()) {
+            // Course-based class — show Course Progress + Analytics tabs, default to Student Progress
             cpBtn.style.display = '';
-            // Auto-switch to Course Progress tab for course classes
-            InstructorApp.switchTab('course-progress', cpBtn);
+            anBtn.style.display = '';
+            var spBtn = document.getElementById('tab-btn-students');
+            InstructorApp.switchTab('students', spBtn);
         } else {
-            // Assignment-based class — hide Course Progress tab
+            // Assignment-based class — hide course-specific tabs
             cpBtn.style.display = 'none';
+            anBtn.style.display = 'none';
         }
 
         // Close any open student detail
@@ -1920,10 +2030,7 @@
         showTabLoading('students');
         await Promise.all([loadAssignments(), loadStudentProgress()]);
 
-        // Render course progress after student data is loaded
-        if (cls.courseId && typeof NETWORK_PLUS_MAP !== 'undefined') {
-            renderCourseProgress();
-        }
+        // Course progress now opens as overlay when user clicks the tab
     }
 
     // ── Inline create-class form ──────────────────────────────────────────────
@@ -2412,6 +2519,115 @@
             });
         }
 
+        // ── Chart 1b: Chapter Health Donut ──
+        // Classifies each chapter as Solid (green), Needs Review (amber), or Cold (red)
+        // based on completion rate and quiz performance across all active students.
+        if (_chartInstances.chapterHealth) _chartInstances.chapterHealth.destroy();
+        var healthCtx = document.getElementById('chart-chapter-health');
+        var _healthMap = getActiveCourseMap();
+        if (healthCtx && _healthMap) {
+            var mapChapters = _healthMap.chapters;
+            var activeCount = _studentData.filter(function(s) { return s.status !== 'withdrawn'; }).length;
+            var solid = 0, needsReview = 0, cold = 0;
+            // Labels for tooltip: which chapters fall in each bucket
+            var solidChs = [], reviewChs = [], coldChs = [];
+
+            mapChapters.forEach(function(ch) {
+                var chItemCount = ch.items.length;
+                var completedItems = 0;  // total items completed across all students
+                var quizScores = [];     // quiz scores for this chapter
+
+                // Identify quiz items in this chapter
+                var quizIds = ch.items.filter(function(item) {
+                    return item.type === 'quiz';
+                }).map(function(item) { return item.id; });
+
+                // Count completions and gather quiz scores per student
+                _studentData.forEach(function(s) {
+                    if (s.status === 'withdrawn') return;
+                    var mods = s.modulesCompleted || [];
+                    var quizzes = s.quizScores || {};
+                    var labs = s.labsCompleted || [];
+
+                    ch.items.forEach(function(item) {
+                        if (mods.indexOf(item.id) !== -1 || quizzes[item.id] != null || labs.indexOf(item.id) !== -1) {
+                            completedItems++;
+                        }
+                    });
+
+                    // Collect quiz scores for this chapter
+                    quizIds.forEach(function(qid) {
+                        if (quizzes[qid] != null) quizScores.push(quizzes[qid]);
+                    });
+                });
+
+                // Calculate chapter completion percentage
+                var chPct = (chItemCount * activeCount) > 0
+                    ? Math.round((completedItems / (chItemCount * activeCount)) * 100)
+                    : 0;
+
+                // Calculate quiz average for this chapter (0 if no quizzes taken)
+                var quizAvg = quizScores.length > 0
+                    ? Math.round(quizScores.reduce(function(a, b) { return a + b; }, 0) / quizScores.length)
+                    : -1; // -1 means no quiz data yet
+
+                // Calculate quiz fail rate
+                var failRate = quizScores.length > 0
+                    ? quizScores.filter(function(sc) { return sc < 70; }).length / quizScores.length
+                    : 0;
+
+                // Classification logic:
+                // Cold: completion < 40% OR quiz fail rate > 50%
+                // Needs Review: completion 40-74% OR quiz avg below passing
+                // Solid: completion >= 75% and quiz performance acceptable
+                var label = 'Ch' + ch.num;
+                if (chPct < 40 || failRate > 0.5) {
+                    cold++;
+                    coldChs.push(label);
+                } else if (chPct < 75 || (quizAvg >= 0 && quizAvg < 70)) {
+                    needsReview++;
+                    reviewChs.push(label);
+                } else {
+                    solid++;
+                    solidChs.push(label);
+                }
+            });
+
+            // Store chapter lists for tooltip drill-down
+            var healthChapterLists = [solidChs, reviewChs, coldChs];
+
+            _chartInstances.chapterHealth = new Chart(healthCtx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Strong Grasp', 'Review Recommended', 'Refresher Alert'],
+                    datasets: [{
+                        data: [solid, needsReview, cold],
+                        backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 } } },
+                        tooltip: {
+                            callbacks: {
+                                // Tooltip shows chapter count + which chapters
+                                label: function(ctx) {
+                                    var count = ctx.raw;
+                                    var chs = healthChapterLists[ctx.dataIndex];
+                                    var suffix = count !== 1 ? 's' : '';
+                                    if (chs.length === 0) return ctx.label + ': 0 chapters';
+                                    return ctx.label + ': ' + chs.join(', ') + ' (' + count + ' chapter' + suffix + ')';
+                                }
+                            }
+                        }
+                    },
+                    cutout: '60%'
+                }
+            });
+        }
+
         // ── Chart 2: Chapter Progress (horizontal bar) ──
         if (_chartInstances.chapters) _chartInstances.chapters.destroy();
         var chapterCounts = [];
@@ -2525,20 +2741,24 @@
     /**
      * renderCourseProgress — Shows per-chapter, per-item completion rates.
      * Only renders for course-based classes (has courseId).
-     * Reads from NETWORK_PLUS_MAP (loaded as external script) and
+     * Reads from the active course map (via getActiveCourseMap()) and
      * cross-references against _studentData[].modulesCompleted and quizScores.
      */
     function renderCourseProgress() {
-        var wrap = document.getElementById('course-progress-wrap');
         var meta = document.getElementById('course-progress-meta');
 
         // Only works if we have the course map and student data
-        if (typeof NETWORK_PLUS_MAP === 'undefined' || !_studentData || _studentData.length === 0) {
-            wrap.innerHTML = '<div class="empty-state"><div class="empty-state-title">No data available</div><div class="empty-state-sub">Students need to complete content for progress to appear.</div></div>';
+        var _courseMap = getActiveCourseMap();
+        if (!_courseMap || !_studentData || _studentData.length === 0) {
+            toast('No course data available yet.', 'info');
             return;
         }
 
-        var chapters = NETWORK_PLUS_MAP.chapters;
+        // Remove existing overlay if open
+        var existing = document.getElementById('course-progress-overlay');
+        if (existing) existing.remove();
+
+        var chapters = _courseMap.chapters;
         var totalStudents = _studentData.length;
         var totalItems = 0;
         var totalCompleted = 0;
@@ -2610,7 +2830,27 @@
 
         var overallPct = (totalItems * totalStudents) > 0 ? Math.round((totalCompleted / (totalItems * totalStudents)) * 100) : 0;
         meta.textContent = overallPct + '% overall · ' + totalItems + ' items · ' + totalStudents + ' students';
-        wrap.innerHTML = html;
+
+        // Build full-screen overlay
+        var overlay = document.createElement('div');
+        overlay.id = 'course-progress-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:10000;overflow-y:auto;padding:30px 20px;';
+
+        var container = document.createElement('div');
+        container.style.cssText = 'max-width:960px;margin:0 auto;color:var(--vc-text);font-family:var(--vc-font);';
+
+        // Header with title, stats, and close button
+        var headerHtml = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">';
+        headerHtml += '<div>';
+        headerHtml += '<div style="font-size:1.3rem;font-weight:800;color:var(--vc-primary);">Course Progress</div>';
+        headerHtml += '<div style="font-size:0.72rem;color:var(--vc-text-dim);">' + overallPct + '% overall · ' + totalItems + ' items · ' + totalStudents + ' students</div>';
+        headerHtml += '</div>';
+        headerHtml += '<button style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:var(--vc-text);padding:8px 20px;border-radius:6px;cursor:pointer;font-family:var(--vc-font);font-weight:600;" onclick="document.getElementById(\'course-progress-overlay\').remove()">Close</button>';
+        headerHtml += '</div>';
+
+        container.innerHTML = headerHtml + html;
+        overlay.appendChild(container);
+        document.body.appendChild(overlay);
     }
 
     function renderStudentsTable() {
@@ -2788,17 +3028,29 @@
     }
 
     function showStudentDetail(student) {
-        document.getElementById('students-panel').style.display       = 'none';
-        document.getElementById('student-detail-panel').style.display = 'block';
-
-        var isCourse = _activeClass && _activeClass.courseId && typeof NETWORK_PLUS_MAP !== 'undefined';
+        var _detailMap = getActiveCourseMap();
+        var isCourse = _activeClass && _activeClass.courseId && _detailMap;
         var name = student.displayName || student.email || student.studentUid || student.uid;
+        var email = student.email || 'UID: ' + (student.studentUid || student.uid);
 
-        document.getElementById('student-detail-title').textContent = 'Student Detail';
-        document.getElementById('detail-student-name').textContent  = name;
-        document.getElementById('detail-student-uid').textContent   = student.email || 'UID: ' + (student.studentUid || student.uid);
+        // ── Build full-screen overlay (same pattern as class report) ──
+        var overlay = document.createElement('div');
+        /* Frosted-glass overlay: scrollable for long student detail content */
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:10000;overflow-y:auto;padding:30px 20px;';
+        overlay.id = 'student-detail-overlay';
+        var container = document.createElement('div');
+        container.style.cssText = 'max-width:960px;margin:0 auto;color:var(--vc-text);font-family:var(--vc-font);';
 
-        var wrap = document.getElementById('student-assignments-wrap');
+        // Header with close button
+        var headerHtml = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">';
+        headerHtml += '<div>';
+        headerHtml += '<div style="font-size:1.3rem;font-weight:800;color:var(--vc-primary);">' + name + '</div>';
+        headerHtml += '<div style="font-size:0.72rem;color:var(--vc-text-dim);">' + email + '</div>';
+        headerHtml += '</div>';
+        headerHtml += '<button style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:var(--vc-text);padding:8px 20px;border-radius:6px;cursor:pointer;font-family:var(--vc-font);font-weight:600;" onclick="document.getElementById(\'student-detail-overlay\').remove()">Back to Roster</button>';
+        headerHtml += '</div>';
+
+        var wrap = document.createElement('div');
 
         if (isCourse) {
             // ── Course-based student detail ──
@@ -2809,7 +3061,7 @@
             var quizAvg = quizValues.length > 0 ? Math.round(quizValues.reduce(function(a,b){return a+b;},0) / quizValues.length) : 0;
             var totalCompleted = mods.length + quizValues.length + labs.length;
             var totalItems = 0;
-            NETWORK_PLUS_MAP.chapters.forEach(function(ch) { totalItems += ch.items.length; });
+            _detailMap.chapters.forEach(function(ch) { totalItems += ch.items.length; });
             var overallPct = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
 
             // Build a lookup set for fast completion checking
@@ -2818,8 +3070,7 @@
             Object.keys(quizzes).forEach(function(id) { completedSet[id] = 'quiz'; });
             labs.forEach(function(id) { completedSet[id] = 'lab'; });
 
-            // Score display — show quiz average for course students
-            document.getElementById('detail-total-score').textContent = quizAvg > 0 ? quizAvg + '% avg' : '--';
+            // Score display — included in overlay header summary bar below
 
             // Enrolled and last active dates
             var enrolled = '--';
@@ -2855,7 +3106,7 @@
             // Chapter breakdown
             var typeColors = { module: '#3b82f6', presentation: '#8b5cf6', tool: '#06b6d4', lab: '#f59e0b', quiz: '#22c55e' };
 
-            NETWORK_PLUS_MAP.chapters.forEach(function(ch) {
+            _detailMap.chapters.forEach(function(ch) {
                 var chDone = 0;
                 ch.items.forEach(function(item) { if (completedSet[item.id]) chDone++; });
                 var chPct = ch.items.length > 0 ? Math.round((chDone / ch.items.length) * 100) : 0;
@@ -2887,7 +3138,14 @@
                 html += '</div></div>';
             });
 
-            wrap.innerHTML = html;
+            wrap.innerHTML = headerHtml + html;
+            container.appendChild(wrap);
+            overlay.appendChild(container);
+            // Remove existing overlay if open
+            var existing = document.getElementById('student-detail-overlay');
+            if (existing) existing.remove();
+            document.body.appendChild(overlay);
+            return;
 
         } else {
             // ── Assignment-based student detail (original) ──
@@ -2896,10 +3154,14 @@
             var totalScore = Object.keys(assignments).reduce(function(sum, k) {
                 return sum + (assignments[k].score || 0);
             }, 0);
-            document.getElementById('detail-total-score').textContent = totalScore.toLocaleString();
 
             if (_assignments.length === 0) {
-                wrap.innerHTML = '<div class="empty-state"><div class="empty-state-title">No assignments in this class</div></div>';
+                wrap.innerHTML = headerHtml + '<div class="empty-state"><div class="empty-state-title">No assignments in this class</div></div>';
+                container.appendChild(wrap);
+                overlay.appendChild(container);
+                var existing = document.getElementById('student-detail-overlay');
+                if (existing) existing.remove();
+                document.body.appendChild(overlay);
                 return;
             }
 
@@ -2957,14 +3219,24 @@
             });
 
             table.appendChild(tbody);
-            wrap.innerHTML = '';
+
+            // Score header for assignment-based detail
+            var scoreHtml = '<div style="font-size:0.82rem;color:var(--vc-text-dim);margin-bottom:12px;">Total Score: <strong style="color:var(--vc-primary);">' + totalScore.toLocaleString() + '</strong></div>';
+
+            wrap.innerHTML = headerHtml + scoreHtml;
             wrap.appendChild(table);
+            container.appendChild(wrap);
+            overlay.appendChild(container);
+            var existing = document.getElementById('student-detail-overlay');
+            if (existing) existing.remove();
+            document.body.appendChild(overlay);
         }
     }
 
     function closeStudentDetail() {
-        document.getElementById('students-panel').style.display       = 'block';
-        document.getElementById('student-detail-panel').style.display = 'none';
+        // Remove full-screen overlay if present
+        var overlay = document.getElementById('student-detail-overlay');
+        if (overlay) overlay.remove();
     }
 
     // ── Class stats ───────────────────────────────────────────────────────────
@@ -2998,138 +3270,39 @@
             return;
         }
 
-        var isCourse = _activeClass.courseId && typeof NETWORK_PLUS_MAP !== 'undefined';
+        var isCourse = _activeClass.courseId && getActiveCourseMap();
+
+        if (isCourse) {
+            showCourseClassReport();
+            return;
+        }
+
+        // Assignment-based report uses the confirm modal
         var msg = document.getElementById('confirm-msg');
         var sub = document.getElementById('confirm-sub');
 
-        if (isCourse) {
-            // ── Course-based class report ──
-            var totalStudents = _studentData.length;
-            var withdrawn = _studentData.filter(function(s) { return s.status === 'withdrawn'; }).length;
-            var active = totalStudents - withdrawn;
-            var chapters = NETWORK_PLUS_MAP.chapters;
-            var totalItems = 0;
-            chapters.forEach(function(ch) { totalItems += ch.items.length; });
+        var totalPts = _assignments.reduce(function(sum, a) { return sum + (a.points || 0); }, 0);
+        var activeA  = _assignments.filter(function(a) { return a.status === 'active'; }).length;
+        var draft    = _assignments.filter(function(a) { return a.status === 'draft'; }).length;
+        var archived = _assignments.filter(function(a) { return a.status === 'archived'; }).length;
 
-            // Aggregate stats across all students
-            var totalModules = 0, totalQuizzes = 0, totalLabs = 0, totalScore = 0, quizCount = 0;
-            var now = Date.now();
-            var DAY = 86400000;
-            var atRisk = [];
-            var performers = [];
-
-            _studentData.forEach(function(s) {
-                if (s.status === 'withdrawn') return;
-                var mods = (s.modulesCompleted || []).length;
-                var quizzes = Object.values(s.quizScores || {});
-                var labs = (s.labsCompleted || []).length;
-                totalModules += mods;
-                totalLabs += labs;
-                totalQuizzes += quizzes.length;
-                quizzes.forEach(function(sc) { totalScore += sc; quizCount++; });
-
-                var itemCount = mods + quizzes.length + labs;
-                performers.push({ name: s.displayName || s.email || 'Unknown', items: itemCount, quizAvg: quizzes.length > 0 ? Math.round(quizzes.reduce(function(a,b){return a+b;},0) / quizzes.length) : 0 });
-
-                // At risk: no activity in 7+ days
-                var lastTs = 0;
-                if (s.lastActive) {
-                    lastTs = s.lastActive._seconds ? s.lastActive._seconds * 1000 : new Date(s.lastActive).getTime();
-                }
-                if (!lastTs || (now - lastTs) > 7 * DAY) {
-                    atRisk.push(s.displayName || s.email || 'Unknown');
+        var completionCount = 0;
+        _studentData.forEach(function(s) {
+            var assignments = s.assignments || {};
+            Object.keys(assignments).forEach(function(k) {
+                if (assignments[k].status === 'completed' || assignments[k].status === 'graded') {
+                    completionCount++;
                 }
             });
+        });
 
-            performers.sort(function(a, b) { return b.items - a.items; });
-            var avgScore = quizCount > 0 ? Math.round(totalScore / quizCount) : 0;
-            var overallPct = (totalItems * active) > 0 ? Math.round(((totalModules + totalQuizzes + totalLabs) / (totalItems * active)) * 100) : 0;
-
-            // Chapter completion summary
-            var chSummary = chapters.map(function(ch) {
-                var chCompleted = 0;
-                _studentData.forEach(function(s) {
-                    if (s.status === 'withdrawn') return;
-                    var mods = s.modulesCompleted || [];
-                    var quizzes = s.quizScores || {};
-                    var labs = s.labsCompleted || [];
-                    ch.items.forEach(function(item) {
-                        if (mods.indexOf(item.id) !== -1 || quizzes[item.id] != null || labs.indexOf(item.id) !== -1) chCompleted++;
-                    });
-                });
-                var chPct = (ch.items.length * active) > 0 ? Math.round((chCompleted / (ch.items.length * active)) * 100) : 0;
-                return 'Ch' + ch.num + ': ' + chPct + '%';
-            }).join(' | ');
-
-            // Build report HTML
-            var html = '<div style="text-align:left;font-size:0.82rem;line-height:1.8;color:var(--vc-text);">';
-
-            html += '<div style="font-size:1rem;font-weight:700;color:var(--vc-primary);margin-bottom:12px;">Class Report — ' + (_activeClass.name || _activeClass.classId) + '</div>';
-
-            html += '<div style="margin-bottom:14px;padding:12px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:8px;">';
-            html += '<strong>Overview</strong><br>';
-            html += 'Students: ' + active + ' active' + (withdrawn > 0 ? ', ' + withdrawn + ' withdrawn' : '') + '<br>';
-            html += 'Course: ' + NETWORK_PLUS_MAP.title + '<br>';
-            html += 'Overall completion: <strong style="color:var(--vc-primary);">' + overallPct + '%</strong>';
-            html += '</div>';
-
-            html += '<div style="margin-bottom:14px;padding:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;">';
-            html += '<strong>Progress Summary</strong><br>';
-            html += 'Modules completed: ' + totalModules + '<br>';
-            html += 'Quizzes taken: ' + totalQuizzes + (quizCount > 0 ? ' (avg: ' + avgScore + '%)' : '') + '<br>';
-            html += 'Labs completed: ' + totalLabs;
-            html += '</div>';
-
-            html += '<div style="margin-bottom:14px;padding:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;">';
-            html += '<strong>Chapter Completion</strong><br>';
-            html += '<span style="font-size:0.75rem;color:var(--vc-text-dim);">' + chSummary + '</span>';
-            html += '</div>';
-
-            if (performers.length > 0) {
-                html += '<div style="margin-bottom:14px;padding:12px;background:rgba(74,222,128,0.05);border:1px solid rgba(74,222,128,0.15);border-radius:8px;">';
-                html += '<strong style="color:var(--vc-green);">Top Performers</strong><br>';
-                performers.slice(0, 5).forEach(function(p, i) {
-                    html += (i + 1) + '. ' + p.name + ' — ' + p.items + ' items' + (p.quizAvg > 0 ? ', ' + p.quizAvg + '% quiz avg' : '') + '<br>';
-                });
-                html += '</div>';
-            }
-
-            if (atRisk.length > 0) {
-                html += '<div style="padding:12px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.15);border-radius:8px;">';
-                html += '<strong style="color:var(--vc-red);">At Risk (no activity in 7+ days)</strong><br>';
-                html += atRisk.join(', ');
-                html += '</div>';
-            }
-
-            html += '</div>';
-
-            msg.innerHTML = html;
-            sub.textContent = '';
-        } else {
-            // ── Assignment-based class report (original) ──
-            var totalPts = _assignments.reduce(function(sum, a) { return sum + (a.points || 0); }, 0);
-            var activeA  = _assignments.filter(function(a) { return a.status === 'active'; }).length;
-            var draft    = _assignments.filter(function(a) { return a.status === 'draft'; }).length;
-            var archived = _assignments.filter(function(a) { return a.status === 'archived'; }).length;
-
-            var completionCount = 0;
-            _studentData.forEach(function(s) {
-                var assignments = s.assignments || {};
-                Object.keys(assignments).forEach(function(k) {
-                    if (assignments[k].status === 'completed' || assignments[k].status === 'graded') {
-                        completionCount++;
-                    }
-                });
-            });
-
-            msg.textContent = 'Class Report — ' + (_activeClass.name || _activeClass.classId);
-            sub.textContent = [
-                'Assignments: ' + _assignments.length + ' (' + activeA + ' active, ' + draft + ' draft, ' + archived + ' archived)',
-                'Total points available: ' + totalPts.toLocaleString(),
-                'Students enrolled: ' + _studentData.length,
-                'Total completions: ' + completionCount
-            ].join(' | ');
-        }
+        msg.textContent = 'Class Report — ' + (_activeClass.name || _activeClass.classId);
+        sub.textContent = [
+            'Assignments: ' + _assignments.length + ' (' + activeA + ' active, ' + draft + ' draft, ' + archived + ' archived)',
+            'Total points available: ' + totalPts.toLocaleString(),
+            'Students enrolled: ' + _studentData.length,
+            'Total completions: ' + completionCount
+        ].join(' | ');
 
         document.getElementById('btn-confirm-action').style.display = 'none';
         document.getElementById('modal-confirm').querySelector('.modal-title').textContent = 'Class Report';
@@ -3236,6 +3409,17 @@
         document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
         document.getElementById('tab-' + tabId).classList.add('active');
         btn.classList.add('active');
+
+        // Chart.js renders at 0×0 in hidden tabs (display:none).
+        // Re-render analytics charts when their tab becomes visible.
+        if (tabId === 'analytics' && _studentData && _studentData.length > 0) {
+            renderAnalytics();
+        }
+
+        // Course Progress auto-opens as full-screen overlay
+        if (tabId === 'course-progress' && _studentData && _studentData.length > 0) {
+            renderCourseProgress();
+        }
     }
 
     // ── Modal helpers ─────────────────────────────────────────────────────────
@@ -3454,6 +3638,19 @@
                 '<p>Click a student row to see their detailed progress breakdown.</p>' +
                 '<p>Student data comes from the <code>getStudentProgress</code> Cloud Function, which reads from <code>tenants/{slug}/classes/{classId}/progress/</code>.</p>' +
 
+                '<h3 style="color:var(--vc-primary);margin:16px 0 8px;font-size:0.95rem;">Analytics Charts</h3>' +
+                '<p><strong>Student Status:</strong> Donut showing how many students are On Track, In Progress, At Risk (14+ days inactive), or have No Activity.</p>' +
+                '<p><strong>Chapter Health:</strong> Identifies which chapters need instructor attention. Each chapter is classified as:</p>' +
+                '<ul style="margin:0 0 8px 20px;">' +
+                    '<li><strong style="color:#22c55e;">Strong Grasp</strong> — 75%+ completion and acceptable quiz scores. Students understand this material.</li>' +
+                    '<li><strong style="color:#f59e0b;">Review Recommended</strong> — 40-74% completion, or quiz average below 70%. Consider revisiting this topic.</li>' +
+                    '<li><strong style="color:#ef4444;">Refresher Alert</strong> — Below 40% completion, or quiz fail rate over 50%. This chapter needs immediate attention.</li>' +
+                '</ul>' +
+                '<p style="color:var(--vc-text-dim);">Hover over each segment to see exactly which chapters (Ch1, Ch5, etc.) fall in that category.</p>' +
+                '<p><strong>Chapter Progress:</strong> Horizontal bar chart showing how many students have completed each chapter.</p>' +
+                '<p><strong>Quiz Score Distribution:</strong> Grade breakdown (A-F) across all quiz attempts.</p>' +
+                '<p><strong>Module Completions:</strong> Bar chart of individual module completion counts.</p>' +
+
                 '<h3 style="color:var(--vc-primary);margin:16px 0 8px;font-size:0.95rem;">Quick Actions</h3>' +
                 '<ul style="margin:0 0 8px 20px;">' +
                     '<li><strong>Create Mission:</strong> New assignment for the selected class</li>' +
@@ -3484,6 +3681,209 @@
     };
 
     // ── Withdraw Student (soft-remove — data preserved for records) ──
+    /**
+     * showCourseClassReport — Full-screen detailed report for course-based classes.
+     * Computes all metrics from _studentData and the active course map.
+     * No new data fetches — purely a rendering function.
+     */
+    function showCourseClassReport() {
+        var _reportMap = getActiveCourseMap();
+        if (!_reportMap) return;
+        var chapters = _reportMap.chapters;
+        var totalStudents = _studentData.length;
+        var withdrawn = _studentData.filter(function(s) { return s.status === 'withdrawn'; }).length;
+        var activeStudents = totalStudents - withdrawn;
+        var totalItems = 0;
+        chapters.forEach(function(ch) { totalItems += ch.items.length; });
+        var now = Date.now();
+        var DAY = 86400000;
+
+        // ── Aggregate all student metrics ──
+        var allModules = 0, allQuizzes = 0, allLabs = 0, allScore = 0, quizCount = 0;
+        var highestQuiz = 0, lowestQuiz = 100;
+        var atRisk = [], noActivity = [];
+        var performers = [];
+        var quizBreakdown = {}; // quizId → { scores: [], passCount, failCount }
+
+        _studentData.forEach(function(s) {
+            if (s.status === 'withdrawn') return;
+            var mods = (s.modulesCompleted || []).length;
+            var quizzes = s.quizScores || {};
+            var quizVals = Object.values(quizzes);
+            var labs = (s.labsCompleted || []).length;
+            allModules += mods;
+            allLabs += labs;
+            allQuizzes += quizVals.length;
+            quizVals.forEach(function(sc) {
+                allScore += sc; quizCount++;
+                if (sc > highestQuiz) highestQuiz = sc;
+                if (sc < lowestQuiz) lowestQuiz = sc;
+            });
+            // Per-quiz breakdown
+            Object.keys(quizzes).forEach(function(qid) {
+                if (!quizBreakdown[qid]) quizBreakdown[qid] = { scores: [], pass: 0, fail: 0 };
+                quizBreakdown[qid].scores.push(quizzes[qid]);
+                if (quizzes[qid] >= 70) quizBreakdown[qid].pass++; else quizBreakdown[qid].fail++;
+            });
+            var itemCount = mods + quizVals.length + labs;
+            var qAvg = quizVals.length > 0 ? Math.round(quizVals.reduce(function(a,b){return a+b;},0)/quizVals.length) : 0;
+            performers.push({ name: s.displayName || s.email || 'Unknown', items: itemCount, quizAvg: qAvg });
+            // Activity check
+            var lastTs = 0;
+            if (s.lastActive) lastTs = s.lastActive._seconds ? s.lastActive._seconds * 1000 : new Date(s.lastActive).getTime();
+            if (!lastTs) noActivity.push(s.displayName || s.email || 'Unknown');
+            else if ((now - lastTs) > 7 * DAY) atRisk.push(s.displayName || s.email || 'Unknown');
+        });
+        performers.sort(function(a,b) { return b.items - a.items; });
+        var avgScore = quizCount > 0 ? Math.round(allScore / quizCount) : 0;
+        if (quizCount === 0) { lowestQuiz = 0; highestQuiz = 0; }
+        var overallPct = (totalItems * activeStudents) > 0 ? Math.round(((allModules + allQuizzes + allLabs) / (totalItems * activeStudents)) * 100) : 0;
+
+        // ── Chapter heatmap data ──
+        var studentCompletions = [];
+        _studentData.forEach(function(s) {
+            if (s.status === 'withdrawn') return;
+            var set = {};
+            (s.modulesCompleted || []).forEach(function(id) { set[id] = true; });
+            Object.keys(s.quizScores || {}).forEach(function(id) { set[id] = true; });
+            (s.labsCompleted || []).forEach(function(id) { set[id] = true; });
+            studentCompletions.push({ name: s.displayName || s.email || '?', set: set });
+        });
+
+        // ── Date analysis ──
+        var startDate = _activeClass.startDate ? new Date(_activeClass.startDate) : null;
+        var endDate = _activeClass.endDate ? new Date(_activeClass.endDate) : null;
+        var daysElapsed = startDate ? Math.floor((now - startDate.getTime()) / DAY) : '--';
+        var daysRemaining = endDate ? Math.max(0, Math.floor((endDate.getTime() - now) / DAY)) : '--';
+
+        // ── Build full-screen overlay ──
+        var overlay = document.createElement('div');
+        /* Frosted-glass overlay: darker background + blur hides dashboard text beneath */
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:10000;overflow-y:auto;padding:30px 20px;';
+        var container = document.createElement('div');
+        container.style.cssText = 'max-width:960px;margin:0 auto;color:var(--vc-text);font-family:var(--vc-font);';
+
+        var h = '';
+
+        // Close button
+        h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">';
+        h += '<div style="font-size:1.4rem;font-weight:800;color:var(--vc-primary);">Class Report</div>';
+        h += '<button style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:var(--vc-text);padding:8px 20px;border-radius:6px;cursor:pointer;font-family:var(--vc-font);font-weight:600;" onclick="this.closest(\'div[style]\').parentElement.remove()">Close Report</button>';
+        h += '</div>';
+
+        // ── Header ──
+        h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">';
+        h += '<div style="padding:16px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:10px;">';
+        h += '<div style="font-size:1.1rem;font-weight:700;">' + (_activeClass.name || 'Class') + '</div>';
+        h += '<div style="font-size:0.82rem;color:var(--vc-text-dim);margin-top:4px;">' + _reportMap.title + '</div>';
+        h += '<div style="font-size:0.78rem;color:var(--vc-text-dim);margin-top:2px;">Join Code: <strong style="color:var(--vc-primary);">' + (_activeClass.joinCode || '--') + '</strong></div>';
+        h += '</div>';
+        h += '<div style="padding:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">';
+        h += '<div style="font-size:0.82rem;color:var(--vc-text-dim);">Start: ' + (_activeClass.startDate || '--') + ' | End: ' + (_activeClass.endDate || '--') + '</div>';
+        h += '<div style="font-size:0.82rem;color:var(--vc-text-dim);margin-top:4px;">Days elapsed: ' + daysElapsed + ' | Remaining: ' + daysRemaining + '</div>';
+        h += '<div style="font-size:0.82rem;color:var(--vc-text-dim);margin-top:4px;">Settings: ' + (_activeClass.settings && _activeClass.settings.sequentialChapters ? 'Sequential' : 'Open') + ' | Pass: ' + ((_activeClass.settings && _activeClass.settings.passingScore) || 70) + '%</div>';
+        h += '</div></div>';
+
+        // ── Stat Cards ──
+        var stats = [
+            { label: 'Students', value: activeStudents + (withdrawn > 0 ? ' (+' + withdrawn + ' withdrawn)' : ''), color: 'var(--vc-primary)' },
+            { label: 'Overall Completion', value: overallPct + '%', color: overallPct > 50 ? 'var(--vc-green)' : 'var(--vc-amber)' },
+            { label: 'Quiz Average', value: avgScore > 0 ? avgScore + '%' : '--', color: avgScore >= 70 ? 'var(--vc-green)' : 'var(--vc-red)' },
+            { label: 'Modules Done', value: allModules, color: 'var(--vc-text)' },
+            { label: 'Quizzes Taken', value: allQuizzes, color: 'var(--vc-text)' },
+            { label: 'Labs Done', value: allLabs, color: 'var(--vc-text)' },
+            { label: 'Highest Quiz', value: highestQuiz + '%', color: 'var(--vc-green)' },
+            { label: 'Lowest Quiz', value: quizCount > 0 ? lowestQuiz + '%' : '--', color: 'var(--vc-red)' }
+        ];
+        h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px;">';
+        stats.forEach(function(s) {
+            h += '<div style="padding:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;text-align:center;">';
+            h += '<div style="font-size:1.2rem;font-weight:700;color:' + s.color + ';">' + s.value + '</div>';
+            h += '<div style="font-size:0.68rem;color:var(--vc-text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px;">' + s.label + '</div>';
+            h += '</div>';
+        });
+        h += '</div>';
+
+        // ── Chapter Heatmap ──
+        h += '<div style="margin-bottom:24px;padding:16px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">';
+        h += '<div style="font-size:0.9rem;font-weight:700;margin-bottom:12px;">Chapter Completion Heatmap</div>';
+        h += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.72rem;">';
+        h += '<tr><th style="text-align:left;padding:4px 8px;color:var(--vc-text-dim);border-bottom:1px solid rgba(255,255,255,0.06);">Student</th>';
+        chapters.forEach(function(ch) {
+            h += '<th style="text-align:center;padding:4px 4px;color:var(--vc-text-dim);border-bottom:1px solid rgba(255,255,255,0.06);min-width:36px;">Ch' + ch.num + '</th>';
+        });
+        h += '</tr>';
+        studentCompletions.forEach(function(sc) {
+            h += '<tr>';
+            h += '<td style="padding:4px 8px;color:var(--vc-text);white-space:nowrap;border-bottom:1px solid rgba(255,255,255,0.03);">' + sc.name + '</td>';
+            chapters.forEach(function(ch) {
+                var done = 0;
+                ch.items.forEach(function(item) { if (sc.set[item.id]) done++; });
+                var pct = ch.items.length > 0 ? Math.round((done / ch.items.length) * 100) : 0;
+                var bg = pct === 100 ? 'rgba(34,197,94,0.25)' : pct > 0 ? 'rgba(251,191,36,0.2)' : 'rgba(255,255,255,0.02)';
+                var clr = pct === 100 ? 'var(--vc-green)' : pct > 0 ? 'var(--vc-amber)' : 'var(--vc-text-dim)';
+                h += '<td style="text-align:center;padding:4px;background:' + bg + ';color:' + clr + ';font-weight:600;border-bottom:1px solid rgba(255,255,255,0.03);">' + pct + '%</td>';
+            });
+            h += '</tr>';
+        });
+        h += '</table></div></div>';
+
+        // ── Per-Quiz Breakdown ──
+        var quizItems = [];
+        chapters.forEach(function(ch) {
+            ch.items.forEach(function(item) { if (item.type === 'quiz') quizItems.push({ ch: ch.num, title: item.title, id: item.id }); });
+        });
+        if (quizItems.length > 0) {
+            h += '<div style="margin-bottom:24px;padding:16px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">';
+            h += '<div style="font-size:0.9rem;font-weight:700;margin-bottom:12px;">Quiz Performance</div>';
+            h += '<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">';
+            h += '<tr><th style="text-align:left;padding:6px 8px;color:var(--vc-text-dim);border-bottom:1px solid rgba(255,255,255,0.06);">Quiz</th><th style="padding:6px;color:var(--vc-text-dim);border-bottom:1px solid rgba(255,255,255,0.06);">Taken</th><th style="padding:6px;color:var(--vc-text-dim);border-bottom:1px solid rgba(255,255,255,0.06);">Avg</th><th style="padding:6px;color:var(--vc-text-dim);border-bottom:1px solid rgba(255,255,255,0.06);">Pass</th><th style="padding:6px;color:var(--vc-text-dim);border-bottom:1px solid rgba(255,255,255,0.06);">Fail</th></tr>';
+            quizItems.forEach(function(qi) {
+                var qd = quizBreakdown[qi.id];
+                var taken = qd ? qd.scores.length : 0;
+                var avg = taken > 0 ? Math.round(qd.scores.reduce(function(a,b){return a+b;},0)/taken) : '--';
+                var pass = qd ? qd.pass : 0;
+                var fail = qd ? qd.fail : 0;
+                var avgColor = avg !== '--' && avg >= 70 ? 'var(--vc-green)' : avg !== '--' ? 'var(--vc-red)' : 'var(--vc-text-dim)';
+                h += '<tr><td style="padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.03);">Ch' + qi.ch + ': ' + qi.title + '</td>';
+                h += '<td style="text-align:center;padding:6px;border-bottom:1px solid rgba(255,255,255,0.03);">' + taken + '/' + activeStudents + '</td>';
+                h += '<td style="text-align:center;padding:6px;font-weight:700;color:' + avgColor + ';border-bottom:1px solid rgba(255,255,255,0.03);">' + (avg !== '--' ? avg + '%' : '--') + '</td>';
+                h += '<td style="text-align:center;padding:6px;color:var(--vc-green);border-bottom:1px solid rgba(255,255,255,0.03);">' + pass + '</td>';
+                h += '<td style="text-align:center;padding:6px;color:var(--vc-red);border-bottom:1px solid rgba(255,255,255,0.03);">' + fail + '</td></tr>';
+            });
+            h += '</table></div>';
+        }
+
+        // ── Student Rankings ──
+        h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">';
+        h += '<div style="padding:16px;background:rgba(74,222,128,0.05);border:1px solid rgba(74,222,128,0.15);border-radius:10px;">';
+        h += '<div style="font-size:0.9rem;font-weight:700;color:var(--vc-green);margin-bottom:10px;">Top Performers</div>';
+        performers.slice(0, 5).forEach(function(p, i) {
+            h += '<div style="font-size:0.82rem;padding:3px 0;color:var(--vc-text);">' + (i+1) + '. ' + p.name + ' — ' + p.items + ' items' + (p.quizAvg > 0 ? ', ' + p.quizAvg + '% avg' : '') + '</div>';
+        });
+        if (performers.length === 0) h += '<div style="font-size:0.82rem;color:var(--vc-text-dim);">No completions yet</div>';
+        h += '</div>';
+
+        // At Risk
+        h += '<div style="padding:16px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.15);border-radius:10px;">';
+        h += '<div style="font-size:0.9rem;font-weight:700;color:var(--vc-red);margin-bottom:10px;">At Risk</div>';
+        if (atRisk.length > 0) {
+            h += '<div style="font-size:0.78rem;color:var(--vc-amber);margin-bottom:6px;">No activity in 7+ days:</div>';
+            atRisk.forEach(function(n) { h += '<div style="font-size:0.82rem;padding:2px 0;color:var(--vc-text);">' + n + '</div>'; });
+        }
+        if (noActivity.length > 0) {
+            h += '<div style="font-size:0.78rem;color:var(--vc-red);margin:6px 0;">' + (atRisk.length > 0 ? 'Never active:' : 'No activity:') + '</div>';
+            noActivity.forEach(function(n) { h += '<div style="font-size:0.82rem;padding:2px 0;color:var(--vc-text);">' + n + '</div>'; });
+        }
+        if (atRisk.length === 0 && noActivity.length === 0) h += '<div style="font-size:0.82rem;color:var(--vc-green);">All students active</div>';
+        h += '</div></div>';
+
+        container.innerHTML = h;
+        overlay.appendChild(container);
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+        document.body.appendChild(overlay);
+    }
+
     function withdrawStudent(student) {
         var name = student.displayName || student.email || student.uid;
         if (!confirm('Withdraw "' + name + '" from this class?\n\nTheir progress data will be preserved for records but they will be marked as withdrawn.')) return;
@@ -3533,7 +3933,8 @@
         exportGrades:         exportGrades,
         refreshData:          refreshData,
         navToDashboard:       navToDashboard,
-        signOut:              signOut
+        signOut:              signOut,
+        renderCourseProgress: renderCourseProgress
     };
 
     // ── Boot ──────────────────────────────────────────────────────────────────

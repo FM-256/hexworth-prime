@@ -431,8 +431,50 @@
         function getProgress() {
             try {
                 const data = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
-                return data.script || {};
-            } catch { return {}; }
+                const script = data.script || {};
+
+                // ── Progress Migration ──────────────────────────────────
+                // Merges old key formats into the canonical 'clh-NNN' key.
+                // Old keys: 'script-clh-NNN-intro', 'script-clh-NNN-lab'
+                // Canonical key: 'clh-NNN' (what the hub reads)
+                // Never deletes old keys — only copies forward.
+                let migrated = false;
+                MODULES.forEach(function(mod) {
+                    var canonical = mod.id; // e.g., 'clh-001'
+                    var oldIntro = 'script-' + canonical + '-intro';
+                    var oldLab = 'script-' + canonical + '-lab';
+
+                    // If canonical is already complete, nothing to do
+                    if (script[canonical] && script[canonical].completed) return;
+
+                    // Check old keys
+                    var source = null;
+                    if (script[oldIntro] && script[oldIntro].completed) {
+                        source = script[oldIntro];
+                    } else if (script[oldLab] && script[oldLab].completed) {
+                        source = script[oldLab];
+                    }
+
+                    if (source) {
+                        script[canonical] = {
+                            completed: true,
+                            date: source.date || source.completedAt || new Date().toISOString(),
+                            completedAt: source.completedAt || source.date || new Date().toISOString(),
+                            timeSpent: source.timeSpent || 0,
+                            migratedFrom: oldIntro
+                        };
+                        migrated = true;
+                    }
+                });
+
+                // Write back if we migrated anything
+                if (migrated) {
+                    data.script = script;
+                    localStorage.setItem('hexworth_progress', JSON.stringify(data));
+                }
+
+                return script;
+            } catch(e) { return {}; }
         }
 
         function renderModules() {

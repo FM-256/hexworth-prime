@@ -29,5 +29,7 @@ module.exports = {
     'sandbox-issues.html':           ['SANDBOX-002', 'SANDBOX-003', 'SANDBOX-007'],
     'lt-issues.html':                 ['LT-001', 'LT-002', 'LT-003', 'LT-004'],
     'progress-issues.html':            ['PROG-001', 'PROG-002'],
-    'xp-issues.js':                     ['XP-001', 'XP-002', 'XP-003', 'XP-004']
+    'xp-issues.js':                     ['XP-001', 'XP-002', 'XP-003', 'XP-004'],
+    'escape-issues.html':                ['HEUR-027'],
+    'completion-sig-issues.html':         ['HEUR-028']
 };

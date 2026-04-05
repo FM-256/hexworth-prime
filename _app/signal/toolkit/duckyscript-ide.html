@@ -6,6 +6,13 @@
     <title>DuckyScript IDE &mdash; Payload Studio &mdash; Hexworth Prime</title>
     <link rel="icon" type="image/webp" href="../../assets/images/icons/icon-antenna.webp">
 
+    <!-- Firebase SDK — required for LIVE mode (deploy to device via C2) -->
+    <script src="/__/firebase/10.12.2/firebase-app-compat.js"></script>
+    <script src="/__/firebase/10.12.2/firebase-auth-compat.js"></script>
+    <script src="/__/firebase/10.12.2/firebase-functions-compat.js"></script>
+    <script src="/__/firebase/init.js"></script>
+    <!-- Auth bridge — loads existing Firebase session for LIVE mode -->
+    <script src="../../components/FirebaseAuth.js"></script>
     <!-- Access control: must be sorted before using this tool -->
     <script src="../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
@@ -217,6 +224,7 @@
             border-bottom: 1px solid var(--border);
             flex-wrap: wrap;
             flex-shrink: 0;
+            row-gap: 8px;
         }
 
         .toolbar-group {
@@ -308,6 +316,7 @@
             background-position: right 8px center;
             padding-right: 24px;
             min-width: 100px;
+            max-width: 180px;
         }
 
         .toolbar-select:hover,
@@ -828,6 +837,50 @@
             }
         }
 
+        /* Field Manual slide-out overlay */
+        .manual-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(0,0,0,0.6);
+        }
+        .manual-overlay.open { display: flex; justify-content: flex-end; }
+        .manual-slide {
+            width: 460px;
+            max-width: 90vw;
+            height: 100vh;
+            background: var(--panel);
+            border-left: 1px solid var(--border);
+            overflow-y: auto;
+            padding: 24px;
+            animation: slideIn 0.2s ease-out;
+        }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .manual-slide-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .manual-slide-header h2 {
+            font-size: 15px;
+            color: var(--accent);
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .manual-slide-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+        .manual-slide-close:hover { color: var(--text); }
+
         @media (max-width: 600px) {
             .toolbar {
                 padding: 8px 12px;
@@ -939,6 +992,27 @@
     <div class="toolbar-group">
         <button class="btn" id="btnExport" title="Download payload as .txt for flashing">
             &#8595; Export .txt
+        </button>
+    </div>
+
+    <div class="toolbar-sep"></div>
+
+    <!-- Mode Toggle: SIM / LIVE -->
+    <div class="toolbar-group" style="display:flex;align-items:center;gap:6px;">
+        <div style="display:flex;background:var(--card);border:1px solid var(--border);border-radius:5px;overflow:hidden;">
+            <button class="btn" id="dkyModeSim" onclick="dkySwitch('sim')" style="border-radius:0;font-size:10px;padding:4px 10px;font-weight:700;letter-spacing:0.08em;background:rgba(255,107,53,0.12);color:#ff6b35;border:none;">SIM</button>
+            <button class="btn" id="dkyModeLive" onclick="dkySwitch('live')" style="border-radius:0;font-size:10px;padding:4px 10px;font-weight:700;letter-spacing:0.08em;background:transparent;color:var(--text-muted);border:none;">LIVE</button>
+        </div>
+        <button class="btn" id="btnDeploy" title="Deploy payload to connected ducky device via C2" style="display:none;background:rgba(34,197,94,0.12);color:#4ade80;border:1px solid rgba(34,197,94,0.3);">
+            &#9889; Deploy to Device
+        </button>
+    </div>
+
+    <div class="toolbar-sep"></div>
+
+    <div class="toolbar-group">
+        <button class="btn" id="btnManual" title="Open Field Manual" onclick="toggleManualOverlay()" style="background:rgba(255,107,53,0.10);color:#ff6b35;border:1px solid rgba(255,107,53,0.25);">
+            &#9776; Manual
         </button>
     </div>
 
@@ -1119,6 +1193,158 @@ ENTER"></textarea>
         </div>
     </div>
 
+</div>
+
+<!-- -------------------------------------------------------------------------
+ * Field Manual (collapsible)
+ * ------------------------------------------------------------------------- -->
+<!-- Manual overlay (opened by toolbar button) -->
+<div class="manual-overlay" id="manualOverlay" onclick="if(event.target===this)toggleManualOverlay()">
+    <div class="manual-slide">
+        <div class="manual-slide-header">
+            <h2>Field Manual</h2>
+            <button class="manual-slide-close" onclick="toggleManualOverlay()">&times;</button>
+        </div>
+        <div id="manualSlideContent"></div>
+    </div>
+</div>
+
+<div class="ref-panel" id="fieldManualPanel" style="border-color:rgba(255,107,53,0.2);display:none;">
+
+    <div class="ref-toggle" id="manualToggle" role="button" aria-expanded="false" tabindex="0" style="border-color:rgba(255,107,53,0.15);">
+        <div class="ref-toggle-left">
+            <span style="color:var(--accent);">Field Manual &mdash; DuckyScript IDE Guide</span>
+        </div>
+        <span class="ref-toggle-arrow" id="manualArrow">&#9660;</span>
+    </div>
+
+    <div class="ref-body" id="manualBody" style="display:none;padding:20px;">
+
+        <!-- What is this -->
+        <div style="margin-bottom:20px;">
+            <h3 style="font-size:14px;color:var(--accent);margin-bottom:8px;">What is the DuckyScript IDE?</h3>
+            <p style="color:var(--text-muted);font-size:12px;line-height:1.7;">
+                This is a development environment for writing, testing, and deploying USB keystroke injection payloads. DuckyScript is the language used by the Hak5 USB Rubber Ducky and compatible devices (Digispark, BadUSB, Pico-Ducky). Payloads automate keyboard input &mdash; they type commands as if a human were sitting at the keyboard, but at machine speed.
+            </p>
+        </div>
+
+        <!-- Two Modes -->
+        <div style="margin-bottom:20px;">
+            <h3 style="font-size:14px;color:var(--accent);margin-bottom:8px;">Two Modes</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:12px;">
+                    <div style="font-size:11px;font-weight:700;color:var(--accent);letter-spacing:0.08em;margin-bottom:6px;">SIM MODE</div>
+                    <p style="color:var(--text-muted);font-size:11px;line-height:1.6;">
+                        Simulates payload execution in the terminal preview. Shows exactly what keystrokes would be injected, what windows would open, and what text would be typed. No real device needed. Click <strong>Run</strong> to simulate.
+                    </p>
+                </div>
+                <div style="background:var(--card);border:1px solid rgba(34,197,94,0.2);border-radius:6px;padding:12px;">
+                    <div style="font-size:11px;font-weight:700;color:#4ade80;letter-spacing:0.08em;margin-bottom:6px;">LIVE MODE</div>
+                    <p style="color:var(--text-muted);font-size:11px;line-height:1.6;">
+                        Deploys the payload to a real USB device registered with Hexworth C2. The device receives the payload via Cloud Functions and executes it on the target machine. Requires admin auth and a registered ducky device.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- DuckyScript Basics -->
+        <div style="margin-bottom:20px;">
+            <h3 style="font-size:14px;color:var(--accent);margin-bottom:8px;">DuckyScript Quick Reference</h3>
+            <div style="display:grid;grid-template-columns:100px 1fr;gap:4px 12px;font-size:11px;">
+                <code style="color:var(--accent);background:rgba(255,255,255,0.04);padding:2px 6px;border-radius:3px;">REM</code>
+                <span style="color:var(--text-muted);">Comment &mdash; not executed, for documentation</span>
+                <code style="color:var(--accent);background:rgba(255,255,255,0.04);padding:2px 6px;border-radius:3px;">DELAY 1000</code>
+                <span style="color:var(--text-muted);">Wait 1000ms (1 second) before next command</span>
+                <code style="color:var(--accent);background:rgba(255,255,255,0.04);padding:2px 6px;border-radius:3px;">STRING text</code>
+                <span style="color:var(--text-muted);">Type the text as keyboard input</span>
+                <code style="color:var(--accent);background:rgba(255,255,255,0.04);padding:2px 6px;border-radius:3px;">ENTER</code>
+                <span style="color:var(--text-muted);">Press the Enter key</span>
+                <code style="color:var(--accent);background:rgba(255,255,255,0.04);padding:2px 6px;border-radius:3px;">GUI r</code>
+                <span style="color:var(--text-muted);">Windows key + R (open Run dialog)</span>
+                <code style="color:var(--accent);background:rgba(255,255,255,0.04);padding:2px 6px;border-radius:3px;">CTRL ALT t</code>
+                <span style="color:var(--text-muted);">Ctrl+Alt+T (open terminal on Linux)</span>
+                <code style="color:var(--accent);background:rgba(255,255,255,0.04);padding:2px 6px;border-radius:3px;">TAB</code>
+                <span style="color:var(--text-muted);">Press Tab key (autocomplete, next field)</span>
+                <code style="color:var(--accent);background:rgba(255,255,255,0.04);padding:2px 6px;border-radius:3px;">REPEAT 5</code>
+                <span style="color:var(--text-muted);">Repeat the previous command 5 times</span>
+            </div>
+        </div>
+
+        <!-- Workflow -->
+        <div style="margin-bottom:20px;">
+            <h3 style="font-size:14px;color:var(--accent);margin-bottom:8px;">Workflow</h3>
+            <ol style="color:var(--text-muted);font-size:12px;line-height:2;padding-left:18px;">
+                <li><strong style="color:var(--text);">Write</strong> your payload in the editor (or load a template)</li>
+                <li><strong style="color:var(--text);">Simulate</strong> in SIM mode to verify the keystroke sequence</li>
+                <li><strong style="color:var(--text);">Export</strong> as .txt file for manual flashing to a USB Rubber Ducky</li>
+                <li>Or switch to <strong style="color:#4ade80;">LIVE</strong> and <strong style="color:#4ade80;">Deploy to Device</strong> via C2</li>
+            </ol>
+        </div>
+
+        <!-- Templates -->
+        <div style="margin-bottom:20px;">
+            <h3 style="font-size:14px;color:var(--accent);margin-bottom:8px;">Templates</h3>
+            <p style="color:var(--text-muted);font-size:12px;line-height:1.7;margin-bottom:8px;">
+                Use the template dropdown in the toolbar to load pre-built payloads. Each template is educational &mdash; they demonstrate real-world attack patterns that security professionals need to understand and defend against.
+            </p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;">
+                <div style="background:var(--card);padding:6px 10px;border-radius:4px;">
+                    <span style="color:var(--accent);">Hello World</span>
+                    <span style="color:var(--text-dim);display:block;font-size:10px;">Opens Notepad, types a message</span>
+                </div>
+                <div style="background:var(--card);padding:6px 10px;border-radius:4px;">
+                    <span style="color:var(--accent);">System Info</span>
+                    <span style="color:var(--text-dim);display:block;font-size:10px;">PowerShell system reconnaissance</span>
+                </div>
+                <div style="background:var(--card);padding:6px 10px;border-radius:4px;">
+                    <span style="color:var(--accent);">WiFi Passwords</span>
+                    <span style="color:var(--text-dim);display:block;font-size:10px;">Dumps saved WiFi credentials</span>
+                </div>
+                <div style="background:var(--card);padding:6px 10px;border-radius:4px;">
+                    <span style="color:var(--accent);">Reverse Shell</span>
+                    <span style="color:var(--text-dim);display:block;font-size:10px;">PowerShell TCP reverse connection</span>
+                </div>
+                <div style="background:var(--card);padding:6px 10px;border-radius:4px;">
+                    <span style="color:var(--accent);">Credential Harvester</span>
+                    <span style="color:var(--text-dim);display:block;font-size:10px;">Fake dialog box social engineering</span>
+                </div>
+                <div style="background:var(--card);padding:6px 10px;border-radius:4px;">
+                    <span style="color:var(--accent);">Rickroll</span>
+                    <span style="color:var(--text-dim);display:block;font-size:10px;">Opens a surprise YouTube video</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security -->
+        <div style="margin-bottom:12px;">
+            <h3 style="font-size:14px;color:#eab308;margin-bottom:8px;">Security &amp; Ethics</h3>
+            <div style="background:rgba(234,179,8,0.05);border:1px solid rgba(234,179,8,0.15);border-radius:6px;padding:12px;">
+                <ul style="color:var(--text-dim);font-size:11px;line-height:1.8;padding-left:14px;">
+                    <li>USB injection is a real attack vector used in penetration testing and red team operations</li>
+                    <li>Only use on systems you own or have <strong>written authorization</strong> to test</li>
+                    <li>Unauthorized use of keystroke injection devices is a federal crime (CFAA)</li>
+                    <li>Understanding the attack is essential for building defenses (USB device policies, endpoint detection)</li>
+                    <li>All payloads in this IDE are educational examples &mdash; study them to learn, not to harm</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Keyboard shortcuts -->
+        <div>
+            <h3 style="font-size:14px;color:var(--accent);margin-bottom:8px;">Keyboard Shortcuts</h3>
+            <div style="display:grid;grid-template-columns:120px 1fr;gap:4px 12px;font-size:11px;">
+                <kbd style="background:var(--card);padding:3px 8px;border-radius:4px;color:var(--accent);font-family:monospace;text-align:center;border:1px solid var(--border);">Ctrl+Enter</kbd>
+                <span style="color:var(--text-muted);padding-top:3px;">Run simulation</span>
+                <kbd style="background:var(--card);padding:3px 8px;border-radius:4px;color:var(--accent);font-family:monospace;text-align:center;border:1px solid var(--border);">Tab</kbd>
+                <span style="color:var(--text-muted);padding-top:3px;">Insert 4 spaces (indent)</span>
+            </div>
+        </div>
+
+        <div style="text-align:center;margin-top:20px;padding-top:12px;border-top:1px solid var(--border);color:var(--text-dim);font-size:10px;letter-spacing:0.08em;">
+            HEXWORTH PRIME &bull; SIGNAL HOUSE &bull; DUCKYSCRIPT IDE FIELD MANUAL v1.0
+        </div>
+
+    </div>
 </div>
 
 <!-- House navigation -->
@@ -2029,6 +2255,49 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    /* ── Field Manual slide-out overlay ── */
+    window.toggleManualOverlay = function() {
+        var overlay = document.getElementById('manualOverlay');
+        if (overlay.classList.contains('open')) {
+            overlay.classList.remove('open');
+        } else {
+            // Populate from hidden panel on first open
+            var content = document.getElementById('manualSlideContent');
+            if (!content.innerHTML.trim()) {
+                var body = document.getElementById('manualBody');
+                if (body) content.innerHTML = body.innerHTML;
+            }
+            overlay.classList.add('open');
+        }
+    };
+
+    // Close with Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            var overlay = document.getElementById('manualOverlay');
+            if (overlay && overlay.classList.contains('open')) toggleManualOverlay();
+        }
+    });
+
+    /* ── Field Manual panel toggle (legacy, panel now hidden) ── */
+    var manualToggle = document.getElementById('manualToggle');
+    var manualBody = document.getElementById('manualBody');
+    var manualArrow = document.getElementById('manualArrow');
+    if (manualToggle && manualBody) {
+        manualToggle.addEventListener('click', function() {
+            var isOpen = manualBody.style.display !== 'none';
+            manualBody.style.display = isOpen ? 'none' : 'block';
+            if (manualArrow) manualArrow.classList.toggle('open', !isOpen);
+            manualToggle.setAttribute('aria-expanded', String(!isOpen));
+        });
+        manualToggle.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                manualToggle.click();
+            }
+        });
+    }
+
     /* ── Template dropdown ── */
     templateSelect.addEventListener('change', function() {
         var key = templateSelect.value;
@@ -2182,6 +2451,98 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(fitWorkspace, 50);
     });
 
+});
+
+/* =========================================================================
+ * DuckyScript IDE — SIM / LIVE Mode Toggle
+ * SIM: runs the built-in keystroke simulator (existing behavior).
+ * LIVE: deploys the payload to a connected USB ducky device via C2.
+ * =========================================================================*/
+
+var dkyMode = 'sim';
+
+function dkySwitch(mode) {
+    dkyMode = mode;
+    var btnSim = document.getElementById('dkyModeSim');
+    var btnLive = document.getElementById('dkyModeLive');
+    var btnDeploy = document.getElementById('btnDeploy');
+    var btnRun = document.getElementById('btnRun');
+
+    if (mode === 'sim') {
+        btnSim.style.background = 'rgba(255,107,53,0.12)';
+        btnSim.style.color = '#ff6b35';
+        btnLive.style.background = 'transparent';
+        btnLive.style.color = 'var(--text-muted)';
+        btnDeploy.style.display = 'none';
+        btnRun.style.display = '';
+        btnRun.title = 'Run simulation (Ctrl+Enter)';
+    } else {
+        btnLive.style.background = 'rgba(34,197,94,0.12)';
+        btnLive.style.color = '#4ade80';
+        btnSim.style.background = 'transparent';
+        btnSim.style.color = 'var(--text-muted)';
+        btnDeploy.style.display = '';
+        btnRun.style.display = 'none';
+    }
+}
+
+/* Deploy payload to a connected ducky device via C2 dispatch */
+document.addEventListener('DOMContentLoaded', function() {
+    var btnDeploy = document.getElementById('btnDeploy');
+    if (!btnDeploy) return;
+
+    btnDeploy.addEventListener('click', function() {
+        var code = Editor.getValue().trim();
+        if (!code) {
+            alert('Nothing to deploy. Write or load a payload first.');
+            return;
+        }
+
+        // Prompt for device selection
+        var deviceId = prompt(
+            'Enter the Device ID of the connected ducky (e.g., d_5e3b04b4).\n\n' +
+            'You can find this in the C2 Dashboard under LIVE mode.'
+        );
+        if (!deviceId || !deviceId.trim()) return;
+        deviceId = deviceId.trim();
+
+        // Confirm deployment
+        if (!confirm('Deploy payload (' + code.split('\n').length + ' lines) to device ' + deviceId + '?\n\nThe device will execute this payload on its next command poll.')) {
+            return;
+        }
+
+        btnDeploy.disabled = true;
+        btnDeploy.textContent = 'Deploying...';
+
+        // Check if Firebase is available
+        if (typeof firebase === 'undefined' || !firebase.functions) {
+            alert('Firebase SDK not loaded. Please sign in first (admin required).');
+            btnDeploy.disabled = false;
+            btnDeploy.innerHTML = '&#9889; Deploy to Device';
+            return;
+        }
+
+        var dispatch = firebase.functions().httpsCallable('c2Dispatch');
+        dispatch({
+            deviceId: deviceId,
+            action: 'deploy-payload',
+            params: {
+                payload: code,
+                lineCount: code.split('\n').length,
+                source: 'duckyscript-ide'
+            },
+            ttl: 600
+        }).then(function(result) {
+            btnDeploy.disabled = false;
+            btnDeploy.innerHTML = '&#9889; Deploy to Device';
+            alert('Payload deployed!\n\nCommand ID: ' + result.data.commandId + '\n\nThe device will execute the payload on its next command poll (' +
+                  'check the C2 Dashboard for status).');
+        }).catch(function(error) {
+            btnDeploy.disabled = false;
+            btnDeploy.innerHTML = '&#9889; Deploy to Device';
+            alert('Deployment failed: ' + error.message);
+        });
+    });
 });
 </script>
 

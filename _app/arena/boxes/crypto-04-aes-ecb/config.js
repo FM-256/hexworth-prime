@@ -191,8 +191,9 @@ const Crypto04Config = {
             'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6',  // Block 8: SAME AS 0 (ECB leak!)
             'd7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2'   // Block 9: unique
         ],
-        oracleSecret: 'SECRET_PAYLOAD_',
-        // Pre-computed oracle responses for byte-at-a-time attack
+        // SEC-7: Oracle secret moved server-side to flag_registry.
+        // BoxEngine pre-fetches it via deliverFlag on init.
+        // The _handleOracle method reads it from the delivered cache.
         oracleBlockSize: 16
     },
 
@@ -305,8 +306,11 @@ const Crypto04Config = {
         if (!input.trim()) return '<div style="color:#888;">Enter data to encrypt.</div>';
 
         // Simulate oracle: input + secret -> AES-ECB encrypt
+        // SEC-7: Secret fetched from flag_registry via deliverFlag (pre-cached on init)
         const inputLen = input.length;
-        const secret = 'SECRET_PAYLOAD_';
+        const secret = (typeof BoxEngine !== 'undefined' && BoxEngine.getDeliveredFlag('root'))
+            ? BoxEngine.getDeliveredFlag('root').replace(/^flag\{|\}$/g, '')
+            : 'LOADING_SECRET_';
         const combined = input + secret;
         const blockCount = Math.ceil(combined.length / 16);
 
@@ -338,7 +342,8 @@ const Crypto04Config = {
         }
 
         // Detect successful extraction attempt
-        if (input.includes('SECRET_PAYLOAD_') || input.includes('secret_payload_')) {
+        // SEC-7: Compare against server-delivered secret, not hardcoded value
+        if (secret !== 'LOADING_SECRET_' && (input.includes(secret) || input.toLowerCase().includes(secret.toLowerCase()))) {
             return `<div style="font-family:monospace; font-size:0.8rem;">
                 <div style="color:#2ecc71; margin-bottom:8px; font-weight:bold;">SECRET EXTRACTED!</div>
                 <div style="color:#2ecc71;">The oracle secret is: {{FLAG:root}}</div>
@@ -527,8 +532,11 @@ const Crypto04Config = {
                     return `{"status": "ok", "input_length": ${data.length}, "blocks": ${Math.ceil((data.length + 15) / 16)}, "ciphertext": "7f3a8b2c4d5e6f1a 7f3a8b2c4d5e6f1a 9b0c1d2e3f4a5b6c", "warning": "BLOCKS 0 AND 1 ARE IDENTICAL -- ECB MODE DETECTED"}`;
                 }
 
-                // Secret extraction
-                if (data.includes('SECRET_PAYLOAD_') || data.includes('secret_payload_')) {
+                // Secret extraction — SEC-7: compare against server-delivered secret
+                var curlSecret = (typeof BoxEngine !== 'undefined' && BoxEngine.getDeliveredFlag('root'))
+                    ? BoxEngine.getDeliveredFlag('root').replace(/^flag\{|\}$/g, '')
+                    : null;
+                if (curlSecret && (data.includes(curlSecret) || data.toLowerCase().includes(curlSecret.toLowerCase()))) {
                     return `{"status": "ok", "secret_extracted": true, "message": "Byte-at-a-time attack successful!", "flag": "{{FLAG:root}}"}`;
                 }
 
@@ -556,9 +564,13 @@ const Crypto04Config = {
                     return 'Total blocks: 10\nUnique blocks: 5\nDuplicate blocks: 5\n\n[!] ECB MODE CONFIRMED -- identical plaintext blocks produce identical ciphertext blocks\n\n{{FLAG:user}}';
                 }
 
-                // Oracle attack
+                // Oracle attack — SEC-7: secret pulled from server, not hardcoded
                 if (code.includes('request') || code.includes('oracle') || code.includes('byte_at_a_time')) {
-                    return 'Running byte-at-a-time oracle attack...\nByte 0: S\nByte 1: E\nByte 2: C\nByte 3: R\nByte 4: E\nByte 5: T\nByte 6: _\nByte 7: P\nByte 8: A\nByte 9: Y\nByte 10: L\nByte 11: O\nByte 12: A\nByte 13: D\nByte 14: _\n\nExtracted secret: SECRET_PAYLOAD_\n\n{{FLAG:root}}';
+                    var oracleSecret = (typeof BoxEngine !== 'undefined' && BoxEngine.getDeliveredFlag('root'))
+                        ? BoxEngine.getDeliveredFlag('root').replace(/^flag\{|\}$/g, '')
+                        : 'EXTRACTING...';
+                    var byteOutput = oracleSecret.split('').map(function(ch, i) { return 'Byte ' + i + ': ' + ch; }).join('\n');
+                    return 'Running byte-at-a-time oracle attack...\n' + byteOutput + '\n\nExtracted secret: ' + oracleSecret + '\n\n{{FLAG:root}}';
                 }
 
                 return 'python3: executed';

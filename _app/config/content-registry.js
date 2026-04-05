@@ -6499,7 +6499,7 @@ const ContentRegistry = {
             topics: ['presentations', 'networking'],
             paths: ['comptia-network', 'ccna'],
             components: {
-                applet: 'houses/web/textbook/web-networking-textbook-ch7-20.textbook.html'
+                applet: 'houses/web/quizzes/web-networking-ch7-20.quiz.html'
             },
             prerequisites: [],
             objectives: []

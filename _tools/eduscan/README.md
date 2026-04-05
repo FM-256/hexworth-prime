@@ -184,6 +184,7 @@ Runs 8 targeted tests against core platform systems in a real browser.
 | Level | Meaning | CI Behavior |
 |-------|---------|-------------|
 | **CRITICAL** | Breaks sync, grading, or compliance | Blocks merge and deploy |
+| **SLA** | Contractual — affects paying tenant customers | Blocks in strict mode, immediate attention |
 | **HIGH** | Breaks analytics, progress tracking, or student UX | Blocks in strict mode |
 | **MEDIUM** | Affects reporting consistency | Reported, does not block |
 | **LOW** | Hygiene, legacy patterns | Reported, does not block |
@@ -260,6 +261,24 @@ Runs 8 targeted tests against core platform systems in a real browser.
 | HEUR-006 | medium | Hardcoded relative href in shared JS renderer (fragile back links) |
 | HEUR-007 | medium | Monospace font class missing `white-space: pre-wrap` — multi-line code renders as single paragraph |
 | HEUR-008 | suspect | `position:fixed` in dynamically created element — breaks when body/ancestor has CSS transform or filter |
+| HEUR-009 | suspect | Empty template literal `${}` in inline scripts (SyntaxError kills entire script block) |
+| HEUR-010 | suspect | `querySelector` targets heading tag not present in HTML (null crash) |
+| HEUR-011 | high | Literal `</script>` inside JS string — HTML parser terminates script block early |
+| HEUR-012 | high | JS syntax error via `new Function()` parse check (unclosed strings, missing quotes, etc.) |
+| HEUR-013 | medium | `innerHTML` assignment with unsanitized template literal (XSS risk) |
+| HEUR-014 | medium | `onclick` with hardcoded `window.location` redirect (bypasses routing, breaks tenant encapsulation) |
+| HEUR-015 | medium | `eval()` usage in non-sandbox code (code injection risk) |
+| HEUR-016 | warning | `document.write()` usage (DOM clobbering, breaks page if called after load) |
+| HEUR-017 | high | Platform component lazy-loaded via `createElement('script')` — should be static `<script src>` |
+| HEUR-018 | medium | Scroll-triggered auto-completion — `ModuleProgress.complete()` fires on scroll threshold instead of deliberate user action |
+| HEUR-019 | sla | Tenant config missing required fields (`slug`, `branding`, `licensing`, or `adminUids`) — dashboard cannot initialize |
+| HEUR-020 | medium | Tenant dashboard broken asset references — absolute image/icon/CSS paths that don't resolve within `_app/` |
+| HEUR-021 | sla | Tenant licenses house with no content in registry — paying for empty content |
+| QUIZ-001 | high | Quiz has `serverGrading: true` but still contains client-side `correct:` fields (answer leak) |
+| QUIZ-002 | high | Quiz has client-side `correct:` fields without `serverGrading` (answers visible via View Source) |
+| QUIZ-003 | high | Quiz has no `serverGrading` and no `correct:` fields (grades 0% — broken) |
+| QUIZ-004 | critical | Quiz REGRESSION — was server-graded in baseline but `serverGrading` is now missing |
+| QUIZ-005 | critical | Quiz KEY MISMATCH — answer key count doesn't match question count, or answer index out of range |
 | MATH-001 | suspect | Unguarded `parseInt()` in arithmetic — NaN will propagate if input is invalid |
 | DATA-001 | suspect | `localStorage.getItem()` in `+=` or arithmetic without `Number()` coercion |
 
@@ -471,7 +490,7 @@ The test runner (`tests/run.js`) loads fixture files from `tests/fixtures/`, run
 | `js-strict-issues.html` | Strict JS checks | JS-003, 004, SCOPE-001 |
 | `path-strict-issues.html` | Strict path checks | PATH-004, 005 |
 | `naming-full-issues.html` | Full naming checks | NAME-003, 004 |
-| `heuristic-issues.html` | Anomaly detection | HEUR-001, 002, 003, 004, 005, 007, MATH-001, DATA-001 |
+| `heuristic-issues.html` | Anomaly detection | HEUR-001 through HEUR-021, QUIZ-001 through QUIZ-005, MATH-001, DATA-001 |
 | `nav-issues.html` | Navigation issues | NAV-001 |
 | `emoji-issues.html` | Emoji usage | EMOJI-001, 002, 003, 004 |
 | `semantic-issues.html` | Semantic structure | SEM-001, 002 |
@@ -645,7 +664,7 @@ _tools/eduscan/
 │   │   ├── engine.js               # ENG-001 through ENG-003
 │   │   ├── paths.js                # PATH-001 through PATH-IDX-001
 │   │   ├── naming.js               # NAME-001 through NAME-004
-│   │   ├── heuristics.js           # HEUR-001 through HEUR-008, MATH-001, DATA-001
+│   │   ├── heuristics.js           # HEUR-001 through HEUR-021, QUIZ-001 through QUIZ-005, MATH-001, DATA-001
 │   │   ├── csp.js                  # CSP-001
 │   │   ├── content-catalog.js      # CAT-001 through CAT-005
 │   │   ├── learning-paths.js       # LP-001 through LP-010

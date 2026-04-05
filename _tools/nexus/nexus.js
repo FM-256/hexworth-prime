@@ -680,7 +680,7 @@ async function cmdFull(args, flags) {
     hub.saveFindings(store);
     console.log(`\n  ${C.dim}Findings store: ${store.findings.length} total${C.reset}`);
 
-    // Step 4: Triage (dry-run summary, or apply with --triage flag)
+    // Step 4: Triage — always apply (dedup prevents duplicates)
     console.log('');
     console.log(`  ${C.bold}[4/6]${C.reset} ${C.cyan}Triage scan findings...${C.reset}`);
 
@@ -691,18 +691,14 @@ async function cmdFull(args, flags) {
         );
 
         if (triageFiltered.length) {
-            const triageApply = flags.triage || false;
-            const triageResult = hub.triageToSpoke(triageFiltered, spokes.sprint, { dryRun: !triageApply });
+            const triageResult = hub.triageToSpoke(triageFiltered, spokes.sprint, { dryRun: false });
 
             if (triageResult.created.length) {
-                const label = triageApply ? 'created' : 'would create';
+                const label = 'created';
                 console.log(`  ${C.green}+${triageResult.created.length}${C.reset} ${C.dim}items ${label}${C.reset}`);
             }
             if (triageResult.skipped.length) {
                 console.log(`  ${C.dim}=${triageResult.skipped.length} already tracked${C.reset}`);
-            }
-            if (!triageApply && triageResult.created.length > 0) {
-                console.log(`  ${C.dim}Add --triage to auto-create sprint items${C.reset}`);
             }
         } else {
             console.log(`  ${C.dim}No critical/high scanner findings to triage${C.reset}`);

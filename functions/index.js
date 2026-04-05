@@ -3424,7 +3424,7 @@ exports.adminCreateClass = onCall(cfOptions, async (request) => {
     let code = (joinCode || '').trim().toUpperCase();
     if (!code || code.length < 4) {
         // Auto-generate: course prefix + 4 random chars
-        const prefixMap = { 'network-plus': 'NP', 'cyberops': 'CO', 'aplus-core1': 'A1', 'aplus-core2': 'A2', 'md-100': 'MD', 'md-101': 'ME', 'feh': 'FH' };
+        const prefixMap = { 'network-plus': 'NP', 'cyberops': 'CO', 'aplus-core1': 'A1', 'aplus-core2': 'A2', 'md-100': 'MD', 'md-101': 'ME', 'feh': 'FH', 'python-hub': 'PY', 'python-for-it': 'PI' /* Python for IT (COP1034C) */ };
         const prefix = prefixMap[courseId] || 'HX';
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         let rand = '';
@@ -3812,12 +3812,50 @@ exports.enrollInClass = onCall(cfOptions, async (request) => {
     // Write enrollment lookup doc — allows any page to discover this
     // student's tenant/class without depending on localStorage.
     // Read by syncClassProgress CF and client-side tenant context restore.
-    batch.set(db.doc(`enrollments/${uid}`), {
+    //
+    // Multi-enrollment: enrollments are stored as an array so a student
+    // can be in multiple classes simultaneously. Each entry has
+    // { tenantSlug, classId, courseId, enrolledAt }. Progress syncs to
+    // the class whose courseId matches the completed module.
+    const enrollRef = db.doc(`enrollments/${uid}`);
+    const enrollSnap = await enrollRef.get();
+    const newEntry = {
         tenantSlug: tenantSlug,
         classId: classId,
-        courseId: classData.courseId || '',
-        enrolledAt: FieldValue.serverTimestamp()
-    });
+        courseId: classData.courseId || ''
+    };
+
+    if (enrollSnap.exists) {
+        const existingData = enrollSnap.data();
+
+        // Migration: if old single-enrollment format, convert to array
+        if (!existingData.enrollments && existingData.tenantSlug) {
+            const legacyEntry = {
+                tenantSlug: existingData.tenantSlug,
+                classId: existingData.classId,
+                courseId: existingData.courseId || ''
+            };
+            // Start fresh array with the legacy entry + the new one
+            const entries = [legacyEntry];
+            // Only add new entry if it's not a duplicate of the legacy one
+            if (legacyEntry.classId !== newEntry.classId) {
+                entries.push(newEntry);
+            }
+            batch.set(enrollRef, { enrollments: entries });
+        } else {
+            // Already array format — add if not duplicate
+            const existing = existingData.enrollments || [];
+            const alreadyHas = existing.some(e => e.classId === newEntry.classId);
+            if (!alreadyHas) {
+                batch.update(enrollRef, {
+                    enrollments: FieldValue.arrayUnion(newEntry)
+                });
+            }
+        }
+    } else {
+        // First enrollment for this student
+        batch.set(enrollRef, { enrollments: [newEntry] });
+    }
 
     await batch.commit();
 
@@ -3849,50 +3887,69 @@ exports.syncClassProgress = onCall(cfOptions, async (request) => {
         throw new HttpsError('invalid-argument', 'Missing moduleId.');
     }
 
-    // If tenant/class not provided by client, look up from enrollment doc.
-    // This removes the dependency on localStorage/sessionStorage — the server
-    // knows where the student is enrolled via Firestore.
-    if (!tenantSlug || !classId) {
+    // Multi-enrollment: if tenant/class not provided by client, look up
+    // from enrollments/{uid} and sync to ALL enrolled classes.
+    // If client provides specific tenant/class, sync only to that one.
+    const targets = []; // Array of { tenantSlug, classId } to sync to
+
+    if (tenantSlug && classId) {
+        // Client specified exactly which class — use it directly
+        targets.push({ tenantSlug, classId });
+    } else {
+        // Look up all enrollments and sync to each one
         const enrollDoc = await db.doc(`enrollments/${uid}`).get();
         if (!enrollDoc.exists) {
             return { success: false, reason: 'not_enrolled' };
         }
-        const enroll = enrollDoc.data();
-        tenantSlug = enroll.tenantSlug;
-        classId = enroll.classId;
+        const enrollData = enrollDoc.data();
+
+        // Handle both old single-enrollment format and new array format
+        if (enrollData.enrollments && Array.isArray(enrollData.enrollments)) {
+            enrollData.enrollments.forEach(e => {
+                targets.push({ tenantSlug: e.tenantSlug, classId: e.classId });
+            });
+        } else if (enrollData.tenantSlug && enrollData.classId) {
+            // Legacy single-enrollment format
+            targets.push({ tenantSlug: enrollData.tenantSlug, classId: enrollData.classId });
+        }
     }
 
-    if (!tenantSlug || !classId) {
+    if (targets.length === 0) {
         return { success: false, reason: 'no_enrollment_found' };
     }
 
-    const progressRef = db.doc(`tenants/${tenantSlug}/classes/${classId}/progress/${uid}`);
-    const progressDoc = await progressRef.get();
+    // Sync progress to each enrolled class
+    let synced = 0;
+    for (const target of targets) {
+        const progressRef = db.doc(`tenants/${target.tenantSlug}/classes/${target.classId}/progress/${uid}`);
+        const progressDoc = await progressRef.get();
 
-    if (!progressDoc.exists) {
-        // Not enrolled — silently ignore
-        return { success: false, reason: 'not_enrolled' };
-    }
+        if (!progressDoc.exists) {
+            // Not enrolled in this class — skip
+            continue;
+        }
 
-    const updates = {
-        lastActive: FieldValue.serverTimestamp()
-    };
+        const updates = {
+            lastActive: FieldValue.serverTimestamp()
+        };
 
-    if (type === 'quiz' && score !== undefined) {
-        updates[`quizScores.${moduleId}`] = Number(score);
-    }
+        if (type === 'quiz' && score !== undefined) {
+            updates[`quizScores.${moduleId}`] = Number(score);
+        }
 
-    if (type === 'module' || type === 'presentation' || type === 'tool') {
-        updates.modulesCompleted = FieldValue.arrayUnion(moduleId);
-    }
+        if (type === 'module' || type === 'presentation' || type === 'tool') {
+            updates.modulesCompleted = FieldValue.arrayUnion(moduleId);
+        }
 
-    if (type === 'lab') {
-        updates.labsCompleted = FieldValue.arrayUnion(moduleId);
-    }
+        if (type === 'lab') {
+            updates.labsCompleted = FieldValue.arrayUnion(moduleId);
+        }
 
-    await progressRef.update(updates);
+        await progressRef.update(updates);
+        synced++;
+    } // end for-each enrolled class
 
-    return { success: true, moduleId, type };
+    return { success: synced > 0, moduleId, type, classesUpdated: synced };
 });
 
 // ═══════════════════════════════════════════════════════════════════════════

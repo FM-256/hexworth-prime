@@ -37,7 +37,9 @@ const TenantFilter = (function() {
         if (_loaded) return;
         _loaded = true;
         try {
-            var raw = sessionStorage.getItem('hexworth_tenant');
+            // Check both storage types for cross-tab resilience
+            var raw = sessionStorage.getItem('hexworth_tenant') ||
+                      localStorage.getItem('hexworth_tenant');
             if (raw) {
                 _tenant = JSON.parse(raw);
             }

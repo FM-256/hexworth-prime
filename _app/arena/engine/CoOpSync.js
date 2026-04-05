@@ -479,7 +479,19 @@ const CoOpSync = (function() {
                 }
 
                 // Verify flag value
-                const flag = flags.find(f => f.id === flagId && f.value.toLowerCase() === flagValue.toLowerCase());
+                // Flags may have a .value property (legacy) or the value comes from
+                // the deliverFlag system (server-delivered). Check both paths.
+                let flag = flags.find(f => f.id === flagId && f.value && f.value.toLowerCase() === flagValue.toLowerCase());
+                if (!flag) {
+                    // Fallback: check against BoxEngine's delivered flags cache
+                    // This handles boxes where flags[] has { id, points } but no value
+                    if (typeof BoxEngine !== 'undefined' && BoxEngine.getDeliveredFlag) {
+                        const delivered = BoxEngine.getDeliveredFlag(flagId);
+                        if (delivered && delivered.toLowerCase() === flagValue.toLowerCase()) {
+                            flag = flags.find(f => f.id === flagId);
+                        }
+                    }
+                }
                 if (!flag) {
                     state.wrongFlags = (state.wrongFlags || 0) + 1;
                     state.score = Math.max(0, state.score + (scoring?.wrongFlagPenalty || -25));

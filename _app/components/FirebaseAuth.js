@@ -665,7 +665,8 @@ document.addEventListener('DOMContentLoaded', function() {
 // FirebaseAuth but not AccessGuard (arena boxes, dispatch, arctic).
 (function() {
     try {
-        if (sessionStorage.getItem('hexworth_tenant')) {
+        // Check both storage types for tenant context (cross-tab resilience)
+        if (sessionStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant')) {
             if (typeof TenantRouter === 'undefined' && !window.__tenantRouterRequested) {
                 window.__tenantRouterRequested = true;
                 var r = document.createElement('script');

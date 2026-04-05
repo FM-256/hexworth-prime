@@ -583,7 +583,14 @@ const AccessGuard = (function() {
         // Without this, white-label students would need to pass sorting
         // quizzes and Dark Arts gates that don't exist in their experience.
         try {
-            if (sessionStorage.getItem('hexworth_tenant') && level !== 'admin' && level !== 'admin-only') {
+            // Check both sessionStorage (same-tab) and localStorage (cross-tab).
+            // Lobby.html writes to both; this ensures tenant bypass survives
+            // new-tab navigation where sessionStorage is empty.
+            // Matches the pattern used by TenantShell.js, TenantRouter.js,
+            // and ModuleProgress.js which already check both.
+            var tenantData = sessionStorage.getItem('hexworth_tenant') ||
+                             localStorage.getItem('hexworth_tenant');
+            if (tenantData && level !== 'admin' && level !== 'admin-only') {
                 showContent();
                 return true;
             }
@@ -995,7 +1002,8 @@ document.addEventListener('DOMContentLoaded', function() {
 // No-op when no tenant context (direct Hexworth Prime users).
 (function() {
     try {
-        if (sessionStorage.getItem('hexworth_tenant')) {
+        // Check both storage types for tenant context (cross-tab resilience)
+        if (sessionStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant')) {
             // Load TenantRouter first (synchronous navigation decisions)
             if (typeof TenantRouter === 'undefined' && !window.__tenantRouterRequested) {
                 window.__tenantRouterRequested = true;

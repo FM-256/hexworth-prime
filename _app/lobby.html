@@ -578,6 +578,22 @@
         </div>
     </div>
 
+    <!-- Multi-enrollment class picker -->
+    <div id="state-multi" class="state">
+        <div style="text-align:center;margin-bottom:16px;">
+            <div style="font-size:1.1rem;font-weight:600;color:#e2e8f0;">Your Classes</div>
+            <div style="font-size:0.82rem;color:#64748b;margin-top:4px;">Select a class to continue</div>
+        </div>
+        <div id="multi-class-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+        <div class="code-section" style="margin-top:16px;">
+            <label class="code-label" for="code-input-multi">Or enter a new code</label>
+            <input type="text" id="code-input-multi" class="code-input" placeholder="ABC123" maxlength="20" autocomplete="off" spellcheck="false">
+            <button class="join-btn" id="btn-join-multi" disabled>Join</button>
+        </div>
+        <!-- Message area for join code feedback in multi-enrollment state -->
+        <div id="msg-multi" class="message"></div>
+    </div>
+
     <!-- Loading overlay -->
     <div id="state-loading" class="state">
         <div class="loading-row">
@@ -615,12 +631,14 @@
         'aplus-core2':  { name: 'CompTIA A+ Core 2 (220-1102)',         icon: '/assets/images/icons/icon-wrench.webp',    href: '/houses/forge/' },
         'md-100':       { name: 'MD-100 Windows Client',                icon: '/assets/images/icons/icon-terminal.webp',  href: '/houses/forge/' },
         'md-101':       { name: 'MD-101 Windows Devices',               icon: '/assets/images/icons/icon-terminal.webp',  href: '/houses/forge/' },
-        'feh':          { name: 'FEH — Forensics & Ethical Hacking',    icon: '/assets/images/icons/icon-magnifier.webp', href: '/houses/eye/forensics/' }
+        'feh':          { name: 'FEH — Forensics & Ethical Hacking',    icon: '/assets/images/icons/icon-magnifier.webp', href: '/houses/eye/forensics/' },
+        'python-hub':   { name: 'Python Programming Hub',              icon: '/assets/images/icons/icon-terminal.webp',  href: '/houses/code/modules/python-hub/index.html' }, /* Python Hub course */
+        'python-for-it': { name: 'Python for IT (COP1034C)',           icon: '/assets/images/icons/icon-terminal.webp',  href: '/houses/code/python-for-it/index.html' } /* Python for IT course */
     };
 
     // ── DOM Refs ──
     const $ = id => document.getElementById(id);
-    const states = ['state-code', 'state-class', 'state-tournament', 'state-enrolled', 'state-loading'];
+    const states = ['state-code', 'state-class', 'state-tournament', 'state-enrolled', 'state-multi', 'state-loading'];
 
     function showState(id, loadingText) {
         states.forEach(s => $(s).classList.remove('active'));
@@ -651,7 +669,10 @@
     const resolveJoinCode = httpsCallable(functions, 'resolveJoinCode');
     const enrollInClass   = httpsCallable(functions, 'enrollInClass');
 
-    // ── Enrollment Persistence ──
+    // ── Enrollment Persistence (Multi-Enrollment) ──
+    // Stores an array of enrollments so students can be in multiple classes.
+    // Also writes single-class keys for backward compatibility with ModuleProgress.
+
     function _saveEnrollment(ts, ci, co, cn, tenantConfig) {
         // TenantRouter expects JSON with { slug, branding } — not a raw string
         var tenantJson = tenantConfig
@@ -660,10 +681,28 @@
         sessionStorage.setItem('hexworth_tenant', tenantJson);
         sessionStorage.setItem('hexworth_class', ci);
         localStorage.setItem('hexworth_tenant', tenantJson);
+
+        // Single-class keys (backward compat for ModuleProgress.js)
         localStorage.setItem('hexworth_tenant_slug', ts);
         localStorage.setItem('hexworth_class_id', ci);
         localStorage.setItem('hexworth_course_id', co);
         localStorage.setItem('hexworth_class_name', cn || '');
+
+        // Multi-enrollment array — add this enrollment if not already present
+        var enrollments = _getEnrollments();
+        var exists = enrollments.some(function(e) { return e.classId === ci; });
+        if (!exists) {
+            enrollments.push({ tenantSlug: ts, classId: ci, courseId: co, className: cn || '' });
+            localStorage.setItem('hexworth_enrollments', JSON.stringify(enrollments));
+        }
+    }
+
+    function _getEnrollments() {
+        try {
+            var raw = localStorage.getItem('hexworth_enrollments');
+            if (raw) return JSON.parse(raw);
+        } catch (e) {}
+        return [];
     }
 
     function _clearEnrollment() {
@@ -674,25 +713,105 @@
         localStorage.removeItem('hexworth_class_id');
         localStorage.removeItem('hexworth_course_id');
         localStorage.removeItem('hexworth_class_name');
+        localStorage.removeItem('hexworth_enrollments');
+    }
+
+    // Remove a single enrollment from the array (used by Leave Class)
+    function _removeEnrollment(classId) {
+        var enrollments = _getEnrollments();
+        enrollments = enrollments.filter(function(e) { return e.classId !== classId; });
+        localStorage.setItem('hexworth_enrollments', JSON.stringify(enrollments));
+        // If enrollments remain, set the first one as active for backward compat
+        if (enrollments.length > 0) {
+            var first = enrollments[0];
+            localStorage.setItem('hexworth_tenant_slug', first.tenantSlug);
+            localStorage.setItem('hexworth_class_id', first.classId);
+            localStorage.setItem('hexworth_course_id', first.courseId);
+            localStorage.setItem('hexworth_class_name', first.className || '');
+        } else {
+            _clearEnrollment();
+        }
+    }
+
+    // ── Multi-Enrollment Class Picker ──
+    // Shows a list of enrolled classes when student has more than one.
+    // Clicking a class sets it as active and redirects to its course hub.
+    function _showMultiEnrolled(enrollments) {
+        var container = $('multi-class-list');
+        container.innerHTML = enrollments.map(function(e) {
+            var course = COURSE_MAP[e.courseId] || { name: e.courseId, icon: '/assets/images/icons/icon-books.webp' };
+            return '<button class="info-card" style="cursor:pointer;width:100%;text-align:left;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;" '
+                + 'data-tenant="' + (e.tenantSlug || '') + '" '
+                + 'data-class="' + (e.classId || '') + '" '
+                + 'data-course="' + (e.courseId || '') + '" '
+                + 'data-name="' + (e.className || '') + '">'
+                + '<img src="' + course.icon + '" alt="" style="width:36px;height:36px;border-radius:8px;">'
+                + '<div style="flex:1;">'
+                + '<div style="font-size:0.95rem;font-weight:600;color:#e2e8f0;">' + course.name + '</div>'
+                + '<div style="font-size:0.75rem;color:#64748b;">' + (e.className || e.courseId) + '</div>'
+                + '</div>'
+                + '<span style="color:#06b6d4;font-size:1.2rem;">&#8250;</span>'
+                + '</button>';
+        }).join('');
+
+        // Click handler for each class card
+        container.querySelectorAll('button').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var ts = btn.dataset.tenant;
+                var ci = btn.dataset.class;
+                var co = btn.dataset.course;
+                var cn = btn.dataset.name;
+                // Set this class as active for ModuleProgress backward compat
+                localStorage.setItem('hexworth_tenant_slug', ts);
+                localStorage.setItem('hexworth_class_id', ci);
+                localStorage.setItem('hexworth_course_id', co);
+                localStorage.setItem('hexworth_class_name', cn);
+                // Navigate to course hub
+                var course = COURSE_MAP[co];
+                window.location.href = course ? course.href : '/dashboard.html';
+            });
+        });
+
+        // Code input wiring for this state is handled by setupCodeInput()
+        // at boot time (see below), not here — avoids duplicate listeners
+        // on repeat renders of the picker.
+
+        showState('state-multi');
     }
 
     // ── Auth State ──
     // Check enrollment from localStorage first (fast), then Firestore (authoritative).
-    // This ensures returning students see "Continue to Course" even if localStorage was cleared.
+    // Multi-enrollment: if multiple classes, show a picker instead of auto-redirect.
     onAuthStateChanged(auth, async (user) => {
-        // Try localStorage first (instant)
-        const savedTenant = localStorage.getItem('hexworth_tenant_slug');
-        const savedClass = localStorage.getItem('hexworth_class_id');
-        const savedCourse = localStorage.getItem('hexworth_course_id');
+        // Try localStorage multi-enrollment array first
+        var enrollments = _getEnrollments();
 
-        if (savedTenant && savedClass && savedCourse) {
-            // Already enrolled — show continue state
-            const course = COURSE_MAP[savedCourse];
-            $('enrolled-class-name').textContent = localStorage.getItem('hexworth_class_name') || 'Your Class';
-            $('enrolled-course').textContent = course ? course.name : savedCourse;
+        // If no array, try legacy single-class keys
+        if (enrollments.length === 0) {
+            const savedTenant = localStorage.getItem('hexworth_tenant_slug');
+            const savedClass = localStorage.getItem('hexworth_class_id');
+            const savedCourse = localStorage.getItem('hexworth_course_id');
+            if (savedTenant && savedClass && savedCourse) {
+                enrollments = [{ tenantSlug: savedTenant, classId: savedClass, courseId: savedCourse, className: localStorage.getItem('hexworth_class_name') || '' }];
+                // Migrate to array format
+                localStorage.setItem('hexworth_enrollments', JSON.stringify(enrollments));
+            }
+        }
+
+        // If localStorage has enrollments, show them
+        if (enrollments.length === 1) {
+            // Single enrollment — show continue state (same as before)
+            const e = enrollments[0];
+            const course = COURSE_MAP[e.courseId];
+            $('enrolled-class-name').textContent = e.className || 'Your Class';
+            $('enrolled-course').textContent = course ? course.name : e.courseId;
             $('enrolled-icon').src = course ? course.icon : '/assets/images/icons/icon-globe.webp';
-            resolvedData = { tenantSlug: savedTenant, classId: savedClass, courseId: savedCourse };
+            resolvedData = { tenantSlug: e.tenantSlug, classId: e.classId, courseId: e.courseId };
             showState('state-enrolled');
+            return;
+        } else if (enrollments.length > 1) {
+            // Multiple enrollments — show class picker
+            _showMultiEnrolled(enrollments);
             return;
         }
 
@@ -701,21 +820,41 @@
             try {
                 const enrollDoc = await getDoc(doc(db, 'enrollments', user.uid));
                 if (enrollDoc.exists()) {
-                    const enroll = enrollDoc.data();
-                    const course = COURSE_MAP[enroll.courseId];
+                    const enrollData = enrollDoc.data();
+                    var firestoreEnrollments = [];
 
-                    // Restore localStorage for future visits
-                    _saveEnrollment(enroll.tenantSlug, enroll.classId, enroll.courseId, '', null);
+                    // Handle both array and legacy single-enrollment format
+                    if (enrollData.enrollments && Array.isArray(enrollData.enrollments)) {
+                        firestoreEnrollments = enrollData.enrollments;
+                    } else if (enrollData.tenantSlug && enrollData.classId) {
+                        firestoreEnrollments = [{
+                            tenantSlug: enrollData.tenantSlug,
+                            classId: enrollData.classId,
+                            courseId: enrollData.courseId || ''
+                        }];
+                    }
 
-                    $('enrolled-class-name').textContent = 'Your Class';
-                    $('enrolled-course').textContent = course ? course.name : enroll.courseId;
-                    $('enrolled-icon').src = course ? course.icon : '/assets/images/icons/icon-globe.webp';
-                    resolvedData = { tenantSlug: enroll.tenantSlug, classId: enroll.classId, courseId: enroll.courseId };
-                    showState('state-enrolled');
-                    return;
+                    if (firestoreEnrollments.length > 0) {
+                        // Restore localStorage for future visits
+                        firestoreEnrollments.forEach(function(e) {
+                            _saveEnrollment(e.tenantSlug, e.classId, e.courseId, e.className || '', null);
+                        });
+
+                        if (firestoreEnrollments.length === 1) {
+                            const e = firestoreEnrollments[0];
+                            const course = COURSE_MAP[e.courseId];
+                            $('enrolled-class-name').textContent = 'Your Class';
+                            $('enrolled-course').textContent = course ? course.name : e.courseId;
+                            $('enrolled-icon').src = course ? course.icon : '/assets/images/icons/icon-globe.webp';
+                            resolvedData = { tenantSlug: e.tenantSlug, classId: e.classId, courseId: e.courseId };
+                            showState('state-enrolled');
+                        } else {
+                            _showMultiEnrolled(firestoreEnrollments);
+                        }
+                        return;
+                    }
                 }
             } catch (e) {
-                // Firestore read failed — fall through to code input
                 console.warn('[Lobby] Enrollment check failed:', e.message);
             }
         }
@@ -745,8 +884,12 @@
         btn.addEventListener('click', () => handleJoin(input.value.trim(), msgId));
     }
 
-    setupCodeInput('code-input', 'btn-join', 'msg-code');
-    setupCodeInput('code-input-enrolled', 'btn-join-enrolled', 'msg-enrolled');
+    // Wire up code inputs for all three states that have join-code entry.
+    // Each uses the same setupCodeInput pattern: enable button on 3+ chars,
+    // call handleJoin on click or Enter. The msgId div shows error feedback.
+    setupCodeInput('code-input', 'btn-join', 'msg-code');               // state-code (first visit)
+    setupCodeInput('code-input-enrolled', 'btn-join-enrolled', 'msg-enrolled'); // state-enrolled (single class)
+    setupCodeInput('code-input-multi', 'btn-join-multi', 'msg-multi');  // state-multi (multi-enrollment picker)
 
     // ── Join Handler ──
     async function handleJoin(code, msgElId) {
@@ -948,11 +1091,21 @@
     // ── Leave Class ──
     $('btn-leave').addEventListener('click', async () => {
         if (!confirm('Are you sure you want to leave this class?')) return;
-        // Clear enrollment and return to code entry
-        _clearEnrollment();
+        // Remove this specific enrollment, keep others
+        if (resolvedData && resolvedData.classId) {
+            _removeEnrollment(resolvedData.classId);
+        } else {
+            _clearEnrollment();
+        }
         resolvedData = null;
-        showState('state-code');
-        setTimeout(() => $('code-input').focus(), 100);
+        // Check if other enrollments remain
+        var remaining = _getEnrollments();
+        if (remaining.length > 0) {
+            _showMultiEnrolled(remaining);
+        } else {
+            showState('state-code');
+            setTimeout(() => $('code-input').focus(), 100);
+        }
     });
 
     // ── Back Buttons ──

@@ -37,7 +37,7 @@
     // ── Check for tenant context ─────────────────────────
     var raw = null;
     try {
-        raw = sessionStorage.getItem('hexworth_tenant');
+        raw = sessionStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant');
     } catch (e) {}
 
     // No tenant = no-op. Direct Hexworth Prime users see nothing.

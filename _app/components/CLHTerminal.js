@@ -1509,6 +1509,7 @@ Change: 2026-01-17 09:00:00.000000000 +0000`;
 
     function _cmd_grep(args) {
         let ignoreCase = false, showLineNumbers = false, countOnly = false, invertMatch = false;
+        let recursive = false, listOnly = false;
         let pattern = null;
         const files = [];
 
@@ -1518,13 +1519,17 @@ Change: 2026-01-17 09:00:00.000000000 +0000`;
             else if (arg === '-n') showLineNumbers = true;
             else if (arg === '-c') countOnly = true;
             else if (arg === '-v') invertMatch = true;
+            else if (arg === '-r' || arg === '-R') recursive = true;
+            else if (arg === '-l') listOnly = true;
             else if (arg.startsWith('-') && arg.length > 1) {
-                // Handle combined flags like -ci, -in, -cin
+                // Handle combined flags like -ri, -rn, -rl, -cin
                 for (const char of arg.slice(1)) {
                     if (char === 'i') ignoreCase = true;
                     else if (char === 'n') showLineNumbers = true;
                     else if (char === 'c') countOnly = true;
                     else if (char === 'v') invertMatch = true;
+                    else if (char === 'r' || char === 'R') recursive = true;
+                    else if (char === 'l') listOnly = true;
                 }
             } else if (!pattern) pattern = arg;
             else files.push(arg);
@@ -1533,12 +1538,30 @@ Change: 2026-01-17 09:00:00.000000000 +0000`;
         if (!pattern) return _err('grep: missing pattern');
         if (files.length === 0) return '<span class="clh-dim">grep: reading from stdin</span>';
 
-        const results = [];
-        const regex = new RegExp(pattern, ignoreCase ? 'gi' : 'g');
-
+        // Expand directories recursively if -r flag is set
+        const expandedFiles = [];
         for (const f of files) {
             const path = _resolvePath(f);
             const node = state.fs[path];
+            if (node && node.type === 'dir' && recursive) {
+                // Collect all files recursively under this directory
+                const dirPrefix = path.endsWith('/') ? path : path + '/';
+                for (const fsPath of Object.keys(state.fs)) {
+                    if (fsPath.startsWith(dirPrefix) && state.fs[fsPath].type === 'file') {
+                        expandedFiles.push(fsPath);
+                    }
+                }
+            } else {
+                expandedFiles.push(path);
+            }
+        }
+
+        const results = [];
+        const regex = new RegExp(pattern, ignoreCase ? 'gi' : 'g');
+        const multiFile = expandedFiles.length > 1;
+
+        for (const fPath of expandedFiles) {
+            const node = state.fs[fPath];
             if (!node || node.type === 'dir' || !node.content) continue;
 
             const lines = node.content.split('\n');
@@ -1550,8 +1573,12 @@ Change: 2026-01-17 09:00:00.000000000 +0000`;
 
                 if (invertMatch ? !isMatch : isMatch) {
                     fileMatchCount++;
+                    if (listOnly) {
+                        if (!results.includes(fPath)) results.push(fPath);
+                        break;
+                    }
                     if (!countOnly) {
-                        const prefix = files.length > 1 ? `${f}:` : '';
+                        const prefix = multiFile ? `<span class="clh-dim">${fPath}:</span>` : '';
                         const lineNum = showLineNumbers ? `${i + 1}:` : '';
                         const highlighted = lines[i].replace(regex, '<span class="clh-highlight">$&</span>');
                         results.push(`${prefix}${lineNum}${highlighted}`);
@@ -1560,7 +1587,7 @@ Change: 2026-01-17 09:00:00.000000000 +0000`;
             }
 
             if (countOnly) {
-                const prefix = files.length > 1 ? `${f}:` : '';
+                const prefix = multiFile ? `${fPath}:` : '';
                 results.push(`${prefix}${fileMatchCount}`);
             }
         }

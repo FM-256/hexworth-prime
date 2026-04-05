@@ -65,6 +65,19 @@ const BoxEngine = {
         this._flagHashes = [];
         this._computeFlagHashes().catch(e => console.error('[ARENA] Flag hash computation failed:', e));
 
+        // Pre-fetch all flag texts from server so the delivered flags cache is
+        // populated before the user submits. This is essential for VS/CoOp mode
+        // where submitFlagAtomically validates against the cache. Without this,
+        // flags that use {{FLAG:}} placeholders aren't in cache until the user
+        // triggers the command that reveals them.
+        if (config.registryId && config.flags) {
+            config.flags.forEach(f => {
+                if (!this.getDeliveredFlag(f.id)) {
+                    this.requestFlagText(f.id).catch(() => {});
+                }
+            });
+        }
+
         // DevTools detection — research instrumentation only, does NOT block (AR-11).
         // Uses window size differential heuristic: when DevTools is docked,
         // outerWidth - innerWidth grows beyond 200px. Logged for instructor analytics.

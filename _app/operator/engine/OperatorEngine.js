@@ -927,8 +927,16 @@
         statusEl.id          = 'header-status';
         statusEl.textContent = 'IN PROGRESS';
 
+        // Help button (reopens move list + legend)
+        var helpBtn = document.createElement('button');
+        helpBtn.style.cssText = 'background:rgba(255,107,53,0.10);color:#ff6b35;border:1px solid rgba(255,107,53,0.25);border-radius:5px;padding:4px 10px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;margin-left:auto;';
+        helpBtn.textContent = '? Help';
+        helpBtn.title = 'Show move list and grid legend';
+        helpBtn.onclick = function() { showHelpOverlay(config); };
+
         header.appendChild(backLink);
         header.appendChild(titleEl);
+        header.appendChild(helpBtn);
         header.appendChild(statusEl);
         rootEl.appendChild(header);
 
@@ -1156,6 +1164,280 @@
     //  11. INIT -- Entry Point
     // ----------------------------------------------------------------
 
+    // ----------------------------------------------------------------
+    //  MISSION BRIEFING OVERLAY
+    // ----------------------------------------------------------------
+
+    function buildBriefing(config, rootEl, onStart) {
+        // Check skip preference
+        if (localStorage.getItem('hexworth_operator_skip_briefing') === 'true') {
+            onStart();
+            return;
+        }
+
+        var overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:200;background:#08080f;display:flex;justify-content:center;align-items:flex-start;overflow-y:auto;padding:40px 20px;font-family:"Courier New",Courier,monospace;';
+
+        var card = document.createElement('div');
+        card.style.cssText = 'max-width:680px;width:100%;';
+
+        // Accent bar
+        var accent = config.accent || '#ff6b35';
+        var accentBar = document.createElement('div');
+        accentBar.style.cssText = 'height:3px;background:' + accent + ';border-radius:2px;margin-bottom:24px;';
+        card.appendChild(accentBar);
+
+        // Title
+        var title = document.createElement('div');
+        title.style.cssText = 'font-size:1.4rem;font-weight:700;color:#f1f5f9;letter-spacing:1px;margin-bottom:4px;';
+        title.textContent = config.title || config.id;
+        card.appendChild(title);
+
+        var sub = document.createElement('div');
+        sub.style.cssText = 'font-size:0.82rem;color:#64748b;margin-bottom:20px;';
+        sub.textContent = config.subtitle || '';
+        card.appendChild(sub);
+
+        // Scenario
+        var scenario = document.createElement('div');
+        scenario.style.cssText = 'font-size:0.82rem;color:#94a3b8;line-height:1.7;margin-bottom:20px;padding:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:6px;';
+        var modeLabel = config.inputMode === 'terminal' ? 'terminal commands' : 'Python code';
+        scenario.innerHTML = 'Write ' + modeLabel + ' to control your agent through a network grid. Navigate nodes, scan for threats, bypass gates, and complete all objectives. Traps damage your integrity &mdash; scan before you move.';
+        card.appendChild(scenario);
+
+        // Objectives
+        if (config.objectives && config.objectives.length > 0) {
+            var objTitle = document.createElement('div');
+            objTitle.style.cssText = 'font-size:0.72rem;font-weight:700;color:' + accent + ';text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;';
+            objTitle.textContent = 'OBJECTIVES';
+            card.appendChild(objTitle);
+
+            var objList = document.createElement('ul');
+            objList.style.cssText = 'font-size:0.8rem;color:#c0c0d0;line-height:1.8;margin:0 0 20px 20px;padding:0;';
+            for (var i = 0; i < config.objectives.length; i++) {
+                var li = document.createElement('li');
+                li.textContent = config.objectives[i].label;
+                objList.appendChild(li);
+            }
+            card.appendChild(objList);
+        }
+
+        // Move list / Command reference
+        var cmdTitle = document.createElement('div');
+        cmdTitle.style.cssText = 'font-size:0.72rem;font-weight:700;color:' + accent + ';text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;';
+        cmdTitle.textContent = config.inputMode === 'terminal' ? 'COMMAND REFERENCE' : 'MOVE LIST';
+        card.appendChild(cmdTitle);
+
+        var commands = [];
+        if (config.inputMode === 'terminal') {
+            commands = [
+                ['move <dir>', 'Move agent: north, south, east, west'],
+                ['scan', 'Scan adjacent cells — reveals nodes and disarms traps'],
+                ['nmap <node>', 'Port scan a node — required to bypass firewall gates'],
+                ['status', 'Show current position, discovered nodes, and objectives'],
+                ['sweep <dir>', 'Scan a specific direction — reveals and disarms one cell'],
+                ['ping <node>', 'Check if a node is reachable from current position'],
+                ['help', 'Show available commands']
+            ];
+        } else {
+            commands = [
+                ['agent.move("north")', 'Move agent in a direction (north/south/east/west)'],
+                ['agent.scan()', 'Scan adjacent cells — reveals nodes and disarms traps'],
+                ['agent.nmap("node")', 'Port scan a node — required to bypass firewall gates'],
+                ['agent.status()', 'Show current position, discovered nodes, objectives'],
+                ['agent.sweep("dir")', 'Scan a specific direction — reveals and disarms one cell'],
+                ['agent.ping("node")', 'Check if a node is reachable from current position'],
+                ['for / if / while', 'Standard Python control flow works']
+            ];
+        }
+
+        var cmdGrid = document.createElement('div');
+        cmdGrid.style.cssText = 'display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:0.78rem;margin-bottom:20px;';
+        for (var c = 0; c < commands.length; c++) {
+            var cmdName = document.createElement('code');
+            cmdName.style.cssText = 'color:' + accent + ';background:rgba(255,255,255,0.05);padding:2px 8px;border-radius:3px;white-space:nowrap;';
+            cmdName.textContent = commands[c][0];
+            var cmdDesc = document.createElement('span');
+            cmdDesc.style.cssText = 'color:#94a3b8;padding-top:2px;';
+            cmdDesc.textContent = commands[c][1];
+            cmdGrid.appendChild(cmdName);
+            cmdGrid.appendChild(cmdDesc);
+        }
+        card.appendChild(cmdGrid);
+
+        // Grid legend
+        var legTitle = document.createElement('div');
+        legTitle.style.cssText = 'font-size:0.72rem;font-weight:700;color:' + accent + ';text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;';
+        legTitle.textContent = 'GRID LEGEND';
+        card.appendChild(legTitle);
+
+        var legendItems = [
+            ['\u25A0', '#4ade80', 'Your Agent — current position'],
+            ['\u25A3', '#94a3b8', 'Network Node — move onto it to discover'],
+            ['\u25A0', '#1e293b', 'Fog of War — unexplored, use scan to reveal'],
+            ['\u2718', '#ef4444', 'Trap — damages integrity if you enter unscanned'],
+            ['\u25A8', '#f59e0b', 'Gate — requires a specific action to pass (nmap, exploit, etc.)'],
+            ['\u2605', '#a855f7', 'Target — your final objective'],
+            ['\u25A0', '#0f172a', 'Wall — impassable']
+        ];
+
+        var legGrid = document.createElement('div');
+        legGrid.style.cssText = 'display:grid;grid-template-columns:24px auto 1fr;gap:4px 10px;font-size:0.78rem;margin-bottom:24px;';
+        for (var l = 0; l < legendItems.length; l++) {
+            var sym = document.createElement('span');
+            sym.style.cssText = 'color:' + legendItems[l][1] + ';text-align:center;font-size:1rem;';
+            sym.textContent = legendItems[l][0];
+            var lbl = document.createElement('span');
+            lbl.style.cssText = 'color:#e2e8f0;font-weight:600;';
+            lbl.textContent = legendItems[l][0] === '\u2718' ? 'Trap' : legendItems[l][0] === '\u25A8' ? 'Gate' : legendItems[l][0] === '\u2605' ? 'Target' : '';
+            var ldesc = document.createElement('span');
+            ldesc.style.cssText = 'color:#94a3b8;';
+            ldesc.textContent = legendItems[l][2];
+            legGrid.appendChild(sym);
+            legGrid.appendChild(lbl);
+            legGrid.appendChild(ldesc);
+        }
+        card.appendChild(legGrid);
+
+        // Tips
+        var tips = document.createElement('div');
+        tips.style.cssText = 'font-size:0.75rem;color:#64748b;line-height:1.6;margin-bottom:24px;padding:10px 14px;background:rgba(255,107,53,0.06);border:1px solid rgba(255,107,53,0.15);border-radius:6px;';
+        tips.innerHTML = '<strong style="color:' + accent + ';">Tips:</strong> Always <code style="color:' + accent + ';">scan()</code> before moving into unknown territory. Traps are invisible until scanned. Gates require specific commands shown in the output. Your integrity meter is your health &mdash; reach zero and the mission fails.';
+        card.appendChild(tips);
+
+        // Buttons
+        var btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;gap:12px;align-items:center;';
+
+        var btnStart = document.createElement('button');
+        btnStart.style.cssText = 'padding:12px 32px;background:' + accent + ';color:#fff;border:none;border-radius:6px;font-family:inherit;font-size:0.9rem;font-weight:700;cursor:pointer;letter-spacing:0.5px;transition:opacity 0.2s;';
+        btnStart.textContent = 'BEGIN MISSION';
+        btnStart.onmouseover = function() { this.style.opacity = '0.85'; };
+        btnStart.onmouseout = function() { this.style.opacity = '1'; };
+        btnStart.onclick = function() {
+            overlay.style.transition = 'opacity 0.3s';
+            overlay.style.opacity = '0';
+            setTimeout(function() { overlay.remove(); onStart(); }, 300);
+        };
+        btnRow.appendChild(btnStart);
+
+        var skipLink = document.createElement('span');
+        skipLink.style.cssText = 'font-size:0.72rem;color:#64748b;cursor:pointer;';
+        skipLink.textContent = 'Skip briefings';
+        skipLink.onclick = function() {
+            localStorage.setItem('hexworth_operator_skip_briefing', 'true');
+            overlay.remove();
+            onStart();
+        };
+        btnRow.appendChild(skipLink);
+
+        card.appendChild(btnRow);
+        overlay.appendChild(card);
+        rootEl.appendChild(overlay);
+    }
+
+    // Help button handler — reopens legend as a slide-out
+    function showHelpOverlay(config) {
+        var existing = document.getElementById('op-help-overlay');
+        if (existing) { existing.remove(); return; }
+
+        var overlay = document.createElement('div');
+        overlay.id = 'op-help-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:150;background:rgba(0,0,0,0.6);display:flex;justify-content:flex-end;';
+        overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+        var panel = document.createElement('div');
+        panel.style.cssText = 'width:380px;max-width:90vw;height:100vh;background:#0d1117;border-left:1px solid rgba(255,255,255,0.08);overflow-y:auto;padding:20px;animation:opSlideIn 0.2s ease-out;font-family:"Courier New",Courier,monospace;';
+
+        // Inject animation
+        if (!document.getElementById('op-help-anim')) {
+            var style = document.createElement('style');
+            style.id = 'op-help-anim';
+            style.textContent = '@keyframes opSlideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}';
+            document.head.appendChild(style);
+        }
+
+        var accent = config.accent || '#ff6b35';
+        var header = document.createElement('div');
+        header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.08);';
+        header.innerHTML = '<span style="font-size:14px;font-weight:700;color:' + accent + ';">MOVE LIST & LEGEND</span>';
+        var closeBtn = document.createElement('button');
+        closeBtn.style.cssText = 'background:none;border:none;color:#64748b;font-size:18px;cursor:pointer;';
+        closeBtn.textContent = '\u00D7';
+        closeBtn.onclick = function() { overlay.remove(); };
+        header.appendChild(closeBtn);
+        panel.appendChild(header);
+
+        // Reuse the briefing content builder for commands + legend
+        var commands = [];
+        if (config.inputMode === 'terminal') {
+            commands = [
+                ['move <dir>', 'Move: north/south/east/west'],
+                ['scan', 'Scan adjacent cells'],
+                ['nmap <node>', 'Port scan a node'],
+                ['status', 'Show position and objectives'],
+                ['sweep <dir>', 'Scan one direction'],
+                ['ping <node>', 'Check node reachability'],
+                ['help', 'Show commands']
+            ];
+        } else {
+            commands = [
+                ['agent.move("dir")', 'Move agent'],
+                ['agent.scan()', 'Scan adjacent'],
+                ['agent.nmap("node")', 'Port scan node'],
+                ['agent.status()', 'Show status'],
+                ['agent.sweep("dir")', 'Scan direction'],
+                ['agent.ping("node")', 'Ping node']
+            ];
+        }
+
+        var cmdSec = document.createElement('div');
+        cmdSec.style.cssText = 'margin-bottom:16px;';
+        cmdSec.innerHTML = '<div style="font-size:0.7rem;font-weight:700;color:' + accent + ';text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">COMMANDS</div>';
+        var cmdHtml = '';
+        for (var i = 0; i < commands.length; i++) {
+            cmdHtml += '<div style="display:flex;gap:8px;margin-bottom:4px;font-size:0.75rem;"><code style="color:' + accent + ';white-space:nowrap;">' + commands[i][0] + '</code><span style="color:#94a3b8;">' + commands[i][1] + '</span></div>';
+        }
+        cmdSec.innerHTML += cmdHtml;
+        panel.appendChild(cmdSec);
+
+        // Legend
+        var legSec = document.createElement('div');
+        legSec.innerHTML = '<div style="font-size:0.7rem;font-weight:700;color:' + accent + ';text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">GRID LEGEND</div>' +
+            '<div style="font-size:0.75rem;color:#94a3b8;line-height:2;">' +
+            '<span style="color:#4ade80;">\u25A0</span> Your Agent &nbsp; ' +
+            '<span style="color:#94a3b8;">\u25A3</span> Node &nbsp; ' +
+            '<span style="color:#1e293b;">\u25A0</span> Fog &nbsp; ' +
+            '<span style="color:#ef4444;">\u2718</span> Trap &nbsp; ' +
+            '<span style="color:#f59e0b;">\u25A8</span> Gate &nbsp; ' +
+            '<span style="color:#a855f7;">\u2605</span> Target &nbsp; ' +
+            '<span style="color:#0f172a;">\u25A0</span> Wall' +
+            '</div>';
+        panel.appendChild(legSec);
+
+        // Objectives
+        if (config.objectives) {
+            var objSec = document.createElement('div');
+            objSec.style.cssText = 'margin-top:16px;';
+            objSec.innerHTML = '<div style="font-size:0.7rem;font-weight:700;color:' + accent + ';text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">OBJECTIVES</div>';
+            var objHtml = '';
+            for (var j = 0; j < config.objectives.length; j++) {
+                objHtml += '<div style="font-size:0.75rem;color:#c0c0d0;margin-bottom:4px;">\u25CB ' + config.objectives[j].label + '</div>';
+            }
+            objSec.innerHTML += objHtml;
+            panel.appendChild(objSec);
+        }
+
+        overlay.appendChild(panel);
+        document.body.appendChild(overlay);
+
+        // Close on Escape
+        function escHandler(e) {
+            if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escHandler); }
+        }
+        document.addEventListener('keydown', escHandler);
+    }
+
     function init(config) {
         _config = config;
         _els    = {};
@@ -1175,7 +1457,6 @@
         var terminal = null;
 
         if (isTerminal) {
-            // Terminal mode: apply term-panel class for styling
             layout.editorPanel.classList.add('term-panel');
             terminal = buildTerminal(layout.editorPanel, config);
         } else {
@@ -1195,7 +1476,10 @@
         updateObjectivesUI(_state, config);
         updateIntegrityUI(_state, config);
 
-        if (editor) editor.focus();
+        // Show mission briefing overlay (first time only)
+        buildBriefing(config, rootEl, function() {
+            if (editor) editor.focus();
+        });
         if (terminal) terminal.focus();
 
         // Show briefing for terminal mode on fresh start

@@ -41,7 +41,8 @@ const PATH_OVERRIDES = {
     'path-strict-issues.html': 'houses/web/path-strict-issues.html',
     'naming-full-issues.html': 'houses/web/labs/MyBadFile.html',
     'nav-issues.html':         'houses/web/modules/test-nav.module.html',
-    'xp-issues.js':            'components/xp-issues.js'
+    'xp-issues.js':            'components/xp-issues.js',
+    'escape-issues.html':      'houses/web/network-plus/exams/escape-issues.html'
 };
 
 // ── Instantiate validators ──────────────────────────────────────────

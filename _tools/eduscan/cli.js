@@ -77,7 +77,10 @@ function parseArgs(args) {
         fix: false,                 // Run auto-fixer on scan results
         dryRun: true,               // Dry-run mode for --fix (default: true)
         help: false,
-        version: false
+        version: false,
+        tree: false,                // --tree: interactive hub tree mapper
+        treeAll: false,             // --tree --all: generate all trees
+        treeHub: null               // --tree <path>: specific hub path
     };
 
     for (let i = 0; i < args.length; i++) {
@@ -276,6 +279,22 @@ function parseArgs(args) {
                 options.showVerified = true;
                 break;
 
+            case '--tree':
+                options.tree = true;
+                // Check if next arg is a hub path or --all
+                if (nextArg && !nextArg.startsWith('-')) {
+                    options.treeHub = nextArg;
+                    i++;
+                }
+                break;
+
+            case '--all':
+                // Used with --tree: generate all hub trees
+                if (options.tree) {
+                    options.treeAll = true;
+                }
+                break;
+
             case '-h':
             case '--help':
                 options.help = true;
@@ -331,6 +350,9 @@ Options:
   --dry-run              Explicit dry-run mode (default with --fix)
   --impact               Run impact analysis (dependency map + contract validation)
   --impact-file <path>   Analyze impact of a specific file change
+  --tree                 Interactive course hub tree mapper (Tab to autocomplete)
+  --tree <hub-path>      Map a specific hub (e.g., houses/web/network-plus/index.html)
+  --tree --all           Generate tree JSON for all hubs (writes to _app/data/course-trees/)
   --no-color             Disable colored output
 
 Verification (Human-in-the-Loop False Positive Labeling):
@@ -374,6 +396,9 @@ Examples:
   eduscan --functional --runtime-only  # Runtime checks only (all pages)
   eduscan --fix                       # Dry-run: show what auto-fixer would change
   eduscan --fix --apply              # Apply auto-fixes to disk
+  eduscan --tree                      # Interactive hub picker with Tab autocomplete
+  eduscan --tree houses/web/network-plus/index.html  # Map specific hub
+  eduscan --tree --all               # Generate all trees for admin console
   eduscan -p ./src -o ./audit        # Custom paths
 
   # Verification workflow (label false positives):
@@ -568,7 +593,7 @@ function main() {
     const colorFn = options.colors
         ? (text, ...colors) => {
             const ansi = {
-                reset: '\x1b[0m', bright: '\x1b[1m', dim: '\x1b[2m',
+                reset: '\x1b[0m', bright: '\x1b[1m', bold: '\x1b[1m', dim: '\x1b[2m',
                 red: '\x1b[31m', green: '\x1b[32m', yellow: '\x1b[33m',
                 blue: '\x1b[34m', magenta: '\x1b[35m', cyan: '\x1b[36m'
             };
@@ -576,6 +601,12 @@ function main() {
             return `${codes}${text}${ansi.reset}`;
         }
         : (text) => text;
+
+    // Tree mode - course hub navigation mapper
+    if (options.tree) {
+        runTree(options, colorFn);
+        return;
+    }
 
     // Watch mode - run watcher instead of single scan
     if (options.watch) {
@@ -1082,6 +1113,141 @@ function runFix(options, colorFn) {
  * @param {Object} options - CLI options
  * @param {Function} colorFn - Color function
  */
+// ── Tree Mapper: interactive hub picker with Tab autocomplete ──────────────
+function runTree(options, colorFn) {
+    const c = colorFn;
+    const TreeMapper = require('./validators/tree-mapper');
+    const mapper = new TreeMapper({
+        rootPath: options.path,
+        verbose: options.verbose
+    });
+
+    // --tree --all: generate all trees and write JSON for admin console
+    if (options.treeAll) {
+        const hubs = mapper.discoverHubs();
+        console.log(c('\nCOURSE TREE GENERATOR', 'bright'));
+        console.log(c('─'.repeat(60), 'dim'));
+        console.log(`  Discovered ${hubs.length} hubs\n`);
+
+        const results = [];
+        for (const hub of hubs) {
+            process.stdout.write(`  Mapping ${c(hub.title, 'cyan')}...`);
+            const result = mapper.buildTree(hub.path);
+            const filePath = mapper.writeJSON(result);
+            results.push(result);
+            const statusMsg = result.stats.broken > 0
+                ? c(` ${result.stats.totalNodes} nodes, ${result.stats.broken} BROKEN`, 'red')
+                : c(` ${result.stats.totalNodes} nodes, ${result.stats.ok} ok`, 'green');
+            console.log(statusMsg);
+        }
+
+        const manifestPath = mapper.writeManifest(results);
+        console.log(c('\n─'.repeat(60), 'dim'));
+        console.log(`  Trees:    ${results.length} JSON files written`);
+        console.log(`  Manifest: ${manifestPath}`);
+        console.log(`  Broken:   ${results.reduce((s, r) => s + r.stats.broken, 0)} total broken links`);
+        console.log('');
+        return;
+    }
+
+    // --tree <specific-hub>: map a specific hub directly
+    if (options.treeHub) {
+        const result = mapper.buildTree(options.treeHub);
+        if (result.error) {
+            console.error(c(result.error, 'red'));
+            process.exit(1);
+        }
+        console.log(mapper.formatTree(result, c));
+        return;
+    }
+
+    // --tree (no args): interactive Tab-autocomplete hub picker
+    const readline = require('readline');
+    const hubs = mapper.discoverHubs();
+
+    // Build display list: "title (house/path)"
+    const hubEntries = hubs.map(h => ({
+        display: `${h.title}  ${c('(' + h.path + ')', 'dim')}`,
+        displayPlain: `${h.title} (${h.path})`,
+        title: h.title,
+        path: h.path,
+        house: h.house
+    }));
+
+    let highlightIndex = 0;
+    let filtered = hubEntries;
+
+    console.log('');
+    console.log(c('COURSE TREE MAPPER', 'bright') + c('  (Tab to autocomplete, Enter to select)', 'dim'));
+    console.log(c('─'.repeat(60), 'dim'));
+    console.log(`  ${hubs.length} hubs available\n`);
+
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+        completer: function(line) {
+            const lower = line.toLowerCase();
+            const matches = hubEntries
+                .filter(h => h.title.toLowerCase().includes(lower) || h.path.toLowerCase().includes(lower) || h.house.toLowerCase().includes(lower))
+                .map(h => h.title);
+            return [matches.length ? matches : hubEntries.map(h => h.title), line];
+        }
+    });
+
+    rl.question(c('  Hub: ', 'cyan'), (answer) => {
+        rl.close();
+
+        // Match by title or path
+        const lower = answer.trim().toLowerCase();
+        const match = hubEntries.find(h =>
+            h.title.toLowerCase() === lower ||
+            h.path.toLowerCase() === lower ||
+            h.path.toLowerCase().includes(lower)
+        );
+
+        if (!match) {
+            // Fuzzy match — find closest
+            const fuzzy = hubEntries.filter(h =>
+                h.title.toLowerCase().includes(lower) || h.path.toLowerCase().includes(lower)
+            );
+
+            if (fuzzy.length === 0) {
+                console.error(c(`\n  No hub matching "${answer}"`, 'red'));
+                console.log(c('  Available hubs:', 'dim'));
+                hubEntries.slice(0, 10).forEach(h => console.log(`    ${h.title} ${c('(' + h.path + ')', 'dim')}`));
+                if (hubEntries.length > 10) console.log(c(`    ... and ${hubEntries.length - 10} more`, 'dim'));
+                process.exit(1);
+            } else if (fuzzy.length === 1) {
+                // Single match — use it
+                runTreeForHub(mapper, fuzzy[0].path, c);
+            } else {
+                console.log(c(`\n  Multiple matches for "${answer}":`, 'yellow'));
+                fuzzy.forEach((h, i) => console.log(`    ${i + 1}. ${h.title} ${c('(' + h.path + ')', 'dim')}`));
+                // Use first match
+                console.log(c(`\n  Using: ${fuzzy[0].title}`, 'cyan'));
+                runTreeForHub(mapper, fuzzy[0].path, c);
+            }
+            return;
+        }
+
+        runTreeForHub(mapper, match.path, c);
+    });
+}
+
+function runTreeForHub(mapper, hubPath, colorFn) {
+    const result = mapper.buildTree(hubPath);
+    if (result.error) {
+        console.error(colorFn(result.error, 'red'));
+        process.exit(1);
+    }
+    console.log(mapper.formatTree(result, colorFn));
+
+    // Also write JSON
+    const filePath = mapper.writeJSON(result);
+    console.log(colorFn(`  Tree saved: ${filePath}`, 'dim'));
+    console.log('');
+}
+
 function runImpact(options, colorFn) {
     const c = colorFn;
     const ImpactAnalyzer = require('./validators/impact');
