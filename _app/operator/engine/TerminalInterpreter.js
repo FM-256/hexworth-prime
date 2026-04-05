@@ -55,6 +55,13 @@
     function buildTerminalUI(config) {
         var editorPanel = document.querySelector('.editor-panel');
         if (!editorPanel) return null;
+
+        /* Grab the engine's output console BEFORE clearing the panel.
+           In terminal mode, the engine creates .term-output inside .editor-panel.
+           We need to preserve it so engine.printLine() still works. */
+        var existingOutput = editorPanel.querySelector('.term-output') ||
+                             editorPanel.querySelector('.output-console');
+
         editorPanel.innerHTML = '';
 
         // Terminal bar
@@ -71,9 +78,19 @@
         termBar.appendChild(barLabel);
         editorPanel.appendChild(termBar);
 
-        // Output console (reuse engine's)
-        var outputConsole = document.querySelector('.output-console');
-        editorPanel.appendChild(outputConsole);
+        /* Re-attach the engine's output console (preserved before innerHTML clear).
+           This keeps the engine's _els.outputConsole reference valid so
+           engine.printLine() continues to work after TerminalInterpreter takes over. */
+        var outputConsole;
+        if (existingOutput) {
+            outputConsole = existingOutput;
+            editorPanel.appendChild(outputConsole);
+        } else {
+            outputConsole = document.createElement('div');
+            outputConsole.className = 'output-console term-output';
+            outputConsole.id = 'term-output';
+            editorPanel.appendChild(outputConsole);
+        }
 
         // Input row
         var inputRow = document.createElement('div');
