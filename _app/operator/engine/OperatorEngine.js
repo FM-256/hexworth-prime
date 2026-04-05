@@ -81,8 +81,15 @@
 
     // ----------------------------------------------------------------
     //  2. GRID RENDERING
+    //  The grid is a CSS Grid of cells. Each cell has 3 child elements:
+    //    .cell-icon  — node abbreviation (GTW, RTR, FWL) or '?' when fogged
+    //    .cell-label — full node label (GATEWAY, ROUTER) when visited
+    //    .cell-agent — player position indicator (hidden unless current)
+    //  Visual states: wall, current, vis-hidden, vis-revealed, vis-visited,
+    //    empty-vis, bypassed (gate cleared), scanned, trap-warned
     // ----------------------------------------------------------------
 
+    /** Build the initial grid DOM (empty cells). Called once during init. */
     function buildGrid(config, container) {
         container.innerHTML = '';
         container.style.gridTemplateColumns = 'repeat(' + config.grid.cols + ', 1fr)';
@@ -114,6 +121,7 @@
         }
     }
 
+    /** Refresh all grid cell visuals based on current state (position, visibility, gates, traps). */
     function updateGrid(state, config) {
         var rows  = config.grid.rows;
         var cols  = config.grid.cols;
@@ -200,8 +208,13 @@
 
     // ----------------------------------------------------------------
     //  3. FOG OF WAR
+    //  Adjacent cells (N/S/E/W) are revealed when the player moves.
+    //  'hidden' → 'revealed' (visible but not visited) on first exposure.
+    //  'revealed' → 'visited' when the player actually enters the cell.
+    //  Walls are never revealed. Animation: 'just-revealed' class for 500ms.
     // ----------------------------------------------------------------
 
+    /** Reveal the 4 cardinal neighbors of (col, row). Skips walls and already-visible cells. */
     function revealAdjacent(state, config, col, row) {
         var dirs  = [[0, -1], [0, 1], [1, 0], [-1, 0]];
         var rows  = config.grid.rows;
@@ -233,8 +246,12 @@
 
     // ----------------------------------------------------------------
     //  4. OUTPUT CONSOLE
+    //  Scrolling text output visible below the code editor (Python mode)
+    //  or as the main terminal output (terminal mode). Capped at 200 lines
+    //  to prevent DOM bloat on long-running missions.
     // ----------------------------------------------------------------
 
+    /** Append a line to the output console. Types: system, success, error, warning, info, heading. */
     function printLine(text, type) {
         var output = _els.outputConsole;
         if (!output) return;
@@ -251,8 +268,13 @@
 
     // ----------------------------------------------------------------
     //  5. NODE RESOLUTION
+    //  Translates user input ('router', 'RTR', '10.0.0.2') into a grid
+    //  node entry. Supports exact match (type, label, IP, abbreviation)
+    //  and partial match (substring). If multiple matches, prompts user
+    //  to be more specific. Returns { type, col, row, visibility, info }.
     // ----------------------------------------------------------------
 
+    /** Fuzzy-resolve a target string to a grid node. Returns single match or null. */
     function resolveNode(target, config, state) {
         var q       = String(target).toLowerCase();
         var exact   = [];
@@ -299,8 +321,14 @@
 
     // ----------------------------------------------------------------
     //  6. OBJECTIVES SYSTEM
+    //  Each mission defines objectives with check expressions evaluated
+    //  against game state. Expressions support: Set.has(), .size comparisons,
+    //  .indexOf(), boolean flags, numeric comparisons, AND (&&), OR (||).
+    //  Example: 'nodesDiscovered.size >= 4 && firewallBypassed'
+    //  All objectives complete → triggers SEC-4 server validation → completion.
     // ----------------------------------------------------------------
 
+    /** Update the objectives bar UI — marks completed objectives with checkmarks. */
     function updateObjectivesUI(state, config) {
         for (var i = 0; i < config.objectives.length; i++) {
             var el = _els.objBar.querySelector('#obj-' + i);
@@ -422,6 +450,7 @@
         }
     }
 
+    /** Re-evaluate all objectives. Announces newly completed ones. Triggers completion if all done. */
     function checkObjectives(state, config) {
         var prev = state.objectives.slice();
 
@@ -574,8 +603,13 @@
 
     // ----------------------------------------------------------------
     //  7. INTEGRITY SYSTEM
+    //  Pip-based health meter. Each trap triggered or failed action costs
+    //  1 pip. At 1 pip: 'critical' CSS class adds red warning. At 0 pips:
+    //  mission could fail (not currently enforced — future feature).
+    //  Default: 3 pips, configurable per mission via config.integrity.
     // ----------------------------------------------------------------
 
+    /** Update the integrity pip display — active (green) vs lost (dark) pips. */
     function updateIntegrityUI(state, config) {
         var maxInt = config.integrity || 3;
         var meter  = _els.integrityMeter;
@@ -598,12 +632,19 @@
 
     // ----------------------------------------------------------------
     //  8. SAVE / LOAD
+    //  Auto-saves state to localStorage after every agent command.
+    //  On mission load, checks for saved state and offers resume.
+    //  Sets must be serialized to arrays (JSON doesn't support Set).
+    //  Gate flags are persisted alongside standard state fields.
+    //  Completion stats saved separately from save-state (different key).
     // ----------------------------------------------------------------
 
+    /** Get the localStorage key for in-progress save state. */
     function getSaveKey(config) {
         return 'hexworth_operator_' + config.id + '_save';
     }
 
+    /** Get the localStorage key for completion stats (separate from save state). */
     function getCompletionKey(config) {
         if (config.completion && config.completion.storageKey) {
             return config.completion.storageKey;
@@ -611,6 +652,7 @@
         return 'hexworth_operator_' + config.id;
     }
 
+    /** Serialize current state to localStorage. Converts Sets to arrays for JSON compat. */
     function saveState(state, config) {
         try {
             // Collect gate flags
@@ -640,6 +682,7 @@
         } catch (e) { /* localStorage unavailable */ }
     }
 
+    /** Restore state from localStorage. Rebuilds Sets from saved arrays. Returns null if no save exists. */
     function loadState(config) {
         try {
             var saved = localStorage.getItem(getSaveKey(config));
@@ -676,6 +719,7 @@
         }
     }
 
+    /** Create fresh state and reveal starting cell neighbors. */
     function resetState(config) {
         var state = createState(config);
         revealAdjacent(state, config, config.grid.start.col, config.grid.start.row);
@@ -686,6 +730,7 @@
         try { localStorage.removeItem(getSaveKey(config)); } catch (e) {}
     }
 
+    /** Write final completion stats to localStorage (time, commands, nodes, integrity, traps). */
     function saveCompletion(state, config) {
         try {
             var elapsed = Math.floor((Date.now() - state.startTime) / 1000);
@@ -704,8 +749,12 @@
 
     // ----------------------------------------------------------------
     //  9. MISSION COMPLETE
+    //  Overlay shown after all objectives validated. Displays stats:
+    //  nodes discovered, commands used, elapsed time, integrity remaining.
+    //  fireCompletionHooks() bridges to ModuleProgress + GameTracker.
     // ----------------------------------------------------------------
 
+    /** Populate and display the mission complete overlay with final stats. */
     function showMissionComplete(state, config, elapsed) {
         var mins    = Math.floor(elapsed / 60);
         var secs    = elapsed % 60;
@@ -722,6 +771,7 @@
         }
     }
 
+    /** Notify external systems: ModuleProgress (XP/progress) and GameTracker (score/stats). */
     function fireCompletionHooks(state, config, elapsed) {
         // ModuleProgress integration
         if (typeof window.ModuleProgress !== 'undefined' &&
@@ -748,9 +798,15 @@
     }
 
     // ----------------------------------------------------------------
-    //  10. EDITOR UI
+    //  10. EDITOR UI (Python Mode)
+    //  Code editor with line numbers, syntax highlighting placeholder,
+    //  toolbar (RUN/STOP/CLEAR/RESET), and output console. Tab inserts
+    //  4 spaces. Ctrl+Enter / Cmd+Enter runs script. Terminal mode
+    //  missions skip this entirely — TerminalInterpreter builds its
+    //  own input row inside the output console area.
     // ----------------------------------------------------------------
 
+    /** Build the Python code editor panel. Returns interface: getCode, setOutput, onRun, etc. */
     function buildEditor(container) {
         // Toolbar
         var toolbar = document.createElement('div');
@@ -905,9 +961,14 @@
     }
 
     // ----------------------------------------------------------------
-    //  DOM BUILDER — constructs full mission layout
+    //  11. DOM BUILDER — constructs full mission layout
+    //  Creates the 3-panel layout: header (back + title + status),
+    //  objectives bar + integrity meter, and main content split into
+    //  grid panel (left) + editor/terminal panel (right). Also builds
+    //  the mission briefing overlay and completion overlay.
     // ----------------------------------------------------------------
 
+    /** Build the entire mission DOM structure and inject into rootEl. */
     function buildDOM(config, rootEl) {
         // Header
         var header = document.createElement('div');
