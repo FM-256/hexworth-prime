@@ -110,7 +110,7 @@ var PYTHON_07_CONFIG = {
     },
 
     objectives: [
-        { id: 'obj_0', label: 'SCAN -- Discover all 6 servers',                    check: 'nodesDiscovered.size >= 8' },
+        { id: 'obj_0', label: 'SCAN -- Discover 8+ network nodes',                   check: 'nodesDiscovered.size >= 8' },
         { id: 'obj_1', label: 'INTEL -- nmap all 6 servers',                        check: 'nmapTargets.has("server-1") && nmapTargets.has("server-2") && nmapTargets.has("server-3") && nmapTargets.has("server-4") && nmapTargets.has("server-5") && nmapTargets.has("server-6")' },
         { id: 'obj_2', label: 'EXPLOIT FINANCE -- Breach the finance server',       check: 'financeExploited' },
         { id: 'obj_3', label: 'EXPLOIT HR -- Breach the HR server',                 check: 'hrExploited' },

@@ -95,7 +95,7 @@ var PYTHON_06_CONFIG = {
         { id: 'obj_1', label: 'CHECKPOINT B -- nmap the sensor station',           check: 'nmapTargets.has("server-b")' },
         { id: 'obj_2', label: 'CHECKPOINT C -- nmap the data cache',               check: 'nmapTargets.has("server-c")' },
         { id: 'obj_3', label: 'CHECKPOINT D -- nmap the extraction point',         check: 'nmapTargets.has("server-d")' },
-        { id: 'obj_4', label: 'FULL RECON -- Discover 8+ nodes total',             check: 'nodesDiscovered.size >= 8' },
+        { id: 'obj_4', label: 'FULL RECON -- Discover all 4 checkpoints + gateway',  check: 'nodesDiscovered.size >= 5' },
         { id: 'obj_5', label: 'STEALTH -- Complete with 2+ integrity remaining',   check: 'integrity >= 2' }
     },
 
