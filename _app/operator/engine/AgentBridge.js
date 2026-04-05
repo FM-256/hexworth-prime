@@ -35,16 +35,17 @@
 
     var TIER_METHODS = {
         1: ['move', 'scan', 'status'],
-        2: ['move', 'scan', 'status', 'sweep', 'ping'],
-        3: ['move', 'scan', 'status', 'sweep', 'ping', 'nmap', 'exploit', 'spoof', 'decrypt', 'patch'],
-        4: null,   // all methods (future: class-based agent support)
-        5: null    // all methods (future: multi-agent)
+        2: ['move', 'scan', 'status', 'sweep', 'ping', 'jump', 'extinguish', 'fight'],
+        3: ['move', 'scan', 'status', 'sweep', 'ping', 'jump', 'extinguish', 'fight',
+            'nmap', 'exploit', 'spoof', 'decrypt', 'patch',
+            'bridge', 'fireproof', 'terminate'],
+        4: null,   // all methods
+        5: null    // all methods
     };
 
     // Reverse lookup: method name -> minimum tier required
     var METHOD_MIN_TIER = {};
     (function buildMinTierMap() {
-        // Walk tiers 1-3 to find the first tier each method appears
         for (var t = 1; t <= 3; t++) {
             var methods = TIER_METHODS[t];
             for (var i = 0; i < methods.length; i++) {
@@ -57,7 +58,9 @@
 
     // All bridge method names (used for tier 4/5 "allow all")
     var ALL_METHOD_NAMES = ['move', 'scan', 'status', 'sweep', 'ping',
-                            'nmap', 'exploit', 'spoof', 'decrypt', 'patch'];
+                            'jump', 'extinguish', 'fight',
+                            'nmap', 'exploit', 'spoof', 'decrypt', 'patch',
+                            'bridge', 'fireproof', 'terminate'];
 
     function getAllowedMethods(tier) {
         if (tier >= 4) return ALL_METHOD_NAMES.slice();
@@ -174,6 +177,124 @@
         }
 
         // ============================================================
+        //  SHARED HELPER: Resolve direction to destination cell key
+        //  Used by move() AND all countermeasure methods to ensure
+        //  the same key is computed for the same cell. (Nancy blocker)
+        // ============================================================
+
+        /**
+         * Given a direction string, compute the destination cell coordinates
+         * and return { col, row, key, cellType, inBounds }.
+         * Returns null if direction is invalid.
+         */
+        function _resolveDest(dir) {
+            var d = typeof dir === 'string' ? dir.toLowerCase() : '';
+            if (!DIR_VECTORS[d]) return null;
+
+            var state  = S();
+            var delta  = DIR_VECTORS[d];
+            var nc     = state.position.col + delta[0];
+            var nr     = state.position.row + delta[1];
+
+            if (nc < 0 || nc >= cols() || nr < 0 || nr >= rows()) {
+                return { col: nc, row: nr, key: nc + ',' + nr, cellType: null, inBounds: false };
+            }
+
+            return {
+                col: nc,
+                row: nr,
+                key: nc + ',' + nr,
+                cellType: cell(nr, nc),
+                inBounds: true
+            };
+        }
+
+        // ============================================================
+        //  OBSTACLE HELPERS
+        //  Shared logic for countermeasure methods (jump/extinguish/fight)
+        //  and permanent tool methods (bridge/fireproof/terminate).
+        // ============================================================
+
+        /**
+         * Generic obstacle clearing function. All countermeasure and
+         * permanent tool methods route through this.
+         *
+         * @param {string} dir - Direction (north/south/east/west)
+         * @param {string[]} validTypes - Cell types this action works on
+         * @param {object} stateMap - State object to mark cleared (e.g., state.jumpedCells)
+         * @param {string} actionLabel - Display label (e.g., 'JUMP', 'BRIDGE')
+         * @param {string} successMsg - Message on success
+         * @param {string} wrongTypeMsg - Message when used on wrong obstacle
+         * @param {boolean} permanent - If true, also marks state.permanentCleared
+         * @returns {boolean} true if obstacle cleared
+         */
+        async function _clearObstacle(dir, validTypes, stateMap, actionLabel, successMsg, wrongTypeMsg, permanent) {
+            tick();
+            var dest = _resolveDest(dir);
+            var dirName = expandDir(typeof dir === 'string' ? dir.toLowerCase() : '');
+
+            if (!dest) {
+                engine.printLine('[' + actionLabel + '] Invalid direction: ' + String(dir), 'error');
+                return false;
+            }
+            if (!dest.inBounds) {
+                engine.printLine('[' + actionLabel + '] Nothing ' + dirName + ' — edge of grid.', 'error');
+                return false;
+            }
+            if (dest.cellType === 'wall') {
+                engine.printLine('[' + actionLabel + '] Blocked — wall ' + dirName + '.', 'error');
+                return false;
+            }
+
+            /* Check if the target cell is a valid obstacle type for this action */
+            if (validTypes.indexOf(dest.cellType) === -1) {
+                engine.printLine('[' + actionLabel + '] ' + wrongTypeMsg, 'error');
+                return false;
+            }
+
+            /* Check if already cleared */
+            if (stateMap[dest.key]) {
+                engine.printLine('[' + actionLabel + '] Already cleared.', 'system');
+                return true;
+            }
+
+            /* Clear the obstacle */
+            stateMap[dest.key] = true;
+            if (permanent) {
+                S().permanentCleared[dest.key] = true;
+            }
+
+            var info = nodeInfo(dest.cellType);
+            var label = info ? info.label : dest.cellType;
+            engine.printLine('[' + actionLabel + '] ' + successMsg + ' (' + label + ', ' + dirName + ')', 'success');
+
+            engine.updateGrid();
+            engine.saveState();
+            await engine.delay(150);
+            return true;
+        }
+
+        /**
+         * Read persistent inventory from localStorage.
+         * Returns array of tool names (e.g., ['bridge', 'fireproof', 'terminate']).
+         */
+        function _getInventory() {
+            try {
+                var raw = localStorage.getItem('hexworth_operator_inventory');
+                if (!raw) return [];
+                var data = JSON.parse(raw);
+                return data.tools || [];
+            } catch (e) { return []; }
+        }
+
+        /**
+         * Check if a permanent tool is in the persistent inventory.
+         */
+        function _hasTool(toolName) {
+            return _getInventory().indexOf(toolName) !== -1;
+        }
+
+        // ============================================================
         //  1. move(dir)
         // ============================================================
 
@@ -260,6 +381,86 @@
             // Safe passage through a previously scanned trap
             if (traps.indexOf(cellType) !== -1 && state.scannedCells[destKey]) {
                 engine.printLine('[MOVE] Trap disarmed by prior scan. Safe passage.', 'success');
+            }
+
+            // ── OBSTACLE CHECKS (Metroidvania v2) ──────────────────
+            // Each obstacle type blocks movement unless the matching
+            // countermeasure or permanent tool has been used on this cell.
+            // Permanent tools (from inventory) auto-clear on contact.
+            // Per-transit tools require explicit action before moving.
+
+            var obstacles = config.obstacles || {};
+
+            // Hole check — requires jump() or permanent bridge tool
+            if (obstacles.holes && obstacles.holes.indexOf(cellType) !== -1) {
+                if (state.permanentCleared && state.permanentCleared[destKey]) {
+                    engine.printLine('[MOVE] Bridged gap. Safe passage.', 'success');
+                } else if (state.jumpedCells && state.jumpedCells[destKey]) {
+                    engine.printLine('[MOVE] Jumping over gap...', 'success');
+                    delete state.jumpedCells[destKey]; /* per-transit: consumed on use */
+                } else {
+                    state.integrity--;
+                    var holeInfo = nodeInfo(cellType);
+                    engine.printLine('', 'system');
+                    engine.printLine('[HAZARD] *** FELL INTO HOLE (' + (holeInfo ? holeInfo.label : cellType) + ')! ***', 'error');
+                    engine.printLine('[HAZARD] Use agent.jump(dir) first, or agent.bridge(dir) if you have it.', 'warning');
+                    engine.printLine('[HAZARD] Integrity: ' + state.integrity + '/' + (config.integrity || 3), 'warning');
+                    if (state.integrity <= 0) {
+                        engine.printLine('[HAZARD] *** AGENT COMPROMISED *** Reset mission.', 'error');
+                    }
+                    engine.updateIntegrityUI();
+                    engine.saveState();
+                    await engine.delay(150);
+                    return false;
+                }
+            }
+
+            // Fire check — requires extinguish() or permanent fireproof tool
+            if (obstacles.fires && obstacles.fires.indexOf(cellType) !== -1) {
+                if (state.permanentCleared && state.permanentCleared[destKey]) {
+                    engine.printLine('[MOVE] Fireproofed path. Safe passage.', 'success');
+                } else if (state.extinguishedCells && state.extinguishedCells[destKey]) {
+                    engine.printLine('[MOVE] Fire extinguished. Passing through...', 'success');
+                    delete state.extinguishedCells[destKey]; /* per-transit: consumed */
+                } else {
+                    state.integrity--;
+                    var fireInfo = nodeInfo(cellType);
+                    engine.printLine('', 'system');
+                    engine.printLine('[HAZARD] *** BURNED BY FIRE (' + (fireInfo ? fireInfo.label : cellType) + ')! ***', 'error');
+                    engine.printLine('[HAZARD] Use agent.extinguish(dir) first, or agent.fireproof(dir) if you have it.', 'warning');
+                    engine.printLine('[HAZARD] Integrity: ' + state.integrity + '/' + (config.integrity || 3), 'warning');
+                    if (state.integrity <= 0) {
+                        engine.printLine('[HAZARD] *** AGENT COMPROMISED *** Reset mission.', 'error');
+                    }
+                    engine.updateIntegrityUI();
+                    engine.saveState();
+                    await engine.delay(150);
+                    return false;
+                }
+            }
+
+            // Enemy check — requires fight() or permanent terminate tool
+            if (obstacles.enemies && obstacles.enemies.indexOf(cellType) !== -1) {
+                if (state.permanentCleared && state.permanentCleared[destKey]) {
+                    engine.printLine('[MOVE] Threat eliminated. Safe passage.', 'success');
+                } else if (state.defeatedEnemies && state.defeatedEnemies[destKey]) {
+                    engine.printLine('[MOVE] Enemy defeated. Passing through...', 'success');
+                    delete state.defeatedEnemies[destKey]; /* per-transit: consumed */
+                } else {
+                    state.integrity--;
+                    var enemyInfo = nodeInfo(cellType);
+                    engine.printLine('', 'system');
+                    engine.printLine('[HAZARD] *** ATTACKED BY ' + (enemyInfo ? enemyInfo.label : 'ENEMY') + '! ***', 'error');
+                    engine.printLine('[HAZARD] Use agent.fight(dir) first, or agent.terminate(dir) if you have it.', 'warning');
+                    engine.printLine('[HAZARD] Integrity: ' + state.integrity + '/' + (config.integrity || 3), 'warning');
+                    if (state.integrity <= 0) {
+                        engine.printLine('[HAZARD] *** AGENT COMPROMISED *** Reset mission.', 'error');
+                    }
+                    engine.updateIntegrityUI();
+                    engine.saveState();
+                    await engine.delay(150);
+                    return false;
+                }
             }
 
             // Execute the move
@@ -605,6 +806,85 @@
         }
 
         // ============================================================
+        //  OBSTACLE COUNTERMEASURES (per-transit — consumed on use)
+        //  These clear an obstacle for ONE crossing. The obstacle
+        //  remains on the grid for return trips.
+        // ============================================================
+
+        /** Jump over a hole in the adjacent cell. Per-transit: consumed when you cross. */
+        async function jump(dir) {
+            var config = C();
+            var obstacles = config.obstacles || {};
+            var holes = obstacles.holes || [];
+            return _clearObstacle(dir, holes, S().jumpedCells, 'JUMP',
+                'Cleared gap', 'Cannot jump here — no hole in that direction.', false);
+        }
+
+        /** Extinguish fire in the adjacent cell. Per-transit: fire returns after crossing. */
+        async function extinguish(dir) {
+            var config = C();
+            var obstacles = config.obstacles || {};
+            var fires = obstacles.fires || [];
+            return _clearObstacle(dir, fires, S().extinguishedCells, 'EXTINGUISH',
+                'Fire suppressed', 'Cannot extinguish here — no fire in that direction.', false);
+        }
+
+        /** Fight an enemy in the adjacent cell. Per-transit: enemy returns after crossing. */
+        async function fight(dir) {
+            var config = C();
+            var obstacles = config.obstacles || {};
+            var enemies = obstacles.enemies || [];
+            return _clearObstacle(dir, enemies, S().defeatedEnemies, 'FIGHT',
+                'Enemy defeated', 'Cannot fight here — no enemy in that direction.', false);
+        }
+
+        // ============================================================
+        //  PERMANENT TOOLS (require tool in persistent inventory)
+        //  These clear an obstacle PERMANENTLY. The obstacle is removed
+        //  from the grid for all future visits to this level.
+        // ============================================================
+
+        /** Bridge a hole permanently. Requires 'bridge' tool in inventory.
+         *  Named bridge_tool internally to avoid collision with the bridge object. */
+        async function bridge_tool(dir) {
+            if (!_hasTool('bridge')) {
+                engine.printLine('[BRIDGE] Tool not in inventory. Find the bridge tool first.', 'error');
+                return false;
+            }
+            var config = C();
+            var obstacles = config.obstacles || {};
+            var holes = obstacles.holes || [];
+            return _clearObstacle(dir, holes, S().permanentCleared, 'BRIDGE',
+                'Gap filled permanently', 'Cannot bridge here — no hole in that direction.', true);
+        }
+
+        /** Fireproof a path permanently. Requires 'fireproof' tool in inventory. */
+        async function fireproof(dir) {
+            if (!_hasTool('fireproof')) {
+                engine.printLine('[FIREPROOF] Tool not in inventory. Find the fireproof tool first.', 'error');
+                return false;
+            }
+            var config = C();
+            var obstacles = config.obstacles || {};
+            var fires = obstacles.fires || [];
+            return _clearObstacle(dir, fires, S().permanentCleared, 'FIREPROOF',
+                'Path fireproofed permanently', 'Cannot fireproof here — no fire in that direction.', true);
+        }
+
+        /** Terminate an enemy permanently. Requires 'terminate' tool in inventory. */
+        async function terminate(dir) {
+            if (!_hasTool('terminate')) {
+                engine.printLine('[TERMINATE] Tool not in inventory. Find the terminate tool first.', 'error');
+                return false;
+            }
+            var config = C();
+            var obstacles = config.obstacles || {};
+            var enemies = obstacles.enemies || [];
+            return _clearObstacle(dir, enemies, S().permanentCleared, 'TERMINATE',
+                'Threat eliminated permanently', 'Cannot terminate here — no enemy in that direction.', true);
+        }
+
+        // ============================================================
         //  10. status()
         // ============================================================
 
@@ -656,16 +936,24 @@
         // ============================================================
 
         var bridge = {
-            move:    move,
-            scan:    scan,
-            sweep:   sweep,
-            ping:    ping,
-            nmap:    nmap,
-            exploit: exploit,
-            spoof:   spoof,
-            decrypt: decrypt,
-            patch:   patch,
-            status:  status
+            move:       move,
+            scan:       scan,
+            sweep:      sweep,
+            ping:       ping,
+            nmap:       nmap,
+            exploit:    exploit,
+            spoof:      spoof,
+            decrypt:    decrypt,
+            patch:      patch,
+            status:     status,
+            /* Obstacle countermeasures (per-transit) */
+            jump:       jump,
+            extinguish: extinguish,
+            fight:      fight,
+            /* Permanent tools (require inventory) */
+            bridge:     bridge_tool,   /* renamed to avoid collision with bridge object */
+            fireproof:  fireproof,
+            terminate:  terminate
         };
 
         // --------------------------------------------------------
@@ -689,6 +977,16 @@
         Object.defineProperty(bridge, 'discovered', {
             get: function() {
                 return Array.from(S().nodesDiscovered);
+            },
+            enumerable: true
+        });
+
+        // agent.tools -- persistent inventory (array of tool names)
+        // Students use: if 'bridge' in agent.tools
+        // Or: gun = agent.terminate (first-class function assignment)
+        Object.defineProperty(bridge, 'tools', {
+            get: function() {
+                return _getInventory();
             },
             enumerable: true
         });

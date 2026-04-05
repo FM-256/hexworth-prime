@@ -59,7 +59,13 @@
             completed:       false,
             integrity:       config.integrity || 3,
             trapsTriggered:  0,
-            scannedCells:    {}
+            scannedCells:    {},
+            /* Metroidvania v2: obstacle clearing state */
+            jumpedCells:        {},   // per-transit: holes cleared by jump()
+            extinguishedCells:  {},   // per-transit: fires cleared by extinguish()
+            defeatedEnemies:    {},   // per-transit: enemies cleared by fight()
+            permanentCleared:   {},   // permanent: cells cleared by bridge/fireproof/terminate
+            items:              []    // collectible items (keys, etc.)
         };
 
         // Merge gate flags onto state
@@ -666,7 +672,13 @@
                 startTime:       state.startTime,
                 integrity:       state.integrity,
                 trapsTriggered:  state.trapsTriggered,
-                scannedCells:    state.scannedCells
+                scannedCells:       state.scannedCells,
+                /* Metroidvania v2 obstacle state */
+                jumpedCells:        state.jumpedCells || {},
+                extinguishedCells:  state.extinguishedCells || {},
+                defeatedEnemies:    state.defeatedEnemies || {},
+                permanentCleared:   state.permanentCleared || {},
+                items:              state.items || []
             };
 
             // Persist gate flags
@@ -701,7 +713,13 @@
                 completed:       false,
                 integrity:       data.integrity !== undefined ? data.integrity : (config.integrity || 3),
                 trapsTriggered:  data.trapsTriggered || 0,
-                scannedCells:    data.scannedCells || {}
+                scannedCells:       data.scannedCells || {},
+                /* Metroidvania v2 obstacle state */
+                jumpedCells:        data.jumpedCells || {},
+                extinguishedCells:  data.extinguishedCells || {},
+                defeatedEnemies:    data.defeatedEnemies || {},
+                permanentCleared:   data.permanentCleared || {},
+                items:              data.items || []
             };
 
             // Restore gate flags
