@@ -1,9 +1,11 @@
 # CTF Arena
 
-**Component:** BoxEngine.js, arena/index.html, ctf-leaderboard.applet.html
+**Status:** SHIPPED
+**Components:** BoxEngine.js, Terminal.js, CoOpSync.js, CoOpLobby.js, VsBridge.js, BriefingPage.js, BlueTeam.js
 **Location:** `_app/arena/`
 **Dashboard Section:** Dark Arts Division > Arena
-**Added:** v4.0.0, CTF stats sync added v5.0.0 (2026-03-01)
+**Added:** v4.0.0 | CTF stats sync: v5.0.0 (2026-03-01)
+**Last reviewed:** 2026-04-05
 
 ## Purpose
 
@@ -147,3 +149,17 @@ Every box completion includes analytics data for pedagogical research:
 4. **Engagement** — gamified scoring with speed bonuses and leaderboards creates competition and replay value.
 5. **Assessment** — instructors see exactly what each student did (commands, time, hints used) via the activity log, enabling targeted support.
 6. **Social proof** — CTF stats on the public profile (Boxes Pwned, Flags) let students show off their offensive security skills to peers.
+
+## Key Decisions
+
+- **Hashed flags (AR-11)** — Flags are SHA-256 hashed in box configs so students cannot read answers from source code. The seed is per-box, preventing rainbow table attacks across boxes.
+- **localStorage per-box keys** — Each box gets its own `hexworth_ctf_a{N}` key rather than one monolithic object. This makes individual box resets clean and survives `hexworth_progress` resets.
+- **Config-driven boxes** — Box content (filesystem, flags, hints, scoring) is defined in `config.js` files, not hardcoded in BoxEngine. New boxes require zero engine changes.
+- **Backfill on dashboard load** — CTF stats sync was added after boxes shipped. The backfill pattern ensures pre-existing completions are captured without manual migration.
+- **Two storage formats** — Workshop boxes (A1, A2) use boolean flags; Arena engine uses arrays. Both are supported because the workshop predates the arena engine.
+
+## Known Limitations
+
+- **No server-side flag validation** — Flag hashing prevents casual source inspection but a determined student could extract the hash and brute-force short flags. The `ctfSubmitFlag` Cloud Function exists for tournament mode but is not used for solo arena.
+- **localStorage only (solo mode)** — Solo progress is device-bound. Clearing browser data loses all CTF progress. Firestore sync captures aggregate stats (boxes pwned, flags captured) but not per-box state.
+- **B/C/D/E series empty** — Only A-series (20 boxes) has content. Series slots are reserved but no boxes exist yet.
