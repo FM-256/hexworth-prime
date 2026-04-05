@@ -1,114 +1,93 @@
 /* ================================================================
-   PYTHON-12 / CHAIN REACTION -- Mission Config
+   PYTHON-12 / STEALTH RUN -- Mission Config
    ================================================================
-   Tier 5 mission. 9x9 grid.
-   Forces chained dependencies: exploit server A to get intel
-   needed to nmap server B, which reveals the key to spoof server C.
+   Tier 5 mission. 10x10 grid.
+   Forces careful route planning: MORE traps than integrity pips.
+   Student cannot brute-force — must scan every move or die.
 
    PUZZLE DESIGN:
-   - 3 servers in a dependency chain: A → B → C
-   - Server A is behind an nmap gate (standard)
-   - Server B is behind an exploit gate that requires A to be nmapped first
-   - Server C is behind a spoof gate that requires B to be exploited first
-   - Target is behind server C's gate
-   - Student must figure out the order: nmap A → exploit B → spoof C → target
-   - Forces: sequential dependency tracking, variables to hold state,
-     print() for debugging, systematic approach
+   - 10x10 grid with 7 traps scattered across the grid
+   - Only 4 integrity pips — hitting 4 traps = compromised
+   - Student MUST scan before every move and sweep detected traps
+   - The safe_advance() function from Level 6 becomes mandatory
+   - Target is in the far corner — long journey through trap field
+   - 3 servers to nmap along the way (bonus objectives)
+   - 1 nmap gate blocking the final corridor
 
-   PYTHON SKILL: Sequential dependency resolution
-     # Phase 1: Clear the first gate
-     agent.nmap('server-a')
-     # Phase 2: Use A's intel to breach B
-     agent.exploit('server-b')
-     # Phase 3: Use B's access to spoof C
-     agent.spoof('server-c')
-     # Phase 4: Navigate to target
+   KEY LESSON: Defensive programming. In cybersecurity, you don't
+   get unlimited retries. In Python, error prevention beats error handling.
 
-   GRID (9x9):
-     [start]  [empty]   [empty]    [empty]    [server-a] [empty]   [wall]    [empty]  [wall]
-     [empty]  [trap-1]  [empty]    [empty]    [empty]    [empty]   [empty]   [empty]  [empty]
-     [empty]  [empty]   [router]   [empty]    [gate-a]   [empty]   [empty]   [empty]  [wall]
-     [wall]   [empty]   [empty]    [empty]    [empty]    [server-b][empty]   [empty]  [empty]
-     [empty]  [empty]   [trap-2]   [empty]    [wall]     [empty]   [gate-b]  [empty]  [wall]
-     [empty]  [switch]  [empty]    [empty]    [empty]    [empty]   [empty]   [empty]  [empty]
-     [wall]   [empty]   [empty]    [trap-3]   [empty]    [server-c][empty]   [gate-c] [empty]
-     [empty]  [empty]   [empty]    [empty]    [empty]    [empty]   [empty]   [empty]  [empty]
-     [wall]   [wall]    [empty]    [empty]    [empty]    [wall]    [empty]   [empty]  [target]
+   GRID (10x10) — trap-heavy field
    ================================================================ */
 
 var PYTHON_12_CONFIG = {
     id: 'python-12',
-    title: 'PYTHON-12 / CHAIN REACTION',
-    subtitle: 'A depends on B depends on C. Find the right order.',
+    title: 'PYTHON-12 / STEALTH RUN',
+    subtitle: 'Seven traps. Four lives. Every step could be your last.',
     category: 'python-ops',
     difficulty: 4,
     inputMode: 'python',
     agent: { tier: 3 },
 
     grid: {
-        rows: 9, cols: 9,
+        rows: 10, cols: 10,
         cells: [
-            ['gateway',  'empty',   'empty',    'empty',    'server-a', 'empty',   'wall',     'empty',  'wall'],
-            ['empty',    'trap-1',  'empty',    'empty',    'empty',    'empty',   'empty',    'empty',  'empty'],
-            ['empty',    'empty',   'router',   'empty',    'gate-a',   'empty',   'empty',    'empty',  'wall'],
-            ['wall',     'empty',   'empty',    'empty',    'empty',    'server-b','empty',    'empty',  'empty'],
-            ['empty',    'empty',   'trap-2',   'empty',    'wall',     'empty',   'gate-b',   'empty',  'wall'],
-            ['empty',    'switch',  'empty',    'empty',    'empty',    'empty',   'empty',    'empty',  'empty'],
-            ['wall',     'empty',   'empty',    'trap-3',   'empty',    'server-c','empty',    'gate-c', 'empty'],
-            ['empty',    'empty',   'empty',    'empty',    'empty',    'empty',   'empty',    'empty',  'empty'],
-            ['wall',     'wall',    'empty',    'empty',    'empty',    'wall',    'empty',    'empty',  'target']
+            ['gateway',  'empty',   'empty',    'trap-1',   'empty',    'empty',   'empty',    'trap-2',  'empty',   'wall'],
+            ['empty',    'empty',   'empty',    'empty',    'empty',    'empty',   'srv-1',    'empty',   'empty',   'empty'],
+            ['empty',    'trap-3',  'empty',    'empty',    'router',   'empty',   'empty',    'empty',   'empty',   'wall'],
+            ['wall',     'empty',   'empty',    'empty',    'empty',    'trap-4',  'empty',    'empty',   'empty',   'empty'],
+            ['empty',    'empty',   'empty',    'empty',    'wall',     'empty',   'empty',    'empty',   'trap-5',  'wall'],
+            ['empty',    'empty',   'srv-2',    'empty',    'empty',    'empty',   'empty',    'empty',   'empty',   'empty'],
+            ['wall',     'trap-6',  'empty',    'empty',    'empty',    'empty',   'switch',   'empty',   'empty',   'wall'],
+            ['empty',    'empty',   'empty',    'empty',    'srv-3',    'empty',   'empty',    'trap-7',  'empty',   'empty'],
+            ['empty',    'empty',   'empty',    'empty',    'empty',    'empty',   'firewall', 'empty',   'empty',   'empty'],
+            ['wall',     'wall',    'empty',    'empty',    'empty',    'wall',    'empty',    'empty',   'empty',   'target']
         ],
         start: { col: 0, row: 0 }
     },
 
     nodes: {
-        'gateway':   { label: 'GATEWAY',      abbr: 'GTW', ip: '10.120.0.1',  desc: 'Entry point',                                ports: ['22/SSH','443/HTTPS'],                     os: 'Cisco IOS 15.4' },
-        'router':    { label: 'ROUTER',       abbr: 'RTR', ip: '10.120.0.2',  desc: 'Core router',                                ports: ['22/SSH','179/BGP'],                       os: 'Juniper JunOS 21.4' },
-        'switch':    { label: 'SWITCH',       abbr: 'SWT', ip: '10.120.0.5',  desc: 'Distribution switch',                        ports: ['22/SSH','161/SNMP'],                      os: 'Cisco Catalyst 9300' },
+        'gateway':   { label: 'GATEWAY',     abbr: 'GTW', ip: '10.150.0.1',   desc: 'Entry point — the minefield begins here',     ports: ['22/SSH','443/HTTPS'],                     os: 'Cisco IOS 15.4' },
+        'router':    { label: 'ROUTER',      abbr: 'RTR', ip: '10.150.0.2',   desc: 'Core router — mid-grid landmark',             ports: ['22/SSH','179/BGP'],                       os: 'Juniper JunOS 21.4' },
+        'switch':    { label: 'SWITCH',      abbr: 'SWT', ip: '10.150.0.5',   desc: 'Distribution switch — south sector',          ports: ['22/SSH','161/SNMP'],                      os: 'Cisco Catalyst 9300' },
 
-        /* Chain link 1: nmap to reveal vulnerability */
-        'server-a':  { label: 'SRV-ALPHA',    abbr: 'SRA', ip: '10.120.1.11', desc: 'First link — contains credentials for Bravo', ports: ['22/SSH','445/SMB','3389/RDP'],            os: 'Windows Server 2022' },
-        'gate-a':    { label: 'FW-ALPHA',     abbr: 'FWA', ip: '10.120.0.251',desc: 'Firewall guarding Alpha zone',                ports: ['22/SSH','443/MGMT'],                      os: 'pfSense 2.7.0', vuln: 'CVE-2024-3891', vulnDesc: 'Weak ACL allows bypass' },
+        'srv-1':     { label: 'SRV-COMMS',   abbr: 'SC1', ip: '10.150.1.11',  desc: 'Communications server — northeast',           ports: ['22/SSH','5060/SIP','443/HTTPS'],          os: 'FreePBX 16' },
+        'srv-2':     { label: 'SRV-DATA',    abbr: 'SD2', ip: '10.150.1.12',  desc: 'Data warehouse — west sector',                ports: ['22/SSH','9200/ELASTIC','5601/KIBANA'],    os: 'CentOS Stream 9' },
+        'srv-3':     { label: 'SRV-VAULT',   abbr: 'SV3', ip: '10.150.1.13',  desc: 'Secrets vault — south center',                ports: ['22/SSH','8200/VAULT','443/HTTPS'],        os: 'HashiCorp Vault 1.15' },
 
-        /* Chain link 2: exploit using Alpha's intel */
-        'server-b':  { label: 'SRV-BRAVO',    abbr: 'SRB', ip: '10.120.2.11', desc: 'Second link — holds keys to Charlie',         ports: ['22/SSH','8080/HTTP','5432/PostgreSQL'],   os: 'Ubuntu 24.04 LTS', vuln: 'CVE-2024-5512', vulnDesc: 'PostgreSQL RCE via crafted query' },
-        'gate-b':    { label: 'FW-BRAVO',     abbr: 'FWB', ip: '10.120.0.252',desc: 'Firewall guarding Bravo zone',                ports: ['22/SSH','443/MGMT'],                      os: 'Palo Alto PAN-OS', vuln: 'CVE-2024-7744', vulnDesc: 'Management plane RCE' },
+        'firewall':  { label: 'FIREWALL',    abbr: 'FWL', ip: '10.150.0.254', desc: 'Final corridor gate',                          ports: ['22/SSH','443/MGMT'],                      os: 'pfSense 2.7.0', vuln: 'CVE-2024-3891', vulnDesc: 'Weak ACL' },
+        'target':    { label: 'EXTRACTION',  abbr: 'EXT', ip: '10.150.0.99',  desc: 'Extraction point — mission complete',           ports: ['22/SSH','8443/HTTPS'],                    os: 'RHEL 9.3' },
 
-        /* Chain link 3: spoof to reach target */
-        'server-c':  { label: 'SRV-CHARLIE',  abbr: 'SRC', ip: '10.120.3.11', desc: 'Final link — guards the extraction corridor',  ports: ['22/SSH','443/HTTPS-C2','8080/BEACON'],   os: 'Cobalt Strike 4.9', vuln: 'CVE-2024-6221', vulnDesc: 'TCP ISN randomization bypass' },
-        'gate-c':    { label: 'FW-CHARLIE',   abbr: 'FWC', ip: '10.120.0.253',desc: 'Final gate before extraction',                 ports: ['22/SSH','443/MGMT'],                      os: 'Fortinet FortiGate', vuln: 'CVE-2024-6221', vulnDesc: 'TCP ISN randomization bypass allows spoofing' },
-
-        'target':    { label: 'EXTRACTION',    abbr: 'EXT', ip: '10.120.0.99', desc: 'Data extraction point — mission complete',     ports: ['22/SSH','8443/HTTPS'],                    os: 'RHEL 9.3' },
-
-        /* 3 traps */
-        'trap-1':    { label: 'TRAP-1',        abbr: 'T01', ip: '10.120.0.200',desc: 'IDS sensor — north corridor',                 ports: ['514/SYSLOG'],                             os: 'Snort [TRAP]' },
-        'trap-2':    { label: 'TRAP-2',        abbr: 'T02', ip: '10.120.0.201',desc: 'Honeypot — mid corridor',                     ports: ['22/SSH-FAKE'],                            os: 'Honeyd [TRAP]' },
-        'trap-3':    { label: 'TRAP-3',        abbr: 'T03', ip: '10.120.0.202',desc: 'Honeypot — south corridor',                   ports: ['80/HTTP-TRAP'],                           os: 'Honeyd [TRAP]' }
+        /* 7 traps — more than integrity allows */
+        'trap-1':    { label: 'TRAP-01',     abbr: 'T01', ip: '10.150.0.201', desc: 'IDS sensor — north row',          ports: ['514/SYSLOG'],      os: 'Snort [TRAP]' },
+        'trap-2':    { label: 'TRAP-02',     abbr: 'T02', ip: '10.150.0.202', desc: 'Honeypot — northeast',            ports: ['22/SSH-FAKE'],     os: 'Honeyd [TRAP]' },
+        'trap-3':    { label: 'TRAP-03',     abbr: 'T03', ip: '10.150.0.203', desc: 'IDS — west corridor',             ports: ['514/SYSLOG'],      os: 'Suricata [TRAP]' },
+        'trap-4':    { label: 'TRAP-04',     abbr: 'T04', ip: '10.150.0.204', desc: 'Honeypot — center east',          ports: ['80/HTTP-TRAP'],    os: 'Honeyd [TRAP]' },
+        'trap-5':    { label: 'TRAP-05',     abbr: 'T05', ip: '10.150.0.205', desc: 'IDS — east corridor',             ports: ['514/SYSLOG'],      os: 'Snort [TRAP]' },
+        'trap-6':    { label: 'TRAP-06',     abbr: 'T06', ip: '10.150.0.206', desc: 'Honeypot — southwest approach',   ports: ['445/SMB-FAKE'],    os: 'Honeyd [TRAP]' },
+        'trap-7':    { label: 'TRAP-07',     abbr: 'T07', ip: '10.150.0.207', desc: 'IDS — extraction corridor',       ports: ['514/SYSLOG'],      os: 'Suricata [TRAP]' }
     },
 
-    traps: ['trap-1', 'trap-2', 'trap-3'],
+    traps: ['trap-1', 'trap-2', 'trap-3', 'trap-4', 'trap-5', 'trap-6', 'trap-7'],
 
-    /* Dependency chain: A(nmap) → B(exploit) → C(spoof) */
     gates: {
-        'gate-a': { requires: 'nmap',    flag: 'alphaCleared',   vuln: 'CVE-2024-3891', vulnDesc: 'Weak ACL allows bypass' },
-        'gate-b': { requires: 'exploit', flag: 'bravoCleared',   vuln: 'CVE-2024-7744', vulnDesc: 'Management plane RCE' },
-        'gate-c': { requires: 'spoof',   flag: 'charlieCleared', vuln: 'CVE-2024-6221', vulnDesc: 'TCP ISN randomization bypass' }
+        'firewall': { requires: 'nmap', flag: 'firewallBypassed', vuln: 'CVE-2024-3891', vulnDesc: 'Weak ACL' }
     },
 
     objectives: [
-        { id: 'obj_0', label: 'CHAIN 1 -- nmap Server Alpha and bypass its gate',        check: 'alphaCleared && nmapTargets.has("server-a")' },
-        { id: 'obj_1', label: 'CHAIN 2 -- Exploit Server Bravo and bypass its gate',     check: 'bravoCleared' },
-        { id: 'obj_2', label: 'CHAIN 3 -- Spoof Server Charlie and bypass final gate',   check: 'charlieCleared' },
-        { id: 'obj_3', label: 'INTEL -- nmap all 3 chain servers',                       check: 'nmapTargets.has("server-a") && nmapTargets.has("server-b") && nmapTargets.has("server-c")' },
-        { id: 'obj_4', label: 'EXTRACT -- Reach the extraction point',                   check: 'nodesDiscovered.has("target")' },
-        { id: 'obj_5', label: 'STEALTH -- 2+ integrity remaining',                       check: 'integrity >= 2' }
+        { id: 'obj_0', label: 'RECON -- Discover 8+ nodes',                         check: 'nodesDiscovered.size >= 8' },
+        { id: 'obj_1', label: 'INTEL -- nmap all 3 servers',                        check: 'nmapTargets.has("srv-1") && nmapTargets.has("srv-2") && nmapTargets.has("srv-3")' },
+        { id: 'obj_2', label: 'ACCESS -- Bypass the final corridor firewall',       check: 'firewallBypassed' },
+        { id: 'obj_3', label: 'EXTRACTION -- Reach the extraction point',           check: 'nodesDiscovered.has("target")' },
+        { id: 'obj_4', label: 'STEALTH -- Complete with 3+ integrity (max caution)',check: 'integrity >= 3' }
     ],
 
+    /* Only 4 pips for 7 traps — student MUST avoid at least 4 of 7 */
     integrity: 4,
 
     completion: {
-        title: 'CHAIN REACTION',
-        subtitle: 'Dependency chain resolved. All links broken. Extraction complete.',
+        title: 'STEALTH RUN',
+        subtitle: 'Minefield navigated. Zero margin. Maximum stealth.',
         storageKey: 'hexworth_operator_python12'
     }
 };

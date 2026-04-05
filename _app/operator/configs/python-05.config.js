@@ -1,102 +1,113 @@
 /* ================================================================
-   PYTHON-05 / ADAPTIVE RECON -- Mission Config
+   PYTHON-05 / FULL SPECTRUM -- Mission Config
    ================================================================
-   Tier 3 mission. 7x7 grid.
-   Forces if/elif chains — multiple gate types on the same grid.
+   Tier 4 mission. 9x9 grid — 81 cells.
+   Combines ALL previously learned skills into one mission.
 
    PUZZLE DESIGN:
-   - 3 gates blocking the path: nmap gate, exploit gate, spoof gate
-   - Student must scan/nmap each gate node to identify the vulnerability
-   - Different gates require different actions — can't use the same
-     command on all of them
-   - nmap() returns {vuln} info that tells the student what action to use
-   - The puzzle: read the scan data, choose the right tool for each gate
+   - 9x9 grid with multiple zones separated by gates
+   - Zone 1 (accessible): reconnaissance area with traps
+   - Zone 2 (nmap gate): server farm — scan and catalog servers
+   - Zone 3 (exploit gate): data center — exploit vulnerable targets
+   - Zone 4 (spoof gate): extraction corridor to target
+   - Student must: sweep safely (function), discover nodes (loop),
+     catalog vulnerabilities (list building), bypass 3 gate types
+     (if/elif based on nmap data), and reach the target
 
-   PYTHON SKILL: if/elif/else chains based on nmap return values
-     result = agent.nmap('target')
-     if 'ACL' in result['vuln']:
-         agent.nmap('target')   # nmap gates auto-clear
-     elif 'injection' in result['vuln']:
-         agent.exploit('target')
-     elif 'spoofable' in result['vuln']:
-         agent.spoof('target')
+   This is the "boss level" of the Phase 1 difficulty curve.
+   Every Python skill from levels 3-7 is needed here.
 
-   GRID (7x7):
-     [start]   [empty]    [empty]    [router]    [empty]   [empty]  [wall]
-     [empty]   [switch]   [empty]    [empty]     [waf]     [empty]  [empty]
-     [wall]    [empty]    [empty]    [honeypot]  [empty]   [empty]  [wall]
-     [empty]   [empty]    [ids]      [empty]     [empty]   [c2]     [empty]
-     [empty]   [server1]  [empty]    [empty]     [empty]   [empty]  [wall]
-     [wall]    [empty]    [empty]    [server2]   [empty]   [empty]  [target]
-     [wall]    [wall]     [wall]     [empty]     [wall]    [wall]   [wall]
+   PYTHON SKILLS COMBINED:
+   - def safe_advance() — reusable function (from Level 6)
+   - for loop sweep — systematic grid coverage (from Level 4)
+   - if/elif chain — gate-type identification (from Level 5)
+   - list building — vulnerable target collection (from Level 7)
+   - scan() result inspection — trap detection (from Level 3)
+
+   GRID (9x9):
+     [start]  [empty]   [empty]   [wall]    [empty]   [empty]   [empty]   [empty]  [wall]
+     [empty]  [trap-1]  [empty]   [empty]   [srv-1]   [empty]   [empty]   [empty]  [empty]
+     [empty]  [empty]   [empty]   [empty]   [empty]   [trap-2]  [empty]   [srv-2]  [wall]
+     [wall]   [empty]   [nmap-gw] [empty]   [empty]   [empty]   [empty]   [empty]  [empty]
+     [empty]  [empty]   [empty]   [srv-3]   [empty]   [wall]    [exploit-gw][empty][empty]
+     [empty]  [srv-4]   [empty]   [empty]   [empty]   [empty]   [empty]   [empty]  [wall]
+     [wall]   [empty]   [empty]   [trap-3]  [empty]   [srv-5]   [empty]   [empty]  [empty]
+     [empty]  [empty]   [empty]   [empty]   [empty]   [empty]   [spoof-gw][empty]  [empty]
+     [wall]   [wall]    [empty]   [empty]   [empty]   [wall]    [empty]   [empty]  [target]
    ================================================================ */
 
 var PYTHON_05_CONFIG = {
     id: 'python-05',
-    title: 'PYTHON-05 / ADAPTIVE RECON',
-    subtitle: 'Three gates. Three vulnerabilities. Adapt or fail.',
+    title: 'PYTHON-05 / FULL SPECTRUM',
+    subtitle: 'Every skill. Every tool. One mission.',
     category: 'python-ops',
-    difficulty: 3,
+    difficulty: 4,
     inputMode: 'python',
     agent: { tier: 3 },
 
     grid: {
-        rows: 7, cols: 7,
+        rows: 9, cols: 9,
         cells: [
-            ['gateway',  'empty',   'empty',    'router',    'empty',     'empty',  'wall'],
-            ['empty',    'switch',  'empty',    'empty',     'waf',       'empty',  'empty'],
-            ['wall',     'empty',   'empty',    'honeypot',  'empty',     'empty',  'wall'],
-            ['empty',    'empty',   'ids-gate', 'empty',     'empty',     'c2-beacon','empty'],
-            ['empty',    'server-a','empty',    'empty',     'empty',     'empty',  'wall'],
-            ['wall',     'empty',   'empty',    'server-b',  'empty',     'empty',  'target'],
-            ['wall',     'wall',    'wall',     'empty',     'wall',      'wall',   'wall']
+            ['gateway',  'empty',    'empty',     'wall',       'empty',      'empty',   'empty',      'empty',  'wall'],
+            ['empty',    'honeypot', 'empty',     'empty',      'server-1',   'empty',   'empty',      'empty',  'empty'],
+            ['empty',    'empty',    'empty',     'empty',      'empty',      'ids-trap','empty',      'server-2','wall'],
+            ['wall',     'empty',    'nmap-gate', 'empty',      'empty',      'empty',   'empty',      'empty',  'empty'],
+            ['empty',    'empty',    'empty',     'server-3',   'empty',      'wall',    'exploit-gate','empty', 'empty'],
+            ['empty',    'server-4', 'empty',     'empty',      'empty',      'empty',   'empty',      'empty',  'wall'],
+            ['wall',     'empty',    'empty',     'honeypot2',  'empty',      'server-5','empty',      'empty',  'empty'],
+            ['empty',    'empty',    'empty',     'empty',      'empty',      'empty',   'spoof-gate', 'empty',  'empty'],
+            ['wall',     'wall',     'empty',     'empty',      'empty',      'wall',    'empty',      'empty',  'target']
         ],
         start: { col: 0, row: 0 }
     },
 
     nodes: {
-        'gateway':   { label: 'GATEWAY',     abbr: 'GTW', ip: '10.40.0.1',   desc: 'Edge gateway',                                  ports: ['22/SSH','443/HTTPS'],                       os: 'Cisco IOS 15.4' },
-        'router':    { label: 'ROUTER',      abbr: 'RTR', ip: '10.40.0.2',   desc: 'Core router',                                   ports: ['22/SSH','179/BGP'],                         os: 'Juniper JunOS 21.4' },
-        'switch':    { label: 'SWITCH',      abbr: 'SWT', ip: '10.40.0.5',   desc: 'Distribution switch',                            ports: ['22/SSH','161/SNMP'],                        os: 'Cisco Catalyst 3650' },
-        'server-a':  { label: 'SERVER-ALPHA',abbr: 'SRA', ip: '10.40.0.11',  desc: 'Application server',                             ports: ['22/SSH','8080/HTTP','8443/HTTPS'],          os: 'Ubuntu 24.04 LTS' },
-        'server-b':  { label: 'SERVER-BRAVO',abbr: 'SRB', ip: '10.40.0.12',  desc: 'Database server',                                ports: ['22/SSH','3306/MySQL','5432/PostgreSQL'],    os: 'RHEL 9.3' },
-        'target':    { label: 'TARGET',      abbr: 'TGT', ip: '10.40.0.99',  desc: 'Operations server — final objective',             ports: ['22/SSH','8443/HTTPS','9090/ADMIN'],         os: 'RHEL 9.3' },
+        'gateway':      { label: 'GATEWAY',       abbr: 'GTW', ip: '10.70.0.1',   desc: 'Entry point',                              ports: ['22/SSH','443/HTTPS'],                       os: 'Cisco IOS 15.4' },
 
-        /* Gate 1: WAF — requires nmap (ACL misconfiguration) */
-        'waf':       { label: 'WAF',         abbr: 'WAF', ip: '10.40.0.254', desc: 'Web application firewall blocking east corridor', ports: ['443/HTTPS','8443/MGMT'],                   os: 'AWS WAF v2', vuln: 'CVE-2024-2891', vulnDesc: 'ACL bypass via malformed headers' },
+        /* 5 target servers */
+        'server-1':     { label: 'SRV-COMMS',     abbr: 'COM', ip: '10.70.0.11',  desc: 'Communications relay',                     ports: ['22/SSH','5060/SIP','443/HTTPS'],             os: 'FreePBX 16' },
+        'server-2':     { label: 'SRV-INTEL',     abbr: 'INT', ip: '10.70.0.12',  desc: 'Intelligence archive',                     ports: ['22/SSH','8443/HTTPS','9200/ELASTIC'],        os: 'Ubuntu 24.04 LTS' },
+        'server-3':     { label: 'SRV-CRYPTO',    abbr: 'CRY', ip: '10.70.0.13',  desc: 'Cryptographic key server',                 ports: ['22/SSH','8200/VAULT','443/HTTPS'],           os: 'HashiCorp Vault 1.15' },
+        'server-4':     { label: 'SRV-SIEM',      abbr: 'SIM', ip: '10.70.0.14',  desc: 'SIEM correlation engine',                  ports: ['22/SSH','9200/ELASTIC','5601/KIBANA'],       os: 'CentOS Stream 9' },
+        'server-5':     { label: 'SRV-C2',        abbr: 'CC2', ip: '10.70.0.15',  desc: 'Command and control relay',                ports: ['443/HTTPS-C2','8080/BEACON','53/DNS-TUN'],   os: 'Cobalt Strike 4.9' },
 
-        /* Gate 2: IDS — requires exploit (signature evasion) */
-        'ids-gate':  { label: 'IDS-ACTIVE',  abbr: 'IDS', ip: '10.40.0.250', desc: 'Active IDS blocking south corridor',             ports: ['514/SYSLOG','443/MGMT'],                   os: 'Suricata 7.0', vuln: 'CVE-2024-5512', vulnDesc: 'Signature injection allows rule bypass' },
+        /* 3 gates — each a different type */
+        'nmap-gate':    { label: 'FIREWALL-A',    abbr: 'FWA', ip: '10.70.0.251', desc: 'Zone 1→2 firewall — requires nmap',         ports: ['22/SSH','443/MGMT'],                        os: 'pfSense 2.7.0', vuln: 'CVE-2024-3891', vulnDesc: 'Weak ACL allows bypass' },
+        'exploit-gate': { label: 'EDR-SYSTEM',    abbr: 'EDR', ip: '10.70.0.252', desc: 'Zone 2→3 EDR — requires exploit',           ports: ['443/HTTPS','8443/MGMT'],                    os: 'CrowdStrike Falcon', vuln: 'CVE-2024-7733', vulnDesc: 'Kernel driver bypass via signed driver vuln' },
+        'spoof-gate':   { label: 'HONEYPOT-NET',  abbr: 'HPN', ip: '10.70.0.253', desc: 'Zone 3→4 honeypot network — requires spoof',ports: ['22/SSH-FAKE','445/SMB-FAKE'],               os: 'Honeyd 1.6', vuln: 'CVE-2024-6221', vulnDesc: 'TCP ISN randomization bypass' },
 
-        /* Gate 3: C2 beacon — requires spoof (ISN randomization bypass) */
-        'c2-beacon': { label: 'C2-BEACON',   abbr: 'C2B', ip: '10.40.0.245', desc: 'Command-and-control beacon blocking east path',   ports: ['443/HTTPS-C2','8080/BEACON'],              os: 'Cobalt Strike 4.9', vuln: 'CVE-2024-6221', vulnDesc: 'TCP ISN randomization bypass allows spoofing' },
+        /* Target */
+        'target':       { label: 'EXTRACTION',    abbr: 'EXT', ip: '10.70.0.99',  desc: 'Extraction point — mission complete here',   ports: ['22/SSH','8443/HTTPS'],                      os: 'RHEL 9.3' },
 
-        /* Trap */
-        'honeypot':  { label: 'HONEYPOT',    abbr: 'HNY', ip: '10.40.0.200', desc: 'Decoy server',                                   ports: ['22/SSH-FAKE','80/HTTP-TRAP'],              os: 'Honeyd 1.6 [TRAP]' }
+        /* 3 traps */
+        'honeypot':     { label: 'TRAP-ALPHA',    abbr: 'TA',  ip: '10.70.0.200', desc: 'Decoy — north corridor',                    ports: ['22/SSH-FAKE'],                              os: 'Honeyd [TRAP]' },
+        'ids-trap':     { label: 'TRAP-BRAVO',    abbr: 'TB',  ip: '10.70.0.201', desc: 'IDS sensor — east passage',                  ports: ['514/SYSLOG'],                               os: 'Snort [TRAP]' },
+        'honeypot2':    { label: 'TRAP-CHARLIE',  abbr: 'TC',  ip: '10.70.0.202', desc: 'Decoy — south corridor',                     ports: ['80/HTTP-TRAP'],                             os: 'Honeyd [TRAP]' }
     },
 
-    traps: ['honeypot'],
+    traps: ['honeypot', 'ids-trap', 'honeypot2'],
 
     gates: {
-        'waf':       { requires: 'nmap',    flag: 'wafBypassed',     vuln: 'CVE-2024-2891', vulnDesc: 'ACL bypass via malformed headers' },
-        'ids-gate':  { requires: 'exploit', flag: 'idsBypassed',     vuln: 'CVE-2024-5512', vulnDesc: 'Signature injection allows rule bypass' },
-        'c2-beacon': { requires: 'spoof',   flag: 'c2Neutralized',   vuln: 'CVE-2024-6221', vulnDesc: 'TCP ISN randomization bypass allows spoofing' }
+        'nmap-gate':    { requires: 'nmap',    flag: 'zone2Unlocked',  vuln: 'CVE-2024-3891', vulnDesc: 'Weak ACL allows bypass' },
+        'exploit-gate': { requires: 'exploit', flag: 'zone3Unlocked',  vuln: 'CVE-2024-7733', vulnDesc: 'Kernel driver bypass' },
+        'spoof-gate':   { requires: 'spoof',   flag: 'zone4Unlocked',  vuln: 'CVE-2024-6221', vulnDesc: 'TCP ISN randomization bypass' }
     },
 
     objectives: [
-        { id: 'obj_0', label: 'RECON -- Discover 6+ nodes',                       check: 'nodesDiscovered.size >= 6' },
-        { id: 'obj_1', label: 'GATE 1 -- Bypass the WAF (nmap)',                  check: 'wafBypassed' },
-        { id: 'obj_2', label: 'GATE 2 -- Bypass the IDS (exploit)',                check: 'idsBypassed' },
-        { id: 'obj_3', label: 'GATE 3 -- Neutralize the C2 beacon (spoof)',        check: 'c2Neutralized' },
-        { id: 'obj_4', label: 'INTEL -- nmap both servers',                        check: 'nmapTargets.has("server-a") && nmapTargets.has("server-b")' },
-        { id: 'obj_5', label: 'OBJECTIVE -- Reach the target',                     check: 'nodesDiscovered.has("target")' }
+        { id: 'obj_0', label: 'RECON -- Discover 8+ network nodes',                check: 'nodesDiscovered.size >= 8' },
+        { id: 'obj_1', label: 'ZONE 2 -- Bypass firewall (nmap)',                  check: 'zone2Unlocked' },
+        { id: 'obj_2', label: 'ZONE 3 -- Bypass EDR (exploit)',                    check: 'zone3Unlocked' },
+        { id: 'obj_3', label: 'ZONE 4 -- Bypass honeypot net (spoof)',             check: 'zone4Unlocked' },
+        { id: 'obj_4', label: 'INTEL -- nmap all 5 servers',                       check: 'nmapTargets.has("server-1") && nmapTargets.has("server-2") && nmapTargets.has("server-3") && nmapTargets.has("server-4") && nmapTargets.has("server-5")' },
+        { id: 'obj_5', label: 'EXTRACT -- Reach the extraction point',             check: 'nodesDiscovered.has("target")' },
+        { id: 'obj_6', label: 'STEALTH -- 2+ integrity remaining',                 check: 'integrity >= 2' }
     ],
 
-    integrity: 3,
+    integrity: 4,
 
     completion: {
-        title: 'ADAPTIVE RECON',
-        subtitle: 'Three gates. Three tools. All bypassed.',
+        title: 'FULL SPECTRUM',
+        subtitle: 'All zones breached. All servers cataloged. Extraction complete.',
         storageKey: 'hexworth_operator_python05'
     }
 };

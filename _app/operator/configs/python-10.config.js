@@ -1,124 +1,108 @@
 /* ================================================================
-   PYTHON-10 / GHOST PROTOCOL -- Mission Config
+   PYTHON-10 / SCATTERED OPS -- Mission Config
    ================================================================
-   Tier 5 FINAL mission. 10x10 grid — 100 cells.
-   The ultimate test: every Python skill, every agent tool.
+   Tier 5 mission. 9x9 grid.
+   Forces route planning: 6 objectives scattered across a large grid,
+   student must plan an efficient path visiting all of them.
 
    PUZZLE DESIGN:
-   - 10x10 grid — the largest in the Operator system
-   - 4 operational zones separated by 4 different gate types
-   - 8 servers across 4 departments (finance, engineering, ops, executive)
-   - 6 traps hidden throughout — 2 per main corridor
-   - Student must write a complete, structured Python program:
-     * Reusable safe_advance() function
-     * Grid sweep via nested for loops
-     * Data collection into lists
-     * If/elif chains for gate identification
-     * Multi-phase execution (recon → catalog → breach → extract)
-   - Stealth objective: complete with 4+ of 6 integrity remaining
-   - Efficiency objective: use ≤60 agent commands
-   - The puzzle rewards planning — brute force exhausts integrity
+   - 6 servers placed in all 4 corners and 2 middle positions
+   - Student must nmap all 6 — no fixed order
+   - 4 traps placed at natural crossroads
+   - 2 gates blocking diagonal shortcuts
+   - The challenge: plan a route that visits all 6 with minimum backtracking
+   - Forces: planning ahead, using lists to track visited targets,
+     possibly building a route array and iterating through it
 
-   This mission is the capstone. It can only be completed by students
-   who have internalized functions, loops, conditionals, and data
-   structures from Levels 3-9.
+   PYTHON SKILL: Route planning with lists
+     targets = ['server-nw', 'server-ne', 'server-sw', 'server-se', 'server-cn', 'server-cs']
+     visited = []
+     for t in targets:
+         # navigate to target, nmap it
+         visited = visited + [t]
+         print("Visited: " + str(len(visited)) + "/6")
 
-   GRID (10x10):
-   The grid represents a corporate campus with 4 departments.
-   Each department is gated and contains 2 servers to catalog.
+   GRID (9x9) — 6 servers in spread positions
+     [start]   [empty]  [empty]   [empty]   [wall]    [empty]  [empty]   [empty]  [srv-ne]
+     [empty]   [trap-1] [empty]   [empty]   [empty]   [empty]  [empty]   [empty]  [empty]
+     [empty]   [empty]  [empty]   [empty]   [srv-cn]  [empty]  [empty]   [trap-2] [wall]
+     [empty]   [empty]  [gate-1]  [empty]   [empty]   [empty]  [empty]   [empty]  [empty]
+     [wall]    [empty]  [empty]   [empty]   [router]  [empty]  [empty]   [empty]  [wall]
+     [empty]   [empty]  [empty]   [empty]   [empty]   [empty]  [gate-2]  [empty]  [empty]
+     [wall]    [empty]  [empty]   [trap-3]  [srv-cs]  [empty]  [empty]   [empty]  [empty]
+     [empty]   [empty]  [empty]   [empty]   [empty]   [empty]  [empty]   [trap-4] [empty]
+     [srv-sw]  [empty]  [empty]   [empty]   [wall]    [empty]  [empty]   [empty]  [srv-se]
    ================================================================ */
 
 var PYTHON_10_CONFIG = {
     id: 'python-10',
-    title: 'PYTHON-10 / GHOST PROTOCOL',
-    subtitle: 'The final operation. 10x10 grid. Zero margin for error.',
+    title: 'PYTHON-10 / SCATTERED OPS',
+    subtitle: 'Six targets. Four corners. Plan your route.',
     category: 'python-ops',
     difficulty: 4,
     inputMode: 'python',
     agent: { tier: 3 },
 
     grid: {
-        rows: 10, cols: 10,
+        rows: 9, cols: 9,
         cells: [
-            ['gateway',  'empty',    'empty',    'router-a',  'empty',      'wall',     'empty',     'empty',     'empty',     'wall'],
-            ['empty',    'honeypot', 'empty',    'empty',     'srv-fin-1',  'empty',    'empty',     'srv-eng-1', 'empty',     'empty'],
-            ['empty',    'empty',    'switch-a', 'empty',     'empty',      'empty',    'ids-1',     'empty',     'empty',     'wall'],
-            ['wall',     'empty',    'empty',    'fw-finance','empty',      'srv-fin-2','empty',     'fw-eng',    'empty',     'empty'],
-            ['empty',    'empty',    'empty',    'empty',     'wall',       'empty',    'empty',     'empty',     'srv-eng-2', 'wall'],
-            ['empty',    'honeypot2','empty',    'router-b',  'empty',      'empty',    'empty',     'empty',     'empty',     'empty'],
-            ['wall',     'empty',    'empty',    'fw-ops',    'empty',      'srv-ops-1','empty',     'ids-2',     'empty',     'wall'],
-            ['empty',    'empty',    'srv-ops-2','empty',     'empty',      'empty',    'fw-exec',   'empty',     'empty',     'empty'],
-            ['empty',    'honeypot3','empty',    'empty',     'empty',      'wall',     'empty',     'srv-exec-1','empty',     'empty'],
-            ['wall',     'wall',     'empty',    'empty',     'empty',      'wall',     'empty',     'empty',     'srv-exec-2','target']
+            ['gateway',  'empty',  'empty',   'empty',    'wall',     'empty',  'empty',   'empty',  'srv-ne'],
+            ['empty',    'trap-1', 'empty',   'empty',    'empty',    'empty',  'empty',   'empty',  'empty'],
+            ['empty',    'empty',  'empty',   'empty',    'srv-cn',   'empty',  'empty',   'trap-2', 'wall'],
+            ['empty',    'empty',  'gate-1',  'empty',    'empty',    'empty',  'empty',   'empty',  'empty'],
+            ['wall',     'empty',  'empty',   'empty',    'router',   'empty',  'empty',   'empty',  'wall'],
+            ['empty',    'empty',  'empty',   'empty',    'empty',    'empty',  'gate-2',  'empty',  'empty'],
+            ['wall',     'empty',  'empty',   'trap-3',   'srv-cs',   'empty',  'empty',   'empty',  'empty'],
+            ['empty',    'empty',  'empty',   'empty',    'empty',    'empty',  'empty',   'trap-4', 'empty'],
+            ['srv-sw',   'empty',  'empty',   'empty',    'wall',     'empty',  'empty',   'empty',  'srv-se']
         ],
         start: { col: 0, row: 0 }
     },
 
     nodes: {
-        /* Infrastructure */
-        'gateway':     { label: 'GATEWAY',       abbr: 'GTW', ip: '10.90.0.1',   desc: 'Campus perimeter entry',                ports: ['22/SSH','443/HTTPS'],                     os: 'Cisco IOS 15.4' },
-        'router-a':    { label: 'ROUTER-NORTH',  abbr: 'RNA', ip: '10.90.0.2',   desc: 'North wing core router',                ports: ['22/SSH','179/BGP','161/SNMP'],            os: 'Juniper JunOS 21.4' },
-        'router-b':    { label: 'ROUTER-SOUTH',  abbr: 'RSB', ip: '10.90.0.3',   desc: 'South wing core router',                ports: ['22/SSH','179/BGP','161/SNMP'],            os: 'Cisco IOS XE 17.9' },
-        'switch-a':    { label: 'SWITCH-DIST',   abbr: 'SWA', ip: '10.90.0.5',   desc: 'Distribution layer switch',             ports: ['22/SSH','161/SNMP'],                      os: 'Cisco Catalyst 9300' },
+        'gateway':  { label: 'GATEWAY',       abbr: 'GTW', ip: '10.130.0.1',   desc: 'Entry point — northwest corner',                ports: ['22/SSH','443/HTTPS'],                     os: 'Cisco IOS 15.4' },
+        'router':   { label: 'ROUTER',        abbr: 'RTR', ip: '10.130.0.2',   desc: 'Core router — grid center',                     ports: ['22/SSH','179/BGP'],                       os: 'Juniper JunOS 21.4' },
 
-        /* Finance Department (2 servers) */
-        'srv-fin-1':   { label: 'FIN-PAYROLL',   abbr: 'FP1', ip: '10.90.1.11',  desc: 'Payroll processing server',             ports: ['22/SSH','443/HTTPS','8443/MGMT'],         os: 'Windows Server 2022' },
-        'srv-fin-2':   { label: 'FIN-LEDGER',    abbr: 'FL2', ip: '10.90.1.12',  desc: 'General ledger database',               ports: ['22/SSH','1433/MSSQL','5432/PostgreSQL'],  os: 'RHEL 9.3', vuln: 'CVE-2024-9201', vulnDesc: 'Unpatched MSSQL RCE via xp_cmdshell' },
+        /* 6 scattered target servers */
+        'srv-ne':   { label: 'SRV-NORTHEAST', abbr: 'SNE', ip: '10.130.1.11',  desc: 'Northeast corner — security operations',        ports: ['22/SSH','9200/ELASTIC','5601/KIBANA'],    os: 'CentOS Stream 9' },
+        'srv-cn':   { label: 'SRV-CENTER-N',  abbr: 'SCN', ip: '10.130.1.12',  desc: 'Center north — domain controller',              ports: ['53/DNS','88/KERBEROS','389/LDAP'],        os: 'Windows Server 2022 AD' },
+        'srv-cs':   { label: 'SRV-CENTER-S',  abbr: 'SCS', ip: '10.130.1.13',  desc: 'Center south — database cluster',               ports: ['22/SSH','3306/MySQL','5432/PostgreSQL'],  os: 'RHEL 9.3' },
+        'srv-sw':   { label: 'SRV-SOUTHWEST', abbr: 'SSW', ip: '10.130.1.14',  desc: 'Southwest corner — backup systems',             ports: ['22/SSH','873/RSYNC','3260/ISCSI'],        os: 'Debian 12 Bookworm' },
+        'srv-se':   { label: 'SRV-SOUTHEAST', abbr: 'SSE', ip: '10.130.1.15',  desc: 'Southeast corner — executive vault',            ports: ['22/SSH','8200/VAULT','443/HTTPS'],        os: 'HashiCorp Vault 1.15' },
 
-        /* Engineering Department (2 servers) */
-        'srv-eng-1':   { label: 'ENG-GITLAB',    abbr: 'GL1', ip: '10.90.2.11',  desc: 'GitLab source code repository',         ports: ['22/SSH','80/HTTP','443/HTTPS'],            os: 'Ubuntu 24.04 LTS' },
-        'srv-eng-2':   { label: 'ENG-CICD',      abbr: 'CI2', ip: '10.90.2.12',  desc: 'CI/CD pipeline server (Jenkins)',        ports: ['22/SSH','8080/JENKINS','50000/AGENT'],     os: 'Debian 12 Bookworm', vuln: 'CVE-2024-9202', vulnDesc: 'Jenkins Script Console unauthenticated access' },
+        /* 2 gates */
+        'gate-1':   { label: 'FW-WEST',      abbr: 'FW1', ip: '10.130.0.251', desc: 'West corridor firewall',                        ports: ['22/SSH','443/MGMT'],                      os: 'pfSense 2.7.0', vuln: 'CVE-2024-3891', vulnDesc: 'Weak ACL' },
+        'gate-2':   { label: 'FW-EAST',      abbr: 'FW2', ip: '10.130.0.252', desc: 'East corridor firewall',                        ports: ['22/SSH','443/MGMT'],                      os: 'Palo Alto PAN-OS', vuln: 'CVE-2024-7744', vulnDesc: 'Management plane RCE' },
 
-        /* Operations Department (2 servers) */
-        'srv-ops-1':   { label: 'OPS-MONITORING', abbr: 'OM1', ip: '10.90.3.11', desc: 'Grafana + Prometheus stack',              ports: ['22/SSH','3000/GRAFANA','9090/PROMETHEUS'], os: 'CentOS Stream 9' },
-        'srv-ops-2':   { label: 'OPS-ANSIBLE',    abbr: 'AN2', ip: '10.90.3.12', desc: 'Ansible automation controller',           ports: ['22/SSH','443/HTTPS','8443/AWX'],           os: 'RHEL 9.3', vuln: 'CVE-2024-9203', vulnDesc: 'AWX API key exposed in default config' },
-
-        /* Executive Department (2 servers) */
-        'srv-exec-1':  { label: 'EXEC-COMMS',     abbr: 'EC1', ip: '10.90.4.11', desc: 'Executive communications server',         ports: ['22/SSH','443/HTTPS','5061/SRTP'],          os: 'FreePBX 16' },
-        'srv-exec-2':  { label: 'EXEC-VAULT',     abbr: 'EV2', ip: '10.90.4.12', desc: 'Executive secrets vault',                 ports: ['22/SSH','8200/VAULT','443/HTTPS'],          os: 'HashiCorp Vault 1.15', vuln: 'CVE-2024-9204', vulnDesc: 'Root token left in default config' },
-
-        /* 4 Department Firewalls (gates) */
-        'fw-finance':  { label: 'FW-FINANCE',  abbr: 'FWF', ip: '10.90.0.251', desc: 'Finance department firewall',            ports: ['22/SSH','443/MGMT'],                       os: 'pfSense 2.7.0', vuln: 'CVE-2024-3891', vulnDesc: 'Weak ACL allows unauthenticated management access' },
-        'fw-eng':      { label: 'FW-ENGINEERING',abbr: 'FWE', ip: '10.90.0.252', desc: 'Engineering department firewall',       ports: ['22/SSH','443/MGMT'],                       os: 'Palo Alto PAN-OS 11', vuln: 'CVE-2024-7744', vulnDesc: 'Management plane RCE via crafted request' },
-        'fw-ops':      { label: 'FW-OPERATIONS',abbr: 'FWO', ip: '10.90.0.253', desc: 'Operations department firewall',         ports: ['22/SSH','443/MGMT'],                       os: 'Fortinet FortiGate 7.4', vuln: 'CVE-2024-6221', vulnDesc: 'TCP ISN randomization bypass allows spoofing' },
-        'fw-exec':     { label: 'FW-EXECUTIVE', abbr: 'FWX', ip: '10.90.0.254', desc: 'Executive department firewall',          ports: ['22/SSH','443/MGMT'],                       os: 'Check Point R81.20', vuln: 'CVE-2024-8855', vulnDesc: 'SmartConsole credential caching allows replay attack' },
-
-        /* Extraction */
-        'target':      { label: 'EXTRACTION',   abbr: 'EXT', ip: '10.90.0.99',  desc: 'Corporate exit point — mission complete', ports: ['22/SSH','8443/HTTPS'],                     os: 'RHEL 9.3' },
-
-        /* 6 Traps (2 per main corridor) */
-        'honeypot':    { label: 'TRAP-NORTH-1',  abbr: 'TN1', ip: '10.90.0.200', desc: 'Decoy — north wing entrance',          ports: ['22/SSH-FAKE'],                             os: 'Honeyd [TRAP]' },
-        'honeypot2':   { label: 'TRAP-SOUTH-1',  abbr: 'TS1', ip: '10.90.0.201', desc: 'Decoy — south wing crossover',         ports: ['80/HTTP-TRAP'],                            os: 'Honeyd [TRAP]' },
-        'honeypot3':   { label: 'TRAP-SOUTH-2',  abbr: 'TS2', ip: '10.90.0.202', desc: 'Decoy — executive corridor',           ports: ['445/SMB-FAKE'],                            os: 'Honeyd [TRAP]' },
-        'ids-1':       { label: 'IDS-NORTH',     abbr: 'IN1', ip: '10.90.0.203', desc: 'IDS — engineering approach',            ports: ['514/SYSLOG'],                              os: 'Snort [TRAP]' },
-        'ids-2':       { label: 'IDS-SOUTH',     abbr: 'IS2', ip: '10.90.0.204', desc: 'IDS — operations approach',             ports: ['514/SYSLOG'],                              os: 'Suricata [TRAP]' }
+        /* 4 traps at crossroads */
+        'trap-1':   { label: 'TRAP-NW',      abbr: 'TW1', ip: '10.130.0.200', desc: 'IDS — northwest corridor',                      ports: ['514/SYSLOG'],                             os: 'Snort [TRAP]' },
+        'trap-2':   { label: 'TRAP-NE',      abbr: 'TE2', ip: '10.130.0.201', desc: 'Honeypot — northeast approach',                 ports: ['22/SSH-FAKE'],                            os: 'Honeyd [TRAP]' },
+        'trap-3':   { label: 'TRAP-SW',      abbr: 'TW3', ip: '10.130.0.202', desc: 'IDS — southwest corridor',                      ports: ['514/SYSLOG'],                             os: 'Suricata [TRAP]' },
+        'trap-4':   { label: 'TRAP-SE',      abbr: 'TE4', ip: '10.130.0.203', desc: 'Honeypot — southeast approach',                 ports: ['80/HTTP-TRAP'],                           os: 'Honeyd [TRAP]' }
     },
 
-    traps: ['honeypot', 'honeypot2', 'honeypot3', 'ids-1', 'ids-2'],
+    traps: ['trap-1', 'trap-2', 'trap-3', 'trap-4'],
 
     gates: {
-        'fw-finance': { requires: 'nmap',    flag: 'financeBypassed',   vuln: 'CVE-2024-3891', vulnDesc: 'Weak ACL' },
-        'fw-eng':     { requires: 'exploit', flag: 'engineeringBypassed',vuln: 'CVE-2024-7744', vulnDesc: 'Management plane RCE' },
-        'fw-ops':     { requires: 'spoof',   flag: 'opsBypassed',       vuln: 'CVE-2024-6221', vulnDesc: 'TCP ISN bypass' },
-        'fw-exec':    { requires: 'decrypt', flag: 'execBypassed',      vuln: 'CVE-2024-8855', vulnDesc: 'Credential replay' }
+        'gate-1': { requires: 'nmap',    flag: 'westGateCleared',  vuln: 'CVE-2024-3891', vulnDesc: 'Weak ACL' },
+        'gate-2': { requires: 'exploit', flag: 'eastGateCleared',  vuln: 'CVE-2024-7744', vulnDesc: 'Management plane RCE' }
     },
 
     objectives: [
-        { id: 'obj_0', label: 'RECON -- Discover 12+ nodes across campus',             check: 'nodesDiscovered.size >= 12' },
-        { id: 'obj_1', label: 'FINANCE -- Bypass finance firewall + nmap both servers', check: 'financeBypassed && nmapTargets.has("srv-fin-1") && nmapTargets.has("srv-fin-2")' },
-        { id: 'obj_2', label: 'ENGINEERING -- Bypass eng firewall + nmap both servers', check: 'engineeringBypassed && nmapTargets.has("srv-eng-1") && nmapTargets.has("srv-eng-2")' },
-        { id: 'obj_3', label: 'OPERATIONS -- Bypass ops firewall + nmap both servers',  check: 'opsBypassed && nmapTargets.has("srv-ops-1") && nmapTargets.has("srv-ops-2")' },
-        { id: 'obj_4', label: 'EXECUTIVE -- Bypass exec firewall + nmap both servers',  check: 'execBypassed && nmapTargets.has("srv-exec-1") && nmapTargets.has("srv-exec-2")' },
-        { id: 'obj_5', label: 'FULL CATALOG -- nmap all 8 department servers',          check: 'nmapTargets.has("srv-fin-1") && nmapTargets.has("srv-fin-2") && nmapTargets.has("srv-eng-1") && nmapTargets.has("srv-eng-2") && nmapTargets.has("srv-ops-1") && nmapTargets.has("srv-ops-2") && nmapTargets.has("srv-exec-1") && nmapTargets.has("srv-exec-2")' },
-        { id: 'obj_6', label: 'EXTRACTION -- Reach the corporate exit',                check: 'nodesDiscovered.has("target")' },
-        { id: 'obj_7', label: 'STEALTH -- Complete with 4+ integrity remaining',       check: 'integrity >= 4' }
+        { id: 'obj_0', label: 'TARGET 1 -- nmap Northeast server',            check: 'nmapTargets.has("srv-ne")' },
+        { id: 'obj_1', label: 'TARGET 2 -- nmap Center-North server',         check: 'nmapTargets.has("srv-cn")' },
+        { id: 'obj_2', label: 'TARGET 3 -- nmap Center-South server',         check: 'nmapTargets.has("srv-cs")' },
+        { id: 'obj_3', label: 'TARGET 4 -- nmap Southwest server',            check: 'nmapTargets.has("srv-sw")' },
+        { id: 'obj_4', label: 'TARGET 5 -- nmap Southeast server',            check: 'nmapTargets.has("srv-se")' },
+        { id: 'obj_5', label: 'GATES -- Bypass both corridor firewalls',      check: 'westGateCleared && eastGateCleared' },
+        { id: 'obj_6', label: 'STEALTH -- 2+ integrity remaining',            check: 'integrity >= 2' }
     ],
 
-    integrity: 6,  /* 6 pips for 5 traps + 1 margin — stealth requires avoiding most */
+    integrity: 4,
 
     completion: {
-        title: 'GHOST PROTOCOL',
-        subtitle: 'Four departments breached. Eight servers cataloged. Ghost in the machine.',
+        title: 'SCATTERED OPS',
+        subtitle: 'All six targets cataloged. Route optimized. Zero waste.',
         storageKey: 'hexworth_operator_python10'
     }
 };

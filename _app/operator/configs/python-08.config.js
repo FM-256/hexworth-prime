@@ -1,113 +1,107 @@
 /* ================================================================
-   PYTHON-08 / FULL SPECTRUM -- Mission Config
+   PYTHON-08 / FORK IN THE ROAD -- Mission Config
    ================================================================
-   Tier 4 mission. 9x9 grid — 81 cells.
-   Combines ALL previously learned skills into one mission.
+   Tier 5 mission. 8x8 grid.
+   Forces decision-making: two paths to the target, one trapped,
+   one gated. Student must scan both routes and choose.
 
    PUZZLE DESIGN:
-   - 9x9 grid with multiple zones separated by gates
-   - Zone 1 (accessible): reconnaissance area with traps
-   - Zone 2 (nmap gate): server farm — scan and catalog servers
-   - Zone 3 (exploit gate): data center — exploit vulnerable targets
-   - Zone 4 (spoof gate): extraction corridor to target
-   - Student must: sweep safely (function), discover nodes (loop),
-     catalog vulnerabilities (list building), bypass 3 gate types
-     (if/elif based on nmap data), and reach the target
+   - Two corridors from start to target: North route and South route
+   - North route: shorter but 3 traps (honeypots along the path)
+   - South route: longer but only 1 gate (nmap firewall)
+   - Optimal strategy: scan both routes, determine which is safer,
+     then commit to one path
+   - Forces: scan() result storage in variables, comparison logic,
+     strategic decision-making based on collected data
 
-   This is the "boss level" of the Phase 1 difficulty curve.
-   Every Python skill from levels 3-7 is needed here.
+   PYTHON SKILL: Data-driven decision making
+     # Scan north route
+     agent.move('east')
+     north_data = agent.scan()
+     # Scan south route
+     agent.move('south')
+     south_data = agent.scan()
+     # Decide based on trap count vs gate count
+     north_traps = 0
+     for node in north_data:
+         if 'TRAP' in node['name'] or 'HONEYPOT' in node['name']:
+             north_traps = north_traps + 1
+     if north_traps > 1:
+         # Take south route (gated but fewer traps)
+         ...
 
-   PYTHON SKILLS COMBINED:
-   - def safe_advance() — reusable function (from Level 6)
-   - for loop sweep — systematic grid coverage (from Level 4)
-   - if/elif chain — gate-type identification (from Level 5)
-   - list building — vulnerable target collection (from Level 7)
-   - scan() result inspection — trap detection (from Level 3)
-
-   GRID (9x9):
-     [start]  [empty]   [empty]   [wall]    [empty]   [empty]   [empty]   [empty]  [wall]
-     [empty]  [trap-1]  [empty]   [empty]   [srv-1]   [empty]   [empty]   [empty]  [empty]
-     [empty]  [empty]   [empty]   [empty]   [empty]   [trap-2]  [empty]   [srv-2]  [wall]
-     [wall]   [empty]   [nmap-gw] [empty]   [empty]   [empty]   [empty]   [empty]  [empty]
-     [empty]  [empty]   [empty]   [srv-3]   [empty]   [wall]    [exploit-gw][empty][empty]
-     [empty]  [srv-4]   [empty]   [empty]   [empty]   [empty]   [empty]   [empty]  [wall]
-     [wall]   [empty]   [empty]   [trap-3]  [empty]   [srv-5]   [empty]   [empty]  [empty]
-     [empty]  [empty]   [empty]   [empty]   [empty]   [empty]   [spoof-gw][empty]  [empty]
-     [wall]   [wall]    [empty]   [empty]   [empty]   [wall]    [empty]   [empty]  [target]
+   GRID (8x8):
+     [start]   [empty]   [empty]    [honeypot1] [empty]    [empty]   [empty]  [wall]
+     [empty]   [empty]   [honeypot2][empty]     [empty]    [empty]   [target] [wall]
+     [empty]   [router]  [empty]    [empty]     [honeypot3][empty]   [empty]  [wall]
+     [wall]    [wall]    [wall]     [empty]     [wall]     [wall]    [wall]   [wall]
+     [empty]   [empty]   [empty]    [switch]    [empty]    [empty]   [empty]  [wall]
+     [empty]   [server1] [empty]    [empty]     [firewall] [empty]   [empty]  [empty]
+     [wall]    [empty]   [empty]    [server2]   [empty]    [empty]   [server3][wall]
+     [wall]    [wall]    [empty]    [empty]     [empty]    [wall]    [wall]   [wall]
    ================================================================ */
 
 var PYTHON_08_CONFIG = {
     id: 'python-08',
-    title: 'PYTHON-08 / FULL SPECTRUM',
-    subtitle: 'Every skill. Every tool. One mission.',
+    title: 'PYTHON-08 / FORK IN THE ROAD',
+    subtitle: 'Two paths. One trapped. One gated. Choose wisely.',
     category: 'python-ops',
-    difficulty: 4,
+    difficulty: 3,
     inputMode: 'python',
     agent: { tier: 3 },
 
     grid: {
-        rows: 9, cols: 9,
+        rows: 8, cols: 8,
         cells: [
-            ['gateway',  'empty',    'empty',     'wall',       'empty',      'empty',   'empty',      'empty',  'wall'],
-            ['empty',    'honeypot', 'empty',     'empty',      'server-1',   'empty',   'empty',      'empty',  'empty'],
-            ['empty',    'empty',    'empty',     'empty',      'empty',      'ids-trap','empty',      'server-2','wall'],
-            ['wall',     'empty',    'nmap-gate', 'empty',      'empty',      'empty',   'empty',      'empty',  'empty'],
-            ['empty',    'empty',    'empty',     'server-3',   'empty',      'wall',    'exploit-gate','empty', 'empty'],
-            ['empty',    'server-4', 'empty',     'empty',      'empty',      'empty',   'empty',      'empty',  'wall'],
-            ['wall',     'empty',    'empty',     'honeypot2',  'empty',      'server-5','empty',      'empty',  'empty'],
-            ['empty',    'empty',    'empty',     'empty',      'empty',      'empty',   'spoof-gate', 'empty',  'empty'],
-            ['wall',     'wall',     'empty',     'empty',      'empty',      'wall',    'empty',      'empty',  'target']
+            ['gateway',  'empty',    'empty',     'honeypot1', 'empty',    'empty',    'empty',   'wall'],
+            ['empty',    'empty',    'honeypot2', 'empty',     'empty',    'empty',    'target',  'wall'],
+            ['empty',    'router',   'empty',     'empty',     'honeypot3','empty',    'empty',   'wall'],
+            ['wall',     'wall',     'wall',      'empty',     'wall',     'wall',     'wall',    'wall'],
+            ['empty',    'empty',    'empty',     'switch',    'empty',    'empty',    'empty',   'wall'],
+            ['empty',    'server-1', 'empty',     'empty',     'firewall', 'empty',    'empty',   'empty'],
+            ['wall',     'empty',    'empty',     'server-2',  'empty',    'empty',    'server-3','wall'],
+            ['wall',     'wall',     'empty',     'empty',     'empty',    'wall',     'wall',    'wall']
         ],
         start: { col: 0, row: 0 }
     },
 
     nodes: {
-        'gateway':      { label: 'GATEWAY',       abbr: 'GTW', ip: '10.70.0.1',   desc: 'Entry point',                              ports: ['22/SSH','443/HTTPS'],                       os: 'Cisco IOS 15.4' },
+        'gateway':    { label: 'GATEWAY',     abbr: 'GTW', ip: '10.110.0.1',   desc: 'Entry point — north and south corridors diverge here', ports: ['22/SSH','443/HTTPS'],                        os: 'Cisco IOS 15.4' },
+        'router':     { label: 'ROUTER',      abbr: 'RTR', ip: '10.110.0.2',   desc: 'Core router — north wing',                            ports: ['22/SSH','179/BGP'],                          os: 'Juniper JunOS 21.4' },
+        'switch':     { label: 'SWITCH',      abbr: 'SWT', ip: '10.110.0.5',   desc: 'Distribution switch — south wing',                    ports: ['22/SSH','161/SNMP'],                         os: 'Cisco Catalyst 9300' },
+        'target':     { label: 'TARGET',      abbr: 'TGT', ip: '10.110.0.99',  desc: 'Operations server — mission objective',                ports: ['22/SSH','8443/HTTPS','9090/ADMIN'],          os: 'RHEL 9.3' },
 
-        /* 5 target servers */
-        'server-1':     { label: 'SRV-COMMS',     abbr: 'COM', ip: '10.70.0.11',  desc: 'Communications relay',                     ports: ['22/SSH','5060/SIP','443/HTTPS'],             os: 'FreePBX 16' },
-        'server-2':     { label: 'SRV-INTEL',     abbr: 'INT', ip: '10.70.0.12',  desc: 'Intelligence archive',                     ports: ['22/SSH','8443/HTTPS','9200/ELASTIC'],        os: 'Ubuntu 24.04 LTS' },
-        'server-3':     { label: 'SRV-CRYPTO',    abbr: 'CRY', ip: '10.70.0.13',  desc: 'Cryptographic key server',                 ports: ['22/SSH','8200/VAULT','443/HTTPS'],           os: 'HashiCorp Vault 1.15' },
-        'server-4':     { label: 'SRV-SIEM',      abbr: 'SIM', ip: '10.70.0.14',  desc: 'SIEM correlation engine',                  ports: ['22/SSH','9200/ELASTIC','5601/KIBANA'],       os: 'CentOS Stream 9' },
-        'server-5':     { label: 'SRV-C2',        abbr: 'CC2', ip: '10.70.0.15',  desc: 'Command and control relay',                ports: ['443/HTTPS-C2','8080/BEACON','53/DNS-TUN'],   os: 'Cobalt Strike 4.9' },
+        'server-1':   { label: 'SRV-ALPHA',  abbr: 'SRA', ip: '10.110.0.11',  desc: 'South wing server — intel cache',                     ports: ['22/SSH','8080/HTTP'],                        os: 'Ubuntu 24.04 LTS' },
+        'server-2':   { label: 'SRV-BRAVO',  abbr: 'SRB', ip: '10.110.0.12',  desc: 'South wing server — logs archive',                    ports: ['22/SSH','9200/ELASTIC'],                     os: 'CentOS Stream 9' },
+        'server-3':   { label: 'SRV-CHARLIE',abbr: 'SRC', ip: '10.110.0.13',  desc: 'South wing server — credentials store',               ports: ['22/SSH','5432/PostgreSQL'],                  os: 'RHEL 9.3' },
 
-        /* 3 gates — each a different type */
-        'nmap-gate':    { label: 'FIREWALL-A',    abbr: 'FWA', ip: '10.70.0.251', desc: 'Zone 1→2 firewall — requires nmap',         ports: ['22/SSH','443/MGMT'],                        os: 'pfSense 2.7.0', vuln: 'CVE-2024-3891', vulnDesc: 'Weak ACL allows bypass' },
-        'exploit-gate': { label: 'EDR-SYSTEM',    abbr: 'EDR', ip: '10.70.0.252', desc: 'Zone 2→3 EDR — requires exploit',           ports: ['443/HTTPS','8443/MGMT'],                    os: 'CrowdStrike Falcon', vuln: 'CVE-2024-7733', vulnDesc: 'Kernel driver bypass via signed driver vuln' },
-        'spoof-gate':   { label: 'HONEYPOT-NET',  abbr: 'HPN', ip: '10.70.0.253', desc: 'Zone 3→4 honeypot network — requires spoof',ports: ['22/SSH-FAKE','445/SMB-FAKE'],               os: 'Honeyd 1.6', vuln: 'CVE-2024-6221', vulnDesc: 'TCP ISN randomization bypass' },
+        'firewall':   { label: 'FIREWALL',    abbr: 'FWL', ip: '10.110.0.254', desc: 'South corridor gate — requires nmap to bypass',        ports: ['22/SSH','443/MGMT'],                         os: 'pfSense 2.7.0', vuln: 'CVE-2024-3891', vulnDesc: 'Weak ACL allows bypass' },
 
-        /* Target */
-        'target':       { label: 'EXTRACTION',    abbr: 'EXT', ip: '10.70.0.99',  desc: 'Extraction point — mission complete here',   ports: ['22/SSH','8443/HTTPS'],                      os: 'RHEL 9.3' },
-
-        /* 3 traps */
-        'honeypot':     { label: 'TRAP-ALPHA',    abbr: 'TA',  ip: '10.70.0.200', desc: 'Decoy — north corridor',                    ports: ['22/SSH-FAKE'],                              os: 'Honeyd [TRAP]' },
-        'ids-trap':     { label: 'TRAP-BRAVO',    abbr: 'TB',  ip: '10.70.0.201', desc: 'IDS sensor — east passage',                  ports: ['514/SYSLOG'],                               os: 'Snort [TRAP]' },
-        'honeypot2':    { label: 'TRAP-CHARLIE',  abbr: 'TC',  ip: '10.70.0.202', desc: 'Decoy — south corridor',                     ports: ['80/HTTP-TRAP'],                             os: 'Honeyd [TRAP]' }
+        /* North route traps — 3 honeypots making the shortcut dangerous */
+        'honeypot1':  { label: 'TRAP-N1',     abbr: 'TN1', ip: '10.110.0.200', desc: 'Decoy — north corridor entry',                        ports: ['22/SSH-FAKE'],                               os: 'Honeyd [TRAP]' },
+        'honeypot2':  { label: 'TRAP-N2',     abbr: 'TN2', ip: '10.110.0.201', desc: 'Decoy — north corridor mid',                          ports: ['80/HTTP-TRAP'],                              os: 'Honeyd [TRAP]' },
+        'honeypot3':  { label: 'TRAP-N3',     abbr: 'TN3', ip: '10.110.0.202', desc: 'Decoy — north corridor east',                         ports: ['445/SMB-FAKE'],                              os: 'Honeyd [TRAP]' }
     },
 
-    traps: ['honeypot', 'ids-trap', 'honeypot2'],
+    traps: ['honeypot1', 'honeypot2', 'honeypot3'],
 
     gates: {
-        'nmap-gate':    { requires: 'nmap',    flag: 'zone2Unlocked',  vuln: 'CVE-2024-3891', vulnDesc: 'Weak ACL allows bypass' },
-        'exploit-gate': { requires: 'exploit', flag: 'zone3Unlocked',  vuln: 'CVE-2024-7733', vulnDesc: 'Kernel driver bypass' },
-        'spoof-gate':   { requires: 'spoof',   flag: 'zone4Unlocked',  vuln: 'CVE-2024-6221', vulnDesc: 'TCP ISN randomization bypass' }
+        'firewall': { requires: 'nmap', flag: 'firewallBypassed', vuln: 'CVE-2024-3891', vulnDesc: 'Weak ACL allows bypass' }
     },
 
     objectives: [
-        { id: 'obj_0', label: 'RECON -- Discover 8+ network nodes',                check: 'nodesDiscovered.size >= 8' },
-        { id: 'obj_1', label: 'ZONE 2 -- Bypass firewall (nmap)',                  check: 'zone2Unlocked' },
-        { id: 'obj_2', label: 'ZONE 3 -- Bypass EDR (exploit)',                    check: 'zone3Unlocked' },
-        { id: 'obj_3', label: 'ZONE 4 -- Bypass honeypot net (spoof)',             check: 'zone4Unlocked' },
-        { id: 'obj_4', label: 'INTEL -- nmap all 5 servers',                       check: 'nmapTargets.has("server-1") && nmapTargets.has("server-2") && nmapTargets.has("server-3") && nmapTargets.has("server-4") && nmapTargets.has("server-5")' },
-        { id: 'obj_5', label: 'EXTRACT -- Reach the extraction point',             check: 'nodesDiscovered.has("target")' },
-        { id: 'obj_6', label: 'STEALTH -- 2+ integrity remaining',                 check: 'integrity >= 2' }
+        { id: 'obj_0', label: 'RECON -- Discover 5+ network nodes',                check: 'nodesDiscovered.size >= 5' },
+        { id: 'obj_1', label: 'INTEL -- nmap at least 2 servers',                  check: 'nmapTargets.has("server-1") || nmapTargets.has("server-2") || nmapTargets.has("server-3")' },
+        { id: 'obj_2', label: 'ACCESS -- Bypass the south corridor firewall',      check: 'firewallBypassed' },
+        { id: 'obj_3', label: 'OBJECTIVE -- Reach the target server',              check: 'nodesDiscovered.has("target")' },
+        { id: 'obj_4', label: 'STEALTH -- Complete with 2+ integrity remaining',   check: 'integrity >= 2' }
     ],
 
-    integrity: 4,
+    integrity: 3,
 
     completion: {
-        title: 'FULL SPECTRUM',
-        subtitle: 'All zones breached. All servers cataloged. Extraction complete.',
+        title: 'FORK IN THE ROAD',
+        subtitle: 'Path chosen. Target reached. Decision validated.',
         storageKey: 'hexworth_operator_python08'
     }
 };

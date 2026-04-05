@@ -1,109 +1,101 @@
 /* ================================================================
-   PYTHON-06 / PATROL ROUTE -- Mission Config
+   PYTHON-06 / NIGHT RAID -- Mission Config
    ================================================================
-   Tier 4 mission. 8x8 grid — 64 cells.
-   Forces students to write reusable functions (def).
+   Tier 5 mission. 9x9 grid.
+   Forces multi-phase planning: recon phase → breach phase → extract.
 
    PUZZLE DESIGN:
-   - Long patrol path through an 8x8 grid with 4 traps scattered along it
-   - Student must visit 4 checkpoints (servers) in sequence and nmap each
-   - The path requires ~20 moves with scan+check at each step
-   - Writing move+scan+check for every cell = 60+ lines of repetitive code
-   - A def safe_advance(direction) function reduces this to ~15 lines
-   - The puzzle TEACHES functions by making the alternative unbearable
+   - Large 9x9 grid divided into 3 operational phases
+   - Phase 1 (Recon): Sweep the east wing, discover all infrastructure
+   - Phase 2 (Breach): Use collected intel to breach 4 servers
+   - Phase 3 (Extract): Navigate through gated corridor to extraction
+   - Student must write a structured program with clear phases
+   - Multiple functions for different operation types
+   - Data collected in Phase 1 drives decisions in Phase 2
 
-   REFERENCE SOLUTION:
-     def safe_advance(direction):
-         result = agent.scan()
-         for node in result:
-             if node['direction'] == direction:
-                 name = node['name']
-                 if 'HONEYPOT' in name or 'IDS' in name or 'TRAP' in name:
-                     agent.sweep(direction)
-                     print("Trap disarmed: " + name)
-         agent.move(direction)
+   PYTHON SKILLS:
+   - Multi-function programs (def recon(), def breach(), def extract())
+   - Passing data between phases (return values from functions)
+   - Nested loops for grid sweep
+   - Complex conditionals combining multiple checks
 
-     # Patrol route: east to checkpoint 1, south, west to checkpoint 2, etc.
-     for i in range(4):
-         safe_advance('east')
-     safe_advance('south')
-     safe_advance('south')
-     agent.nmap('server-a')
-     # ... continue patrol pattern
-
-   GRID (8x8):
-     [start]  [empty]  [empty]   [empty]    [honeypot] [empty]   [empty]   [wall]
-     [empty]  [empty]  [empty]   [empty]    [empty]    [empty]   [empty]   [empty]
-     [wall]   [empty]  [server-a][empty]    [empty]    [ids]     [empty]   [wall]
-     [empty]  [empty]  [empty]   [empty]    [empty]    [empty]   [server-b][empty]
-     [empty]  [honeypot2][empty] [empty]    [wall]     [empty]   [empty]   [empty]
-     [wall]   [empty]  [empty]   [server-c] [empty]    [empty]   [honeypot3][wall]
-     [empty]  [empty]  [empty]   [empty]    [empty]    [empty]   [empty]   [empty]
-     [wall]   [wall]   [empty]   [empty]    [server-d] [wall]    [wall]    [wall]
-
-   4 checkpoints (servers) scattered — must nmap all 4
-   4 traps along common routes — must scan before each move
+   GRID (9x9) - 5 traps, 4 gate types, 6 servers, extraction target
    ================================================================ */
 
 var PYTHON_06_CONFIG = {
     id: 'python-06',
-    title: 'PYTHON-06 / PATROL ROUTE',
-    subtitle: 'Long patrol through hostile terrain. Write functions or drown in code.',
+    title: 'PYTHON-06 / NIGHT RAID',
+    subtitle: 'Three-phase operation. Recon. Breach. Extract.',
     category: 'python-ops',
     difficulty: 4,
     inputMode: 'python',
     agent: { tier: 3 },
 
     grid: {
-        rows: 8, cols: 8,
+        rows: 9, cols: 9,
         cells: [
-            ['gateway',  'empty',     'empty',    'empty',    'honeypot',  'empty',     'empty',     'wall'],
-            ['empty',    'empty',     'empty',    'empty',    'empty',     'empty',     'empty',     'empty'],
-            ['wall',     'empty',     'server-a', 'empty',    'empty',     'ids-trap',  'empty',     'wall'],
-            ['empty',    'empty',     'empty',    'empty',    'empty',     'empty',     'server-b',  'empty'],
-            ['empty',    'honeypot2', 'empty',    'empty',    'wall',      'empty',     'empty',     'empty'],
-            ['wall',     'empty',     'empty',    'server-c', 'empty',     'empty',     'honeypot3', 'wall'],
-            ['empty',    'empty',     'empty',    'empty',    'empty',     'empty',     'empty',     'empty'],
-            ['wall',     'wall',      'empty',    'empty',    'server-d',  'wall',      'wall',      'wall']
+            ['gateway',  'empty',    'empty',     'router',     'empty',      'empty',    'wall',       'empty',   'wall'],
+            ['empty',    'empty',    'honeypot',  'empty',      'server-dns', 'empty',    'empty',      'empty',   'empty'],
+            ['empty',    'switch',   'empty',     'empty',      'empty',      'server-ad','empty',      'ids-1',   'wall'],
+            ['wall',     'empty',    'empty',     'firewall-a', 'empty',      'empty',    'empty',      'empty',   'empty'],
+            ['empty',    'empty',    'server-web','empty',      'wall',       'empty',    'server-mail','empty',   'wall'],
+            ['empty',    'honeypot2','empty',     'empty',      'empty',      'empty',    'empty',      'ids-2',   'empty'],
+            ['wall',     'empty',    'empty',     'firewall-b', 'empty',      'empty',    'empty',      'empty',   'empty'],
+            ['empty',    'empty',    'empty',     'empty',      'server-db',  'empty',    'honeypot3',  'empty',   'empty'],
+            ['wall',     'wall',     'empty',     'empty',      'empty',      'wall',     'empty',      'empty',   'target']
         ],
         start: { col: 0, row: 0 }
     },
 
     nodes: {
-        'gateway':   { label: 'GATEWAY',       abbr: 'GTW', ip: '10.50.0.1',   desc: 'Entry point',                          ports: ['22/SSH','443/HTTPS'],                         os: 'Cisco IOS 15.4' },
+        'gateway':      { label: 'GATEWAY',      abbr: 'GTW', ip: '10.80.0.1',   desc: 'Insertion point',                            ports: ['22/SSH','443/HTTPS'],                     os: 'Cisco IOS 15.4' },
+        'router':       { label: 'ROUTER',       abbr: 'RTR', ip: '10.80.0.2',   desc: 'Core router',                                ports: ['22/SSH','179/BGP'],                       os: 'Juniper JunOS 21.4' },
+        'switch':       { label: 'SWITCH',       abbr: 'SWT', ip: '10.80.0.5',   desc: 'Distribution switch',                        ports: ['22/SSH','161/SNMP'],                      os: 'Cisco Catalyst 3850' },
 
-        /* 4 checkpoint servers — must nmap all 4 */
-        'server-a':  { label: 'CHECKPOINT-A',  abbr: 'CPA', ip: '10.50.0.11',  desc: 'Checkpoint Alpha — comms relay',        ports: ['22/SSH','443/HTTPS','8443/MGMT'],             os: 'Ubuntu 24.04 LTS' },
-        'server-b':  { label: 'CHECKPOINT-B',  abbr: 'CPB', ip: '10.50.0.12',  desc: 'Checkpoint Bravo — sensor station',     ports: ['22/SSH','161/SNMP','514/SYSLOG'],             os: 'CentOS Stream 9' },
-        'server-c':  { label: 'CHECKPOINT-C',  abbr: 'CPC', ip: '10.50.0.13',  desc: 'Checkpoint Charlie — data cache',       ports: ['22/SSH','3306/MySQL','9200/ELASTIC'],          os: 'RHEL 9.3' },
-        'server-d':  { label: 'CHECKPOINT-D',  abbr: 'CPD', ip: '10.50.0.14',  desc: 'Checkpoint Delta — extraction point',   ports: ['22/SSH','8443/HTTPS','9090/ADMIN'],            os: 'Debian 12 Bookworm' },
+        /* 6 target servers */
+        'server-dns':   { label: 'SRV-DNS',      abbr: 'DNS', ip: '10.80.0.11',  desc: 'DNS server — zone data',                     ports: ['22/SSH','53/DNS','953/RNDC'],             os: 'BIND 9.18', vuln: 'CVE-2024-9101', vulnDesc: 'Zone transfer allowed to any host' },
+        'server-ad':    { label: 'SRV-AD',       abbr: 'AD',  ip: '10.80.0.12',  desc: 'Active Directory controller',                ports: ['53/DNS','88/KERBEROS','389/LDAP','445/SMB'],os: 'Windows Server 2022 AD' },
+        'server-web':   { label: 'SRV-WEB',      abbr: 'WEB', ip: '10.80.0.13',  desc: 'Public web application',                     ports: ['22/SSH','80/HTTP','443/HTTPS'],            os: 'Ubuntu 24.04 LTS', vuln: 'CVE-2024-9102', vulnDesc: 'SQL injection in login form' },
+        'server-mail':  { label: 'SRV-MAIL',     abbr: 'MIL', ip: '10.80.0.14',  desc: 'Exchange mail server',                       ports: ['25/SMTP','143/IMAP','993/IMAPS','443/OWA'],os: 'Exchange 2019 CU14' },
+        'server-db':    { label: 'SRV-DATABASE', abbr: 'DBS', ip: '10.80.0.15',  desc: 'PostgreSQL cluster — credentials store',     ports: ['22/SSH','5432/PostgreSQL'],                os: 'RHEL 9.3', vuln: 'CVE-2024-9103', vulnDesc: 'Unpatched RCE via pg_execute_server_program' },
 
-        /* 4 traps along common patrol routes */
-        'honeypot':  { label: 'HONEYPOT-1',    abbr: 'HP1', ip: '10.50.0.200', desc: 'Decoy — north corridor',                ports: ['22/SSH-FAKE','80/HTTP-TRAP'],                 os: 'Honeyd [TRAP]' },
-        'honeypot2': { label: 'HONEYPOT-2',    abbr: 'HP2', ip: '10.50.0.201', desc: 'Decoy — west corridor',                 ports: ['22/SSH-FAKE','445/SMB-FAKE'],                 os: 'Honeyd [TRAP]' },
-        'honeypot3': { label: 'HONEYPOT-3',    abbr: 'HP3', ip: '10.50.0.202', desc: 'Decoy — east corridor',                 ports: ['22/SSH-FAKE','3389/RDP-FAKE'],                os: 'Honeyd [TRAP]' },
-        'ids-trap':  { label: 'IDS-SENSOR',    abbr: 'IDS', ip: '10.50.0.203', desc: 'Intrusion detection sensor',            ports: ['514/SYSLOG'],                                 os: 'Snort 3.1 [TRAP]' }
+        /* 2 firewalls (gates) */
+        'firewall-a':   { label: 'FIREWALL-DMZ', abbr: 'FWA', ip: '10.80.0.251', desc: 'DMZ firewall — zone boundary',               ports: ['22/SSH','443/MGMT'],                      os: 'pfSense 2.7.0', vuln: 'CVE-2024-3891', vulnDesc: 'Weak ACL allows bypass' },
+        'firewall-b':   { label: 'FIREWALL-INT', abbr: 'FWB', ip: '10.80.0.252', desc: 'Internal firewall — data center boundary',   ports: ['22/SSH','443/MGMT'],                      os: 'Palo Alto PAN-OS 11', vuln: 'CVE-2024-7744', vulnDesc: 'Management plane RCE via crafted request' },
+
+        /* Target */
+        'target':       { label: 'EXTRACTION',   abbr: 'EXT', ip: '10.80.0.99',  desc: 'Data extraction staging point',               ports: ['22/SSH','8443/HTTPS'],                    os: 'RHEL 9.3' },
+
+        /* 5 traps */
+        'honeypot':     { label: 'TRAP-1',       abbr: 'T1',  ip: '10.80.0.200', desc: 'Decoy north',                                ports: ['22/SSH-FAKE'],                            os: 'Honeyd [TRAP]' },
+        'honeypot2':    { label: 'TRAP-2',       abbr: 'T2',  ip: '10.80.0.201', desc: 'Decoy south',                                ports: ['80/HTTP-TRAP'],                           os: 'Honeyd [TRAP]' },
+        'honeypot3':    { label: 'TRAP-3',       abbr: 'T3',  ip: '10.80.0.202', desc: 'Decoy extraction corridor',                  ports: ['445/SMB-FAKE'],                           os: 'Honeyd [TRAP]' },
+        'ids-1':        { label: 'IDS-EAST',     abbr: 'I1',  ip: '10.80.0.203', desc: 'IDS sensor east wing',                        ports: ['514/SYSLOG'],                             os: 'Snort [TRAP]' },
+        'ids-2':        { label: 'IDS-SOUTH',    abbr: 'I2',  ip: '10.80.0.204', desc: 'IDS sensor south passage',                    ports: ['514/SYSLOG'],                             os: 'Suricata [TRAP]' }
     },
 
-    traps: ['honeypot', 'honeypot2', 'honeypot3', 'ids-trap'],
+    traps: ['honeypot', 'honeypot2', 'honeypot3', 'ids-1', 'ids-2'],
 
-    /* No gates — pure navigation + nmap puzzle */
-    gates: {},
+    gates: {
+        'firewall-a': { requires: 'nmap',    flag: 'dmzBypassed',     vuln: 'CVE-2024-3891', vulnDesc: 'Weak ACL allows bypass' },
+        'firewall-b': { requires: 'exploit', flag: 'internalBypassed',vuln: 'CVE-2024-7744', vulnDesc: 'Management plane RCE' }
+    },
 
     objectives: [
-        { id: 'obj_0', label: 'CHECKPOINT A -- nmap the comms relay',             check: 'nmapTargets.has("server-a")' },
-        { id: 'obj_1', label: 'CHECKPOINT B -- nmap the sensor station',           check: 'nmapTargets.has("server-b")' },
-        { id: 'obj_2', label: 'CHECKPOINT C -- nmap the data cache',               check: 'nmapTargets.has("server-c")' },
-        { id: 'obj_3', label: 'CHECKPOINT D -- nmap the extraction point',         check: 'nmapTargets.has("server-d")' },
-        { id: 'obj_4', label: 'FULL RECON -- Discover all 4 checkpoints + gateway',  check: 'nodesDiscovered.size >= 5' },
-        { id: 'obj_5', label: 'STEALTH -- Complete with 2+ integrity remaining',   check: 'integrity >= 2' }
+        { id: 'obj_0', label: 'PHASE 1 -- Discover 8+ nodes (recon sweep)',        check: 'nodesDiscovered.size >= 8' },
+        { id: 'obj_1', label: 'PHASE 1 -- nmap DNS, Web, and DB servers',          check: 'nmapTargets.has("server-dns") && nmapTargets.has("server-web") && nmapTargets.has("server-db")' },
+        { id: 'obj_2', label: 'PHASE 2 -- Bypass DMZ firewall (nmap)',             check: 'dmzBypassed' },
+        { id: 'obj_3', label: 'PHASE 2 -- Bypass internal firewall (exploit)',     check: 'internalBypassed' },
+        { id: 'obj_4', label: 'PHASE 2 -- nmap all 5 servers',                    check: 'nmapTargets.has("server-dns") && nmapTargets.has("server-ad") && nmapTargets.has("server-web") && nmapTargets.has("server-mail") && nmapTargets.has("server-db")' },
+        { id: 'obj_5', label: 'PHASE 3 -- Reach extraction point',                check: 'nodesDiscovered.has("target")' },
+        { id: 'obj_6', label: 'STEALTH -- 3+ integrity remaining',                check: 'integrity >= 3' }
     ],
 
-    integrity: 4,  /* 4 pips because 4 traps — generous but still punishes carelessness */
+    integrity: 5,  /* 5 pips for 5 traps — generous but demanding for stealth objective */
 
     completion: {
-        title: 'PATROL ROUTE',
-        subtitle: 'All checkpoints secured. Patrol complete.',
+        title: 'NIGHT RAID',
+        subtitle: 'Three phases executed. Network compromised. Data extracted.',
         storageKey: 'hexworth_operator_python06'
     }
 };
