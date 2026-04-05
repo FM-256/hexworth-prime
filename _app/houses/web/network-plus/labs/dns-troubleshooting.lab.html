@@ -11,6 +11,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DNS Troubleshooting Lab | Network+</title>
     <style>
+        /* ── Design tokens ────────────────────────────────────────── */
         :root {
             --web-primary: #60a5fa;
             --web-secondary: #3b82f6;
@@ -25,211 +26,227 @@
             --warning: #f59e0b;
             --danger: #ef4444;
         }
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            line-height: 1.6;
-        }
+        /* Viewport-locked layout -- no page scrolling, scenario content scrolls internally */
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); height: 100%; line-height: 1.6; }
 
-        .lab-container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+        /* Full-width viewport -- use every pixel */
+        .lab-container { width: 100%; padding: 0.8rem 1.5rem; height: calc(100vh - 44px); display: flex; flex-direction: column; overflow: hidden; }
 
-        .back-link {
-            display: inline-flex; align-items: center; gap: 0.5rem;
-            color: var(--web-primary); text-decoration: none; margin-bottom: 1rem;
-            transition: all 0.3s ease;
-        }
+        .back-link { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--web-primary); text-decoration: none; margin-bottom: 0.2rem; transition: all 0.3s ease; flex-shrink: 0; font-size: 0.8rem; }
         .back-link:hover { color: #93c5fd; transform: translateX(-5px); }
 
-        .lab-header {
-            text-align: center; margin-bottom: 2rem; padding: 2rem;
-            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
-            border-radius: 16px; border: 1px solid var(--web-primary);
-            box-shadow: 0 0 30px var(--web-glow);
-        }
-        .lab-header h1 {
-            font-size: 2.2rem; margin-bottom: 0.5rem;
-            background: linear-gradient(135deg, var(--web-primary), #93c5fd);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-        }
-        .lab-header .subtitle { color: var(--text-secondary); font-size: 1rem; }
+        /* Compact single-line header -- viewport-locked so every pixel counts */
+        .lab-header { text-align: center; margin-bottom: 0.4rem; padding: 0.4rem 1.5rem; background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary)); border-radius: 8px; border: 1px solid var(--web-primary); box-shadow: 0 0 20px var(--web-glow); flex-shrink: 0; display: flex; align-items: center; justify-content: center; gap: 20px; }
+        .lab-header h1 { font-size: 1.1rem; margin-bottom: 0; background: linear-gradient(135deg, var(--web-primary), #93c5fd); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .lab-header .subtitle { display: none; }
+        .lab-meta { display: flex; justify-content: center; gap: 1rem; }
+        .meta-item { color: var(--text-secondary); font-size: 0.8rem; }
 
-        .progress-section {
-            background: var(--bg-secondary); border-radius: 12px; padding: 1.5rem;
-            margin-bottom: 2rem; border: 1px solid rgba(96, 165, 250, 0.2);
-        }
-        .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-        .progress-bar { height: 12px; background: var(--bg-tertiary); border-radius: 6px; overflow: hidden; }
-        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--web-primary), var(--success)); border-radius: 6px; transition: width 0.5s ease; }
+        /* ── Scenario-by-scenario layout ──────────────────────────────
+           Only one scenario is visible at a time. The scenario nav bar
+           shows numbered buttons for each scenario + Previous/Next.
+           Completed scenarios get a green indicator. */
 
-        .exercise {
-            background: var(--bg-secondary); border-radius: 16px; padding: 2rem;
-            margin-bottom: 2rem; border: 1px solid rgba(96, 165, 250, 0.2);
-            transition: all 0.3s ease;
+        /* Hide all scenarios by default; active one fills remaining viewport */
+        .scenario[id^="scenario"] { display: none; }
+        .scenario[id^="scenario"].active-scenario {
+            display: flex; flex-direction: row; gap: 12px;
+            flex: 1; min-height: 0; max-height: 100%; overflow: hidden;
+            animation: scenarioFadeIn 0.3s ease-out;
+            padding: 8px 0 0 0;
+            margin-bottom: 0;
         }
-        .exercise:hover { border-color: var(--web-primary); box-shadow: 0 0 20px var(--web-glow); }
-        .exercise.completed { border-color: var(--success); background: linear-gradient(135deg, var(--bg-secondary), rgba(34, 197, 94, 0.1)); }
+        @keyframes scenarioFadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
 
-        .exercise-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
-        .exercise-number {
-            width: 50px; height: 50px;
-            background: linear-gradient(135deg, var(--web-primary), var(--web-secondary));
-            border-radius: 12px; display: flex; align-items: center; justify-content: center;
-            font-size: 1.5rem; font-weight: bold;
+        /* Two-column scenario layout: content left, questions right */
+        .scenario-left {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 8px;
         }
-        .exercise-title h2 { font-size: 1.4rem; color: var(--text-primary); }
-        .exercise-title .time { color: var(--text-secondary); font-size: 0.9rem; }
+        /* Right column -- explicit height constraint forces scroll when content overflows */
+        .scenario-right {
+            width: 360px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            max-height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-bottom: 8px;
+        }
 
-        .objective {
-            background: var(--bg-tertiary); padding: 1rem 1.5rem; border-radius: 8px;
-            margin-bottom: 1.5rem; border-left: 4px solid var(--web-primary);
-        }
+        /* Scenario title -- compact */
+        .scenario-header { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.3rem; }
+        .scenario-number { width: 32px; height: 32px; background: linear-gradient(135deg, var(--web-primary), var(--web-secondary)); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: bold; flex-shrink: 0; }
+        .scenario-title h2 { font-size: 0.95rem; }
+        .scenario-title .diff { font-size: 0.75rem; color: var(--text-secondary); }
+
+        /* Objective -- compact single line */
+        .objective { background: var(--bg-tertiary); padding: 0.3rem 0.8rem; border-radius: 8px; margin-bottom: 0.3rem; border-left: 4px solid var(--web-primary); font-size: 0.78rem; line-height: 1.4; }
         .objective strong { color: var(--web-primary); }
 
-        .content-section { margin-bottom: 1.5rem; }
-        .content-section h3 { color: var(--web-primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        /* Content sections inside left column */
+        .content-section { margin-bottom: 0.5rem; }
+        .content-section h3 { color: var(--web-primary); margin-bottom: 0.4rem; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem; }
 
-        .terminal {
-            background: #0d1117; padding: 1.5rem; border-radius: 8px;
-            font-family: 'Courier New', monospace; font-size: 0.82rem;
-            border: 1px solid #30363d; margin-bottom: 1rem; overflow-x: auto;
-        }
+        /* Terminal output blocks */
+        .terminal { background: #0d1117; padding: 0.6rem 0.8rem; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.72rem; border: 1px solid #30363d; margin-bottom: 0.5rem; overflow-x: auto; line-height: 1.5; }
         .terminal .prompt { color: var(--success); }
         .terminal .cmd { color: #f0f6fc; }
         .terminal .output { color: #8b949e; }
         .terminal .highlight { color: var(--warning); }
         .terminal .error { color: var(--danger); }
         .terminal .success-text { color: var(--success); }
+        .terminal .danger { color: var(--danger); }
 
-        .dns-table {
-            width: 100%; border-collapse: separate; border-spacing: 0;
-            border-radius: 10px; overflow: hidden;
-            border: 1px solid rgba(96, 165, 250, 0.2); margin: 15px 0;
-        }
-        .dns-table th, .dns-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; }
-        .dns-table th { background: var(--web-dark); color: var(--web-primary); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        /* DNS record table */
+        .dns-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 8px; overflow: hidden; border: 1px solid rgba(96, 165, 250, 0.2); margin: 0.4rem 0; font-size: 0.75rem; }
+        .dns-table th, .dns-table td { padding: 5px 8px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .dns-table th { background: var(--web-dark); color: var(--web-primary); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; }
         .dns-table tr:nth-child(even) td { background: rgba(0,0,0,0.15); }
 
-        .scenario-box {
-            background: linear-gradient(135deg, rgba(96, 165, 250, 0.1), rgba(96, 165, 250, 0.05));
-            border: 1px solid rgba(96, 165, 250, 0.3);
-            border-radius: 10px; padding: 1.5rem; margin: 1rem 0;
-        }
-        .scenario-box h4 { color: var(--web-primary); margin-bottom: 8px; }
-        .scenario-box p { color: var(--text-secondary); font-size: 0.9rem; }
+        /* Scenario box for inline context */
+        .scenario-box { background: linear-gradient(135deg, rgba(96, 165, 250, 0.1), rgba(96, 165, 250, 0.05)); border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 8px; padding: 0.5rem 0.8rem; margin: 0.3rem 0; font-size: 0.78rem; }
+        .scenario-box h3, .scenario-box h4 { color: var(--web-primary); margin-bottom: 4px; font-size: 0.82rem; }
+        .scenario-box p { color: var(--text-secondary); font-size: 0.78rem; }
 
-        .question-block {
-            background: var(--bg-tertiary); border: 1px solid rgba(96, 165, 250, 0.2);
-            border-radius: 10px; padding: 1.5rem; margin-bottom: 1rem;
-        }
-        .question-block label { display: block; color: var(--web-primary); font-weight: 600; margin-bottom: 0.5rem; }
-        .question-block input, .question-block select {
-            width: 100%; padding: 10px 14px;
-            background: rgba(0,0,0,0.3); border: 1px solid rgba(96,165,250,0.3);
-            border-radius: 8px; color: var(--text-primary); font-size: 0.9rem;
-            font-family: 'Courier New', monospace;
-        }
-        .question-block input:focus, .question-block select:focus {
-            outline: none; border-color: var(--web-primary); box-shadow: 0 0 10px var(--web-glow);
-        }
+        /* Concept cards */
+        .concept-card { background: var(--bg-tertiary); border-radius: 8px; padding: 0.5rem 0.8rem; margin-bottom: 0.4rem; border-left: 3px solid var(--web-primary); font-size: 0.78rem; }
+        .concept-card h4 { color: var(--web-primary); margin-bottom: 0.2rem; font-size: 0.8rem; }
+        .concept-card p { color: var(--text-secondary); font-size: 0.78rem; }
 
-        .check-btn {
-            padding: 10px 24px; background: linear-gradient(135deg, var(--web-primary), var(--web-secondary));
-            color: white; border: none; border-radius: 8px; font-size: 0.9rem;
-            font-weight: 600; cursor: pointer; transition: all 0.3s; margin-top: 0.5rem;
-        }
+        /* Tip box */
+        .tip-box { background: rgba(245,158,11,0.1); border: 1px solid var(--warning); border-radius: 8px; padding: 0.4rem 0.6rem; margin: 0.3rem 0; font-size: 0.75rem; }
+        .tip-box strong { color: var(--warning); }
+
+        /* Question blocks in right column */
+        .question-block { background: var(--bg-tertiary); border: 1px solid rgba(96, 165, 250, 0.2); border-radius: 10px; padding: 0.6rem 0.8rem; margin-bottom: 0.4rem; }
+        .question-block label { display: block; color: var(--web-primary); font-weight: 600; margin-bottom: 0.2rem; font-size: 0.78rem; }
+        .question-block input, .question-block select { width: 100%; padding: 6px 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(96,165,250,0.3); border-radius: 8px; color: var(--text-primary); font-size: 0.8rem; font-family: 'Courier New', monospace; }
+        .question-block input:focus, .question-block select:focus { outline: none; border-color: var(--web-primary); box-shadow: 0 0 10px var(--web-glow); }
+
+        .check-btn { padding: 6px 16px; background: linear-gradient(135deg, var(--web-primary), var(--web-secondary)); color: white; border: none; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.3s; margin-top: 0.3rem; }
         .check-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px var(--web-glow); }
 
-        .feedback { padding: 10px 16px; border-radius: 8px; margin-top: 10px; font-size: 0.9rem; display: none; }
+        .feedback { padding: 8px 12px; border-radius: 8px; margin-top: 6px; font-size: 0.8rem; display: none; }
         .feedback.correct { display: block; background: rgba(34,197,94,0.15); border: 1px solid var(--success); color: var(--success); }
         .feedback.incorrect { display: block; background: rgba(239,68,68,0.15); border: 1px solid var(--danger); color: var(--danger); }
 
-        .tip-box { background: rgba(245,158,11,0.1); border: 1px solid var(--warning); border-radius: 8px; padding: 1rem; margin: 1rem 0; }
-        .tip-box strong { color: var(--warning); }
-
-        .concept-card {
-            background: var(--bg-tertiary); border-radius: 8px; padding: 1rem;
-            margin-bottom: 0.75rem; border-left: 3px solid var(--web-primary);
-        }
-        .concept-card h4 { color: var(--web-primary); margin-bottom: 0.5rem; }
-        .concept-card p { color: var(--text-secondary); font-size: 0.9rem; }
-
-        .completion-btn {
-            width: 100%; padding: 1rem 2rem;
-            background: linear-gradient(135deg, var(--web-primary), var(--web-secondary));
-            color: white; border: none; border-radius: 8px; font-size: 1.1rem;
-            font-weight: 600; cursor: pointer; transition: all 0.3s ease;
-            display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-        }
+        /* Completion button at bottom of right column */
+        .completion-btn { width: 100%; padding: 0.5rem 1rem; background: linear-gradient(135deg, var(--web-primary), var(--web-secondary)); color: white; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-top: 0.4rem; flex-shrink: 0; }
         .completion-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px var(--web-glow); }
         .completion-btn.completed { background: var(--success); }
 
-        @media (max-width: 768px) {
-            .lab-container { padding: 1rem; }
-            .lab-header h1 { font-size: 1.8rem; }
-            .terminal { font-size: 0.7rem; }
-        }
+        /* ── Scenario navigation bar ─────────────────────────────── */
+        .scenario-nav { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 0.3rem; padding: 4px 12px; background: var(--bg-secondary); border: 1px solid rgba(96, 165, 250, 0.15); border-radius: 8px; flex-shrink: 0; }
+        .scenario-nav-btn { width: 32px; height: 32px; border-radius: 6px; border: 1px solid rgba(96, 165, 250, 0.25); background: var(--bg-tertiary); color: var(--text-secondary); font-size: 0.88rem; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+        .scenario-nav-btn:hover { border-color: var(--web-primary); color: var(--web-primary); }
+        .scenario-nav-btn.active { background: var(--web-primary); color: #000; border-color: var(--web-primary); }
+        .scenario-nav-btn.done { background: rgba(34, 197, 94, 0.15); border-color: var(--success); color: var(--success); }
+        .scenario-nav-btn.done.active { background: var(--success); color: #000; }
+        .scenario-nav-btn.locked { opacity: 0.3; cursor: not-allowed; }
+
+        /* Previous / Next arrow buttons */
+        .scenario-arrow { padding: 8px 16px; border-radius: 6px; border: 1px solid rgba(96, 165, 250, 0.2); background: var(--bg-tertiary); color: var(--text-secondary); font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .scenario-arrow:hover:not(:disabled) { border-color: var(--web-primary); color: var(--web-primary); }
+        .scenario-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* ── Hint system -- progressive reveal ───────────────────── */
+        .hint-btn { padding: 4px 14px; border-radius: 5px; border: 1px solid rgba(245, 158, 11, 0.3); background: rgba(245, 158, 11, 0.08); color: var(--warning); font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-bottom: 0.4rem; flex-shrink: 0; }
+        .hint-btn:hover { background: rgba(245, 158, 11, 0.15); }
+        .hint-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .hint-box { background: rgba(245, 158, 11, 0.06); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 6px; padding: 0.4rem 0.6rem; margin-bottom: 0.3rem; font-size: 0.75rem; color: #fef3c7; line-height: 1.4; flex-shrink: 0; }
+        .hint-label { font-weight: 700; color: var(--warning); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; }
+
+        @media (max-width: 768px) { .lab-container { padding: 1rem; } .lab-header h1 { font-size: 1rem; } .scenario-nav { flex-wrap: wrap; } }
     </style>
 </head>
 <body>
     <div class="lab-container">
         <a href="../index.html" class="back-link">&larr; Network+ Hub</a>
 
+        <!-- Compact single-line header -->
         <header class="lab-header">
             <h1>DNS Troubleshooting Lab</h1>
-            <p class="subtitle">Master DNS resolution, record types, and common misconfigurations</p>
+            <div class="lab-meta">
+                <span class="meta-item">75 minutes</span>
+                <span class="meta-item">Intermediate</span>
+                <span class="meta-item">5 Scenarios</span>
+            </div>
         </header>
 
-        <div class="progress-section">
-            <div class="progress-header">
-                <span>Lab Progress</span>
-                <span id="progressText">0 / 5 exercises</span>
-            </div>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-            </div>
+        <!-- Progress bar hidden -- scenario nav buttons show completion state instead -->
+        <span id="progressText" style="display:none;">0 / 5 scenarios</span>
+        <div id="progressFill" style="display:none;"></div>
+
+        <!-- Scenario Navigation Bar -->
+        <div class="scenario-nav" id="scenario-nav">
+            <button class="scenario-arrow" id="prev-scenario" onclick="goScenario(currentScenario - 1)" disabled>Prev</button>
+            <button class="scenario-nav-btn active" onclick="goScenario(1)">1</button>
+            <button class="scenario-nav-btn locked" onclick="goScenario(2)">2</button>
+            <button class="scenario-nav-btn locked" onclick="goScenario(3)">3</button>
+            <button class="scenario-nav-btn locked" onclick="goScenario(4)">4</button>
+            <button class="scenario-nav-btn locked" onclick="goScenario(5)">5</button>
+            <button class="scenario-arrow" id="next-scenario" onclick="goScenario(currentScenario + 1)" disabled>Next</button>
         </div>
 
-        <!-- Exercise 1: DNS Record Types -->
-        <div class="exercise" id="exercise1">
-            <div class="exercise-header">
-                <div class="exercise-number">1</div>
-                <div class="exercise-title">
-                    <h2>DNS Record Types</h2>
-                    <span class="time">10 minutes</span>
+        <!-- ============================================================
+             Scenario 1: DNS Record Types
+             ============================================================ -->
+        <!-- Scenario 1: DNS Record Types -->
+        <div class="scenario" id="scenario1">
+            <div class="scenario-left">
+                <div class="scenario-header">
+                    <div class="scenario-number">1</div>
+                    <div class="scenario-title">
+                        <h2>DNS Record Types</h2>
+                        <span class="diff">Beginner</span>
+                    </div>
                 </div>
-            </div>
 
-            <div class="objective">
-                <strong>Objective:</strong> Understand the purpose of common DNS record types and when each is used.
-            </div>
+                <div class="objective">
+                    <strong>Objective:</strong> Understand the purpose of common DNS record types and when each is used.
+                </div>
 
-            <div class="content-section">
-                <h3>Common DNS Record Types</h3>
-                <table class="dns-table">
-                    <thead>
-                        <tr><th scope="col">Type</th><th scope="col">Purpose</th><th scope="col">Example</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr><td><strong>A</strong></td><td>Maps hostname to IPv4 address</td><td>example.com &rarr; 93.184.216.34</td></tr>
-                        <tr><td><strong>AAAA</strong></td><td>Maps hostname to IPv6 address</td><td>example.com &rarr; 2606:2800:220:1::</td></tr>
-                        <tr><td><strong>CNAME</strong></td><td>Alias pointing to another hostname</td><td>www.example.com &rarr; example.com</td></tr>
-                        <tr><td><strong>MX</strong></td><td>Mail exchange server for domain</td><td>example.com &rarr; mail.example.com (priority 10)</td></tr>
-                        <tr><td><strong>PTR</strong></td><td>Reverse DNS (IP to hostname)</td><td>34.216.184.93.in-addr.arpa &rarr; example.com</td></tr>
-                        <tr><td><strong>NS</strong></td><td>Authoritative nameserver for domain</td><td>example.com &rarr; ns1.example.com</td></tr>
-                        <tr><td><strong>TXT</strong></td><td>Arbitrary text (SPF, DKIM, verification)</td><td>"v=spf1 include:_spf.google.com ~all"</td></tr>
-                        <tr><td><strong>SOA</strong></td><td>Start of Authority - zone parameters</td><td>Primary NS, admin email, serial, refresh intervals</td></tr>
-                        <tr><td><strong>SRV</strong></td><td>Service location record</td><td>_sip._tcp.example.com &rarr; sipserver.example.com:5060</td></tr>
-                    </tbody>
-                </table>
-            </div>
+                <div class="content-section">
+                    <h3>Common DNS Record Types</h3>
+                    <table class="dns-table">
+                        <thead>
+                            <tr><th scope="col">Type</th><th scope="col">Purpose</th><th scope="col">Example</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><strong>A</strong></td><td>Maps hostname to IPv4 address</td><td>example.com &rarr; 93.184.216.34</td></tr>
+                            <tr><td><strong>AAAA</strong></td><td>Maps hostname to IPv6 address</td><td>example.com &rarr; 2606:2800:220:1::</td></tr>
+                            <tr><td><strong>CNAME</strong></td><td>Alias pointing to another hostname</td><td>www.example.com &rarr; example.com</td></tr>
+                            <tr><td><strong>MX</strong></td><td>Mail exchange server for domain</td><td>example.com &rarr; mail.example.com (priority 10)</td></tr>
+                            <tr><td><strong>PTR</strong></td><td>Reverse DNS (IP to hostname)</td><td>34.216.184.93.in-addr.arpa &rarr; example.com</td></tr>
+                            <tr><td><strong>NS</strong></td><td>Authoritative nameserver for domain</td><td>example.com &rarr; ns1.example.com</td></tr>
+                            <tr><td><strong>TXT</strong></td><td>Arbitrary text (SPF, DKIM, verification)</td><td>"v=spf1 include:_spf.google.com ~all"</td></tr>
+                            <tr><td><strong>SOA</strong></td><td>Start of Authority - zone parameters</td><td>Primary NS, admin email, serial, refresh intervals</td></tr>
+                            <tr><td><strong>SRV</strong></td><td>Service location record</td><td>_sip._tcp.example.com &rarr; sipserver.example.com:5060</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div><!-- /scenario-left -->
 
-            <div class="content-section">
-                <h3>Questions</h3>
+            <div class="scenario-right">
+                <!-- Hint system: 3 progressive hints -->
+                <button class="hint-btn" onclick="revealHint(1)" id="hintBtn1">Hint (0/3)</button>
+                <div id="hintContainer1"></div>
+
                 <div class="question-block">
                     <label>Q1: What record type would you query to find a domain's mail server?</label>
                     <input type="text" id="q1_1" placeholder="Record type">
@@ -253,28 +270,32 @@
                     <button class="check-btn" onclick="checkAnswer('q1_3','a','fb1_3')">Check</button>
                     <div class="feedback" id="fb1_3"></div>
                 </div>
-            </div>
 
-            <button class="completion-btn" onclick="completeExercise(1)">Mark Exercise Complete</button>
+                <button class="completion-btn" onclick="completeScenario(1)">Mark Scenario Complete</button>
+            </div><!-- /scenario-right -->
         </div>
 
-        <!-- Exercise 2: Using nslookup -->
-        <div class="exercise" id="exercise2">
-            <div class="exercise-header">
-                <div class="exercise-number">2</div>
-                <div class="exercise-title">
-                    <h2>Querying DNS with nslookup</h2>
-                    <span class="time">15 minutes</span>
+        <!-- ============================================================
+             Scenario 2: nslookup Queries
+             ============================================================ -->
+        <!-- Scenario 2: Querying DNS with nslookup -->
+        <div class="scenario" id="scenario2">
+            <div class="scenario-left">
+                <div class="scenario-header">
+                    <div class="scenario-number">2</div>
+                    <div class="scenario-title">
+                        <h2>Querying DNS with nslookup</h2>
+                        <span class="diff">Beginner</span>
+                    </div>
                 </div>
-            </div>
 
-            <div class="objective">
-                <strong>Objective:</strong> Read nslookup output and extract DNS information for troubleshooting.
-            </div>
+                <div class="objective">
+                    <strong>Objective:</strong> Read nslookup output and extract DNS information for troubleshooting.
+                </div>
 
-            <div class="content-section">
-                <h3>nslookup Output - Standard Query</h3>
-                <div class="terminal">
+                <div class="content-section">
+                    <h3>nslookup Output - Standard Query</h3>
+                    <div class="terminal">
 <span class="prompt">$</span> <span class="cmd">nslookup www.hexworth.edu</span>
 <span class="output">Server:		</span><span class="highlight">192.168.1.1</span>
 <span class="output">Address:	192.168.1.1#53</span>
@@ -284,8 +305,8 @@
 <span class="output">Name:	hexworth.edu</span>
 <span class="output">Address: </span><span class="success-text">10.50.25.100</span></div>
 
-                <h3>nslookup Output - MX Record Query</h3>
-                <div class="terminal">
+                    <h3>nslookup Output - MX Record Query</h3>
+                    <div class="terminal">
 <span class="prompt">$</span> <span class="cmd">nslookup -type=MX hexworth.edu</span>
 <span class="output">Server:		192.168.1.1</span>
 <span class="output">Address:	192.168.1.1#53</span>
@@ -297,10 +318,13 @@
 <span class="output">Authoritative answers can be found from:</span>
 <span class="output">mail1.hexworth.edu	internet address = 10.50.25.110</span>
 <span class="output">mail2.hexworth.edu	internet address = 10.50.25.111</span></div>
-            </div>
+                </div>
+            </div><!-- /scenario-left -->
 
-            <div class="content-section">
-                <h3>Questions</h3>
+            <div class="scenario-right">
+                <button class="hint-btn" onclick="revealHint(2)" id="hintBtn2">Hint (0/3)</button>
+                <div id="hintContainer2"></div>
+
                 <div class="question-block">
                     <label>Q1: What DNS server answered the query?</label>
                     <input type="text" id="q2_1" placeholder="IP address">
@@ -330,28 +354,32 @@
                     <button class="check-btn" onclick="checkAnswer('q2_4','a','fb2_4')">Check</button>
                     <div class="feedback" id="fb2_4"></div>
                 </div>
-            </div>
 
-            <button class="completion-btn" onclick="completeExercise(2)">Mark Exercise Complete</button>
+                <button class="completion-btn" onclick="completeScenario(2)">Mark Scenario Complete</button>
+            </div><!-- /scenario-right -->
         </div>
 
-        <!-- Exercise 3: Using dig -->
-        <div class="exercise" id="exercise3">
-            <div class="exercise-header">
-                <div class="exercise-number">3</div>
-                <div class="exercise-title">
-                    <h2>Advanced DNS with dig</h2>
-                    <span class="time">15 minutes</span>
+        <!-- ============================================================
+             Scenario 3: Advanced DNS with dig
+             ============================================================ -->
+        <!-- Scenario 3: Advanced DNS with dig -->
+        <div class="scenario" id="scenario3">
+            <div class="scenario-left">
+                <div class="scenario-header">
+                    <div class="scenario-number">3</div>
+                    <div class="scenario-title">
+                        <h2>Advanced DNS with dig</h2>
+                        <span class="diff">Intermediate</span>
+                    </div>
                 </div>
-            </div>
 
-            <div class="objective">
-                <strong>Objective:</strong> Interpret dig command output including flags, sections, and query statistics.
-            </div>
+                <div class="objective">
+                    <strong>Objective:</strong> Interpret dig command output including flags, sections, and query statistics.
+                </div>
 
-            <div class="content-section">
-                <h3>dig Output</h3>
-                <div class="terminal">
+                <div class="content-section">
+                    <h3>dig Output</h3>
+                    <div class="terminal">
 <span class="prompt">$</span> <span class="cmd">dig hexworth.edu ANY +noall +answer +stats</span>
 
 <span class="output">;; ANSWER SECTION:</span>
@@ -367,14 +395,17 @@
 <span class="output">;; SERVER: </span><span class="highlight">192.168.1.1#53(192.168.1.1)</span>
 <span class="output">;; WHEN: Sun Feb 16 10:30:00 UTC 2026</span>
 <span class="output">;; MSG SIZE  rcvd: 312</span></div>
-            </div>
+                </div>
 
-            <div class="tip-box">
-                <strong>dig Tip:</strong> The number after the hostname (300, 3600) is the TTL (Time To Live) in seconds. It tells caching resolvers how long to keep this record before re-querying the authoritative server.
-            </div>
+                <div class="tip-box">
+                    <strong>dig Tip:</strong> The number after the hostname (300, 3600) is the TTL (Time To Live) in seconds. It tells caching resolvers how long to keep this record before re-querying the authoritative server.
+                </div>
+            </div><!-- /scenario-left -->
 
-            <div class="content-section">
-                <h3>Questions</h3>
+            <div class="scenario-right">
+                <button class="hint-btn" onclick="revealHint(3)" id="hintBtn3">Hint (0/3)</button>
+                <div id="hintContainer3"></div>
+
                 <div class="question-block">
                     <label>Q1: What is the TTL of the A record (in seconds)?</label>
                     <input type="text" id="q3_1" placeholder="TTL value">
@@ -404,33 +435,37 @@
                     <button class="check-btn" onclick="checkAnswer('q3_4','2025021501','fb3_4')">Check</button>
                     <div class="feedback" id="fb3_4"></div>
                 </div>
-            </div>
 
-            <button class="completion-btn" onclick="completeExercise(3)">Mark Exercise Complete</button>
+                <button class="completion-btn" onclick="completeScenario(3)">Mark Scenario Complete</button>
+            </div><!-- /scenario-right -->
         </div>
 
-        <!-- Exercise 4: Troubleshooting DNS Misconfigurations -->
-        <div class="exercise" id="exercise4">
-            <div class="exercise-header">
-                <div class="exercise-number">4</div>
-                <div class="exercise-title">
-                    <h2>Fixing DNS Misconfigurations</h2>
-                    <span class="time">20 minutes</span>
+        <!-- ============================================================
+             Scenario 4: Fixing DNS Misconfigurations
+             ============================================================ -->
+        <!-- Scenario 4: Fixing DNS Misconfigurations -->
+        <div class="scenario" id="scenario4">
+            <div class="scenario-left">
+                <div class="scenario-header">
+                    <div class="scenario-number">4</div>
+                    <div class="scenario-title">
+                        <h2>Fixing DNS Misconfigurations</h2>
+                        <span class="diff">Intermediate</span>
+                    </div>
                 </div>
-            </div>
 
-            <div class="objective">
-                <strong>Objective:</strong> Diagnose and identify fixes for common DNS problems from troubleshooting output.
-            </div>
+                <div class="objective">
+                    <strong>Objective:</strong> Diagnose and identify fixes for common DNS problems from troubleshooting output.
+                </div>
 
-            <div class="scenario-box">
-                <h3>Scenario: Website Down</h3>
-                <p>Users report they cannot reach intranet.hexworth.edu. The web server is running and accessible by IP. You investigate with DNS tools.</p>
-            </div>
+                <div class="scenario-box">
+                    <h3>Scenario: Website Down</h3>
+                    <p>Users report they cannot reach intranet.hexworth.edu. The web server is running and accessible by IP. You investigate with DNS tools.</p>
+                </div>
 
-            <div class="content-section">
-                <h3>Investigation Output</h3>
-                <div class="terminal">
+                <div class="content-section">
+                    <h3>Investigation Output</h3>
+                    <div class="terminal">
 <span class="prompt">$</span> <span class="cmd">nslookup intranet.hexworth.edu</span>
 <span class="error">** server can't find intranet.hexworth.edu: NXDOMAIN</span>
 
@@ -447,10 +482,13 @@
 <span class="prompt">$</span> <span class="cmd">cat /etc/resolv.conf</span>
 <span class="output">nameserver 8.8.8.8</span>
 <span class="output">nameserver 8.8.4.4</span></div>
-            </div>
+                </div>
+            </div><!-- /scenario-left -->
 
-            <div class="content-section">
-                <h3>Questions</h3>
+            <div class="scenario-right">
+                <button class="hint-btn" onclick="revealHint(4)" id="hintBtn4">Hint (0/3)</button>
+                <div id="hintContainer4"></div>
+
                 <div class="question-block">
                     <label>Q1: Why does the first nslookup fail but the second one succeeds?</label>
                     <select id="q4_1">
@@ -479,32 +517,36 @@
                     <button class="check-btn" onclick="checkAnswer('q4_3','10.50.25.2','fb4_3')">Check</button>
                     <div class="feedback" id="fb4_3"></div>
                 </div>
-            </div>
 
-            <button class="completion-btn" onclick="completeExercise(4)">Mark Exercise Complete</button>
+                <button class="completion-btn" onclick="completeScenario(4)">Mark Scenario Complete</button>
+            </div><!-- /scenario-right -->
         </div>
 
-        <!-- Exercise 5: CNAME Loop and Zone Transfer -->
-        <div class="exercise" id="exercise5">
-            <div class="exercise-header">
-                <div class="exercise-number">5</div>
-                <div class="exercise-title">
-                    <h2>Advanced DNS Issues</h2>
-                    <span class="time">15 minutes</span>
+        <!-- ============================================================
+             Scenario 5: CNAME Loop & Zone Transfer
+             ============================================================ -->
+        <!-- Scenario 5: Advanced DNS Issues -->
+        <div class="scenario" id="scenario5">
+            <div class="scenario-left">
+                <div class="scenario-header">
+                    <div class="scenario-number">5</div>
+                    <div class="scenario-title">
+                        <h2>Advanced DNS Issues</h2>
+                        <span class="diff">Advanced</span>
+                    </div>
                 </div>
-            </div>
 
-            <div class="objective">
-                <strong>Objective:</strong> Identify CNAME loops, zone transfer vulnerabilities, and DNS cache poisoning indicators.
-            </div>
+                <div class="objective">
+                    <strong>Objective:</strong> Identify CNAME loops, zone transfer vulnerabilities, and DNS cache poisoning indicators.
+                </div>
 
-            <div class="scenario-box">
-                <h3>Scenario A: CNAME Loop</h3>
-                <p>A developer reports that app.hexworth.edu is "timing out on DNS." You investigate.</p>
-            </div>
+                <div class="scenario-box">
+                    <h3>Scenario A: CNAME Loop</h3>
+                    <p>A developer reports that app.hexworth.edu is "timing out on DNS." You investigate.</p>
+                </div>
 
-            <div class="content-section">
-                <div class="terminal">
+                <div class="content-section">
+                    <div class="terminal">
 <span class="prompt">$</span> <span class="cmd">dig app.hexworth.edu</span>
 <span class="output">;; ANSWER SECTION:</span>
 <span class="highlight">app.hexworth.edu.     300  IN  CNAME  portal.hexworth.edu.</span>
@@ -512,15 +554,15 @@
 <span class="highlight">web.hexworth.edu.     300  IN  CNAME  app.hexworth.edu.</span>
 
 <span class="error">;; WARNING: CNAME loop detected</span></div>
-            </div>
+                </div>
 
-            <div class="scenario-box" style="margin-top: 1.5rem;">
-                <h4>Scenario B: Zone Transfer Leak</h4>
-                <p>During a security audit, you test whether zone transfers are properly restricted.</p>
-            </div>
+                <div class="scenario-box" style="margin-top: 0.5rem;">
+                    <h4>Scenario B: Zone Transfer Leak</h4>
+                    <p>During a security audit, you test whether zone transfers are properly restricted.</p>
+                </div>
 
-            <div class="content-section">
-                <div class="terminal">
+                <div class="content-section">
+                    <div class="terminal">
 <span class="prompt">$</span> <span class="cmd">dig @ns1.hexworth.edu hexworth.edu AXFR</span>
 <span class="output">;; ANSWER SECTION:</span>
 <span class="danger">hexworth.edu.         3600  IN  SOA   ns1.hexworth.edu. admin.hexworth.edu. ...</span>
@@ -533,10 +575,17 @@
 <span class="danger">staging.hexworth.edu. 300   IN  A     10.50.25.201</span>
 <span class="danger">hexworth.edu.         3600  IN  SOA   ns1.hexworth.edu. admin.hexworth.edu. ...</span>
 <span class="output">;; XFR size: 45 records</span></div>
-            </div>
+                </div>
 
-            <div class="content-section">
-                <h3>Questions</h3>
+                <div class="tip-box">
+                    <strong>Security Best Practice:</strong> Zone transfers (AXFR) should be restricted to authorized secondary DNS servers only. Configure your DNS server with <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: var(--warning);">allow-transfer { trusted-servers; };</code> in BIND or equivalent ACLs.
+                </div>
+            </div><!-- /scenario-left -->
+
+            <div class="scenario-right">
+                <button class="hint-btn" onclick="revealHint(5)" id="hintBtn5">Hint (0/3)</button>
+                <div id="hintContainer5"></div>
+
                 <div class="question-block">
                     <label>Q1: In Scenario A, what is the problem?</label>
                     <select id="q5_1">
@@ -571,58 +620,216 @@
                     <button class="check-btn" onclick="checkAnswer('q5_4','db-master','fb5_4',true)">Check</button>
                     <div class="feedback" id="fb5_4"></div>
                 </div>
-            </div>
 
-            <div class="tip-box">
-                <strong>Security Best Practice:</strong> Zone transfers (AXFR) should be restricted to authorized secondary DNS servers only. Configure your DNS server with <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: var(--warning);">allow-transfer { trusted-servers; };</code> in BIND or equivalent ACLs in your DNS software.
-            </div>
-
-            <button class="completion-btn" onclick="completeExercise(5)">Mark Lab Complete</button>
+                <button class="completion-btn" onclick="completeScenario(5)">Mark Lab Complete</button>
+            </div><!-- /scenario-right -->
         </div>
     </div>
 
     <script>
-        const STORAGE_KEY = 'web_dns_troubleshooting_lab_progress';
-        let completedExercises = [];
+        /* ── Constants ──────────────────────────────────────────────── */
+        var STORAGE_KEY = 'web_dns_troubleshooting_lab_progress';
+        var TOTAL = 5;
+        var completedScenarios = [];
+        var currentScenario = 1;
 
-        function loadProgress() {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                completedExercises = JSON.parse(saved);
-                completedExercises.forEach(function(num) {
-                    const exercise = document.getElementById('exercise' + num);
-                    if (exercise) {
-                        exercise.classList.add('completed');
-                        var btn = exercise.querySelector('.completion-btn');
-                        btn.classList.add('completed');
-                        btn.textContent = 'Completed';
-                    }
-                });
+        /* ── Answer keys per scenario ─────────────────────────────── */
+        /* Each question has an id, expected answer, fuzzy flag, and fb
+           (feedback element ID). completeScenario() validates all questions
+           before marking a scenario done. */
+        var SCENARIO_ANSWERS = {
+            1: [
+                { id: 'q1_1', answer: 'MX', fuzzy: false, fb: 'fb1_1' },
+                { id: 'q1_2', answer: 'PTR', fuzzy: false, fb: 'fb1_2' },
+                { id: 'q1_3', answer: 'a', fuzzy: false, fb: 'fb1_3' }
+            ],
+            2: [
+                { id: 'q2_1', answer: '192.168.1.1', fuzzy: false, fb: 'fb2_1' },
+                { id: 'q2_2', answer: 'CNAME', fuzzy: false, fb: 'fb2_2' },
+                { id: 'q2_3', answer: 'mail1.hexworth.edu', fuzzy: true, fb: 'fb2_3' },
+                { id: 'q2_4', answer: 'a', fuzzy: false, fb: 'fb2_4' }
+            ],
+            3: [
+                { id: 'q3_1', answer: '300', fuzzy: false, fb: 'fb3_1' },
+                { id: 'q3_2', answer: 'admin@hexworth.edu', fuzzy: false, fb: 'fb3_2' },
+                { id: 'q3_3', answer: 'a', fuzzy: false, fb: 'fb3_3' },
+                { id: 'q3_4', answer: '2025021501', fuzzy: false, fb: 'fb3_4' }
+            ],
+            4: [
+                { id: 'q4_1', answer: 'a', fuzzy: false, fb: 'fb4_1' },
+                { id: 'q4_2', answer: 'a', fuzzy: false, fb: 'fb4_2' },
+                { id: 'q4_3', answer: '10.50.25.2', fuzzy: false, fb: 'fb4_3' }
+            ],
+            5: [
+                { id: 'q5_1', answer: 'a', fuzzy: false, fb: 'fb5_1' },
+                { id: 'q5_2', answer: 'web.hexworth.edu', fuzzy: true, fb: 'fb5_2' },
+                { id: 'q5_3', answer: 'a', fuzzy: false, fb: 'fb5_3' },
+                { id: 'q5_4', answer: 'db-master', fuzzy: true, fb: 'fb5_4' }
+            ]
+        };
+
+        /* ── Hint data -- 3 progressive hints per scenario ──────── */
+        /* Hint 1: general direction, Hint 2: narrow focus, Hint 3: near-answer */
+        var HINTS = {
+            1: [
+                'Mail-related records handle email delivery for a domain. Look at the "Purpose" column.',
+                'Reverse DNS does the opposite of an A record -- it maps an IP address back to a name.',
+                'An <strong>A</strong> record resolves to an IP address directly. A <strong>CNAME</strong> is an alias that points to another hostname, which then resolves to an IP.'
+            ],
+            2: [
+                'The "Server:" line at the top of nslookup output tells you which DNS server answered.',
+                'When nslookup shows "canonical name = ..." that means the record is a <strong>CNAME</strong> (alias).',
+                'In MX records, lower priority numbers mean higher preference. Priority 10 is preferred over priority 20.'
+            ],
+            3: [
+                'The TTL is the number immediately after the hostname in each dig output line (e.g., 300, 3600).',
+                'In SOA records, the admin email uses a dot instead of @ -- "admin.hexworth.edu." means admin@hexworth.edu.',
+                'SPF <strong>-all</strong> is a hard fail: reject any sender not listed. <strong>~all</strong> would be a soft fail.'
+            ],
+            4: [
+                'Compare the two nslookup commands. The first uses the default DNS; the second specifies 10.50.25.2.',
+                'Check <strong>resolv.conf</strong> -- it shows which DNS server the system uses by default (8.8.8.8 = Google Public DNS).',
+                'Public DNS servers like 8.8.8.8 cannot resolve <strong>internal/private</strong> hostnames. The fix is to point resolv.conf to the internal DNS server.'
+            ],
+            5: [
+                'A CNAME loop occurs when hostnames point to each other in a circle -- the resolver never reaches an actual IP.',
+                'To break the loop, one of the CNAME records must be replaced with an <strong>A record</strong> pointing to an IP address.',
+                'Zone transfers (AXFR) expose every record in a DNS zone. Hostnames like <strong>db-master</strong> reveal database infrastructure to attackers.'
+            ]
+        };
+
+        /* Track how many hints have been revealed per scenario */
+        var hintsRevealed = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+
+        /* ── Scenario Navigation ──────────────────────────────────── */
+        /* One scenario visible at a time. Students must complete each
+           before the next unlocks (progression gating). */
+
+        /**
+         * Navigate to a specific scenario number.
+         * Enforces gating: can only visit completed scenarios or
+         * the first uncompleted one.
+         *
+         * @param {number} num - Scenario number (1-TOTAL)
+         */
+        function goScenario(num) {
+            if (num < 1 || num > TOTAL) return;
+
+            /* Gate: can only go to a scenario if all previous are completed,
+               or if this scenario itself is already completed (revisiting) */
+            var maxAllowed = completedScenarios.length + 1;
+            if (num > maxAllowed) return;
+
+            /* Hide the current scenario */
+            var current = document.getElementById('scenario' + currentScenario);
+            if (current) current.classList.remove('active-scenario');
+
+            currentScenario = num;
+
+            /* Show the target scenario */
+            var target = document.getElementById('scenario' + num);
+            if (target) target.classList.add('active-scenario');
+
+            /* Update nav button states */
+            updateScenarioNav();
+        }
+
+        /**
+         * Update the scenario nav bar buttons: active, done, locked states.
+         * Also manages Previous/Next button disabled states.
+         */
+        function updateScenarioNav() {
+            var maxAllowed = completedScenarios.length + 1;
+            var buttons = document.querySelectorAll('.scenario-nav-btn');
+
+            buttons.forEach(function(btn, i) {
+                var num = i + 1;
+                btn.classList.remove('active', 'done', 'locked');
+
+                if (num === currentScenario) {
+                    btn.classList.add('active');
+                }
+                if (completedScenarios.indexOf(num) !== -1) {
+                    btn.classList.add('done');
+                }
+                if (num > maxAllowed) {
+                    btn.classList.add('locked');
+                }
+            });
+
+            /* Previous/Next buttons */
+            var prevBtn = document.getElementById('prev-scenario');
+            var nextBtn = document.getElementById('next-scenario');
+            if (prevBtn) prevBtn.disabled = (currentScenario <= 1);
+            if (nextBtn) nextBtn.disabled = (currentScenario >= maxAllowed || currentScenario >= TOTAL);
+        }
+
+        /* ── Hint System ──────────────────────────────────────────── */
+        /* 3 progressive hints per scenario. Each hint builds on the last. */
+
+        /**
+         * Reveal the next hint for a scenario.
+         * Appends a hint box to the hint container and updates the button label.
+         *
+         * @param {number} num - Scenario number (1-TOTAL)
+         */
+        function revealHint(num) {
+            var idx = hintsRevealed[num];
+            var hints = HINTS[num];
+            if (!hints || idx >= hints.length) return;
+
+            /* Create the hint box */
+            var box = document.createElement('div');
+            box.className = 'hint-box';
+            box.innerHTML = '<span class="hint-label">Hint ' + (idx + 1) + ':</span> ' + hints[idx];
+
+            /* Append to the container */
+            var container = document.getElementById('hintContainer' + num);
+            container.appendChild(box);
+
+            /* Update counter */
+            hintsRevealed[num]++;
+            var btn = document.getElementById('hintBtn' + num);
+            if (hintsRevealed[num] >= hints.length) {
+                btn.disabled = true;
+                btn.textContent = 'All hints revealed';
+            } else {
+                btn.textContent = 'Hint (' + hintsRevealed[num] + '/' + hints.length + ')';
             }
-            updateProgress();
         }
 
-        function saveProgress() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(completedExercises));
-        }
+        /* ── Answer checking ──────────────────────────────────────── */
 
-        function updateProgress() {
-            var total = 5;
-            var completed = completedExercises.length;
-            var percent = (completed / total) * 100;
-            document.getElementById('progressFill').style.width = percent + '%';
-            document.getElementById('progressText').textContent = completed + ' / ' + total + ' exercises';
-        }
-
+        /**
+         * Check a single answer field against the expected value.
+         * Supports exact and fuzzy matching.
+         *
+         * @param {string} inputId       - ID of the input/select element
+         * @param {string} correctAnswer - Expected answer
+         * @param {string} feedbackId    - ID of the feedback div
+         * @param {boolean} fuzzy        - If true, use contains-based matching
+         */
         function checkAnswer(inputId, correctAnswer, feedbackId, fuzzy) {
             var input = document.getElementById(inputId);
             var feedback = document.getElementById(feedbackId);
-            var userAnswer = input.value ? input.value.trim().toLowerCase() : input.value;
+            var userAnswer = input.value.trim().toLowerCase();
             var correct = correctAnswer.toLowerCase();
-
             feedback.className = 'feedback';
 
-            if (fuzzy ? (userAnswer && (userAnswer.indexOf(correct) !== -1 || correct.indexOf(userAnswer) !== -1)) : userAnswer === correct) {
+            /* Empty input is never correct -- guard against indexOf('') returning 0 */
+            if (!userAnswer) {
+                feedback.className = 'feedback incorrect';
+                feedback.textContent = 'Enter an answer first.';
+                return;
+            }
+
+            /* Fuzzy: user answer contains expected OR expected contains user answer.
+               Exact: must match exactly. */
+            var isCorrect = fuzzy
+                ? (userAnswer.indexOf(correct) !== -1 || correct.indexOf(userAnswer) !== -1)
+                : (userAnswer === correct);
+
+            if (isCorrect) {
                 feedback.className = 'feedback correct';
                 feedback.textContent = 'Correct!';
             } else {
@@ -631,26 +838,128 @@
             }
         }
 
-        function completeExercise(num) {
-            if (completedExercises.indexOf(num) === -1) {
-                completedExercises.push(num);
-                var exercise = document.getElementById('exercise' + num);
-                exercise.classList.add('completed');
-                var btn = exercise.querySelector('.completion-btn');
-                btn.classList.add('completed');
-                btn.textContent = 'Completed';
-                saveProgress();
-                updateProgress();
+        /* ── Scenario Completion ──────────────────────────────────── */
 
-                if (completedExercises.length === 5) {
-                    if (typeof ModuleProgress !== 'undefined') {
-                        ModuleProgress.complete('web', 'web-dns-troubleshooting', { returnToDashboard: false, returnUrl: '../index.html' });
+        /**
+         * Validate all questions in a scenario and mark it complete if
+         * all answers are correct. Enforces progression gating.
+         *
+         * @param {number} num - Scenario number (1-TOTAL)
+         */
+        function completeScenario(num) {
+            /* Prevent double-completion */
+            if (completedScenarios.indexOf(num) !== -1) return;
+
+            /* Validate all questions in this scenario before allowing completion */
+            var questions = SCENARIO_ANSWERS[num];
+            if (questions) {
+                var anyFilled = false;
+                var allCorrect = true;
+
+                questions.forEach(function(q) {
+                    var input = document.getElementById(q.id);
+                    if (!input) return;
+                    var val = input.value.trim().toLowerCase();
+                    var exp = q.answer.toLowerCase();
+                    if (val) anyFilled = true;
+
+                    /* Fuzzy: user answer contains expected OR expected contains user answer */
+                    if (q.fuzzy) {
+                        if (val.indexOf(exp) === -1 && exp.indexOf(val) === -1) allCorrect = false;
+                    } else {
+                        if (val !== exp) allCorrect = false;
                     }
+                });
+
+                /* No answers filled -- prompt the student */
+                if (!anyFilled) {
+                    var scenario = document.getElementById('scenario' + num);
+                    var fb = scenario.querySelector('.feedback:last-of-type') || scenario.querySelector('.feedback');
+                    if (fb) {
+                        fb.className = 'feedback incorrect';
+                        fb.textContent = 'Answer all questions in this scenario before marking it complete.';
+                    }
+                    return;
                 }
+
+                /* Some answers wrong -- highlight errors via checkAnswer and block */
+                if (!allCorrect) {
+                    questions.forEach(function(q) {
+                        checkAnswer(q.id, q.answer, q.fb, q.fuzzy);
+                    });
+                    return;
+                }
+            }
+
+            /* All answers correct -- mark scenario complete */
+            completedScenarios.push(num);
+            var scenario = document.getElementById('scenario' + num);
+            scenario.classList.add('completed');
+            var btn = scenario.querySelector('.completion-btn');
+            btn.classList.add('completed');
+            btn.textContent = 'Completed';
+            saveProgress();
+            updateProgress();
+            updateScenarioNav();
+
+            /* Check if all scenarios are done -- fire ModuleProgress */
+            if (completedScenarios.length === TOTAL) {
+                if (typeof ModuleProgress !== 'undefined') {
+                    ModuleProgress.complete('web', 'web-dns-troubleshooting', { returnUrl: '../index.html' });
+                }
+                setTimeout(function() {
+                    alert('Congratulations! You have completed the DNS Troubleshooting Lab.\n\nYou now understand DNS record types, nslookup/dig queries, misconfigurations, CNAME loops, and zone transfer security.');
+                }, 500);
+            } else {
+                /* Auto-advance to the next scenario after a brief pause */
+                setTimeout(function() { goScenario(num + 1); }, 800);
             }
         }
 
+        /* ── Progress Persistence ─────────────────────────────────── */
+
+        function loadProgress() {
+            var saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                completedScenarios = JSON.parse(saved);
+                completedScenarios.forEach(function(num) {
+                    var scenario = document.getElementById('scenario' + num);
+                    if (scenario) {
+                        scenario.classList.add('completed');
+                        var btn = scenario.querySelector('.completion-btn');
+                        btn.classList.add('completed');
+                        btn.textContent = 'Completed';
+                    }
+                });
+            }
+            updateProgress();
+        }
+
+        /**
+         * Persist completed scenario numbers to localStorage.
+         */
+        function saveProgress() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(completedScenarios));
+        }
+
+        /**
+         * Update the hidden progress elements (kept for JS compatibility).
+         */
+        function updateProgress() {
+            var completed = completedScenarios.length;
+            var percent = (completed / TOTAL) * 100;
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = completed + ' / ' + TOTAL + ' scenarios';
+        }
+
+        /* ── Initialize ───────────────────────────────────────────── */
         loadProgress();
+        updateScenarioNav();
+        /* Show the first uncompleted scenario on load */
+        var startScenario = completedScenarios.length < TOTAL ? completedScenarios.length + 1 : 1;
+        goScenario(startScenario);
     </script>
+
+    <script src="../../../../components/TrailHunter.js"></script>
 </body>
 </html>

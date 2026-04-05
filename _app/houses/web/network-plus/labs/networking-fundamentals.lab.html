@@ -11,6 +11,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Networking Fundamentals Lab | Network+</title>
     <style>
+        /* ── Design tokens ────────────────────────────────────────── */
         :root {
             --web-primary: #60a5fa;
             --web-secondary: #3b82f6;
@@ -25,383 +26,258 @@
             --warning: #f59e0b;
             --danger: #ef4444;
         }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        /* Viewport-locked layout — no page scrolling, scenario content scrolls internally */
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); height: 100%; line-height: 1.6; }
+
+        /* Full-width viewport — subtract platform nav bar (~44px) to prevent bottom cutoff */
+        .lab-container { width: 100%; padding: 0.5rem 1.5rem; height: calc(100vh - 44px); display: flex; flex-direction: column; overflow: hidden; }
+
+        .back-link { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--web-primary); text-decoration: none; margin-bottom: 0.2rem; transition: all 0.3s ease; flex-shrink: 0; font-size: 0.8rem; }
+        .back-link:hover { color: #93c5fd; transform: translateX(-5px); }
+
+        /* Compact single-line header — viewport-locked so every pixel counts */
+        .lab-header { text-align: center; margin-bottom: 0.4rem; padding: 0.4rem 1.5rem; background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary)); border-radius: 8px; border: 1px solid var(--web-primary); box-shadow: 0 0 20px var(--web-glow); flex-shrink: 0; display: flex; align-items: center; justify-content: center; gap: 20px; }
+        .lab-header h1 { font-size: 1.1rem; margin-bottom: 0; background: linear-gradient(135deg, var(--web-primary), #93c5fd); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .lab-header .subtitle { display: none; }
+
+        .lab-meta { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-secondary); }
+
+        /* Progress section hidden — scenario nav buttons show completion state instead */
+        .progress-section { display: none; }
+
+        /* ── Scenario-by-scenario layout ──────────────────────────────
+           Only one scenario is visible at a time. The scenario nav bar
+           shows numbered buttons for each scenario + Previous/Next.
+           Completed scenarios get a green indicator. */
+
+        /* Hide all scenarios by default; active one fills remaining viewport */
+        .exercise { display: none; }
+        .exercise.active-scenario {
+            display: flex; flex-direction: row; gap: 12px;
+            flex: 1; min-height: 0; max-height: 100%; overflow: hidden;
+            animation: scenarioFadeIn 0.3s ease-out;
+            padding: 8px 0 0 0;
+            margin-bottom: 0;
+            border: none;
+            border-radius: 0;
+        }
+        @keyframes scenarioFadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
         }
 
-        body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            line-height: 1.6;
-        }
-
-        .lab-container {
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        .lab-header {
-            text-align: center;
-            margin-bottom: 2rem;
-            padding: 2rem;
-            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
-            border-radius: 16px;
-            border: 1px solid var(--web-primary);
-            box-shadow: 0 0 30px var(--web-glow);
-        }
-
-        .lab-header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
-            background: linear-gradient(135deg, var(--web-primary), #93c5fd);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .lab-header .subtitle {
-            color: var(--text-secondary);
-            font-size: 1.1rem;
-        }
-
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: var(--web-primary);
-            text-decoration: none;
-            margin-bottom: 1rem;
-            transition: all 0.3s ease;
-        }
-
-        .back-link:hover {
-            color: #93c5fd;
-            transform: translateX(-5px);
-        }
-
-        .progress-section {
-            background: var(--bg-secondary);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            border: 1px solid rgba(96, 165, 250, 0.2);
-        }
-
-        .progress-header {
+        /* Two-column scenario layout: teaching content left, tasks right.
+           Both columns fill full height and scroll independently. */
+        .scenario-left {
+            flex: 1;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
+            flex-direction: column;
+            min-width: 0;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 8px;
+            padding-bottom: 8px;
         }
-
-        .progress-bar {
-            height: 12px;
-            background: var(--bg-tertiary);
-            border-radius: 6px;
+        /* Right column — uses absolute positioning to guarantee full height constraint.
+           overflow-y: auto enables scrolling when hints + tasks + button exceed viewport. */
+        .scenario-right {
+            width: 360px;
+            flex-shrink: 0;
+            position: relative;
             overflow: hidden;
         }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--web-primary), var(--success));
-            border-radius: 6px;
-            transition: width 0.5s ease;
+        .scenario-right-inner {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 0 4px 8px 4px;
         }
 
-        .exercise {
-            background: var(--bg-secondary);
-            border-radius: 16px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            border: 1px solid rgba(96, 165, 250, 0.2);
-            transition: all 0.3s ease;
-        }
+        /* Scenario title — single line, compact */
+        .exercise .exercise-header { margin-bottom: 0.3rem; }
+        .exercise .exercise-number { width: 32px; height: 32px; font-size: 1.1rem; border-radius: 8px; }
+        .exercise .exercise-title h2 { font-size: 0.95rem; }
+        .exercise .exercise-title .time { font-size: 0.75rem; }
+        /* Objective — compact single line */
+        .exercise .objective { padding: 0.3rem 0.8rem; margin-bottom: 0.3rem; font-size: 0.82rem; line-height: 1.4; }
 
-        .exercise:hover {
-            border-color: var(--web-primary);
-            box-shadow: 0 0 20px var(--web-glow);
-        }
+        /* Content sections — compact for viewport */
+        .content-section { margin-bottom: 0.6rem; }
+        .content-section h3 { color: var(--web-primary); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
 
-        .exercise.completed {
-            border-color: var(--success);
-            background: linear-gradient(135deg, var(--bg-secondary), rgba(34, 197, 94, 0.1));
-        }
-
-        .exercise-header {
+        /* OSI layer cards */
+        .osi-layer {
             display: flex;
             align-items: center;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .exercise-number {
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, var(--web-primary), var(--web-secondary));
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-
-        .exercise-title h2 {
-            font-size: 1.4rem;
-            color: var(--text-primary);
-        }
-
-        .exercise-title .time {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .objective {
+            gap: 0.6rem;
+            padding: 0.35rem 0.6rem;
             background: var(--bg-tertiary);
-            padding: 1rem 1.5rem;
-            border-radius: 8px;
-            margin-bottom: 1.5rem;
+            border-radius: 6px;
+            margin-bottom: 0.3rem;
             border-left: 4px solid var(--web-primary);
         }
+        .osi-layer .number { width: 24px; height: 24px; background: var(--web-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--bg-primary); font-size: 0.8rem; flex-shrink: 0; }
+        .osi-layer .name { font-weight: 600; min-width: 80px; font-size: 0.82rem; }
+        .osi-layer .protocol { color: var(--text-secondary); font-size: 0.78rem; }
 
-        .objective strong {
-            color: var(--web-primary);
-        }
+        /* Concept cards */
+        .concept-card { background: var(--bg-tertiary); border-radius: 6px; padding: 0.5rem 0.7rem; margin-bottom: 0.4rem; border-left: 3px solid var(--web-primary); }
+        .concept-card h4 { color: var(--web-primary); margin-bottom: 0.2rem; font-size: 0.82rem; }
+        .concept-card p { color: var(--text-secondary); font-size: 0.78rem; }
 
-        .content-section {
-            margin-bottom: 1.5rem;
-        }
+        /* Comparison tables */
+        .comparison-table { width: 100%; border-collapse: collapse; margin: 0.4rem 0; font-size: 0.78rem; }
+        .comparison-table th, .comparison-table td { padding: 0.35rem 0.5rem; text-align: left; border: 1px solid rgba(96, 165, 250, 0.2); }
+        .comparison-table th { background: var(--web-dark); color: var(--web-primary); font-size: 0.78rem; }
+        .comparison-table tr:nth-child(even) { background: var(--bg-tertiary); }
 
-        .content-section h3 {
-            color: var(--web-primary);
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
+        /* Network diagrams */
         .network-diagram {
             background: #000;
-            padding: 1.5rem;
-            border-radius: 8px;
+            padding: 0.6rem;
+            border-radius: 6px;
             font-family: 'Courier New', monospace;
-            font-size: 0.85rem;
+            font-size: 0.68rem;
             overflow-x: auto;
             white-space: pre;
             color: var(--web-primary);
             border: 1px solid var(--web-dark);
-            margin-bottom: 1rem;
+            margin-bottom: 0.4rem;
+            line-height: 1.3;
         }
 
-        .task-list {
-            list-style: none;
-        }
+        /* Tip boxes */
+        .tip-box { background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning); border-radius: 6px; padding: 0.5rem 0.7rem; margin: 0.4rem 0; font-size: 0.78rem; }
+        .tip-box strong { color: var(--warning); }
 
-        .task-list li {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.75rem;
-            padding: 0.75rem 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .task-list li:last-child {
-            border-bottom: none;
-        }
-
-        .task-checkbox {
-            width: 22px;
-            height: 22px;
-            border: 2px solid var(--web-primary);
-            border-radius: 4px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            flex-shrink: 0;
-            margin-top: 2px;
-        }
-
-        .task-checkbox.checked {
-            background: var(--success);
-            border-color: var(--success);
-        }
-
-        .task-checkbox.checked::after {
-            content: '✓';
-            color: white;
-            font-weight: bold;
-        }
-
-        .concept-card {
-            background: var(--bg-tertiary);
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 0.75rem;
-            border-left: 3px solid var(--web-primary);
-        }
-
-        .concept-card h4 {
-            color: var(--web-primary);
-            margin-bottom: 0.5rem;
-        }
-
-        .concept-card p {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .osi-layer {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 0.75rem 1rem;
-            background: var(--bg-tertiary);
-            border-radius: 8px;
-            margin-bottom: 0.5rem;
-            border-left: 4px solid var(--web-primary);
-        }
-
-        .osi-layer .number {
-            width: 30px;
-            height: 30px;
-            background: var(--web-primary);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: var(--bg-primary);
-        }
-
-        .osi-layer .name {
-            font-weight: 600;
-            min-width: 100px;
-        }
-
-        .osi-layer .protocol {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .comparison-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 1rem 0;
-        }
-
-        .comparison-table th,
-        .comparison-table td {
-            padding: 0.75rem;
-            text-align: left;
-            border: 1px solid rgba(96, 165, 250, 0.2);
-        }
-
-        .comparison-table th {
-            background: var(--web-dark);
-            color: var(--web-primary);
-        }
-
-        .comparison-table tr:nth-child(even) {
-            background: var(--bg-tertiary);
-        }
-
-        .tip-box {
-            background: rgba(245, 158, 11, 0.1);
-            border: 1px solid var(--warning);
-            border-radius: 8px;
-            padding: 1rem;
-            margin: 1rem 0;
-        }
-
-        .tip-box strong {
-            color: var(--warning);
-        }
-
-        .completion-btn {
-            width: 100%;
-            padding: 1rem 2rem;
-            background: linear-gradient(135deg, var(--web-primary), var(--web-secondary));
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-        }
-
-        .completion-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px var(--web-glow);
-        }
-
-        .completion-btn.completed {
-            background: var(--success);
-        }
-
-        .applet-links {
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-            margin-top: 1rem;
-        }
-
+        /* Applet links */
+        .applet-links { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.4rem; }
         .applet-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--web-primary);
-            border-radius: 8px;
-            color: var(--web-primary);
-            text-decoration: none;
-            font-size: 0.9rem;
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.3rem 0.7rem; background: var(--bg-tertiary);
+            border: 1px solid var(--web-primary); border-radius: 6px;
+            color: var(--web-primary); text-decoration: none; font-size: 0.75rem;
             transition: all 0.3s ease;
         }
+        .applet-link:hover { background: var(--web-primary); color: white; }
 
-        .applet-link:hover {
-            background: var(--web-primary);
-            color: white;
-        }
-
+        /* Reflection section */
         .reflection-section {
             background: linear-gradient(135deg, rgba(96, 165, 250, 0.1), transparent);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-top: 1.5rem;
+            border-radius: 8px;
+            padding: 0.6rem;
+            margin-top: 0.4rem;
             border: 1px dashed var(--web-primary);
+            font-size: 0.78rem;
+        }
+        .reflection-section h4 { color: var(--web-primary); margin-bottom: 0.4rem; font-size: 0.82rem; }
+        .reflection-section ul { padding-left: 1.2rem; }
+        .reflection-section li { margin-bottom: 0.2rem; }
+
+        /* Task checkboxes and list */
+        .task-list { list-style: none; }
+        .task-list li { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.4rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.82rem; }
+        .task-list li:last-child { border-bottom: none; }
+        .task-checkbox {
+            width: 20px; height: 20px;
+            border: 2px solid var(--web-primary); border-radius: 4px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: all 0.3s ease; flex-shrink: 0; margin-top: 1px;
+        }
+        .task-checkbox.checked { background: var(--success); border-color: var(--success); }
+        .task-checkbox.checked::after { content: '\2713'; color: white; font-weight: bold; font-size: 0.7rem; }
+
+        /* Completion button */
+        .completion-btn {
+            width: 100%;
+            padding: 0.5rem 1rem;
+            background: linear-gradient(135deg, var(--web-primary), var(--web-secondary));
+            color: white; border: none; border-radius: 8px;
+            font-size: 0.85rem; font-weight: 600; cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+            margin-top: 0.4rem; flex-shrink: 0;
+        }
+        .completion-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px var(--web-glow); }
+        .completion-btn.completed { background: var(--success); }
+
+        /* Scenario navigation bar */
+        .scenario-nav {
+            display: flex; align-items: center; justify-content: center;
+            gap: 6px; margin-bottom: 0.3rem; padding: 4px 12px;
+            background: var(--bg-secondary);
+            border: 1px solid rgba(96, 165, 250, 0.15);
+            border-radius: 8px; flex-shrink: 0;
+        }
+        .scenario-nav-btn {
+            width: 32px; height: 32px; border-radius: 6px;
+            border: 1px solid rgba(96, 165, 250, 0.25);
+            background: var(--bg-tertiary); color: var(--text-secondary);
+            font-size: 0.88rem; font-weight: 700; cursor: pointer;
+            transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .scenario-nav-btn:hover { border-color: var(--web-primary); color: var(--web-primary); }
+        .scenario-nav-btn.active { background: var(--web-primary); color: #000; border-color: var(--web-primary); }
+        .scenario-nav-btn.done { background: rgba(34, 197, 94, 0.15); border-color: var(--success); color: var(--success); }
+        .scenario-nav-btn.done.active { background: var(--success); color: #000; }
+        .scenario-nav-btn.locked { opacity: 0.3; cursor: not-allowed; }
+
+        /* Previous / Next buttons in the nav bar */
+        .scenario-arrow {
+            padding: 8px 16px; border-radius: 6px;
+            border: 1px solid rgba(96, 165, 250, 0.2);
+            background: var(--bg-tertiary); color: var(--text-secondary);
+            font-size: 0.82rem; font-weight: 600; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .scenario-arrow:hover:not(:disabled) { border-color: var(--web-primary); color: var(--web-primary); }
+        .scenario-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* Hint system — progressive reveal */
+        .hint-btn {
+            padding: 4px 14px; border-radius: 5px;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            background: rgba(245, 158, 11, 0.08);
+            color: var(--warning); font-size: 0.75rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+            margin-bottom: 0.4rem; flex-shrink: 0;
+        }
+        .hint-btn:hover { background: rgba(245, 158, 11, 0.15); }
+        .hint-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .hint-box {
+            background: rgba(245, 158, 11, 0.06);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-radius: 6px; padding: 0.4rem 0.6rem;
+            margin-bottom: 0.3rem; font-size: 0.75rem;
+            color: #fef3c7; line-height: 1.4; flex-shrink: 0;
+        }
+        .hint-label {
+            font-weight: 700; color: var(--warning);
+            font-size: 0.7rem; text-transform: uppercase;
+            letter-spacing: 0.04em;
         }
 
-        .reflection-section h4 {
-            color: var(--web-primary);
-            margin-bottom: 1rem;
+        /* Right-column task section header */
+        .task-section-header {
+            color: var(--web-primary); font-size: 0.82rem; font-weight: 600;
+            margin-bottom: 0.3rem; display: flex; align-items: center; gap: 0.4rem;
         }
 
         @media (max-width: 768px) {
-            .lab-container {
-                padding: 1rem;
-            }
-
-            .lab-header h1 {
-                font-size: 1.8rem;
-            }
-
-            .network-diagram {
-                font-size: 0.7rem;
-            }
+            .lab-container { padding: 1rem; }
+            .lab-header h1 { font-size: 0.95rem; }
+            .network-diagram { font-size: 0.6rem; }
+            .scenario-nav { flex-wrap: wrap; }
+            /* Stack columns vertically on narrow screens */
+            .exercise.active-scenario { flex-direction: column; }
+            .scenario-right { width: 100%; max-height: 40%; }
         }
     </style>
 </head>
@@ -412,825 +288,1185 @@
         <header class="lab-header">
             <h1><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Networking Fundamentals Lab</h1>
             <p class="subtitle">OSI Model, TCP/IP, Protocols, and Network Devices</p>
+            <div class="lab-meta">
+                <span class="meta-item">140 minutes</span>
+                <span class="meta-item">Foundational</span>
+                <span class="meta-item">6 Scenarios</span>
+            </div>
         </header>
 
-        <div class="progress-section">
-            <div class="progress-header">
-                <span>Lab Progress</span>
-                <span id="progressText">0 / 6 exercises</span>
-            </div>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-            </div>
+        <!-- Progress bar hidden — scenario nav buttons show completion state instead -->
+        <span id="progressText" style="display:none;">0 / 6 scenarios</span>
+        <div id="progressFill" style="display:none;"></div>
+
+        <!-- Scenario Navigation Bar -->
+        <div class="scenario-nav" id="scenario-nav">
+            <button class="scenario-arrow" id="prev-scenario" onclick="goScenario(currentScenario - 1)" disabled>Prev</button>
+            <button class="scenario-nav-btn active" onclick="goScenario(1)">1</button>
+            <button class="scenario-nav-btn locked" onclick="goScenario(2)">2</button>
+            <button class="scenario-nav-btn locked" onclick="goScenario(3)">3</button>
+            <button class="scenario-nav-btn locked" onclick="goScenario(4)">4</button>
+            <button class="scenario-nav-btn locked" onclick="goScenario(5)">5</button>
+            <button class="scenario-nav-btn locked" onclick="goScenario(6)">6</button>
+            <button class="scenario-arrow" id="next-scenario" onclick="goScenario(currentScenario + 1)" disabled>Next</button>
         </div>
 
-        <!-- Exercise 1: OSI Model -->
-        <div class="exercise" id="exercise1">
-            <div class="exercise-header">
-                <div class="exercise-number">1</div>
-                <div class="exercise-title">
-                    <h2>The OSI Model</h2>
-                    <span class="time"><img src="/assets/images/icons/icon-stopwatch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> 20 minutes</span>
-                </div>
-            </div>
-
-            <div class="objective">
-                <strong>Objective:</strong> Understand the 7-layer OSI reference model and identify protocols at each layer.
-            </div>
-
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> The Seven Layers</h3>
-
-                <div class="osi-layer" style="border-color: #ef4444;">
-                    <div class="number" style="background: #ef4444;">7</div>
-                    <div class="name">Application</div>
-                    <div class="protocol">HTTP, HTTPS, FTP, SMTP, DNS, SSH, Telnet</div>
+        <!-- ============================================================
+             Scenario 1: OSI Model
+             Teaching content (Seven Layers, OSI vs TCP/IP) on the LEFT.
+             Tasks checkboxes on the RIGHT.
+             ============================================================ -->
+        <!-- Scenario 1: The OSI Model -->
+        <div class="exercise active-scenario" id="exercise1">
+            <div class="scenario-left">
+                <div class="exercise-header">
+                    <div class="exercise-number">1</div>
+                    <div class="exercise-title">
+                        <h2>The OSI Model</h2>
+                        <span class="time">20 minutes</span>
+                    </div>
                 </div>
 
-                <div class="osi-layer" style="border-color: #f97316;">
-                    <div class="number" style="background: #f97316;">6</div>
-                    <div class="name">Presentation</div>
-                    <div class="protocol">SSL/TLS, JPEG, GIF, ASCII, MPEG</div>
+                <div class="objective">
+                    <strong>Objective:</strong> Understand the 7-layer OSI reference model and identify protocols at each layer.
                 </div>
 
-                <div class="osi-layer" style="border-color: #eab308;">
-                    <div class="number" style="background: #eab308;">5</div>
-                    <div class="name">Session</div>
-                    <div class="protocol">NetBIOS, RPC, PPTP</div>
+                <!-- The Seven Layers -->
+                <div class="content-section">
+                    <h3><img src="/assets/images/icons/icon-books.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> The Seven Layers</h3>
+
+                    <div class="osi-layer" style="border-color: #ef4444;">
+                        <div class="number" style="background: #ef4444;">7</div>
+                        <div class="name">Application</div>
+                        <div class="protocol">HTTP, HTTPS, FTP, SMTP, DNS, SSH, Telnet</div>
+                    </div>
+
+                    <div class="osi-layer" style="border-color: #f97316;">
+                        <div class="number" style="background: #f97316;">6</div>
+                        <div class="name">Presentation</div>
+                        <div class="protocol">SSL/TLS, JPEG, GIF, ASCII, MPEG</div>
+                    </div>
+
+                    <div class="osi-layer" style="border-color: #eab308;">
+                        <div class="number" style="background: #eab308;">5</div>
+                        <div class="name">Session</div>
+                        <div class="protocol">NetBIOS, RPC, PPTP</div>
+                    </div>
+
+                    <div class="osi-layer" style="border-color: #22c55e;">
+                        <div class="number" style="background: #22c55e;">4</div>
+                        <div class="name">Transport</div>
+                        <div class="protocol">TCP, UDP, Port Numbers</div>
+                    </div>
+
+                    <div class="osi-layer" style="border-color: #06b6d4;">
+                        <div class="number" style="background: #06b6d4;">3</div>
+                        <div class="name">Network</div>
+                        <div class="protocol">IP, ICMP, OSPF, EIGRP, BGP, Routers</div>
+                    </div>
+
+                    <div class="osi-layer" style="border-color: #8b5cf6;">
+                        <div class="number" style="background: #8b5cf6;">2</div>
+                        <div class="name">Data Link</div>
+                        <div class="protocol">Ethernet, MAC, Switches, VLANs, STP</div>
+                    </div>
+
+                    <div class="osi-layer" style="border-color: #ec4899;">
+                        <div class="number" style="background: #ec4899;">1</div>
+                        <div class="name">Physical</div>
+                        <div class="protocol">Cables, Hubs, NIC, Fiber, Wireless</div>
+                    </div>
+
+                    <div class="tip-box">
+                        <strong><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Memory Trick (Top-Down):</strong> "All People Seem To Need Data Processing"<br>
+                        <strong><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Memory Trick (Bottom-Up):</strong> "Please Do Not Throw Sausage Pizza Away"
+                    </div>
                 </div>
 
-                <div class="osi-layer" style="border-color: #22c55e;">
-                    <div class="number" style="background: #22c55e;">4</div>
-                    <div class="name">Transport</div>
-                    <div class="protocol">TCP, UDP, Port Numbers</div>
+                <!-- OSI vs TCP/IP -->
+                <div class="content-section">
+                    <h3><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> OSI vs TCP/IP Model</h3>
+                    <table class="comparison-table">
+                        <tr>
+                            <th>OSI Model</th>
+                            <th>TCP/IP Model</th>
+                            <th>Protocols</th>
+                        </tr>
+                        <tr>
+                            <td>Application, Presentation, Session</td>
+                            <td>Application</td>
+                            <td>HTTP, DNS, SMTP</td>
+                        </tr>
+                        <tr>
+                            <td>Transport</td>
+                            <td>Transport</td>
+                            <td>TCP, UDP</td>
+                        </tr>
+                        <tr>
+                            <td>Network</td>
+                            <td>Internet</td>
+                            <td>IP, ICMP</td>
+                        </tr>
+                        <tr>
+                            <td>Data Link, Physical</td>
+                            <td>Network Access</td>
+                            <td>Ethernet, Wi-Fi</td>
+                        </tr>
+                    </table>
                 </div>
 
-                <div class="osi-layer" style="border-color: #06b6d4;">
-                    <div class="number" style="background: #06b6d4;">3</div>
-                    <div class="name">Network</div>
-                    <div class="protocol">IP, ICMP, OSPF, EIGRP, BGP, Routers</div>
+                <!-- Applet links -->
+                <div class="applet-links">
+                    <a href="../tools/osi.tool.html" class="applet-link"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> OSI Visualizer</a>
+                    <a href="../tools/osi-deep-dive.tool.html" class="applet-link"><img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> OSI Deep Dive</a>
                 </div>
+            </div><!-- /scenario-left -->
 
-                <div class="osi-layer" style="border-color: #8b5cf6;">
-                    <div class="number" style="background: #8b5cf6;">2</div>
-                    <div class="name">Data Link</div>
-                    <div class="protocol">Ethernet, MAC, Switches, VLANs, STP</div>
-                </div>
+            <div class="scenario-right"><div class="scenario-right-inner">
+                <!-- Hint system for OSI Model -->
+                <button class="hint-btn" onclick="revealHint(1)" id="hintBtn1">Hint (0/3)</button>
+                <div id="hintContainer1"></div>
 
-                <div class="osi-layer" style="border-color: #ec4899;">
-                    <div class="number" style="background: #ec4899;">1</div>
-                    <div class="name">Physical</div>
-                    <div class="protocol">Cables, Hubs, NIC, Fiber, Wireless</div>
-                </div>
-
-                <div class="tip-box">
-                    <strong><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Memory Trick (Top-Down):</strong> "All People Seem To Need Data Processing"<br>
-                    <strong><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Memory Trick (Bottom-Up):</strong> "Please Do Not Throw Sausage Pizza Away"
-                </div>
-            </div>
-
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> OSI vs TCP/IP Model</h3>
-                <table class="comparison-table">
-                    <tr>
-                        <th>OSI Model</th>
-                        <th>TCP/IP Model</th>
-                        <th>Protocols</th>
-                    </tr>
-                    <tr>
-                        <td>Application, Presentation, Session</td>
-                        <td>Application</td>
-                        <td>HTTP, DNS, SMTP</td>
-                    </tr>
-                    <tr>
-                        <td>Transport</td>
-                        <td>Transport</td>
-                        <td>TCP, UDP</td>
-                    </tr>
-                    <tr>
-                        <td>Network</td>
-                        <td>Internet</td>
-                        <td>IP, ICMP</td>
-                    </tr>
-                    <tr>
-                        <td>Data Link, Physical</td>
-                        <td>Network Access</td>
-                        <td>Ethernet, Wi-Fi</td>
-                    </tr>
-                </table>
-            </div>
-
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Tasks</h3>
-                <ul class="task-list">
+                <div class="task-section-header"><img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Tasks</div>
+                <ul class="task-list" id="taskList1">
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 1)"></div>
                         <span>List all 7 OSI layers from memory</span>
                     </li>
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 1)"></div>
                         <span>Identify which layer HTTP operates at</span>
                     </li>
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 1)"></div>
                         <span>Explain the difference between Layer 2 and Layer 3 devices</span>
                     </li>
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 1)"></div>
                         <span>Map 5 common protocols to their OSI layers</span>
                     </li>
                 </ul>
-            </div>
 
-            <div class="applet-links">
-                <a href="../tools/osi.tool.html" class="applet-link"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> OSI Visualizer</a>
-                <a href="../tools/osi-deep-dive.tool.html" class="applet-link"><img src="/assets/images/icons/icon-magnifier.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> OSI Deep Dive</a>
-            </div>
+                <!-- Feedback area for validation messages -->
+                <div class="feedback" id="fb1" style="font-size:0.78rem;"></div>
 
-            <button class="completion-btn" onclick="completeExercise(1)">
-                Mark Exercise Complete
-            </button>
+                <button class="completion-btn" onclick="completeExercise(1)">
+                    Mark Scenario Complete
+                </button>
+            </div></div><!-- /scenario-right -->
         </div>
 
-        <!-- Exercise 2: IP Addressing -->
+        <!-- ============================================================
+             Scenario 2: IP Addressing
+             Teaching content (IPv4 Classes, Private Ranges, Subnet Ref)
+             on the LEFT. Tasks checkboxes on the RIGHT.
+             ============================================================ -->
+        <!-- Scenario 2: IP Addressing and Subnetting -->
         <div class="exercise" id="exercise2">
-            <div class="exercise-header">
-                <div class="exercise-number">2</div>
-                <div class="exercise-title">
-                    <h2>IP Addressing & Subnetting</h2>
-                    <span class="time"><img src="/assets/images/icons/icon-stopwatch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> 30 minutes</span>
+            <div class="scenario-left">
+                <div class="exercise-header">
+                    <div class="exercise-number">2</div>
+                    <div class="exercise-title">
+                        <h2>IP Addressing & Subnetting</h2>
+                        <span class="time">30 minutes</span>
+                    </div>
                 </div>
-            </div>
 
-            <div class="objective">
-                <strong>Objective:</strong> Understand IPv4 addressing, subnet masks, and basic subnetting concepts.
-            </div>
-
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> IPv4 Address Classes</h3>
-                <table class="comparison-table">
-                    <tr>
-                        <th>Class</th>
-                        <th>Range</th>
-                        <th>Default Mask</th>
-                        <th>Purpose</th>
-                    </tr>
-                    <tr>
-                        <td>A</td>
-                        <td>1.0.0.0 - 126.255.255.255</td>
-                        <td>/8 (255.0.0.0)</td>
-                        <td>Large networks</td>
-                    </tr>
-                    <tr>
-                        <td>B</td>
-                        <td>128.0.0.0 - 191.255.255.255</td>
-                        <td>/16 (255.255.0.0)</td>
-                        <td>Medium networks</td>
-                    </tr>
-                    <tr>
-                        <td>C</td>
-                        <td>192.0.0.0 - 223.255.255.255</td>
-                        <td>/24 (255.255.255.0)</td>
-                        <td>Small networks</td>
-                    </tr>
-                    <tr>
-                        <td>D</td>
-                        <td>224.0.0.0 - 239.255.255.255</td>
-                        <td>N/A</td>
-                        <td>Multicast</td>
-                    </tr>
-                    <tr>
-                        <td>E</td>
-                        <td>240.0.0.0 - 255.255.255.255</td>
-                        <td>N/A</td>
-                        <td>Reserved</td>
-                    </tr>
-                </table>
-            </div>
-
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-home.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Private IP Ranges (RFC 1918)</h3>
-                <div class="concept-card">
-                    <h4>Class A Private</h4>
-                    <p>10.0.0.0 - 10.255.255.255 (10.0.0.0/8) — 16 million addresses</p>
+                <div class="objective">
+                    <strong>Objective:</strong> Understand IPv4 addressing, subnet masks, and basic subnetting concepts.
                 </div>
-                <div class="concept-card">
-                    <h4>Class B Private</h4>
-                    <p>172.16.0.0 - 172.31.255.255 (172.16.0.0/12) — 1 million addresses</p>
-                </div>
-                <div class="concept-card">
-                    <h4>Class C Private</h4>
-                    <p>192.168.0.0 - 192.168.255.255 (192.168.0.0/16) — 65,000 addresses</p>
-                </div>
-            </div>
 
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-numbers.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Subnet Quick Reference</h3>
-                <table class="comparison-table">
-                    <tr>
-                        <th>CIDR</th>
-                        <th>Subnet Mask</th>
-                        <th>Hosts</th>
-                        <th>Use Case</th>
-                    </tr>
-                    <tr>
-                        <td>/30</td>
-                        <td>255.255.255.252</td>
-                        <td>2</td>
-                        <td>Point-to-point links</td>
-                    </tr>
-                    <tr>
-                        <td>/28</td>
-                        <td>255.255.255.240</td>
-                        <td>14</td>
-                        <td>Small departments</td>
-                    </tr>
-                    <tr>
-                        <td>/24</td>
-                        <td>255.255.255.0</td>
-                        <td>254</td>
-                        <td>Standard LAN</td>
-                    </tr>
-                    <tr>
-                        <td>/16</td>
-                        <td>255.255.0.0</td>
-                        <td>65,534</td>
-                        <td>Large campus</td>
-                    </tr>
-                </table>
-
-                <div class="tip-box">
-                    <strong><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Host Formula:</strong> 2^n - 2 where n = number of host bits. We subtract 2 for network and broadcast addresses.
+                <!-- IPv4 Address Classes -->
+                <div class="content-section">
+                    <h3><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> IPv4 Address Classes</h3>
+                    <table class="comparison-table">
+                        <tr>
+                            <th>Class</th>
+                            <th>Range</th>
+                            <th>Default Mask</th>
+                            <th>Purpose</th>
+                        </tr>
+                        <tr>
+                            <td>A</td>
+                            <td>1.0.0.0 - 126.255.255.255</td>
+                            <td>/8 (255.0.0.0)</td>
+                            <td>Large networks</td>
+                        </tr>
+                        <tr>
+                            <td>B</td>
+                            <td>128.0.0.0 - 191.255.255.255</td>
+                            <td>/16 (255.255.0.0)</td>
+                            <td>Medium networks</td>
+                        </tr>
+                        <tr>
+                            <td>C</td>
+                            <td>192.0.0.0 - 223.255.255.255</td>
+                            <td>/24 (255.255.255.0)</td>
+                            <td>Small networks</td>
+                        </tr>
+                        <tr>
+                            <td>D</td>
+                            <td>224.0.0.0 - 239.255.255.255</td>
+                            <td>N/A</td>
+                            <td>Multicast</td>
+                        </tr>
+                        <tr>
+                            <td>E</td>
+                            <td>240.0.0.0 - 255.255.255.255</td>
+                            <td>N/A</td>
+                            <td>Reserved</td>
+                        </tr>
+                    </table>
                 </div>
-            </div>
 
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Tasks</h3>
-                <ul class="task-list">
+                <!-- Private IP Ranges -->
+                <div class="content-section">
+                    <h3><img src="/assets/images/icons/icon-home.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Private IP Ranges (RFC 1918)</h3>
+                    <div class="concept-card">
+                        <h4>Class A Private</h4>
+                        <p>10.0.0.0 - 10.255.255.255 (10.0.0.0/8) -- 16 million addresses</p>
+                    </div>
+                    <div class="concept-card">
+                        <h4>Class B Private</h4>
+                        <p>172.16.0.0 - 172.31.255.255 (172.16.0.0/12) -- 1 million addresses</p>
+                    </div>
+                    <div class="concept-card">
+                        <h4>Class C Private</h4>
+                        <p>192.168.0.0 - 192.168.255.255 (192.168.0.0/16) -- 65,000 addresses</p>
+                    </div>
+                </div>
+
+                <!-- Subnet Quick Reference -->
+                <div class="content-section">
+                    <h3><img src="/assets/images/icons/icon-numbers.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Subnet Quick Reference</h3>
+                    <table class="comparison-table">
+                        <tr>
+                            <th>CIDR</th>
+                            <th>Subnet Mask</th>
+                            <th>Hosts</th>
+                            <th>Use Case</th>
+                        </tr>
+                        <tr>
+                            <td>/30</td>
+                            <td>255.255.255.252</td>
+                            <td>2</td>
+                            <td>Point-to-point links</td>
+                        </tr>
+                        <tr>
+                            <td>/28</td>
+                            <td>255.255.255.240</td>
+                            <td>14</td>
+                            <td>Small departments</td>
+                        </tr>
+                        <tr>
+                            <td>/24</td>
+                            <td>255.255.255.0</td>
+                            <td>254</td>
+                            <td>Standard LAN</td>
+                        </tr>
+                        <tr>
+                            <td>/16</td>
+                            <td>255.255.0.0</td>
+                            <td>65,534</td>
+                            <td>Large campus</td>
+                        </tr>
+                    </table>
+
+                    <div class="tip-box">
+                        <strong><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Host Formula:</strong> 2^n - 2 where n = number of host bits. We subtract 2 for network and broadcast addresses.
+                    </div>
+                </div>
+
+                <!-- Applet links -->
+                <div class="applet-links">
+                    <a href="../tools/subnetting.tool.html" class="applet-link"><img src="/assets/images/icons/icon-numbers.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Subnet Calculator</a>
+                    <a href="../tools/subnetting.tool.html" class="applet-link"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Subnetting Visualizer</a>
+                    <!-- Binary converter lives in the shared web applets directory, not in network-plus -->
+                    <a href="../../applets/ip-addressing/web-binary-decimal-converter.applet.html" class="applet-link"><img src="/assets/images/icons/icon-numbers.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Binary Converter</a>
+                </div>
+            </div><!-- /scenario-left -->
+
+            <div class="scenario-right"><div class="scenario-right-inner">
+                <!-- Hint system for IP Addressing -->
+                <button class="hint-btn" onclick="revealHint(2)" id="hintBtn2">Hint (0/3)</button>
+                <div id="hintContainer2"></div>
+
+                <div class="task-section-header"><img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Tasks</div>
+                <ul class="task-list" id="taskList2">
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 2)"></div>
                         <span>Identify the class of 172.16.5.1</span>
                     </li>
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 2)"></div>
                         <span>Calculate how many hosts fit in a /26 network</span>
                     </li>
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 2)"></div>
                         <span>Convert 192.168.1.0/24 to binary</span>
                     </li>
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 2)"></div>
                         <span>Identify the network and broadcast address for 10.0.5.100/24</span>
                     </li>
                 </ul>
-            </div>
 
-            <div class="applet-links">
-                <a href="../tools/subnetting.tool.html" class="applet-link"><img src="/assets/images/icons/icon-numbers.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Subnet Calculator</a>
-                <a href="../tools/subnetting.tool.html" class="applet-link"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Subnetting Visualizer</a>
-                <a href="../index.html" class="applet-link"><img src="/assets/images/icons/icon-numbers.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Binary Converter</a>
-            </div>
+                <div class="feedback" id="fb2" style="font-size:0.78rem;"></div>
 
-            <button class="completion-btn" onclick="completeExercise(2)">
-                Mark Exercise Complete
-            </button>
+                <button class="completion-btn" onclick="completeExercise(2)">
+                    Mark Scenario Complete
+                </button>
+            </div></div><!-- /scenario-right -->
         </div>
 
-        <!-- Exercise 3: TCP vs UDP -->
+        <!-- ============================================================
+             Scenario 3: Protocols & Ports
+             Teaching content (Protocol Comparison, TCP Handshake,
+             Common Ports) on the LEFT. Tasks on the RIGHT.
+             ============================================================ -->
+        <!-- Scenario 3: Transport Layer - TCP vs UDP -->
         <div class="exercise" id="exercise3">
-            <div class="exercise-header">
-                <div class="exercise-number">3</div>
-                <div class="exercise-title">
-                    <h2>Transport Layer: TCP vs UDP</h2>
-                    <span class="time"><img src="/assets/images/icons/icon-stopwatch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> 20 minutes</span>
+            <div class="scenario-left">
+                <div class="exercise-header">
+                    <div class="exercise-number">3</div>
+                    <div class="exercise-title">
+                        <h2>Transport Layer: TCP vs UDP</h2>
+                        <span class="time">20 minutes</span>
+                    </div>
                 </div>
-            </div>
 
-            <div class="objective">
-                <strong>Objective:</strong> Compare TCP and UDP protocols and understand when to use each.
-            </div>
+                <div class="objective">
+                    <strong>Objective:</strong> Compare TCP and UDP protocols and understand when to use each.
+                </div>
 
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Protocol Comparison</h3>
-                <table class="comparison-table">
-                    <tr>
-                        <th>Feature</th>
-                        <th>TCP</th>
-                        <th>UDP</th>
-                    </tr>
-                    <tr>
-                        <td>Connection</td>
-                        <td>Connection-oriented (3-way handshake)</td>
-                        <td>Connectionless</td>
-                    </tr>
-                    <tr>
-                        <td>Reliability</td>
-                        <td>Guaranteed delivery, retransmission</td>
-                        <td>Best effort, no guarantee</td>
-                    </tr>
-                    <tr>
-                        <td>Ordering</td>
-                        <td>In-order delivery</td>
-                        <td>No ordering</td>
-                    </tr>
-                    <tr>
-                        <td>Speed</td>
-                        <td>Slower (overhead)</td>
-                        <td>Faster (minimal overhead)</td>
-                    </tr>
-                    <tr>
-                        <td>Flow Control</td>
-                        <td>Yes (windowing)</td>
-                        <td>No</td>
-                    </tr>
-                    <tr>
-                        <td>Use Cases</td>
-                        <td>HTTP, FTP, SSH, Email</td>
-                        <td>DNS, DHCP, VoIP, Streaming</td>
-                    </tr>
-                </table>
-            </div>
+                <!-- Protocol Comparison -->
+                <div class="content-section">
+                    <h3><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Protocol Comparison</h3>
+                    <table class="comparison-table">
+                        <tr>
+                            <th>Feature</th>
+                            <th>TCP</th>
+                            <th>UDP</th>
+                        </tr>
+                        <tr>
+                            <td>Connection</td>
+                            <td>Connection-oriented (3-way handshake)</td>
+                            <td>Connectionless</td>
+                        </tr>
+                        <tr>
+                            <td>Reliability</td>
+                            <td>Guaranteed delivery, retransmission</td>
+                            <td>Best effort, no guarantee</td>
+                        </tr>
+                        <tr>
+                            <td>Ordering</td>
+                            <td>In-order delivery</td>
+                            <td>No ordering</td>
+                        </tr>
+                        <tr>
+                            <td>Speed</td>
+                            <td>Slower (overhead)</td>
+                            <td>Faster (minimal overhead)</td>
+                        </tr>
+                        <tr>
+                            <td>Flow Control</td>
+                            <td>Yes (windowing)</td>
+                            <td>No</td>
+                        </tr>
+                        <tr>
+                            <td>Use Cases</td>
+                            <td>HTTP, FTP, SSH, Email</td>
+                            <td>DNS, DHCP, VoIP, Streaming</td>
+                        </tr>
+                    </table>
+                </div>
 
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-handshake.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> TCP Three-Way Handshake</h3>
-                <div class="network-diagram">
+                <!-- TCP Three-Way Handshake -->
+                <div class="content-section">
+                    <h3><img src="/assets/images/icons/icon-handshake.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> TCP Three-Way Handshake</h3>
+                    <div class="network-diagram">
     Client                          Server
-       │                               │
-       │────────  SYN  ───────────────►│
-       │         (seq=x)               │
-       │                               │
-       │◄───────  SYN-ACK  ────────────│
-       │        (seq=y, ack=x+1)       │
-       │                               │
-       │────────  ACK  ───────────────►│
-       │        (ack=y+1)              │
-       │                               │
-       │      Connection Established   │
-       │◄──────────────────────────────►│
+       |                               |
+       |--------  SYN  -------------->|
+       |         (seq=x)               |
+       |                               |
+       |<-------  SYN-ACK  -----------|
+       |        (seq=y, ack=x+1)       |
+       |                               |
+       |--------  ACK  -------------->|
+       |        (ack=y+1)              |
+       |                               |
+       |      Connection Established   |
+       |<----------------------------->|
+                    </div>
                 </div>
-            </div>
 
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-numbers.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Common Port Numbers</h3>
-                <table class="comparison-table">
-                    <tr>
-                        <th>Port</th>
-                        <th>Protocol</th>
-                        <th>Service</th>
-                    </tr>
-                    <tr><td>20, 21</td><td>TCP</td><td>FTP (data, control)</td></tr>
-                    <tr><td>22</td><td>TCP</td><td>SSH</td></tr>
-                    <tr><td>23</td><td>TCP</td><td>Telnet</td></tr>
-                    <tr><td>25</td><td>TCP</td><td>SMTP</td></tr>
-                    <tr><td>53</td><td>TCP/UDP</td><td>DNS</td></tr>
-                    <tr><td>67, 68</td><td>UDP</td><td>DHCP</td></tr>
-                    <tr><td>80</td><td>TCP</td><td>HTTP</td></tr>
-                    <tr><td>443</td><td>TCP</td><td>HTTPS</td></tr>
-                </table>
-            </div>
+                <!-- Common Port Numbers -->
+                <div class="content-section">
+                    <h3><img src="/assets/images/icons/icon-numbers.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Common Port Numbers</h3>
+                    <table class="comparison-table">
+                        <tr>
+                            <th>Port</th>
+                            <th>Protocol</th>
+                            <th>Service</th>
+                        </tr>
+                        <tr><td>20, 21</td><td>TCP</td><td>FTP (data, control)</td></tr>
+                        <tr><td>22</td><td>TCP</td><td>SSH</td></tr>
+                        <tr><td>23</td><td>TCP</td><td>Telnet</td></tr>
+                        <tr><td>25</td><td>TCP</td><td>SMTP</td></tr>
+                        <tr><td>53</td><td>TCP/UDP</td><td>DNS</td></tr>
+                        <tr><td>67, 68</td><td>UDP</td><td>DHCP</td></tr>
+                        <tr><td>80</td><td>TCP</td><td>HTTP</td></tr>
+                        <tr><td>443</td><td>TCP</td><td>HTTPS</td></tr>
+                    </table>
+                </div>
 
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Tasks</h3>
-                <ul class="task-list">
+                <!-- Applet links -->
+                <div class="applet-links">
+                    <a href="../tools/port.tool.html" class="applet-link"><img src="/assets/images/icons/icon-plug.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Port Visualizer</a>
+                    <a href="../tools/network-services.tool.html" class="applet-link"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Services Visualizer</a>
+                </div>
+            </div><!-- /scenario-left -->
+
+            <div class="scenario-right"><div class="scenario-right-inner">
+                <!-- Hint system for Protocols & Ports -->
+                <button class="hint-btn" onclick="revealHint(3)" id="hintBtn3">Hint (0/3)</button>
+                <div id="hintContainer3"></div>
+
+                <div class="task-section-header"><img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Tasks</div>
+                <ul class="task-list" id="taskList3">
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 3)"></div>
                         <span>Explain the purpose of each step in the 3-way handshake</span>
                     </li>
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 3)"></div>
                         <span>List 5 TCP and 5 UDP services with their port numbers</span>
                     </li>
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 3)"></div>
                         <span>Explain why VoIP uses UDP instead of TCP</span>
                     </li>
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 3)"></div>
                         <span>Describe TCP flow control using windowing</span>
                     </li>
                 </ul>
-            </div>
 
-            <div class="applet-links">
-                <a href="../tools/port.tool.html" class="applet-link"><img src="/assets/images/icons/icon-plug.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Port Visualizer</a>
-                <a href="../tools/network-services.tool.html" class="applet-link"><img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Services Visualizer</a>
-            </div>
+                <div class="feedback" id="fb3" style="font-size:0.78rem;"></div>
 
-            <button class="completion-btn" onclick="completeExercise(3)">
-                Mark Exercise Complete
-            </button>
+                <button class="completion-btn" onclick="completeExercise(3)">
+                    Mark Scenario Complete
+                </button>
+            </div></div><!-- /scenario-right -->
         </div>
 
-        <!-- Exercise 4: Network Devices -->
+        <!-- ============================================================
+             Scenario 4: Network Devices
+             Teaching content (Device Roles, Collision/Broadcast Domains)
+             on the LEFT. Tasks on the RIGHT.
+             ============================================================ -->
+        <!-- Scenario 4: Network Devices -->
         <div class="exercise" id="exercise4">
-            <div class="exercise-header">
-                <div class="exercise-number">4</div>
-                <div class="exercise-title">
-                    <h2>Network Devices</h2>
-                    <span class="time"><img src="/assets/images/icons/icon-stopwatch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> 20 minutes</span>
-                </div>
-            </div>
-
-            <div class="objective">
-                <strong>Objective:</strong> Identify network devices and understand their roles at different OSI layers.
-            </div>
-
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Device Roles</h3>
-
-                <div class="concept-card">
-                    <h4>Hub (Layer 1)</h4>
-                    <p>Broadcasts all traffic to all ports. Creates one large collision domain. Obsolete in modern networks.</p>
+            <div class="scenario-left">
+                <div class="exercise-header">
+                    <div class="exercise-number">4</div>
+                    <div class="exercise-title">
+                        <h2>Network Devices</h2>
+                        <span class="time">20 minutes</span>
+                    </div>
                 </div>
 
-                <div class="concept-card">
-                    <h4>Switch (Layer 2)</h4>
-                    <p>Uses MAC addresses to forward frames. Creates separate collision domains per port. Maintains MAC address table (CAM).</p>
+                <div class="objective">
+                    <strong>Objective:</strong> Identify network devices and understand their roles at different OSI layers.
                 </div>
 
-                <div class="concept-card">
-                    <h4>Router (Layer 3)</h4>
-                    <p>Uses IP addresses to route packets between networks. Creates separate broadcast domains. Makes routing decisions using routing tables.</p>
+                <!-- Device Roles -->
+                <div class="content-section">
+                    <h3><img src="/assets/images/icons/icon-wrench.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Device Roles</h3>
+
+                    <div class="concept-card">
+                        <h4>Hub (Layer 1)</h4>
+                        <p>Broadcasts all traffic to all ports. Creates one large collision domain. Obsolete in modern networks.</p>
+                    </div>
+                    <div class="concept-card">
+                        <h4>Switch (Layer 2)</h4>
+                        <p>Uses MAC addresses to forward frames. Creates separate collision domains per port. Maintains MAC address table (CAM).</p>
+                    </div>
+                    <div class="concept-card">
+                        <h4>Router (Layer 3)</h4>
+                        <p>Uses IP addresses to route packets between networks. Creates separate broadcast domains. Makes routing decisions using routing tables.</p>
+                    </div>
+                    <div class="concept-card">
+                        <h4>Multilayer Switch (Layer 2/3)</h4>
+                        <p>Combines switching and routing. Can perform inter-VLAN routing. Wire-speed Layer 3 forwarding.</p>
+                    </div>
+                    <div class="concept-card">
+                        <h4>Firewall (Layer 3-7)</h4>
+                        <p>Filters traffic based on rules. Stateful inspection tracks connection state. Next-gen firewalls inspect application layer.</p>
+                    </div>
                 </div>
 
-                <div class="concept-card">
-                    <h4>Multilayer Switch (Layer 2/3)</h4>
-                    <p>Combines switching and routing. Can perform inter-VLAN routing. Wire-speed Layer 3 forwarding.</p>
+                <!-- Collision vs Broadcast Domains -->
+                <div class="content-section">
+                    <h3><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Collision vs Broadcast Domains</h3>
+                    <table class="comparison-table">
+                        <tr>
+                            <th>Device</th>
+                            <th>Breaks Collision Domain?</th>
+                            <th>Breaks Broadcast Domain?</th>
+                        </tr>
+                        <tr>
+                            <td>Hub</td>
+                            <td>No</td>
+                            <td>No</td>
+                        </tr>
+                        <tr>
+                            <td>Switch</td>
+                            <td>Yes (per port)</td>
+                            <td>No</td>
+                        </tr>
+                        <tr>
+                            <td>Router</td>
+                            <td>Yes</td>
+                            <td>Yes</td>
+                        </tr>
+                        <tr>
+                            <td>VLAN</td>
+                            <td>Yes</td>
+                            <td>Yes</td>
+                        </tr>
+                    </table>
                 </div>
 
-                <div class="concept-card">
-                    <h4>Firewall (Layer 3-7)</h4>
-                    <p>Filters traffic based on rules. Stateful inspection tracks connection state. Next-gen firewalls inspect application layer.</p>
+                <!-- Applet links -->
+                <div class="applet-links">
+                    <a href="../tools/devices.tool.html" class="applet-link"><img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Devices Visualizer</a>
+                    <a href="../tools/switch-operations.tool.html" class="applet-link"><img src="/assets/images/icons/icon-branch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Switch Operations</a>
                 </div>
-            </div>
+            </div><!-- /scenario-left -->
 
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Collision vs Broadcast Domains</h3>
-                <table class="comparison-table">
-                    <tr>
-                        <th>Device</th>
-                        <th>Breaks Collision Domain?</th>
-                        <th>Breaks Broadcast Domain?</th>
-                    </tr>
-                    <tr>
-                        <td>Hub</td>
-                        <td>No</td>
-                        <td>No</td>
-                    </tr>
-                    <tr>
-                        <td>Switch</td>
-                        <td>Yes (per port)</td>
-                        <td>No</td>
-                    </tr>
-                    <tr>
-                        <td>Router</td>
-                        <td>Yes</td>
-                        <td>Yes</td>
-                    </tr>
-                    <tr>
-                        <td>VLAN</td>
-                        <td>Yes</td>
-                        <td>Yes</td>
-                    </tr>
-                </table>
-            </div>
+            <div class="scenario-right"><div class="scenario-right-inner">
+                <!-- Hint system for Network Devices -->
+                <button class="hint-btn" onclick="revealHint(4)" id="hintBtn4">Hint (0/3)</button>
+                <div id="hintContainer4"></div>
 
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Tasks</h3>
-                <ul class="task-list">
+                <div class="task-section-header"><img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Tasks</div>
+                <ul class="task-list" id="taskList4">
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 4)"></div>
                         <span>Explain the difference between a hub and a switch</span>
                     </li>
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 4)"></div>
                         <span>Describe what information a switch uses to forward frames</span>
                     </li>
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 4)"></div>
                         <span>Explain why routers break broadcast domains</span>
                     </li>
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 4)"></div>
                         <span>Identify which device operates at Layer 3</span>
                     </li>
                 </ul>
-            </div>
 
-            <div class="applet-links">
-                <a href="../tools/devices.tool.html" class="applet-link"><img src="/assets/images/icons/icon-desktop.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Devices Visualizer</a>
-                <a href="../tools/switch-operations.tool.html" class="applet-link"><img src="/assets/images/icons/icon-branch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Switch Operations</a>
-            </div>
+                <div class="feedback" id="fb4" style="font-size:0.78rem;"></div>
 
-            <button class="completion-btn" onclick="completeExercise(4)">
-                Mark Exercise Complete
-            </button>
+                <button class="completion-btn" onclick="completeExercise(4)">
+                    Mark Scenario Complete
+                </button>
+            </div></div><!-- /scenario-right -->
         </div>
 
-        <!-- Exercise 5: VLANs & Switching -->
+        <!-- ============================================================
+             Scenario 5: Switching (VLANs, Trunks, STP)
+             Teaching content on the LEFT. Tasks on the RIGHT.
+             ============================================================ -->
+        <!-- Scenario 5: VLANs and Layer 2 Switching -->
         <div class="exercise" id="exercise5">
-            <div class="exercise-header">
-                <div class="exercise-number">5</div>
-                <div class="exercise-title">
-                    <h2>VLANs & Layer 2 Switching</h2>
-                    <span class="time"><img src="/assets/images/icons/icon-stopwatch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> 25 minutes</span>
+            <div class="scenario-left">
+                <div class="exercise-header">
+                    <div class="exercise-number">5</div>
+                    <div class="exercise-title">
+                        <h2>VLANs & Layer 2 Switching</h2>
+                        <span class="time">25 minutes</span>
+                    </div>
                 </div>
-            </div>
 
-            <div class="objective">
-                <strong>Objective:</strong> Understand VLANs, trunking, and Spanning Tree Protocol (STP).
-            </div>
+                <div class="objective">
+                    <strong>Objective:</strong> Understand VLANs, trunking, and Spanning Tree Protocol (STP).
+                </div>
 
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-tag.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> VLANs (Virtual LANs)</h3>
-                <div class="network-diagram">
+                <!-- VLANs -->
+                <div class="content-section">
+                    <h3><img src="/assets/images/icons/icon-tag.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> VLANs (Virtual LANs)</h3>
+                    <div class="network-diagram">
     Without VLANs:                    With VLANs:
-    ┌───────────────────┐             ┌───────────────────┐
-    │      Switch       │             │      Switch       │
-    │  ┌─────────────┐  │             │  ┌──────┬──────┐  │
-    │  │  One Large  │  │             │  │VLAN10│VLAN20│  │
-    │  │  Broadcast  │  │     →       │  │ HR   │ IT   │  │
-    │  │   Domain    │  │             │  │      │      │  │
-    │  └─────────────┘  │             │  └──────┴──────┘  │
-    └───────────────────┘             └───────────────────┘
+    +-------------------+             +-------------------+
+    |      Switch       |             |      Switch       |
+    |  +-------------+  |             |  +------+------+  |
+    |  |  One Large  |  |             |  |VLAN10|VLAN20|  |
+    |  |  Broadcast  |  |     ->      |  | HR   | IT   |  |
+    |  |   Domain    |  |             |  |      |      |  |
+    |  +-------------+  |             |  +------+------+  |
+    +-------------------+             +-------------------+
     All devices can                   Isolated broadcast
     see each other                    domains per VLAN
+                    </div>
+
+                    <div class="tip-box">
+                        <strong><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> VLAN Benefits:</strong> Security (isolation), Performance (smaller broadcast domains), Flexibility (logical grouping regardless of physical location).
+                    </div>
                 </div>
 
-                <div class="tip-box">
-                    <strong><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> VLAN Benefits:</strong> Security (isolation), Performance (smaller broadcast domains), Flexibility (logical grouping regardless of physical location).
+                <!-- Trunk Links -->
+                <div class="content-section">
+                    <h3><img src="/assets/images/icons/icon-chain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Trunk Links</h3>
+                    <div class="concept-card">
+                        <h4>Access Port</h4>
+                        <p>Belongs to one VLAN only. Untagged traffic. Connects to end devices (PCs, printers).</p>
+                    </div>
+                    <div class="concept-card">
+                        <h4>Trunk Port</h4>
+                        <p>Carries multiple VLANs. Uses 802.1Q tagging. Connects switches together. Has native VLAN (untagged).</p>
+                    </div>
                 </div>
-            </div>
 
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-chain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Trunk Links</h3>
-                <div class="concept-card">
-                    <h4>Access Port</h4>
-                    <p>Belongs to one VLAN only. Untagged traffic. Connects to end devices (PCs, printers).</p>
-                </div>
-
-                <div class="concept-card">
-                    <h4>Trunk Port</h4>
-                    <p>Carries multiple VLANs. Uses 802.1Q tagging. Connects switches together. Has native VLAN (untagged).</p>
-                </div>
-            </div>
-
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-branch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Spanning Tree Protocol (STP)</h3>
-                <div class="network-diagram">
+                <!-- Spanning Tree Protocol -->
+                <div class="content-section">
+                    <h3><img src="/assets/images/icons/icon-branch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Spanning Tree Protocol (STP)</h3>
+                    <div class="network-diagram">
     Problem: Switching Loops          Solution: STP
 
-    ┌──────────┐                      ┌──────────┐
-    │    SW1   │                      │    SW1   │
-    │          │◄────────┐            │  (Root)  │◄────────┐
-    └────┬─────┘         │            └────┬─────┘         │
-         │               │                 │               │
-         ▼               │            DP   ▼          RP   │
-    ┌────┴─────┐         │            ┌────┴─────┐         │
-    │    SW2   │─────────┘            │    SW2   │─────────┘
-    │          │   Loop!              │         ▌│   Blocked
-    └──────────┘                      └──────────┘
+    +----------+                      +----------+
+    |    SW1   |<--------+            |    SW1   |<--------+
+    |          |         |            |  (Root)  |         |
+    +----+-----+         |            +----+-----+         |
+         |               |            DP   |          RP   |
+         v               |                 v               |
+    +----+-----+         |            +----+-----+         |
+    |    SW2   |---------+            |    SW2   |---------+
+    |          |   Loop!              |          |   Blocked
+    +----------+                      +----------+
 
     Broadcasts multiply               One path blocked
     indefinitely (storm)              to prevent loops
+                    </div>
+
+                    <div class="concept-card">
+                        <h4>STP Port States</h4>
+                        <p><strong>Blocking</strong> -> <strong>Listening</strong> -> <strong>Learning</strong> -> <strong>Forwarding</strong></p>
+                    </div>
                 </div>
 
-                <div class="concept-card">
-                    <h4>STP Port States</h4>
-                    <p><strong>Blocking</strong> → <strong>Listening</strong> → <strong>Learning</strong> → <strong>Forwarding</strong></p>
+                <!-- Applet links -->
+                <div class="applet-links">
+                    <a href="../tools/vlan.tool.html" class="applet-link"><img src="/assets/images/icons/icon-tag.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> VLAN Visualizer</a>
+                    <a href="../tools/stp.tool.html" class="applet-link"><img src="/assets/images/icons/icon-branch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> STP Visualizer</a>
                 </div>
-            </div>
+            </div><!-- /scenario-left -->
 
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Tasks</h3>
-                <ul class="task-list">
+            <div class="scenario-right"><div class="scenario-right-inner">
+                <!-- Hint system for Switching -->
+                <button class="hint-btn" onclick="revealHint(5)" id="hintBtn5">Hint (0/3)</button>
+                <div id="hintContainer5"></div>
+
+                <div class="task-section-header"><img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Tasks</div>
+                <ul class="task-list" id="taskList5">
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 5)"></div>
                         <span>Explain why VLANs improve network security</span>
                     </li>
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 5)"></div>
                         <span>Describe the difference between access and trunk ports</span>
                     </li>
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 5)"></div>
                         <span>Explain how STP prevents switching loops</span>
                     </li>
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 5)"></div>
                         <span>List the 4 STP port states in order</span>
                     </li>
                 </ul>
-            </div>
 
-            <div class="applet-links">
-                <a href="../tools/vlan.tool.html" class="applet-link"><img src="/assets/images/icons/icon-tag.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> VLAN Visualizer</a>
-                <a href="../tools/stp.tool.html" class="applet-link"><img src="/assets/images/icons/icon-branch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> STP Visualizer</a>
-            </div>
+                <div class="feedback" id="fb5" style="font-size:0.78rem;"></div>
 
-            <button class="completion-btn" onclick="completeExercise(5)">
-                Mark Exercise Complete
-            </button>
+                <button class="completion-btn" onclick="completeExercise(5)">
+                    Mark Scenario Complete
+                </button>
+            </div></div><!-- /scenario-right -->
         </div>
 
-        <!-- Exercise 6: Routing Fundamentals -->
+        <!-- ============================================================
+             Scenario 6: Routing Fundamentals
+             Teaching content (Routing Types, Routing Protocols, AD)
+             on the LEFT. Tasks + Reflection on the RIGHT.
+             ============================================================ -->
+        <!-- Scenario 6: Routing Fundamentals -->
         <div class="exercise" id="exercise6">
-            <div class="exercise-header">
-                <div class="exercise-number">6</div>
-                <div class="exercise-title">
-                    <h2>Routing Fundamentals</h2>
-                    <span class="time"><img src="/assets/images/icons/icon-stopwatch.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> 25 minutes</span>
-                </div>
-            </div>
-
-            <div class="objective">
-                <strong>Objective:</strong> Understand routing concepts, static vs dynamic routing, and common routing protocols.
-            </div>
-
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-redirect.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Routing Types</h3>
-                <table class="comparison-table">
-                    <tr>
-                        <th>Type</th>
-                        <th>Static Routing</th>
-                        <th>Dynamic Routing</th>
-                    </tr>
-                    <tr>
-                        <td>Configuration</td>
-                        <td>Manually defined</td>
-                        <td>Auto-discovered</td>
-                    </tr>
-                    <tr>
-                        <td>Scalability</td>
-                        <td>Poor (many routes)</td>
-                        <td>Good (self-managing)</td>
-                    </tr>
-                    <tr>
-                        <td>Adaptability</td>
-                        <td>None (manual updates)</td>
-                        <td>Automatic failover</td>
-                    </tr>
-                    <tr>
-                        <td>Resource Usage</td>
-                        <td>Low</td>
-                        <td>Higher (CPU, bandwidth)</td>
-                    </tr>
-                    <tr>
-                        <td>Use Case</td>
-                        <td>Small networks, stub routes</td>
-                        <td>Large, complex networks</td>
-                    </tr>
-                </table>
-            </div>
-
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Routing Protocols</h3>
-
-                <div class="concept-card">
-                    <h4>RIP (Routing Information Protocol)</h4>
-                    <p>Distance-vector. Hop count metric (max 15). Simple but slow convergence. Legacy protocol.</p>
+            <div class="scenario-left">
+                <div class="exercise-header">
+                    <div class="exercise-number">6</div>
+                    <div class="exercise-title">
+                        <h2>Routing Fundamentals</h2>
+                        <span class="time">25 minutes</span>
+                    </div>
                 </div>
 
-                <div class="concept-card">
-                    <h4>OSPF (Open Shortest Path First)</h4>
-                    <p>Link-state. Cost metric (bandwidth-based). Fast convergence. Uses areas for scalability. Open standard.</p>
+                <div class="objective">
+                    <strong>Objective:</strong> Understand routing concepts, static vs dynamic routing, and common routing protocols.
                 </div>
 
-                <div class="concept-card">
-                    <h4>EIGRP (Enhanced Interior Gateway Routing Protocol)</h4>
-                    <p>Hybrid (advanced distance-vector). Composite metric. Very fast convergence. Cisco proprietary (now open).</p>
+                <!-- Routing Types -->
+                <div class="content-section">
+                    <h3><img src="/assets/images/icons/icon-redirect.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Routing Types</h3>
+                    <table class="comparison-table">
+                        <tr>
+                            <th>Type</th>
+                            <th>Static Routing</th>
+                            <th>Dynamic Routing</th>
+                        </tr>
+                        <tr>
+                            <td>Configuration</td>
+                            <td>Manually defined</td>
+                            <td>Auto-discovered</td>
+                        </tr>
+                        <tr>
+                            <td>Scalability</td>
+                            <td>Poor (many routes)</td>
+                            <td>Good (self-managing)</td>
+                        </tr>
+                        <tr>
+                            <td>Adaptability</td>
+                            <td>None (manual updates)</td>
+                            <td>Automatic failover</td>
+                        </tr>
+                        <tr>
+                            <td>Resource Usage</td>
+                            <td>Low</td>
+                            <td>Higher (CPU, bandwidth)</td>
+                        </tr>
+                        <tr>
+                            <td>Use Case</td>
+                            <td>Small networks, stub routes</td>
+                            <td>Large, complex networks</td>
+                        </tr>
+                    </table>
                 </div>
 
-                <div class="concept-card">
-                    <h4>BGP (Border Gateway Protocol)</h4>
-                    <p>Path-vector. AS path metric. Internet backbone routing. Connects autonomous systems.</p>
+                <!-- Routing Protocols -->
+                <div class="content-section">
+                    <h3><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Routing Protocols</h3>
+                    <div class="concept-card">
+                        <h4>RIP (Routing Information Protocol)</h4>
+                        <p>Distance-vector. Hop count metric (max 15). Simple but slow convergence. Legacy protocol.</p>
+                    </div>
+                    <div class="concept-card">
+                        <h4>OSPF (Open Shortest Path First)</h4>
+                        <p>Link-state. Cost metric (bandwidth-based). Fast convergence. Uses areas for scalability. Open standard.</p>
+                    </div>
+                    <div class="concept-card">
+                        <h4>EIGRP (Enhanced Interior Gateway Routing Protocol)</h4>
+                        <p>Hybrid (advanced distance-vector). Composite metric. Very fast convergence. Cisco proprietary (now open).</p>
+                    </div>
+                    <div class="concept-card">
+                        <h4>BGP (Border Gateway Protocol)</h4>
+                        <p>Path-vector. AS path metric. Internet backbone routing. Connects autonomous systems.</p>
+                    </div>
                 </div>
-            </div>
 
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Administrative Distance</h3>
-                <table class="comparison-table">
-                    <tr>
-                        <th>Route Source</th>
-                        <th>AD</th>
-                    </tr>
-                    <tr><td>Directly Connected</td><td>0</td></tr>
-                    <tr><td>Static Route</td><td>1</td></tr>
-                    <tr><td>EIGRP</td><td>90</td></tr>
-                    <tr><td>OSPF</td><td>110</td></tr>
-                    <tr><td>RIP</td><td>120</td></tr>
-                    <tr><td>BGP (external)</td><td>20</td></tr>
-                </table>
+                <!-- Administrative Distance -->
+                <div class="content-section">
+                    <h3><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Administrative Distance</h3>
+                    <table class="comparison-table">
+                        <tr>
+                            <th>Route Source</th>
+                            <th>AD</th>
+                        </tr>
+                        <tr><td>Directly Connected</td><td>0</td></tr>
+                        <tr><td>Static Route</td><td>1</td></tr>
+                        <tr><td>EIGRP</td><td>90</td></tr>
+                        <tr><td>OSPF</td><td>110</td></tr>
+                        <tr><td>RIP</td><td>120</td></tr>
+                        <tr><td>BGP (external)</td><td>20</td></tr>
+                    </table>
 
-                <div class="tip-box">
-                    <strong><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Lower AD = More Trusted:</strong> When multiple routes exist to the same destination, the router uses the route with the lowest administrative distance.
+                    <div class="tip-box">
+                        <strong><img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Lower AD = More Trusted:</strong> When multiple routes exist to the same destination, the router uses the route with the lowest administrative distance.
+                    </div>
                 </div>
-            </div>
 
-            <div class="content-section">
-                <h3><img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Tasks</h3>
-                <ul class="task-list">
+                <!-- Reflection Section -->
+                <div class="reflection-section">
+                    <h4><img src="/assets/images/icons/icon-brain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Reflection Questions</h4>
+                    <ul>
+                        <li>When would you use static routing over dynamic routing?</li>
+                        <li>How does a router decide which route to use when there are multiple paths?</li>
+                        <li>What happens when a link fails in a network using OSPF?</li>
+                        <li>Why is it important to understand the OSI model for troubleshooting?</li>
+                    </ul>
+                </div>
+
+                <!-- Applet links -->
+                <div class="applet-links">
+                    <a href="../tools/ospf-cost.tool.html" class="applet-link"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> OSPF Cost Visualizer</a>
+                </div>
+            </div><!-- /scenario-left -->
+
+            <div class="scenario-right"><div class="scenario-right-inner">
+                <!-- Hint system for Routing -->
+                <button class="hint-btn" onclick="revealHint(6)" id="hintBtn6">Hint (0/3)</button>
+                <div id="hintContainer6"></div>
+
+                <div class="task-section-header"><img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> Tasks</div>
+                <ul class="task-list" id="taskList6">
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 6)"></div>
                         <span>Compare static and dynamic routing advantages</span>
                     </li>
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 6)"></div>
                         <span>Explain the difference between OSPF and EIGRP</span>
                     </li>
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 6)"></div>
                         <span>List 3 routing protocols with their administrative distances</span>
                     </li>
                     <li>
-                        <div class="task-checkbox" onclick="toggleTask(this)"></div>
+                        <div class="task-checkbox" onclick="toggleTask(this, 6)"></div>
                         <span>Explain why BGP is used for internet routing</span>
                     </li>
                 </ul>
-            </div>
 
-            <div class="reflection-section">
-                <h4><img src="/assets/images/icons/icon-brain.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Reflection Questions</h4>
-                <ul>
-                    <li>When would you use static routing over dynamic routing?</li>
-                    <li>How does a router decide which route to use when there are multiple paths?</li>
-                    <li>What happens when a link fails in a network using OSPF?</li>
-                    <li>Why is it important to understand the OSI model for troubleshooting?</li>
-                </ul>
-            </div>
+                <div class="feedback" id="fb6" style="font-size:0.78rem;"></div>
 
-            <div class="applet-links">
-                <a href="../tools/ospf-cost.tool.html" class="applet-link"><img src="/assets/images/icons/icon-barchart.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"> OSPF Cost Visualizer</a>
-            </div>
-
-            <button class="completion-btn" onclick="completeExercise(6)">
-                Mark Lab Complete
-            </button>
+                <button class="completion-btn" onclick="completeExercise(6)">
+                    Mark Lab Complete
+                </button>
+            </div></div><!-- /scenario-right -->
         </div>
+
     </div>
 
     <script>
-        const STORAGE_KEY = 'networking_fundamentals_lab_progress';
-        let completedExercises = [];
+        /* ================================================================
+           Networking Fundamentals Lab — Scenario Navigation Engine
+           ================================================================
+           Viewport-locked, scenario-by-scenario layout with progression
+           gating. Students complete each scenario's tasks (checkboxes)
+           before the next scenario unlocks. The nav bar shows numbered
+           buttons with completion state (done, active, locked).
+           ================================================================ */
 
+        var STORAGE_KEY = 'networking_fundamentals_lab_progress';
+        var TOTAL = 6;
+        var completedExercises = [];
+        var currentScenario = 1;
+
+        /* ── Hint System ──────────────────────────────────────────────
+           3 progressive hints per scenario. Each hint provides a nudge
+           relevant to the networking topic being studied.
+             Hint 1: A starting direction or key concept
+             Hint 2: A deeper clue or detail
+             Hint 3: The core answer or approach
+           ──────────────────────────────────────────────────────────── */
+
+        var HINTS = {
+            /* Scenario 1: OSI Model */
+            1: [
+                'The OSI model has 7 layers. Start from the bottom: Physical is Layer 1, and Application is Layer 7. Use the mnemonic to recall them in order.',
+                'HTTP operates at Layer 7 (Application). A <strong>switch</strong> operates at Layer 2 (Data Link) using MAC addresses, while a <strong>router</strong> operates at Layer 3 (Network) using IP addresses.',
+                'Common protocol-to-layer mappings: TCP/UDP = Layer 4, IP/ICMP = Layer 3, Ethernet/MAC = Layer 2, HTTP/DNS/SMTP = Layer 7. The TCP/IP model collapses 7 layers into 4.'
+            ],
+            /* Scenario 2: IP Addressing */
+            2: [
+                '172.16.5.1 starts with 172, which falls in the <strong>Class B</strong> range (128.0.0.0 - 191.255.255.255). It is also a private address (RFC 1918: 172.16.0.0 - 172.31.255.255).',
+                'For a /26 network: 32 - 26 = 6 host bits. 2^6 - 2 = <strong>62 usable hosts</strong>. Always subtract 2 for the network address and broadcast address.',
+                'For 10.0.5.100/24: the network address is <strong>10.0.5.0</strong> and the broadcast address is <strong>10.0.5.255</strong>. Host range: 10.0.5.1 through 10.0.5.254.'
+            ],
+            /* Scenario 3: Protocols & Ports */
+            3: [
+                'The 3-way handshake has three steps: (1) Client sends <strong>SYN</strong> to initiate, (2) Server replies with <strong>SYN-ACK</strong> to acknowledge and synchronize, (3) Client sends <strong>ACK</strong> to confirm.',
+                'VoIP uses UDP because real-time audio cannot wait for TCP retransmissions. A 200ms delay from retransmission is worse than dropping a single packet. <strong>Speed matters more than reliability</strong> for streaming.',
+                'TCP flow control uses <strong>windowing</strong>: the receiver advertises a window size telling the sender how much data it can accept. The sender adjusts its rate accordingly, preventing buffer overflow.'
+            ],
+            /* Scenario 4: Network Devices */
+            4: [
+                'A <strong>hub</strong> repeats every frame to every port (Layer 1 device). A <strong>switch</strong> reads MAC addresses and forwards frames only to the correct port (Layer 2 device).',
+                'Switches use the <strong>MAC address table</strong> (also called CAM table) to map MAC addresses to physical ports. When a frame arrives, the switch looks up the destination MAC to decide which port to forward it to.',
+                'Routers break broadcast domains because they do <strong>not forward broadcast traffic</strong> between interfaces. Each router interface is a separate broadcast domain. This is why VLANs also break broadcast domains -- they act like virtual routers.'
+            ],
+            /* Scenario 5: Switching (VLANs, Trunks, STP) */
+            5: [
+                'VLANs improve security by <strong>isolating traffic</strong>. Devices in VLAN 10 cannot see traffic from VLAN 20 without a router (inter-VLAN routing). This prevents unauthorized access between departments.',
+                'Access ports belong to <strong>one VLAN</strong> and carry untagged traffic (for end devices). Trunk ports carry <strong>multiple VLANs</strong> using 802.1Q tags (for switch-to-switch links).',
+                'STP prevents loops by electing a <strong>Root Bridge</strong> and blocking redundant paths. Port states progress: <strong>Blocking -> Listening -> Learning -> Forwarding</strong>. Only forwarding ports pass traffic.'
+            ],
+            /* Scenario 6: Routing */
+            6: [
+                'Static routing is best for <strong>small, stable networks</strong> or stub networks with a single exit point. Dynamic routing is better for <strong>large networks</strong> that need automatic failover.',
+                'OSPF is a <strong>link-state</strong> protocol using cost (bandwidth) as its metric. EIGRP is an <strong>advanced distance-vector</strong> protocol using a composite metric (bandwidth, delay, load, reliability). EIGRP converges faster.',
+                'BGP is the only protocol capable of routing between <strong>autonomous systems</strong> (different organizations/ISPs). It uses AS path as its primary metric and is the protocol that makes the internet work.'
+            ]
+        };
+
+        /* Track how many hints have been revealed per scenario */
+        var hintsRevealed = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+
+        /**
+         * Reveal the next hint for a scenario.
+         * Appends a hint box to the hint container and updates the button label.
+         *
+         * @param {number} num - Scenario number (1-6)
+         */
+        function revealHint(num) {
+            var idx = hintsRevealed[num];
+            var hints = HINTS[num];
+            if (!hints || idx >= hints.length) return;
+
+            /* Create the hint box */
+            var box = document.createElement('div');
+            box.className = 'hint-box';
+            box.innerHTML = '<span class="hint-label">Hint ' + (idx + 1) + ':</span> ' + hints[idx];
+
+            /* Append to the container */
+            var container = document.getElementById('hintContainer' + num);
+            container.appendChild(box);
+
+            /* Update counter */
+            hintsRevealed[num]++;
+            var btn = document.getElementById('hintBtn' + num);
+            if (hintsRevealed[num] >= hints.length) {
+                btn.disabled = true;
+                btn.textContent = 'All hints revealed';
+            } else {
+                btn.textContent = 'Hint (' + hintsRevealed[num] + '/' + hints.length + ')';
+            }
+        }
+
+        /* ── Scenario Navigation ──────────────────────────────────────
+           One scenario visible at a time. Students must complete each
+           before the next unlocks (progression gating).
+           ──────────────────────────────────────────────────────────── */
+
+        /**
+         * Navigate to a specific scenario number.
+         * Enforces gating: can only visit completed scenarios or
+         * the first uncompleted one.
+         *
+         * @param {number} num - Scenario number (1-6)
+         */
+        function goScenario(num) {
+            if (num < 1 || num > TOTAL) return;
+
+            /* Gate: can only go to a scenario if all previous are completed,
+               or if this scenario itself is already completed (revisiting) */
+            var maxAllowed = completedExercises.length + 1;
+            if (num > maxAllowed) return;
+
+            /* Hide the current scenario */
+            var current = document.getElementById('exercise' + currentScenario);
+            if (current) current.classList.remove('active-scenario');
+
+            currentScenario = num;
+
+            /* Show the target scenario */
+            var target = document.getElementById('exercise' + num);
+            if (target) target.classList.add('active-scenario');
+
+            /* Update nav button states */
+            updateScenarioNav();
+        }
+
+        /**
+         * Update the scenario nav bar buttons: active, done, locked states.
+         * Also manages Previous/Next button disabled states.
+         */
+        function updateScenarioNav() {
+            var maxAllowed = completedExercises.length + 1;
+            var buttons = document.querySelectorAll('.scenario-nav-btn');
+
+            buttons.forEach(function(btn, i) {
+                var num = i + 1;
+                btn.classList.remove('active', 'done', 'locked');
+
+                /* Highlight the current scenario */
+                if (num === currentScenario) {
+                    btn.classList.add('active');
+                }
+                /* Mark completed scenarios */
+                if (completedExercises.indexOf(num) !== -1) {
+                    btn.classList.add('done');
+                }
+                /* Lock scenarios beyond the allowed range */
+                if (num > maxAllowed) {
+                    btn.classList.add('locked');
+                }
+            });
+
+            /* Previous/Next buttons */
+            var prevBtn = document.getElementById('prev-scenario');
+            var nextBtn = document.getElementById('next-scenario');
+            if (prevBtn) prevBtn.disabled = (currentScenario <= 1);
+            if (nextBtn) nextBtn.disabled = (currentScenario >= maxAllowed || currentScenario >= TOTAL);
+        }
+
+        /* ── Task Checkbox Handling ───────────────────────────────────
+           Each scenario has 4 checkboxes. The student must check ALL
+           of them before the "Mark Scenario Complete" button will
+           accept the completion. This preserves the original self-study
+           verification mechanism.
+           ──────────────────────────────────────────────────────────── */
+
+        /**
+         * Toggle a task checkbox on/off.
+         * Also checks if all checkboxes in the scenario are now checked,
+         * to provide visual feedback.
+         *
+         * @param {HTMLElement} checkbox - The clicked checkbox element
+         * @param {number} scenarioNum  - Which scenario (1-6) this belongs to
+         */
+        function toggleTask(checkbox, scenarioNum) {
+            checkbox.classList.toggle('checked');
+
+            /* Clear any previous error feedback when a checkbox is toggled */
+            var fb = document.getElementById('fb' + scenarioNum);
+            if (fb && fb.classList.contains('incorrect')) {
+                fb.className = 'feedback';
+                fb.textContent = '';
+                fb.style.display = 'none';
+            }
+        }
+
+        /**
+         * Count how many checkboxes are checked in a given scenario.
+         *
+         * @param {number} num - Scenario number (1-6)
+         * @returns {{ total: number, checked: number }}
+         */
+        function getTaskStatus(num) {
+            var list = document.getElementById('taskList' + num);
+            if (!list) return { total: 0, checked: 0 };
+            var all = list.querySelectorAll('.task-checkbox');
+            var checked = list.querySelectorAll('.task-checkbox.checked');
+            return { total: all.length, checked: checked.length };
+        }
+
+        /* ── Progress Tracking ────────────────────────────────────────
+           Saves completed scenario numbers to localStorage.
+           On load, restores completed states and shows the first
+           uncompleted scenario.
+           ──────────────────────────────────────────────────────────── */
+
+        /**
+         * Mark a scenario as complete. Validates that all task checkboxes
+         * are checked before accepting.
+         *
+         * @param {number} num - Scenario number (1-6)
+         */
+        function completeExercise(num) {
+            /* Prevent double-completion */
+            if (completedExercises.indexOf(num) !== -1) return;
+
+            /* Validate: all task checkboxes must be checked */
+            var status = getTaskStatus(num);
+            if (status.checked < status.total) {
+                var fb = document.getElementById('fb' + num);
+                if (fb) {
+                    fb.className = 'feedback incorrect';
+                    fb.textContent = 'Complete all ' + status.total + ' tasks before marking this scenario complete. (' + status.checked + '/' + status.total + ' done)';
+                    fb.style.display = 'block';
+                }
+                return;
+            }
+
+            /* All tasks checked — mark scenario complete */
+            completedExercises.push(num);
+
+            var exercise = document.getElementById('exercise' + num);
+            exercise.classList.add('completed');
+
+            var btn = exercise.querySelector('.completion-btn');
+            btn.classList.add('completed');
+            btn.textContent = 'Completed';
+
+            saveProgress();
+            updateProgress();
+            updateScenarioNav();
+
+            /* Check if all scenarios are done — fire ModuleProgress */
+            if (completedExercises.length === TOTAL) {
+                if (typeof ModuleProgress !== 'undefined') {
+                    ModuleProgress.complete('web', 'web-networking-fundamentals', { returnToDashboard: false, returnUrl: '../index.html' });
+                }
+                setTimeout(function() {
+                    alert('Congratulations! You have completed the Networking Fundamentals Lab.\n\nYou now have a solid foundation in OSI model, IP addressing, protocols, network devices, VLANs, and routing.');
+                }, 500);
+            } else {
+                /* Auto-advance to the next scenario after a brief pause */
+                setTimeout(function() { goScenario(num + 1); }, 800);
+            }
+        }
+
+        /**
+         * Load saved progress from localStorage. Restores completed
+         * exercise states and checkbox states.
+         */
         function loadProgress() {
-            const saved = localStorage.getItem(STORAGE_KEY);
+            var saved = localStorage.getItem(STORAGE_KEY);
             if (saved) {
                 completedExercises = JSON.parse(saved);
-                completedExercises.forEach(num => {
-                    const exercise = document.getElementById(`exercise${num}`);
+                completedExercises.forEach(function(num) {
+                    var exercise = document.getElementById('exercise' + num);
                     if (exercise) {
                         exercise.classList.add('completed');
-                        const btn = exercise.querySelector('.completion-btn');
+                        var btn = exercise.querySelector('.completion-btn');
                         btn.classList.add('completed');
-                        btn.innerHTML = '✓ Completed';
+                        btn.textContent = 'Completed';
+
+                        /* Also check all checkboxes for completed scenarios */
+                        var checkboxes = exercise.querySelectorAll('.task-checkbox');
+                        checkboxes.forEach(function(cb) {
+                            cb.classList.add('checked');
+                        });
                     }
                 });
             }
             updateProgress();
         }
 
+        /**
+         * Persist completed exercise numbers to localStorage.
+         */
         function saveProgress() {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(completedExercises));
         }
 
+        /**
+         * Update the hidden progress text (used by screen readers and
+         * internal tracking).
+         */
         function updateProgress() {
-            const total = 6;
-            const completed = completedExercises.length;
-            const percent = (completed / total) * 100;
-
-            document.getElementById('progressFill').style.width = percent + '%';
-            document.getElementById('progressText').textContent = `${completed} / ${total} exercises`;
+            var completed = completedExercises.length;
+            var percent = (completed / TOTAL) * 100;
+            var fillEl = document.getElementById('progressFill');
+            var textEl = document.getElementById('progressText');
+            if (fillEl) fillEl.style.width = percent + '%';
+            if (textEl) textEl.textContent = completed + ' / ' + TOTAL + ' scenarios';
         }
 
-        function toggleTask(checkbox) {
-            checkbox.classList.toggle('checked');
-        }
-
-        function completeExercise(num) {
-            if (!completedExercises.includes(num)) {
-                completedExercises.push(num);
-
-                const exercise = document.getElementById(`exercise${num}`);
-                exercise.classList.add('completed');
-
-                const btn = exercise.querySelector('.completion-btn');
-                btn.classList.add('completed');
-                btn.innerHTML = '✓ Completed';
-
-                saveProgress();
-                updateProgress();
-
-                if (completedExercises.length === 6) {
-                    if (typeof ModuleProgress !== 'undefined') {
-                        ModuleProgress.complete('web', 'web-networking-fundamentals', { returnToDashboard: false, returnUrl: '../index.html' });
-                    }
-                }
-            }
-        }
-
+        /* ── Initialize ──────────────────────────────────────────────── */
         loadProgress();
+        updateScenarioNav();
+
+        /* Show the first uncompleted scenario on load, or scenario 1 if all done */
+        var startScenario = completedExercises.length < TOTAL ? completedExercises.length + 1 : 1;
+        goScenario(startScenario);
     </script>
+
+    <script src="../../../../components/TrailHunter.js"></script>
 </body>
 </html>
