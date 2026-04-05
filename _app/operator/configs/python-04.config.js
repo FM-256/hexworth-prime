@@ -1,63 +1,107 @@
 /* ================================================================
-   PYTHON-04 / GHOST PROTOCOL -- Mission Config
+   PYTHON-04 / GRID SEARCH -- Mission Config
    ================================================================
-   Corporate AD breach: EDR bypass, C2 beacon exploit, honeypot
-   spoof. 5 objectives, 3 traps, 3 gates.
+   Tier 3 mission. 7x7 grid — 49 cells.
+   Forces students to use for loops to systematically sweep the grid.
+
+   DESIGN RATIONALE:
+   - 5 data nodes hidden across a 7x7 grid behind fog of war
+   - Student must discover all 5 to complete the mission
+   - Manual move-by-move would require 40+ lines of agent.move()
+   - A for-loop sweep pattern reduces this to ~12 lines
+   - Traps scattered along edges punish random wandering
+   - The intended pattern is a "lawnmower" zigzag sweep
+
+   REFERENCE SOLUTION (what students should discover):
+     # Zigzag sweep: east across a row, step south, west back, repeat
+     for row in range(6):
+         if row % 2 == 0:
+             for col in range(6):
+                 agent.scan()
+                 agent.move('east')
+         else:
+             for col in range(6):
+                 agent.scan()
+                 agent.move('west')
+         agent.move('south')
+
+   WHY SEQUENTIAL FAILS:
+   - 49 cells → ~40 move commands if typed manually
+   - Unknown node positions → can't hardcode a direct path
+   - Traps on edges → random exploration loses integrity
+
+   GRID LAYOUT (7x7):
+     [start]  [empty]  [empty]   [empty]     [honeypot] [empty]   [wall]
+     [empty]  [empty]  [server1] [empty]     [empty]    [empty]   [empty]
+     [empty]  [empty]  [empty]   [empty]     [empty]    [server2] [wall]
+     [wall]   [empty]  [empty]   [router]    [empty]    [empty]   [empty]
+     [empty]  [empty]  [empty]   [empty]     [empty]    [empty]   [ids]
+     [empty]  [server3][empty]   [empty]     [server4]  [empty]   [empty]
+     [wall]   [wall]   [empty]   [server5]   [wall]     [wall]    [wall]
+
+   5 servers scattered — student must find all 5 via systematic sweep
    ================================================================ */
 
 var PYTHON_04_CONFIG = {
     id: 'python-04',
-    title: 'PYTHON-04 / GHOST PROTOCOL',
-    subtitle: 'Corporate network lateral movement and domain takeover',
+    title: 'PYTHON-04 / GRID SEARCH',
+    subtitle: 'Systematic reconnaissance across a 7x7 operations grid',
     category: 'python-ops',
-    difficulty: 4,
+    difficulty: 3,
     inputMode: 'python',
 
+    agent: { tier: 3 },
+
     grid: {
-        rows: 4, cols: 5,
+        rows: 7, cols: 7,
         cells: [
-            ['beachhead', 'empty',      'mail-server', 'wall',        'wall'],
-            ['empty',     'jump-box',   'c2-beacon',   'edr',         'dc'],
-            ['wall',      'honeypot',   'file-server', 'empty',       'wall'],
-            ['wall',      'printer',    'wall',        'workstation', 'wall']
+            ['gateway',  'empty',   'empty',    'empty',     'honeypot', 'empty',    'wall'],
+            ['empty',    'empty',   'server-a', 'empty',     'empty',    'empty',    'empty'],
+            ['empty',    'empty',   'empty',    'empty',     'empty',    'server-b', 'wall'],
+            ['wall',     'empty',   'empty',    'router',    'empty',    'empty',    'empty'],
+            ['empty',    'empty',   'empty',    'empty',     'empty',    'empty',    'ids-trap'],
+            ['empty',    'server-c','empty',    'empty',     'server-d', 'empty',    'empty'],
+            ['wall',     'wall',    'empty',    'server-e',  'wall',     'wall',     'wall']
         ],
         start: { col: 0, row: 0 }
     },
 
     nodes: {
-        'beachhead':    { label: 'BEACHHEAD',     abbr: 'BHD', ip: '10.10.1.5',   desc: 'Initial access point in DMZ',          ports: ['22/SSH','80/HTTP','443/HTTPS'],               os: 'Debian 12 Bookworm' },
-        'mail-server':  { label: 'MAIL-SERVER',   abbr: 'MLS', ip: '10.10.1.20',  desc: 'Corporate mail exchange',              ports: ['25/SMTP','143/IMAP','993/IMAPS'],            os: 'Exchange 2019 CU14' },
-        'jump-box':     { label: 'JUMP-BOX',      abbr: 'JMP', ip: '10.10.1.30',  desc: 'Administrative jump host',             ports: ['22/SSH','3389/RDP'],                         os: 'Windows Server 2022' },
-        'edr':          { label: 'EDR',           abbr: 'EDR', ip: '10.10.1.254', desc: 'Endpoint detection and response',       ports: ['443/HTTPS','8443/MGMT'],                     os: 'CrowdStrike Falcon 7.x', vuln: 'CVE-2024-7733', vulnDesc: 'EDR kernel driver bypass via signed driver vulnerability' },
-        'dc':           { label: 'DOMAIN-CTRL',   abbr: 'DC',  ip: '10.10.1.99',  desc: 'Active Directory domain controller',   ports: ['53/DNS','88/KERBEROS','389/LDAP','445/SMB'], os: 'Windows Server 2022 AD' },
-        'file-server':  { label: 'FILE-SERVER',   abbr: 'FSV', ip: '10.10.1.40',  desc: 'Network file share server',            ports: ['22/SSH','445/SMB','2049/NFS'],               os: 'Windows Server 2019' },
-        'printer':      { label: 'PRINTER',       abbr: 'PRT', ip: '10.10.1.50',  desc: 'Network multifunction printer',        ports: ['80/HTTP','515/LPR','631/IPP','9100/RAW'],    os: 'HP LaserJet MFP M528' },
-        'workstation':  { label: 'WORKSTATION',   abbr: 'WKS', ip: '10.10.1.60',  desc: 'Corporate user workstation',           ports: ['135/RPC','445/SMB','3389/RDP'],              os: 'Windows 11 Enterprise' },
-        'c2-beacon':    { label: 'C2-BEACON',     abbr: 'C2B', ip: '10.10.1.35',  desc: 'Command and control beacon',           ports: ['443/HTTPS-C2','8080/BEACON'],                os: 'Cobalt Strike 4.9 Listener', vuln: 'CVE-2024-5891', vulnDesc: 'Cobalt Strike 4.9 listener null-byte injection' },
-        'honeypot':     { label: 'HONEYPOT',      abbr: 'HNY', ip: '10.10.1.45',  desc: 'Network honeypot trap',                ports: ['22/SSH-FAKE','445/SMB-TRAP'],                os: 'Honeyd 1.6 [TRAP]', vuln: 'CVE-2024-6221', vulnDesc: 'Honeyd TCP ISN randomization bypass' }
+        /* -- Entry point -- */
+        'gateway':   { label: 'GATEWAY',    abbr: 'GTW', ip: '10.30.0.1',   desc: 'Edge gateway — your insertion point',       ports: ['22/SSH','443/HTTPS'],                         os: 'Cisco IOS 15.4' },
+        'router':    { label: 'ROUTER',     abbr: 'RTR', ip: '10.30.0.2',   desc: 'Core router — deep in the network',         ports: ['22/SSH','179/BGP','161/SNMP'],                os: 'Juniper JunOS 21.4' },
+
+        /* -- 5 Target servers (scattered — must find all 5) -- */
+        'server-a':  { label: 'SERVER-ALPHA',   abbr: 'SRA', ip: '10.30.0.11', desc: 'File server — classified documents',     ports: ['22/SSH','445/SMB','2049/NFS'],                os: 'Windows Server 2022' },
+        'server-b':  { label: 'SERVER-BRAVO',   abbr: 'SRB', ip: '10.30.0.12', desc: 'Application server — internal tools',    ports: ['22/SSH','8080/HTTP','8443/HTTPS'],             os: 'Ubuntu 24.04 LTS' },
+        'server-c':  { label: 'SERVER-CHARLIE', abbr: 'SRC', ip: '10.30.0.13', desc: 'Backup server — disaster recovery data', ports: ['22/SSH','873/RSYNC','3260/ISCSI'],             os: 'Debian 12 Bookworm' },
+        'server-d':  { label: 'SERVER-DELTA',   abbr: 'SRD', ip: '10.30.0.14', desc: 'Monitoring server — SIEM data',          ports: ['22/SSH','9200/ELASTIC','5601/KIBANA'],         os: 'CentOS Stream 9' },
+        'server-e':  { label: 'SERVER-ECHO',    abbr: 'SRE', ip: '10.30.0.15', desc: 'Database server — credentials store',    ports: ['22/SSH','3306/MySQL','5432/PostgreSQL'],       os: 'RHEL 9.3' },
+
+        /* -- Traps -- */
+        'honeypot':  { label: 'HONEYPOT',   abbr: 'HNY', ip: '10.30.0.200', desc: 'Decoy server — triggers alert on contact', ports: ['22/SSH-FAKE','80/HTTP-TRAP'],                  os: 'Honeyd 1.6 [TRAP]' },
+        'ids-trap':  { label: 'IDS-SENSOR', abbr: 'IDS', ip: '10.30.0.201', desc: 'Intrusion detection — triggers on approach',ports: ['514/SYSLOG'],                                  os: 'Snort 3.1' }
     },
 
-    traps: ['mail-server', 'file-server', 'workstation'],
+    traps: ['honeypot', 'ids-trap'],
 
-    gates: {
-        'edr':        { requires: 'nmap',    flag: 'firewallBypassed',  vuln: 'CVE-2024-7733', vulnDesc: 'EDR kernel driver bypass via signed driver vulnerability' },
-        'c2-beacon':  { requires: 'exploit', flag: 'c2BeaconSilenced',  vuln: 'CVE-2024-5891', vulnDesc: 'Cobalt Strike 4.9 listener null-byte injection' },
-        'honeypot':   { requires: 'spoof',   flag: 'honeypotSpoofed',   vuln: 'CVE-2024-6221', vulnDesc: 'Honeyd TCP ISN randomization bypass' }
-    },
+    /* No gates in this mission — pure exploration */
+    gates: {},
 
     objectives: [
-        { id: 'obj_0', label: 'NODES DISCOVERED -- 4 network nodes mapped',             check: 'nodesDiscovered.size >= 4' },
-        { id: 'obj_1', label: 'SERVER SCANNED -- nmap scan complete',                    check: 'nmapTargets.has("mail-server") || nmapTargets.has("file-server")' },
-        { id: 'obj_2', label: 'EDR BYPASSED -- access granted',                          check: 'firewallBypassed' },
-        { id: 'obj_3', label: 'DOMAIN CONTROLLER REACHED -- mission objective complete', check: 'nodesDiscovered.has("dc")' },
-        { id: 'obj_4', label: 'C2 BEACON SILENCED -- listener destroyed',                check: 'c2BeaconSilenced' }
+        { id: 'obj_0', label: 'DISCOVER ALPHA -- Find the file server',          check: 'nodesDiscovered.has("server-a")' },
+        { id: 'obj_1', label: 'DISCOVER BRAVO -- Find the application server',   check: 'nodesDiscovered.has("server-b")' },
+        { id: 'obj_2', label: 'DISCOVER CHARLIE -- Find the backup server',      check: 'nodesDiscovered.has("server-c")' },
+        { id: 'obj_3', label: 'DISCOVER DELTA -- Find the monitoring server',    check: 'nodesDiscovered.has("server-d")' },
+        { id: 'obj_4', label: 'DISCOVER ECHO -- Find the database server',       check: 'nodesDiscovered.has("server-e")' },
+        { id: 'obj_5', label: 'STEALTH -- Complete with 2+ integrity remaining',  check: 'integrity >= 2' }
     ],
 
     integrity: 3,
 
     completion: {
-        title: 'GHOST PROTOCOL',
-        subtitle: 'Domain compromised. Ghost in the machine.',
+        title: 'GRID SEARCH',
+        subtitle: 'All five servers located. Full network mapped.',
         storageKey: 'hexworth_operator_python04'
     }
 };
