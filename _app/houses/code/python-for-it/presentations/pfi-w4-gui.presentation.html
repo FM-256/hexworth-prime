@@ -1,0 +1,1920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: require sorted house membership before content is visible -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress tracking and achievement unlocks -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GUI Programming with Tkinter | Python for IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Viewport-locked deck -- only the .active slide is displayed */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Max-width wrapper so content does not stretch on wide screens */
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Gold progress bar pinned to top of viewport */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button -- shown only on the last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip for scenario context and instructor notes */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids -- 3-column and 2-column layouts */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        /* Section label -- small-caps divider text */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts on the final slide */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Python code block with manual syntax coloring via spans */
+        .code-block {
+            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #c9a83a; }   /* keywords: import, from, def, class, if, for, True, False, None, self, return, lambda */
+        .code-block .fn { color: #06b6d4; }   /* built-in functions and widget constructors: Label, Button, Entry, Tk, etc. */
+        .code-block .st { color: #3ab577; }   /* string literals */
+        .code-block .cm { color: #475569; }   /* inline comments */
+        .code-block .nb { color: #f472b6; }   /* numeric literals and boolean values */
+        .code-block .er { color: #ef4444; }   /* error output lines */
+
+        /* Inline code span inside card-desc and fact-text */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+    <script src="../../../../components/TryItNow.js"></script>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">GUI Programming with Tkinter</h1>
+
+
+<!-- Gold progress bar -- width updated by goToSlide() on every navigation event -->
+<div id="progress-bar" style="width:2.94%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 35 &nbsp;|&nbsp; COP1034C Obj 7 &nbsp;|&nbsp; Day 10 of 12</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Python for IT: Day 10<br>
+                <span class="accent">GUI Programming with Tkinter</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Widgets &nbsp;&bull;&nbsp; Layout Managers &nbsp;&bull;&nbsp; Event Handling &nbsp;&bull;&nbsp; Class-Based Architecture &nbsp;&bull;&nbsp; Real IT Tools
+            </div>
+        </div>
+        <div class="scenario-strip">
+            You have spent the last three weeks writing tools that run in a terminal window. They work — but you cannot hand them to a non-technical colleague and expect results. Today that changes. By the end of this lecture you will know how to wrap your Python logic in a real graphical interface: buttons, text fields, menus, file dialogs, and windows that behave the way users expect.
+        </div>
+        <div class="title-meta-row">
+            <span>35 Slides</span>
+            <span>COP1034C Obj 7</span>
+            <span>Day 10 of 12</span>
+            <span>Week 4 Monday</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHAT IS A GUI ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 35</div>
+        <div class="slide-title">What Is a <span class="accent">GUI?</span></div>
+        <div class="slide-subtitle">Graphical User Interface -- moving from commands to clicks.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">CLI vs GUI</div>
+                <div class="card-desc">A CLI (Command-Line Interface) waits for you to type a command, executes it, prints output, and stops. A GUI keeps a window open and waits for the user to do something -- click a button, type in a field, select a menu item. The program reacts to those actions rather than running from top to bottom.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Event-Driven Programming</div>
+                <div class="card-desc">GUI programs run on a fundamentally different model. You write functions that respond to events -- a button click, a key press, a window resize. The program does not control when those functions run; the user does. This is called event-driven programming. Everything today builds on this idea.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Why It Matters for IT</div>
+                <div class="card-desc">IT tools built with GUIs get used by more people. A ping tool in a terminal requires someone to know how to open a terminal. The same tool with a text field and a button can be handed to a help desk technician on their first day. Accessibility broadens impact.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <div class="box-label">The Core Shift</div>
+            CLI: your code calls functions in order, reads input once, exits. GUI: your code sets up widgets and then hands control to the event loop. The event loop runs forever, waiting for user actions. Your functions are called only when an event fires.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- WHAT IS TKINTER ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 35</div>
+        <div class="slide-title">What Is <span class="accent">Tkinter?</span></div>
+        <div class="slide-subtitle">Python's built-in GUI toolkit -- no installation required.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Ships with Python</div>
+                <div class="card-desc">Tkinter (Tk interface) is part of the Python standard library. Every Python 3 installation on Windows, macOS, and Linux includes it. You do not need pip, no virtual environments, no extra packages. The import just works: <span class="ic">import tkinter as tk</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Built on Tcl/Tk</div>
+                <div class="card-desc">Tkinter is a Python wrapper around the Tcl/Tk GUI toolkit that has existed since 1991. The widgets look native-ish on each platform. Not the most visually modern toolkit, but rock-solid, well-documented, and the universal starting point for Python GUI development.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">When to Use It</div>
+                <div class="card-desc">Internal IT tools, quick admin utilities, lab assignments, prototypes. For production-grade commercial software you might eventually use PyQt6 or wxPython. For everything you will build in this course -- and most things you will build in your first IT job -- Tkinter is the right tool.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Verify It Works</div>
+                <div class="card-desc">Open a terminal and run: <span class="ic">python3 -m tkinter</span>. A small demo window should appear. If it does, Tkinter is installed and working. On Ubuntu/Debian systems where it is missing: <span class="ic">sudo apt install python3-tk</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">What We Will Build Today</div>
+                <div class="card-desc">A label and button demo. A form with text input. A working calculator. A to-do list application. An IT ping tool with a GUI. A log file viewer. All in one lecture. By the end you will have the skills to build any simple utility.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- FIRST GUI PROGRAM ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 35</div>
+        <div class="slide-title">Your First <span class="accent">GUI Program</span></div>
+        <div class="slide-subtitle">Four lines to get a window on screen. Build this now.</div>
+
+        <div class="code-block"><span class="cm"># first_window.py  --  the minimum working Tkinter program</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+<span class="cm"># Create the root (main) window -- every Tkinter app starts here</span>
+root = tk.<span class="fn">Tk</span>()
+
+<span class="cm"># Set the text in the window's title bar</span>
+root.<span class="fn">title</span>(<span class="st">"My First GUI"</span>)
+
+<span class="cm"># Set the initial window size in pixels (width x height)</span>
+root.<span class="fn">geometry</span>(<span class="st">"400x300"</span>)
+
+<span class="cm"># Start the event loop -- this keeps the window open and responsive
+# Nothing after this line runs until the window is closed</span>
+root.<span class="fn">mainloop</span>()</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">tk.Tk()</div>
+                <div class="card-desc">Creates the main application window. There should be exactly one Tk() instance in a program. This is the root of the widget tree -- all other widgets become children of this window.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">geometry("WxH")</div>
+                <div class="card-desc">Sets width and height in pixels. You can also position the window: <span class="ic">geometry("400x300+100+50")</span> places it 100 pixels from the left edge and 50 pixels from the top of the screen.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Run it now</div>
+                <div class="card-desc">Type this exactly. Save as first_window.py. Run it with <span class="ic">python3 first_window.py</span>. A window titled "My First GUI" will appear. Click the X to close it. You have written a GUI program.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- MAINLOOP ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 35</div>
+        <div class="slide-title">What Is <span class="accent">mainloop()?</span></div>
+        <div class="slide-subtitle">The event loop -- the heartbeat of every GUI application.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What mainloop() Does</div>
+                <div class="card-desc">Calling <span class="ic">root.mainloop()</span> hands control to the Tkinter event loop. This loop runs continuously, checking for user events -- mouse clicks, key presses, window redraws. When an event occurs, the loop dispatches it to the appropriate handler function. When the user closes the window, mainloop() returns and the program ends.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why It Must Be Last</div>
+                <div class="card-desc">Any code written after <span class="ic">root.mainloop()</span> does not execute until the window is closed. This is not a bug -- it is the design. Set up all your widgets before calling mainloop(). Think of mainloop() as the "go" signal that activates everything you built.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Illustration: code flow in a GUI program</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"Event Loop Demo"</span>)
+
+<span class="cm"># -- All widget setup happens HERE, before mainloop() --
+
+# This line starts the loop and BLOCKS until the window is closed</span>
+root.<span class="fn">mainloop</span>()
+
+<span class="cm"># This line runs ONLY after the window is closed</span>
+<span class="fn">print</span>(<span class="st">"Window closed. Program ending."</span>)</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Common mistake:</strong> Beginners sometimes call <span class="ic">mainloop()</span> inside a loop or forget it entirely. Without <span class="ic">mainloop()</span>, the window flashes and disappears because the program runs to the end and exits. With it inside a loop, you get multiple event loops fighting each other. Call it once, at the very end of setup.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- LABEL WIDGET ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 35</div>
+        <div class="slide-title">The <span class="accent">Label</span> Widget</div>
+        <div class="slide-subtitle">Displaying text and images in your window.</div>
+
+        <div class="code-block"><span class="cm"># label_demo.py  --  Label widget examples</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"Label Demo"</span>)
+root.<span class="fn">geometry</span>(<span class="st">"400x250"</span>)
+
+<span class="cm"># Basic label: parent widget first, then keyword arguments</span>
+lbl_hello = tk.<span class="fn">Label</span>(root, text=<span class="st">"Hello, IT World!"</span>)
+lbl_hello.<span class="fn">pack</span>()   <span class="cm"># pack() places the widget in the window</span>
+
+<span class="cm"># Label with styling: font tuple is (family, size, style)</span>
+lbl_styled = tk.<span class="fn">Label</span>(
+    root,
+    text=<span class="st">"Server Status: ONLINE"</span>,
+    font=(<span class="st">"Courier New"</span>, <span class="nb">14</span>, <span class="st">"bold"</span>),
+    fg=<span class="st">"#3ab577"</span>,       <span class="cm"># foreground (text) color</span>
+    bg=<span class="st">"#0f0f1a"</span>,       <span class="cm"># background color</span>
+    pady=<span class="nb">10</span>            <span class="cm"># vertical padding in pixels</span>
+)
+lbl_styled.<span class="fn">pack</span>()
+
+<span class="cm"># Label that updates dynamically -- demonstrated further on Slide 17</span>
+lbl_dynamic = tk.<span class="fn">Label</span>(root, text=<span class="st">"Waiting for input..."</span>, fg=<span class="st">"#94a3b8"</span>)
+lbl_dynamic.<span class="fn">pack</span>()
+
+root.<span class="fn">mainloop</span>()</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">First Argument</div>
+                <div class="card-desc">Every widget's first argument is its parent container. Here it is <span class="ic">root</span>. Later, when we use Frames, widgets will have a Frame as their parent instead.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Keyword Arguments</div>
+                <div class="card-desc"><span class="ic">text</span>, <span class="ic">font</span>, <span class="ic">fg</span>, <span class="ic">bg</span>, <span class="ic">padx</span>, <span class="ic">pady</span>, <span class="ic">width</span>, <span class="ic">anchor</span>. These configure appearance. None are required -- they all have defaults.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">pack() is Required</div>
+                <div class="card-desc">Creating a widget does not display it. You must call a geometry manager method (<span class="ic">pack()</span>, <span class="ic">grid()</span>, or <span class="ic">place()</span>) to make it visible. We cover all three.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- BUTTON WIDGET ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 35</div>
+        <div class="slide-title">The <span class="accent">Button</span> Widget</div>
+        <div class="slide-subtitle">Clickable actions -- connecting user intent to Python functions.</div>
+
+        <div class="code-block"><span class="cm"># button_demo.py  --  Button widget with a real callback</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+<span class="cm"># This function runs when the button is clicked</span>
+<span class="kw">def</span> <span class="fn">on_click</span>():
+    lbl_result.<span class="fn">config</span>(text=<span class="st">"Button was clicked!"</span>, fg=<span class="st">"#c9a83a"</span>)
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"Button Demo"</span>)
+root.<span class="fn">geometry</span>(<span class="st">"350x150"</span>)
+
+<span class="cm"># command= takes a function REFERENCE, not a call
+# Write command=on_click   NOT   command=on_click()</span>
+btn = tk.<span class="fn">Button</span>(root, text=<span class="st">"Click Me"</span>, command=on_click, width=<span class="nb">20</span>)
+btn.<span class="fn">pack</span>(pady=<span class="nb">20</span>)
+
+lbl_result = tk.<span class="fn">Label</span>(root, text=<span class="st">"Nothing clicked yet."</span>, fg=<span class="st">"#64748b"</span>)
+lbl_result.<span class="fn">pack</span>()
+
+root.<span class="fn">mainloop</span>()</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">command= Reference, Not Call</div>
+                <div class="card-desc">The most common beginner error with buttons: writing <span class="ic">command=on_click()</span> with parentheses. The parentheses call the function immediately at setup time, not on click. Pass the function name without parentheses: <span class="ic">command=on_click</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">.config() Updates Widgets</div>
+                <div class="card-desc">Every widget has a <span class="ic">.config()</span> method that lets you change its properties after it has been created. Here we update the label's text and color in response to a click. This is how live UIs stay responsive.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Button Styling</div>
+                <div class="card-desc"><span class="ic">bg</span>, <span class="ic">fg</span>, <span class="ic">font</span>, <span class="ic">width</span> (in characters), <span class="ic">height</span>, <span class="ic">relief</span> (flat, raised, sunken, groove, ridge), <span class="ic">cursor</span>. The <span class="ic">state</span> parameter disables a button: <span class="ic">state=tk.DISABLED</span>.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- ENTRY WIDGET ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 35</div>
+        <div class="slide-title">The <span class="accent">Entry</span> Widget</div>
+        <div class="slide-subtitle">Single-line text input -- reading what the user types.</div>
+
+        <div class="code-block"><span class="cm"># entry_demo.py  --  read, process, and clear a single-line input</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+<span class="kw">def</span> <span class="fn">submit</span>():
+    <span class="cm"># .get() returns the current text as a string</span>
+    value = entry_ip.<span class="fn">get</span>().<span class="fn">strip</span>()
+    <span class="kw">if</span> value:
+        lbl_output.<span class="fn">config</span>(text=<span class="st">f"Target IP: {value}"</span>, fg=<span class="st">"#3ab577"</span>)
+    <span class="kw">else</span>:
+        lbl_output.<span class="fn">config</span>(text=<span class="st">"Please enter an IP address."</span>, fg=<span class="st">"#ef4444"</span>)
+
+<span class="kw">def</span> <span class="fn">clear_entry</span>():
+    <span class="cm"># .delete(start, end) removes characters; 0 to END clears everything</span>
+    entry_ip.<span class="fn">delete</span>(<span class="nb">0</span>, tk.END)
+    lbl_output.<span class="fn">config</span>(text=<span class="st">"Cleared."</span>, fg=<span class="st">"#64748b"</span>)
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"Entry Demo"</span>)
+root.<span class="fn">geometry</span>(<span class="st">"400x180"</span>)
+
+tk.<span class="fn">Label</span>(root, text=<span class="st">"Enter IP Address:"</span>).<span class="fn">pack</span>(pady=(<span class="nb">12</span>, <span class="nb">2</span>))
+entry_ip = tk.<span class="fn">Entry</span>(root, width=<span class="nb">30</span>)
+entry_ip.<span class="fn">pack</span>()
+entry_ip.<span class="fn">focus</span>()   <span class="cm"># auto-focus the field so user can type immediately</span>
+
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Submit"</span>, command=submit).<span class="fn">pack</span>(side=tk.LEFT, padx=<span class="nb">10</span>, pady=<span class="nb">10</span>)
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Clear"</span>,  command=clear_entry).<span class="fn">pack</span>(side=tk.LEFT)
+lbl_output = tk.<span class="fn">Label</span>(root, text=<span class="st">""</span>)
+lbl_output.<span class="fn">pack</span>()
+
+root.<span class="fn">mainloop</span>()</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Key methods:</strong> <span class="ic">.get()</span> reads the current text. <span class="ic">.delete(0, tk.END)</span> clears it. <span class="ic">.insert(0, "text")</span> inserts text at a position. <span class="ic">.focus()</span> gives the field keyboard focus on startup. Entry returns a string -- always cast to int or float if you need a number.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- TEXT WIDGET ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 35</div>
+        <div class="slide-title">The <span class="accent">Text</span> Widget</div>
+        <div class="slide-subtitle">Multi-line text input and output -- for logs, notes, and results.</div>
+
+        <div class="code-block"><span class="cm"># text_demo.py  --  multi-line Text widget for output display</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+<span class="kw">def</span> <span class="fn">append_line</span>():
+    <span class="cm"># INSERT is a constant meaning "the current insertion point"
+    # "end" or tk.END means "after the last character"</span>
+    txt_output.<span class="fn">insert</span>(tk.END, <span class="st">"[INFO] New log entry appended.\n"</span>)
+    <span class="cm"># Auto-scroll to the bottom after inserting</span>
+    txt_output.<span class="fn">see</span>(tk.END)
+
+<span class="kw">def</span> <span class="fn">read_content</span>():
+    <span class="cm"># "1.0" means line 1, character 0 -- the very beginning of the widget</span>
+    content = txt_output.<span class="fn">get</span>(<span class="st">"1.0"</span>, tk.END)
+    <span class="fn">print</span>(content)   <span class="cm"># print to terminal for debugging</span>
+
+<span class="kw">def</span> <span class="fn">clear_text</span>():
+    txt_output.<span class="fn">delete</span>(<span class="st">"1.0"</span>, tk.END)
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"Text Widget Demo"</span>)
+root.<span class="fn">geometry</span>(<span class="st">"500x300"</span>)
+
+<span class="cm"># width=columns, height=lines; wrap=tk.WORD wraps at word boundaries</span>
+txt_output = tk.<span class="fn">Text</span>(root, width=<span class="nb">60</span>, height=<span class="nb">10</span>, wrap=tk.WORD,
+                       bg=<span class="st">"#0a0a12"</span>, fg=<span class="st">"#e2e8f0"</span>,
+                       font=(<span class="st">"Courier New"</span>, <span class="nb">10</span>))
+txt_output.<span class="fn">pack</span>(padx=<span class="nb">10</span>, pady=<span class="nb">10</span>)
+
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Append"</span>, command=append_line).<span class="fn">pack</span>(side=tk.LEFT, padx=<span class="nb">5</span>)
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Read"</span>,   command=read_content).<span class="fn">pack</span>(side=tk.LEFT, padx=<span class="nb">5</span>)
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Clear"</span>,  command=clear_text).<span class="fn">pack</span>(side=tk.LEFT, padx=<span class="nb">5</span>)
+
+root.<span class="fn">mainloop</span>()</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Index format "line.char":</strong> Text widget positions use a string like <span class="ic">"1.0"</span> (line 1, character 0) or <span class="ic">"3.5"</span> (line 3, character 5). <span class="ic">tk.END</span> is a constant representing the end of all text. This differs from Entry, which uses integer indices.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- CHECKBUTTON AND RADIOBUTTON ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 35</div>
+        <div class="slide-title">Checkbutton &amp; <span class="accent">Radiobutton</span></div>
+        <div class="slide-subtitle">Boolean toggles and single-selection option groups.</div>
+
+        <div class="code-block"><span class="cm"># check_radio_demo.py  --  IntVar and StringVar with selection widgets</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"Check and Radio Demo"</span>)
+root.<span class="fn">geometry</span>(<span class="st">"380x280"</span>)
+
+<span class="cm"># IntVar holds an integer. Checkbutton sets it to 1 (checked) or 0 (unchecked)</span>
+var_firewall = tk.<span class="fn">IntVar</span>()
+var_logging  = tk.<span class="fn">IntVar</span>(value=<span class="nb">1</span>)   <span class="cm"># start checked</span>
+
+tk.<span class="fn">Label</span>(root, text=<span class="st">"Options:"</span>, anchor=<span class="st">"w"</span>).<span class="fn">pack</span>(fill=tk.X, padx=<span class="nb">10</span>, pady=(<span class="nb">10</span>, <span class="nb">2</span>))
+tk.<span class="fn">Checkbutton</span>(root, text=<span class="st">"Enable Firewall"</span>,  variable=var_firewall).<span class="fn">pack</span>(anchor=<span class="st">"w"</span>, padx=<span class="nb">20</span>)
+tk.<span class="fn">Checkbutton</span>(root, text=<span class="st">"Enable Logging"</span>,   variable=var_logging).<span class="fn">pack</span>(anchor=<span class="st">"w"</span>, padx=<span class="nb">20</span>)
+
+<span class="cm"># StringVar holds a string. Each Radiobutton sets it to its value= when selected</span>
+var_protocol = tk.<span class="fn">StringVar</span>(value=<span class="st">"TCP"</span>)   <span class="cm"># default selection</span>
+
+tk.<span class="fn">Label</span>(root, text=<span class="st">"Protocol:"</span>, anchor=<span class="st">"w"</span>).<span class="fn">pack</span>(fill=tk.X, padx=<span class="nb">10</span>, pady=(<span class="nb">10</span>, <span class="nb">2</span>))
+<span class="kw">for</span> proto <span class="kw">in</span> [<span class="st">"TCP"</span>, <span class="st">"UDP"</span>, <span class="st">"ICMP"</span>]:
+    tk.<span class="fn">Radiobutton</span>(root, text=proto, variable=var_protocol,
+                   value=proto).<span class="fn">pack</span>(anchor=<span class="st">"w"</span>, padx=<span class="nb">20</span>)
+
+<span class="kw">def</span> <span class="fn">show_selections</span>():
+    fw  = <span class="st">"ON"</span> <span class="kw">if</span> var_firewall.<span class="fn">get</span>() <span class="kw">else</span> <span class="st">"OFF"</span>
+    log = <span class="st">"ON"</span> <span class="kw">if</span> var_logging.<span class="fn">get</span>()  <span class="kw">else</span> <span class="st">"OFF"</span>
+    lbl.<span class="fn">config</span>(text=<span class="st">f"FW:{fw}  Log:{log}  Proto:{var_protocol.get()}"</span>)
+
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Show Config"</span>, command=show_selections).<span class="fn">pack</span>(pady=<span class="nb">8</span>)
+lbl = tk.<span class="fn">Label</span>(root, text=<span class="st">""</span>, fg=<span class="st">"#c9a83a"</span>)
+lbl.<span class="fn">pack</span>()
+
+root.<span class="fn">mainloop</span>()</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- LISTBOX ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 35</div>
+        <div class="slide-title">The <span class="accent">Listbox</span> Widget</div>
+        <div class="slide-subtitle">Scrollable selection lists -- ideal for displaying collections.</div>
+
+        <div class="code-block"><span class="cm"># listbox_demo.py  --  Listbox with add, select, and remove operations</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+<span class="kw">def</span> <span class="fn">add_item</span>():
+    item = entry_new.<span class="fn">get</span>().<span class="fn">strip</span>()
+    <span class="kw">if</span> item:
+        listbox.<span class="fn">insert</span>(tk.END, item)   <span class="cm"># append to the end of the list</span>
+        entry_new.<span class="fn">delete</span>(<span class="nb">0</span>, tk.END)
+
+<span class="kw">def</span> <span class="fn">remove_selected</span>():
+    <span class="cm"># curselection() returns a tuple of selected index integers</span>
+    selected = listbox.<span class="fn">curselection</span>()
+    <span class="kw">if</span> selected:
+        listbox.<span class="fn">delete</span>(selected[<span class="nb">0</span>])   <span class="cm"># delete by index</span>
+
+<span class="kw">def</span> <span class="fn">show_selection</span>():
+    selected = listbox.<span class="fn">curselection</span>()
+    <span class="kw">if</span> selected:
+        value = listbox.<span class="fn">get</span>(selected[<span class="nb">0</span>])   <span class="cm"># get the text at that index</span>
+        lbl.<span class="fn">config</span>(text=<span class="st">f"Selected: {value}"</span>)
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"Listbox Demo"</span>)
+root.<span class="fn">geometry</span>(<span class="st">"360x300"</span>)
+
+listbox = tk.<span class="fn">Listbox</span>(root, height=<span class="nb">8</span>, width=<span class="nb">40</span>, selectmode=tk.SINGLE)
+listbox.<span class="fn">pack</span>(padx=<span class="nb">10</span>, pady=<span class="nb">10</span>)
+<span class="kw">for</span> host <span class="kw">in</span> [<span class="st">"192.168.1.1"</span>, <span class="st">"192.168.1.10"</span>, <span class="st">"10.0.0.1"</span>]:
+    listbox.<span class="fn">insert</span>(tk.END, host)
+
+entry_new = tk.<span class="fn">Entry</span>(root, width=<span class="nb">30</span>)
+entry_new.<span class="fn">pack</span>()
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Add"</span>,    command=add_item).<span class="fn">pack</span>(side=tk.LEFT, padx=<span class="nb">10</span>)
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Remove"</span>, command=remove_selected).<span class="fn">pack</span>(side=tk.LEFT)
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Select"</span>, command=show_selection).<span class="fn">pack</span>(side=tk.LEFT, padx=<span class="nb">10</span>)
+lbl = tk.<span class="fn">Label</span>(root, text=<span class="st">""</span>)
+lbl.<span class="fn">pack</span>()
+
+root.<span class="fn">mainloop</span>()</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- LAYOUT: PACK ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 35</div>
+        <div class="slide-title">Layout Manager: <span class="accent">pack()</span></div>
+        <div class="slide-subtitle">The simplest geometry manager -- stacks widgets in order.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">How pack() Works</div>
+                <div class="card-desc">By default, pack() stacks widgets top to bottom, centered horizontally. Each widget takes up the minimum space it needs. Use the <span class="ic">side</span> parameter to place widgets left or right. Widgets are packed in the order you call <span class="ic">.pack()</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Key Parameters</div>
+                <div class="card-desc">
+                    <span class="ic">side=tk.TOP/BOTTOM/LEFT/RIGHT</span> -- which edge to pack against.<br>
+                    <span class="ic">fill=tk.X/Y/BOTH</span> -- stretch to fill available space.<br>
+                    <span class="ic">expand=True</span> -- claim extra space when the window resizes.<br>
+                    <span class="ic">padx=n, pady=n</span> -- external padding in pixels.<br>
+                    <span class="ic">ipadx=n, ipady=n</span> -- internal (inside the widget border).
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># pack_demo.py  --  common pack() patterns</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">geometry</span>(<span class="st">"400x220"</span>)
+
+<span class="cm"># Top-to-bottom stack (default)</span>
+tk.<span class="fn">Label</span>(root, text=<span class="st">"Username"</span>, bg=<span class="st">"#1e293b"</span>, fg=<span class="st">"white"</span>).<span class="fn">pack</span>(fill=tk.X, padx=<span class="nb">10</span>, pady=<span class="nb">2</span>)
+tk.<span class="fn">Entry</span>(root).<span class="fn">pack</span>(fill=tk.X, padx=<span class="nb">10</span>)
+
+tk.<span class="fn">Label</span>(root, text=<span class="st">"Password"</span>, bg=<span class="st">"#1e293b"</span>, fg=<span class="st">"white"</span>).<span class="fn">pack</span>(fill=tk.X, padx=<span class="nb">10</span>, pady=<span class="nb">2</span>)
+tk.<span class="fn">Entry</span>(root, show=<span class="st">"*"</span>).<span class="fn">pack</span>(fill=tk.X, padx=<span class="nb">10</span>)
+
+<span class="cm"># Side-by-side buttons in the same row</span>
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Login"</span>,  width=<span class="nb">12</span>).<span class="fn">pack</span>(side=tk.LEFT, padx=<span class="nb">10</span>, pady=<span class="nb">12</span>)
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Cancel"</span>, width=<span class="nb">12</span>).<span class="fn">pack</span>(side=tk.LEFT)
+
+<span class="cm"># A label that stretches to fill the bottom</span>
+tk.<span class="fn">Label</span>(root, text=<span class="st">"Ready"</span>, bg=<span class="st">"#0f0f1a"</span>, fg=<span class="st">"#475569"</span>).<span class="fn">pack</span>(fill=tk.X, side=tk.BOTTOM)
+
+root.<span class="fn">mainloop</span>()</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — TRY IT NOW ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 35 &nbsp;|&nbsp; Try It Now</div>
+        <div class="slide-title">Try It Now: <span class="accent">Event Handler Logic</span></div>
+        <div class="slide-subtitle">Write the handler function (no GUI needed).</div>
+        <div class="try-it-now"
+             data-starter="# Simulate a button click event handler&#10;# Write a function that takes a hostname and returns&#10;# a formatted status string&#10;&#10;def on_check_click(hostname):&#10;    # Return: &quot;Checking hostname... Status: OK&quot;&#10;    pass&#10;&#10;print(on_check_click(&quot;web-01&quot;))"
+             data-solution="def on_check_click(hostname):&#10;    return f&quot;Checking {hostname}... Status: OK&quot;&#10;&#10;print(on_check_click(&quot;web-01&quot;))"
+             data-expected="Checking web-01... Status: OK"
+             data-height="140">
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 14 -- LAYOUT: GRID ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 35</div>
+        <div class="slide-title">Layout Manager: <span class="accent">grid()</span></div>
+        <div class="slide-subtitle">Row and column positioning -- for forms and calculators.</div>
+
+        <div class="code-block"><span class="cm"># grid_demo.py  --  form layout using row/column coordinates</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"Grid Layout"</span>)
+root.<span class="fn">geometry</span>(<span class="st">"380x200"</span>)
+root.<span class="fn">columnconfigure</span>(<span class="nb">1</span>, weight=<span class="nb">1</span>)   <span class="cm"># column 1 stretches when window resizes</span>
+
+fields = [<span class="st">"Hostname"</span>, <span class="st">"IP Address"</span>, <span class="st">"Subnet Mask"</span>, <span class="st">"Default Gateway"</span>]
+
+<span class="kw">for</span> i, label <span class="kw">in</span> <span class="fn">enumerate</span>(fields):
+    <span class="cm"># sticky="e" aligns label text to the east (right edge of its cell)</span>
+    tk.<span class="fn">Label</span>(root, text=label + <span class="st">":"</span>).<span class="fn">grid</span>(row=i, column=<span class="nb">0</span>, sticky=<span class="st">"e"</span>, padx=<span class="nb">8</span>, pady=<span class="nb">4</span>)
+    <span class="cm"># sticky="ew" makes the entry fill its cell left-to-right</span>
+    tk.<span class="fn">Entry</span>(root).<span class="fn">grid</span>(row=i, column=<span class="nb">1</span>, sticky=<span class="st">"ew"</span>, padx=<span class="nb">8</span>)
+
+<span class="cm"># columnspan=2 makes this button span both columns</span>
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Apply Network Config"</span>).<span class="fn">grid</span>(
+    row=<span class="fn">len</span>(fields), column=<span class="nb">0</span>, columnspan=<span class="nb">2</span>, pady=<span class="nb">12</span>
+)
+
+root.<span class="fn">mainloop</span>()</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">row= and column=</div>
+                <div class="card-desc">Integer coordinates. Row 0 is the top row. Column 0 is the leftmost column. Cells do not have to be filled -- you can skip rows and columns. Tkinter sizes each row and column by the largest widget in it.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">sticky=</div>
+                <div class="card-desc">Controls widget alignment within its cell. Values are compass directions as strings: <span class="ic">"n"</span>, <span class="ic">"s"</span>, <span class="ic">"e"</span>, <span class="ic">"w"</span>, <span class="ic">"ew"</span> (stretch horizontally), <span class="ic">"nsew"</span> (fill the cell completely).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">columnspan= / rowspan=</div>
+                <div class="card-desc">Merge cells together. <span class="ic">columnspan=2</span> lets one widget occupy two columns. <span class="ic">rowspan=3</span> lets one widget occupy three rows vertically. Used for buttons that span a form or labels that serve as section headers.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- LAYOUT: PLACE ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 35</div>
+        <div class="slide-title">Layout Manager: <span class="accent">place()</span></div>
+        <div class="slide-subtitle">Absolute pixel coordinates -- precise but inflexible.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">How place() Works</div>
+                <div class="card-desc"><span class="ic">place(x=n, y=n)</span> positions a widget at an exact pixel coordinate from the top-left corner of the parent. You can also use relative positioning: <span class="ic">relx=0.5, rely=0.5, anchor="center"</span> centers a widget regardless of window size.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">When NOT to Use It</div>
+                <div class="card-desc">place() breaks when the window is resized unless you calculate positions dynamically. It does not adapt to different screen resolutions or font sizes. Avoid it for normal layouts. Use pack() and grid() instead. place() is appropriate for splash screens and game canvases.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># place_demo.py  --  absolute and relative positioning</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"place() Demo"</span>)
+root.<span class="fn">geometry</span>(<span class="st">"400x200"</span>)
+
+<span class="cm"># Absolute pixel position from the top-left corner</span>
+tk.<span class="fn">Label</span>(root, text=<span class="st">"Absolute: (50, 30)"</span>, bg=<span class="st">"#1e293b"</span>, fg=<span class="st">"white"</span>).<span class="fn">place</span>(x=<span class="nb">50</span>, y=<span class="nb">30</span>)
+
+<span class="cm"># Relative position: relx=0.5 means 50% of the parent's width
+# anchor="center" means the widget's center sits at that point</span>
+tk.<span class="fn">Label</span>(root, text=<span class="st">"Centered via relx/rely"</span>, bg=<span class="st">"#c9a83a"</span>, fg=<span class="st">"black"</span>).<span class="fn">place</span>(
+    relx=<span class="nb">0.5</span>, rely=<span class="nb">0.5</span>, anchor=<span class="st">"center"</span>
+)
+
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Bottom Right"</span>).<span class="fn">place</span>(relx=<span class="nb">1.0</span>, rely=<span class="nb">1.0</span>, anchor=<span class="st">"se"</span>)
+
+root.<span class="fn">mainloop</span>()</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Rule of thumb:</strong> Use <span class="ic">pack()</span> for simple vertical or horizontal stacks. Use <span class="ic">grid()</span> for anything that looks like a form or a spreadsheet. Use <span class="ic">place()</span> only when you need exact pixel control and the window will not resize.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- PACK VS GRID ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 35</div>
+        <div class="slide-title">pack() vs grid(): <span class="accent">Choosing the Right Manager</span></div>
+        <div class="slide-subtitle">Each has a domain. Know the rule about mixing them.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Use pack() When...</div>
+                <div class="card-desc">
+                    The layout is fundamentally a list or stack.<br>
+                    You have a row of buttons side by side.<br>
+                    You have a text area that should fill all remaining space.<br>
+                    Simplicity is more important than precise alignment.<br>
+                    Example: a toolbar at the top + a big text area filling the rest.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Use grid() When...</div>
+                <div class="card-desc">
+                    The layout is a form with labeled fields.<br>
+                    You need widgets aligned across rows (like a spreadsheet).<br>
+                    You are building a calculator with a button grid.<br>
+                    You need columnspan or rowspan to merge cells.<br>
+                    Example: a network configuration form with aligned labels and entries.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            <div class="box-label">Critical Rule</div>
+            Never mix pack() and grid() in the same container. If a parent widget has even one child using pack() and one using grid(), Tkinter will deadlock -- the window will freeze trying to reconcile two incompatible layout calculations. You can use different managers in different Frames within the same window (Slide 16 explains how), but within a single container, pick one and use it consistently.
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Good Pattern</div>
+                <div class="card-desc">Top-level window uses pack(). Inside a Frame, use grid(). Another Frame uses pack(). Each Frame is its own isolated layout context. This is how real applications are structured.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Bad Pattern</div>
+                <div class="card-desc">Calling both <span class="ic">widget_a.pack()</span> and <span class="ic">widget_b.grid()</span> inside the same root window. This will cause Tkinter to appear frozen. The error is subtle -- no exception, just a hung window.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- FRAMES ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 35</div>
+        <div class="slide-title"><span class="accent">Frames</span> -- Organizing Your Layout</div>
+        <div class="slide-subtitle">Frames are invisible containers that let you group widgets and isolate layout managers.</div>
+
+        <div class="code-block"><span class="cm"># frame_demo.py  --  Frame as a section divider and layout isolator</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"Frame Demo"</span>)
+root.<span class="fn">geometry</span>(<span class="st">"420x280"</span>)
+
+<span class="cm"># ---- Top section: header bar (pack layout) ----</span>
+frame_top = tk.<span class="fn">Frame</span>(root, bg=<span class="st">"#1e293b"</span>, pady=<span class="nb">8</span>)
+frame_top.<span class="fn">pack</span>(fill=tk.X)
+tk.<span class="fn">Label</span>(frame_top, text=<span class="st">"Network Config Tool"</span>,
+        bg=<span class="st">"#1e293b"</span>, fg=<span class="st">"#c9a83a"</span>, font=(<span class="st">"Segoe UI"</span>, <span class="nb">14</span>, <span class="st">"bold"</span>)).<span class="fn">pack</span>()
+
+<span class="cm"># ---- Middle section: form (grid layout inside its own Frame) ----</span>
+frame_form = tk.<span class="fn">Frame</span>(root, padx=<span class="nb">16</span>, pady=<span class="nb">12</span>)
+frame_form.<span class="fn">pack</span>(fill=tk.BOTH, expand=<span class="kw">True</span>)
+frame_form.<span class="fn">columnconfigure</span>(<span class="nb">1</span>, weight=<span class="nb">1</span>)
+
+fields = [(<span class="st">"Hostname"</span>, <span class="nb">0</span>), (<span class="st">"IP Address"</span>, <span class="nb">1</span>), (<span class="st">"Netmask"</span>, <span class="nb">2</span>)]
+entries = {}
+<span class="kw">for</span> label, row <span class="kw">in</span> fields:
+    tk.<span class="fn">Label</span>(frame_form, text=label + <span class="st">":"</span>).<span class="fn">grid</span>(row=row, column=<span class="nb">0</span>, sticky=<span class="st">"e"</span>, pady=<span class="nb">3</span>)
+    ent = tk.<span class="fn">Entry</span>(frame_form)
+    ent.<span class="fn">grid</span>(row=row, column=<span class="nb">1</span>, sticky=<span class="st">"ew"</span>, padx=<span class="nb">8</span>)
+    entries[label] = ent
+
+<span class="cm"># ---- Bottom section: button bar (pack layout) ----</span>
+frame_btns = tk.<span class="fn">Frame</span>(root, bg=<span class="st">"#0a0a12"</span>, pady=<span class="nb">8</span>)
+frame_btns.<span class="fn">pack</span>(fill=tk.X, side=tk.BOTTOM)
+tk.<span class="fn">Button</span>(frame_btns, text=<span class="st">"Apply"</span>).<span class="fn">pack</span>(side=tk.RIGHT, padx=<span class="nb">10</span>)
+tk.<span class="fn">Button</span>(frame_btns, text=<span class="st">"Reset"</span>).<span class="fn">pack</span>(side=tk.RIGHT)
+
+root.<span class="fn">mainloop</span>()</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- STRINGVAR AND INTVAR ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 35</div>
+        <div class="slide-title">StringVar and <span class="accent">IntVar</span> -- Variable Binding</div>
+        <div class="slide-subtitle">Link a Python variable to a widget so the UI updates automatically.</div>
+
+        <div class="code-block"><span class="cm"># var_binding_demo.py  --  StringVar updates a Label automatically</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"Variable Binding"</span>)
+root.<span class="fn">geometry</span>(<span class="st">"380x180"</span>)
+
+<span class="cm"># StringVar is a special Tkinter variable class that widgets can observe
+# When its value changes, any widget bound to it updates automatically</span>
+status_var = tk.<span class="fn">StringVar</span>(value=<span class="st">"Status: idle"</span>)
+
+<span class="cm"># The textvariable= argument binds the label to status_var
+# No .config() call needed -- the label rerenders whenever status_var changes</span>
+tk.<span class="fn">Label</span>(root, textvariable=status_var, font=(<span class="st">"Segoe UI"</span>, <span class="nb">13</span>),
+        fg=<span class="st">"#c9a83a"</span>).<span class="fn">pack</span>(pady=<span class="nb">20</span>)
+
+counter_var = tk.<span class="fn">IntVar</span>(value=<span class="nb">0</span>)
+tk.<span class="fn">Label</span>(root, textvariable=counter_var, fg=<span class="st">"#3ab577"</span>).<span class="fn">pack</span>()
+
+<span class="kw">def</span> <span class="fn">increment</span>():
+    counter_var.<span class="fn">set</span>(counter_var.<span class="fn">get</span>() + <span class="nb">1</span>)
+    status_var.<span class="fn">set</span>(<span class="st">f"Status: clicked {counter_var.get()} time(s)"</span>)
+
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Click to Count"</span>, command=increment).<span class="fn">pack</span>(pady=<span class="nb">10</span>)
+
+root.<span class="fn">mainloop</span>()</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">The Four Variable Classes</div>
+                <div class="card-desc"><span class="ic">StringVar</span> -- holds text. <span class="ic">IntVar</span> -- holds an integer. <span class="ic">DoubleVar</span> -- holds a float. <span class="ic">BooleanVar</span> -- holds True/False. All have <span class="ic">.get()</span> and <span class="ic">.set()</span> methods. All notify bound widgets when their value changes.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">textvariable= vs text=</div>
+                <div class="card-desc">A Label with <span class="ic">text="hello"</span> is static -- you update it by calling <span class="ic">.config(text=...)</span>. A Label with <span class="ic">textvariable=my_var</span> is live -- it updates any time you call <span class="ic">my_var.set(...)</span>. Use textvariable when the value changes frequently.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Entry + StringVar</div>
+                <div class="card-desc">You can also bind a StringVar to an Entry: <span class="ic">tk.Entry(root, textvariable=my_var)</span>. Now <span class="ic">my_var.get()</span> always reflects what the user has typed, and <span class="ic">my_var.set("default")</span> populates the field.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- EVENT HANDLING: COMMAND ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 35</div>
+        <div class="slide-title">Event Handling: <span class="accent">command=</span></div>
+        <div class="slide-subtitle">The simplest event mechanism -- works for buttons and menu items.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">How command= Works</div>
+                <div class="card-desc"><span class="ic">command=my_function</span> tells the widget to call <span class="ic">my_function()</span> when the user activates it (clicks a button, selects a menu item, presses Space on a focused button). The function is called with no arguments. It must be defined before the widget that references it, or be a method on a class.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">What Widgets Support It</div>
+                <div class="card-desc">Button, Checkbutton, Radiobutton, Scale, Scrollbar, and menu entries all support <span class="ic">command=</span>. Entry does not -- use <span class="ic">bind()</span> for keystroke events on Entry. Text does not either -- bind is the way to react to changes in a Text widget.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># command_demo.py  --  multiple buttons sharing one function via command=</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+<span class="kw">def</span> <span class="fn">ping_host</span>():
+    host = entry_host.<span class="fn">get</span>().<span class="fn">strip</span>()
+    lbl_status.<span class="fn">config</span>(text=<span class="st">f"Pinging {host}..."</span>, fg=<span class="st">"#c9a83a"</span>)
+    <span class="cm"># Real ping logic would go here -- covered on Slide 29</span>
+
+<span class="kw">def</span> <span class="fn">clear_all</span>():
+    entry_host.<span class="fn">delete</span>(<span class="nb">0</span>, tk.END)
+    lbl_status.<span class="fn">config</span>(text=<span class="st">"Ready."</span>, fg=<span class="st">"#475569"</span>)
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"Ping Tool"</span>)
+root.<span class="fn">geometry</span>(<span class="st">"380x150"</span>)
+
+tk.<span class="fn">Label</span>(root, text=<span class="st">"Target host:"</span>).<span class="fn">pack</span>(pady=(<span class="nb">12</span>, <span class="nb">2</span>))
+entry_host = tk.<span class="fn">Entry</span>(root, width=<span class="nb">35</span>)
+entry_host.<span class="fn">pack</span>()
+
+<span class="cm"># Two buttons, two different callbacks -- both use command=</span>
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Ping"</span>,  command=ping_host).<span class="fn">pack</span>(side=tk.LEFT, padx=<span class="nb">20</span>, pady=<span class="nb">10</span>)
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Clear"</span>, command=clear_all).<span class="fn">pack</span>(side=tk.LEFT)
+
+lbl_status = tk.<span class="fn">Label</span>(root, text=<span class="st">"Ready."</span>, fg=<span class="st">"#475569"</span>)
+lbl_status.<span class="fn">pack</span>()
+
+root.<span class="fn">mainloop</span>()</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- EVENT HANDLING: BIND ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 35</div>
+        <div class="slide-title">Event Handling: <span class="accent">bind()</span></div>
+        <div class="slide-subtitle">Attach any keyboard or mouse event to any widget.</div>
+
+        <div class="code-block"><span class="cm"># bind_demo.py  --  keyboard and mouse events via bind()</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+<span class="kw">def</span> <span class="fn">on_enter_key</span>(event):
+    <span class="cm"># The event object carries information: event.keysym, event.char, event.x, event.y</span>
+    value = entry_search.<span class="fn">get</span>()
+    lbl.<span class="fn">config</span>(text=<span class="st">f"Searching for: {value}"</span>)
+
+<span class="kw">def</span> <span class="fn">on_mouse_enter</span>(event):
+    btn_search.<span class="fn">config</span>(bg=<span class="st">"#c9a83a"</span>, fg=<span class="st">"black"</span>)
+
+<span class="kw">def</span> <span class="fn">on_mouse_leave</span>(event):
+    btn_search.<span class="fn">config</span>(bg=<span class="st">"SystemButtonFace"</span>, fg=<span class="st">"black"</span>)
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"bind() Demo"</span>)
+root.<span class="fn">geometry</span>(<span class="st">"400x160"</span>)
+
+entry_search = tk.<span class="fn">Entry</span>(root, width=<span class="nb">35</span>)
+entry_search.<span class="fn">pack</span>(pady=<span class="nb">16</span>)
+
+<span class="cm"># Bind the Return key press on the Entry widget to a function
+# The event string format is "&lt;EventType&gt;" or "&lt;Modifier-EventType&gt;"</span>
+entry_search.<span class="fn">bind</span>(<span class="st">"&lt;Return&gt;"</span>, on_enter_key)
+
+btn_search = tk.<span class="fn">Button</span>(root, text=<span class="st">"Search"</span>)
+btn_search.<span class="fn">pack</span>()
+<span class="cm"># Mouse hover events on the button</span>
+btn_search.<span class="fn">bind</span>(<span class="st">"&lt;Enter&gt;"</span>, on_mouse_enter)   <span class="cm"># mouse enters widget area</span>
+btn_search.<span class="fn">bind</span>(<span class="st">"&lt;Leave&gt;"</span>, on_mouse_leave)   <span class="cm"># mouse leaves widget area</span>
+
+lbl = tk.<span class="fn">Label</span>(root, text=<span class="st">""</span>, fg=<span class="st">"#c9a83a"</span>)
+lbl.<span class="fn">pack</span>()
+
+root.<span class="fn">mainloop</span>()</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Common bind event strings:</strong> <span class="ic">"&lt;Return&gt;"</span> Enter key. <span class="ic">"&lt;KeyRelease&gt;"</span> any key released. <span class="ic">"&lt;Button-1&gt;"</span> left mouse click. <span class="ic">"&lt;Button-3&gt;"</span> right click. <span class="ic">"&lt;Double-Button-1&gt;"</span> double click. <span class="ic">"&lt;Configure&gt;"</span> window resized. <span class="ic">"&lt;FocusIn&gt;"</span> widget gained focus.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- LAMBDA IN CALLBACKS ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 35</div>
+        <div class="slide-title">Lambda in <span class="accent">Callbacks</span></div>
+        <div class="slide-subtitle">Passing arguments to button callbacks using anonymous functions.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">The Problem</div>
+                <div class="card-desc"><span class="ic">command=</span> expects a function that takes no arguments. But sometimes you need to pass a value to your handler -- for example, which button was pressed in a calculator. You cannot write <span class="ic">command=insert_digit(7)</span> because that calls the function immediately. You need to defer the call.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Solution: lambda</div>
+                <div class="card-desc">A lambda creates an anonymous single-expression function. <span class="ic">lambda: insert_digit(7)</span> creates a zero-argument function that, when called, calls <span class="ic">insert_digit(7)</span>. This is the standard pattern for passing arguments through <span class="ic">command=</span>.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># lambda_callbacks.py  --  passing arguments to button handlers</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+<span class="kw">def</span> <span class="fn">insert_char</span>(char):
+    <span class="cm"># Appends char to the display entry</span>
+    current = display.<span class="fn">get</span>()
+    display.<span class="fn">delete</span>(<span class="nb">0</span>, tk.END)
+    display.<span class="fn">insert</span>(<span class="nb">0</span>, current + char)
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"Lambda Demo"</span>)
+root.<span class="fn">geometry</span>(<span class="st">"300x140"</span>)
+
+display = tk.<span class="fn">Entry</span>(root, font=(<span class="st">"Courier New"</span>, <span class="nb">14</span>), justify=<span class="st">"right"</span>)
+display.<span class="fn">pack</span>(fill=tk.X, padx=<span class="nb">8</span>, pady=<span class="nb">8</span>)
+
+frame = tk.<span class="fn">Frame</span>(root)
+frame.<span class="fn">pack</span>()
+
+<span class="cm"># Each button uses lambda to wrap insert_char() with its specific digit
+# Without lambda, all three buttons would call insert_char immediately at setup time</span>
+<span class="kw">for</span> digit <span class="kw">in</span> [<span class="st">"7"</span>, <span class="st">"8"</span>, <span class="st">"9"</span>]:
+    tk.<span class="fn">Button</span>(frame, text=digit, width=<span class="nb">4</span>,
+             command=<span class="kw">lambda</span> d=digit: <span class="fn">insert_char</span>(d)
+             ).<span class="fn">pack</span>(side=tk.LEFT, padx=<span class="nb">2</span>)
+
+root.<span class="fn">mainloop</span>()</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- LAMBDA LOOP GOTCHA ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 35</div>
+        <div class="slide-title">The <span class="accent">Lambda-in-Loop</span> Gotcha</div>
+        <div class="slide-subtitle">Why all your buttons call with the same value -- and the one-character fix.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">The Bug</div>
+                <div class="card-desc">When you write <span class="ic">lambda: insert_char(d)</span> inside a loop, the lambda captures the variable <span class="ic">d</span> by reference -- not by value. By the time any button is clicked, the loop has finished and <span class="ic">d</span> holds only the last value it was assigned. Every button in the loop calls with that final value.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">The Fix</div>
+                <div class="card-desc">Use a default argument to capture the value at definition time: <span class="ic">lambda d=digit: insert_char(d)</span>. The <span class="ic">d=digit</span> part is a default parameter -- Python evaluates <span class="ic">digit</span> right now and binds it to <span class="ic">d</span> permanently for this lambda. Each iteration creates an independent binding.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># The bug: all 5 buttons print "e" (the last value of letter)</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">geometry</span>(<span class="st">"400x100"</span>)
+
+<span class="cm"># WRONG -- lambda captures the variable, not the value</span>
+<span class="kw">for</span> letter <span class="kw">in</span> [<span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"c"</span>, <span class="st">"d"</span>, <span class="st">"e"</span>]:
+    tk.<span class="fn">Button</span>(root, text=letter,
+             command=<span class="kw">lambda</span>: <span class="fn">print</span>(letter)   <span class="cm"># BUG: all print "e"</span>
+             ).<span class="fn">pack</span>(side=tk.LEFT, padx=<span class="nb">4</span>)
+
+<span class="cm"># CORRECT -- default argument captures value at loop-iteration time</span>
+<span class="kw">for</span> letter <span class="kw">in</span> [<span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"c"</span>, <span class="st">"d"</span>, <span class="st">"e"</span>]:
+    tk.<span class="fn">Button</span>(root, text=letter,
+             command=<span class="kw">lambda</span> L=letter: <span class="fn">print</span>(L)  <span class="cm"># CORRECT: each prints its own letter</span>
+             ).<span class="fn">pack</span>(side=tk.LEFT, padx=<span class="nb">4</span>)
+
+root.<span class="fn">mainloop</span>()</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>This is a common interview question</strong> and a bug that appears in production code. The fix is always <span class="ic">lambda x=val: func(x)</span>. The pattern applies to any callback -- not just Tkinter. Python closures capture variables by reference. Default arguments are evaluated at definition time.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- MESSAGEBOX ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 35</div>
+        <div class="slide-title">Dialog Boxes: <span class="accent">messagebox</span></div>
+        <div class="slide-subtitle">System-native popups for information, warnings, errors, and yes/no questions.</div>
+
+        <div class="code-block"><span class="cm"># messagebox_demo.py  --  all four messagebox functions</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+<span class="kw">from</span> tkinter <span class="kw">import</span> messagebox
+
+<span class="kw">def</span> <span class="fn">show_info</span>():
+    messagebox.<span class="fn">showinfo</span>(<span class="st">"Success"</span>, <span class="st">"Configuration applied successfully."</span>)
+
+<span class="kw">def</span> <span class="fn">show_warning</span>():
+    messagebox.<span class="fn">showwarning</span>(<span class="st">"Warning"</span>, <span class="st">"Disk space below 10%. Back up now."</span>)
+
+<span class="kw">def</span> <span class="fn">show_error</span>():
+    messagebox.<span class="fn">showerror</span>(<span class="st">"Connection Failed"</span>, <span class="st">"Cannot reach 10.0.0.1 on port 22."</span>)
+
+<span class="kw">def</span> <span class="fn">ask_yes_no</span>():
+    <span class="cm"># askyesno() returns True if the user clicks Yes, False if No</span>
+    answer = messagebox.<span class="fn">askyesno</span>(<span class="st">"Confirm"</span>, <span class="st">"Reboot the server now?"</span>)
+    <span class="kw">if</span> answer:
+        lbl.<span class="fn">config</span>(text=<span class="st">"User confirmed reboot."</span>, fg=<span class="st">"#ef4444"</span>)
+    <span class="kw">else</span>:
+        lbl.<span class="fn">config</span>(text=<span class="st">"Reboot cancelled."</span>, fg=<span class="st">"#3ab577"</span>)
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"MessageBox Demo"</span>)
+root.<span class="fn">geometry</span>(<span class="st">"360x200"</span>)
+
+tk.<span class="fn">Button</span>(root, text=<span class="st">"showinfo"</span>,    command=show_info).<span class="fn">pack</span>(pady=<span class="nb">4</span>)
+tk.<span class="fn">Button</span>(root, text=<span class="st">"showwarning"</span>, command=show_warning).<span class="fn">pack</span>(pady=<span class="nb">4</span>)
+tk.<span class="fn">Button</span>(root, text=<span class="st">"showerror"</span>,   command=show_error).<span class="fn">pack</span>(pady=<span class="nb">4</span>)
+tk.<span class="fn">Button</span>(root, text=<span class="st">"askyesno"</span>,    command=ask_yes_no).<span class="fn">pack</span>(pady=<span class="nb">4</span>)
+lbl = tk.<span class="fn">Label</span>(root, text=<span class="st">""</span>)
+lbl.<span class="fn">pack</span>()
+
+root.<span class="fn">mainloop</span>()</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Other dialog functions:</strong> <span class="ic">askokcancel()</span> returns True/False. <span class="ic">askretrycancel()</span> returns True/False. <span class="ic">askquestion()</span> returns the string <span class="ic">"yes"</span> or <span class="ic">"no"</span>. All dialogs block -- your code pauses at the dialog call and resumes only after the user dismisses it.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- MENU BAR ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 35</div>
+        <div class="slide-title">Building a <span class="accent">Menu Bar</span></div>
+        <div class="slide-subtitle">File, Edit, and Help menus -- the standard navigation pattern for desktop apps.</div>
+
+        <div class="code-block"><span class="cm"># menubar_demo.py  --  Menu widget with cascade submenus</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+<span class="kw">from</span> tkinter <span class="kw">import</span> messagebox
+
+<span class="kw">def</span> <span class="fn">new_file</span>():    messagebox.<span class="fn">showinfo</span>(<span class="st">"New"</span>, <span class="st">"New file created."</span>)
+<span class="kw">def</span> <span class="fn">open_file</span>():   messagebox.<span class="fn">showinfo</span>(<span class="st">"Open"</span>, <span class="st">"Open dialog would appear here."</span>)
+<span class="kw">def</span> <span class="fn">quit_app</span>():    root.<span class="fn">destroy</span>()
+<span class="kw">def</span> <span class="fn">show_about</span>():  messagebox.<span class="fn">showinfo</span>(<span class="st">"About"</span>, <span class="st">"IT Tool v1.0  --  Python for IT"</span>)
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"Menu Bar Demo"</span>)
+root.<span class="fn">geometry</span>(<span class="st">"500x300"</span>)
+
+<span class="cm"># Create the top-level menu bar and attach it to the window</span>
+menubar = tk.<span class="fn">Menu</span>(root)
+root.<span class="fn">config</span>(menu=menubar)
+
+<span class="cm"># File menu -- tearoff=0 removes the detachable dashed line at the top</span>
+menu_file = tk.<span class="fn">Menu</span>(menubar, tearoff=<span class="nb">0</span>)
+menu_file.<span class="fn">add_command</span>(label=<span class="st">"New"</span>,  command=new_file,  accelerator=<span class="st">"Ctrl+N"</span>)
+menu_file.<span class="fn">add_command</span>(label=<span class="st">"Open"</span>, command=open_file, accelerator=<span class="st">"Ctrl+O"</span>)
+menu_file.<span class="fn">add_separator</span>()
+menu_file.<span class="fn">add_command</span>(label=<span class="st">"Exit"</span>, command=quit_app)
+
+<span class="cm"># Help menu</span>
+menu_help = tk.<span class="fn">Menu</span>(menubar, tearoff=<span class="nb">0</span>)
+menu_help.<span class="fn">add_command</span>(label=<span class="st">"About"</span>, command=show_about)
+
+<span class="cm"># add_cascade() adds the menu to the menu bar with a label</span>
+menubar.<span class="fn">add_cascade</span>(label=<span class="st">"File"</span>, menu=menu_file)
+menubar.<span class="fn">add_cascade</span>(label=<span class="st">"Help"</span>, menu=menu_help)
+
+tk.<span class="fn">Label</span>(root, text=<span class="st">"Application area"</span>, fg=<span class="st">"#475569"</span>).<span class="fn">pack</span>(expand=<span class="kw">True</span>)
+
+root.<span class="fn">mainloop</span>()</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- CLASS-BASED ARCHITECTURE ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 35 &nbsp;|&nbsp; OOP Payoff</div>
+        <div class="slide-title">Class-Based GUI: <span class="accent">Where OOP Pays Off</span></div>
+        <div class="slide-subtitle">Real applications use a class to own the window, the widgets, and the logic.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Why a Class?</div>
+                <div class="card-desc">As apps grow, procedural Tkinter code becomes tangled. Widgets are global variables, callbacks reference each other across functions, and state is scattered. A class solves this: <span class="ic">self</span> holds all widgets and state, <span class="ic">__init__</span> builds the UI, and methods are clean named callbacks. This is the professional pattern.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Standard Structure</div>
+                <div class="card-desc">
+                    <span class="ic">__init__(self, root)</span> -- receives the root window, builds all frames and widgets, stores important widgets as <span class="ic">self.widget_name</span>.<br>
+                    Methods like <span class="ic">build_toolbar()</span>, <span class="ic">build_form()</span> -- called from <span class="ic">__init__</span> to keep it organized.<br>
+                    Event handlers like <span class="ic">on_submit()</span>, <span class="ic">on_clear()</span> -- referenced in <span class="ic">command=self.on_submit</span>.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># class_app_template.py  --  the canonical class-based Tkinter structure</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+<span class="kw">from</span> tkinter <span class="kw">import</span> messagebox
+
+<span class="kw">class</span> <span class="fn">AppName</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="kw">self</span>, root):
+        <span class="kw">self</span>.root = root
+        <span class="kw">self</span>.root.<span class="fn">title</span>(<span class="st">"My Application"</span>)
+        <span class="kw">self</span>.root.<span class="fn">geometry</span>(<span class="st">"500x350"</span>)
+        <span class="kw">self</span>.<span class="fn">_build_ui</span>()        <span class="cm"># delegate to a helper method</span>
+
+    <span class="kw">def</span> <span class="fn">_build_ui</span>(<span class="kw">self</span>):
+        <span class="kw">self</span>.entry = tk.<span class="fn">Entry</span>(<span class="kw">self</span>.root, width=<span class="nb">40</span>)
+        <span class="kw">self</span>.entry.<span class="fn">pack</span>(pady=<span class="nb">16</span>)
+        tk.<span class="fn">Button</span>(<span class="kw">self</span>.root, text=<span class="st">"Submit"</span>,
+                  command=<span class="kw">self</span>.on_submit).<span class="fn">pack</span>()  <span class="cm"># command= references a method</span>
+        <span class="kw">self</span>.lbl = tk.<span class="fn">Label</span>(<span class="kw">self</span>.root, text=<span class="st">""</span>)
+        <span class="kw">self</span>.lbl.<span class="fn">pack</span>(pady=<span class="nb">8</span>)
+
+    <span class="kw">def</span> <span class="fn">on_submit</span>(<span class="kw">self</span>):
+        value = <span class="kw">self</span>.entry.<span class="fn">get</span>().<span class="fn">strip</span>()
+        <span class="kw">if</span> <span class="kw">not</span> value:
+            messagebox.<span class="fn">showwarning</span>(<span class="st">"Input Required"</span>, <span class="st">"Please enter a value."</span>)
+            <span class="kw">return</span>
+        <span class="kw">self</span>.lbl.<span class="fn">config</span>(text=<span class="st">f"Submitted: {value}"</span>, fg=<span class="st">"#3ab577"</span>)
+
+<span class="cm"># Entry point -- create root, instantiate app, start event loop</span>
+<span class="kw">if</span> __name__ == <span class="st">"__main__"</span>:
+    root = tk.<span class="fn">Tk</span>()
+    app = <span class="fn">AppName</span>(root)
+    root.<span class="fn">mainloop</span>()</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- COMPLETE EXAMPLE: CALCULATOR ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 35 &nbsp;|&nbsp; Complete Application</div>
+        <div class="slide-title">Complete App: <span class="accent">Calculator</span></div>
+        <div class="slide-subtitle">Grid layout, lambda buttons, StringVar display, class-based architecture.</div>
+
+        <div class="code-block"><span class="cm"># calculator.py  --  four-function calculator using class + grid + lambda</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+<span class="kw">class</span> <span class="fn">Calculator</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="kw">self</span>, root):
+        <span class="kw">self</span>.root = root
+        <span class="kw">self</span>.root.<span class="fn">title</span>(<span class="st">"Calculator"</span>)
+        <span class="kw">self</span>.root.<span class="fn">resizable</span>(<span class="kw">False</span>, <span class="kw">False</span>)
+        <span class="kw">self</span>.expr = tk.<span class="fn">StringVar</span>(value=<span class="st">"0"</span>)
+        <span class="kw">self</span>.<span class="fn">_build_ui</span>()
+
+    <span class="kw">def</span> <span class="fn">_build_ui</span>(<span class="kw">self</span>):
+        <span class="cm"># Display entry -- read only, right-justified</span>
+        tk.<span class="fn">Entry</span>(<span class="kw">self</span>.root, textvariable=<span class="kw">self</span>.expr, justify=<span class="st">"right"</span>,
+               font=(<span class="st">"Courier New"</span>, <span class="nb">20</span>), state=<span class="st">"readonly"</span>, width=<span class="nb">14</span>
+               ).<span class="fn">grid</span>(row=<span class="nb">0</span>, column=<span class="nb">0</span>, columnspan=<span class="nb">4</span>, padx=<span class="nb">6</span>, pady=<span class="nb">6</span>)
+
+        buttons = [
+            (<span class="st">"7"</span>, <span class="nb">1</span>, <span class="nb">0</span>), (<span class="st">"8"</span>, <span class="nb">1</span>, <span class="nb">1</span>), (<span class="st">"9"</span>, <span class="nb">1</span>, <span class="nb">2</span>), (<span class="st">"/"</span>, <span class="nb">1</span>, <span class="nb">3</span>),
+            (<span class="st">"4"</span>, <span class="nb">2</span>, <span class="nb">0</span>), (<span class="st">"5"</span>, <span class="nb">2</span>, <span class="nb">1</span>), (<span class="st">"6"</span>, <span class="nb">2</span>, <span class="nb">2</span>), (<span class="st">"*"</span>, <span class="nb">2</span>, <span class="nb">3</span>),
+            (<span class="st">"1"</span>, <span class="nb">3</span>, <span class="nb">0</span>), (<span class="st">"2"</span>, <span class="nb">3</span>, <span class="nb">1</span>), (<span class="st">"3"</span>, <span class="nb">3</span>, <span class="nb">2</span>), (<span class="st">"-"</span>, <span class="nb">3</span>, <span class="nb">3</span>),
+            (<span class="st">"0"</span>, <span class="nb">4</span>, <span class="nb">0</span>), (<span class="st">"."</span>, <span class="nb">4</span>, <span class="nb">1</span>), (<span class="st">"="</span>, <span class="nb">4</span>, <span class="nb">2</span>), (<span class="st">"+"</span>, <span class="nb">4</span>, <span class="nb">3</span>),
+        ]
+
+        <span class="kw">for</span> (text, row, col) <span class="kw">in</span> buttons:
+            tk.<span class="fn">Button</span>(<span class="kw">self</span>.root, text=text, width=<span class="nb">5</span>, height=<span class="nb">2</span>,
+                      font=(<span class="st">"Segoe UI"</span>, <span class="nb">13</span>),
+                      command=<span class="kw">lambda</span> t=text: <span class="kw">self</span>.<span class="fn">press</span>(t)
+                      ).<span class="fn">grid</span>(row=row, column=col, padx=<span class="nb">2</span>, pady=<span class="nb">2</span>)
+
+        tk.<span class="fn">Button</span>(<span class="kw">self</span>.root, text=<span class="st">"C"</span>, width=<span class="nb">11</span>, height=<span class="nb">2</span>,
+                  font=(<span class="st">"Segoe UI"</span>, <span class="nb">13</span>), bg=<span class="st">"#ef4444"</span>, fg=<span class="st">"white"</span>,
+                  command=<span class="kw">self</span>.clear
+                  ).<span class="fn">grid</span>(row=<span class="nb">5</span>, column=<span class="nb">0</span>, columnspan=<span class="nb">4</span>, padx=<span class="nb">2</span>, pady=<span class="nb">2</span>)
+
+    <span class="kw">def</span> <span class="fn">press</span>(<span class="kw">self</span>, key):
+        current = <span class="kw">self</span>.expr.<span class="fn">get</span>()
+        <span class="kw">if</span> key == <span class="st">"="</span>:
+            <span class="kw">try</span>:
+                result = <span class="fn">eval</span>(current)   <span class="cm"># safe here -- user controls input</span>
+                <span class="kw">self</span>.expr.<span class="fn">set</span>(<span class="fn">str</span>(result))
+            <span class="kw">except</span> Exception:
+                <span class="kw">self</span>.expr.<span class="fn">set</span>(<span class="st">"Error"</span>)
+        <span class="kw">elif</span> current == <span class="st">"0"</span> <span class="kw">and</span> key.<span class="fn">isdigit</span>():
+            <span class="kw">self</span>.expr.<span class="fn">set</span>(key)           <span class="cm"># replace leading zero</span>
+        <span class="kw">else</span>:
+            <span class="kw">self</span>.expr.<span class="fn">set</span>(current + key)
+
+    <span class="kw">def</span> <span class="fn">clear</span>(<span class="kw">self</span>):
+        <span class="kw">self</span>.expr.<span class="fn">set</span>(<span class="st">"0"</span>)
+
+<span class="kw">if</span> __name__ == <span class="st">"__main__"</span>:
+    root = tk.<span class="fn">Tk</span>()
+    <span class="fn">Calculator</span>(root)
+    root.<span class="fn">mainloop</span>()</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- COMPLETE EXAMPLE: TO-DO LIST ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 35 &nbsp;|&nbsp; Complete Application</div>
+        <div class="slide-title">Complete App: <span class="accent">To-Do List</span></div>
+        <div class="slide-subtitle">Entry + Listbox + Add/Remove -- the fundamental pattern for list management UIs.</div>
+
+        <div class="code-block"><span class="cm"># todo_list.py  --  task manager using Entry, Listbox, and class structure</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+<span class="kw">from</span> tkinter <span class="kw">import</span> messagebox
+
+<span class="kw">class</span> <span class="fn">ToDoApp</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="kw">self</span>, root):
+        <span class="kw">self</span>.root = root
+        <span class="kw">self</span>.root.<span class="fn">title</span>(<span class="st">"IT Task Manager"</span>)
+        <span class="kw">self</span>.root.<span class="fn">geometry</span>(<span class="st">"420x380"</span>)
+        <span class="kw">self</span>.<span class="fn">_build_ui</span>()
+
+    <span class="kw">def</span> <span class="fn">_build_ui</span>(<span class="kw">self</span>):
+        tk.<span class="fn">Label</span>(<span class="kw">self</span>.root, text=<span class="st">"IT Task Manager"</span>,
+                font=(<span class="st">"Segoe UI"</span>, <span class="nb">14</span>, <span class="st">"bold"</span>)).<span class="fn">pack</span>(pady=(<span class="nb">12</span>, <span class="nb">4</span>))
+
+        <span class="cm"># Input row: entry + add button side by side</span>
+        frame_input = tk.<span class="fn">Frame</span>(<span class="kw">self</span>.root)
+        frame_input.<span class="fn">pack</span>(fill=tk.X, padx=<span class="nb">10</span>)
+
+        <span class="kw">self</span>.entry_task = tk.<span class="fn">Entry</span>(frame_input, font=(<span class="st">"Segoe UI"</span>, <span class="nb">11</span>))
+        <span class="kw">self</span>.entry_task.<span class="fn">pack</span>(side=tk.LEFT, fill=tk.X, expand=<span class="kw">True</span>, padx=(<span class="nb">0</span>, <span class="nb">6</span>))
+        <span class="kw">self</span>.entry_task.<span class="fn">bind</span>(<span class="st">"&lt;Return&gt;"</span>, <span class="kw">lambda</span> e: <span class="kw">self</span>.<span class="fn">add_task</span>())
+
+        tk.<span class="fn">Button</span>(frame_input, text=<span class="st">"Add Task"</span>,
+                  command=<span class="kw">self</span>.add_task).<span class="fn">pack</span>(side=tk.LEFT)
+
+        <span class="cm"># Listbox with a scrollbar</span>
+        frame_list = tk.<span class="fn">Frame</span>(<span class="kw">self</span>.root)
+        frame_list.<span class="fn">pack</span>(fill=tk.BOTH, expand=<span class="kw">True</span>, padx=<span class="nb">10</span>, pady=<span class="nb">8</span>)
+
+        scrollbar = tk.<span class="fn">Scrollbar</span>(frame_list)
+        scrollbar.<span class="fn">pack</span>(side=tk.RIGHT, fill=tk.Y)
+
+        <span class="kw">self</span>.listbox = tk.<span class="fn">Listbox</span>(frame_list, yscrollcommand=scrollbar.<span class="fn">set</span>,
+                                  font=(<span class="st">"Segoe UI"</span>, <span class="nb">10</span>), selectmode=tk.SINGLE)
+        <span class="kw">self</span>.listbox.<span class="fn">pack</span>(fill=tk.BOTH, expand=<span class="kw">True</span>)
+        scrollbar.<span class="fn">config</span>(command=<span class="kw">self</span>.listbox.<span class="fn">yview</span>)
+
+        <span class="cm"># Action buttons</span>
+        frame_btns = tk.<span class="fn">Frame</span>(<span class="kw">self</span>.root)
+        frame_btns.<span class="fn">pack</span>(fill=tk.X, padx=<span class="nb">10</span>, pady=(<span class="nb">0</span>, <span class="nb">10</span>))
+        tk.<span class="fn">Button</span>(frame_btns, text=<span class="st">"Mark Done"</span>,
+                  command=<span class="kw">self</span>.mark_done).<span class="fn">pack</span>(side=tk.LEFT, padx=<span class="nb">4</span>)
+        tk.<span class="fn">Button</span>(frame_btns, text=<span class="st">"Remove"</span>,
+                  command=<span class="kw">self</span>.remove_task).<span class="fn">pack</span>(side=tk.LEFT)
+
+    <span class="kw">def</span> <span class="fn">add_task</span>(<span class="kw">self</span>):
+        task = <span class="kw">self</span>.entry_task.<span class="fn">get</span>().<span class="fn">strip</span>()
+        <span class="kw">if not</span> task:
+            messagebox.<span class="fn">showwarning</span>(<span class="st">"Empty"</span>, <span class="st">"Enter a task first."</span>)
+            <span class="kw">return</span>
+        <span class="kw">self</span>.listbox.<span class="fn">insert</span>(tk.END, task)
+        <span class="kw">self</span>.entry_task.<span class="fn">delete</span>(<span class="nb">0</span>, tk.END)
+
+    <span class="kw">def</span> <span class="fn">remove_task</span>(<span class="kw">self</span>):
+        sel = <span class="kw">self</span>.listbox.<span class="fn">curselection</span>()
+        <span class="kw">if</span> sel:
+            <span class="kw">self</span>.listbox.<span class="fn">delete</span>(sel[<span class="nb">0</span>])
+
+    <span class="kw">def</span> <span class="fn">mark_done</span>(<span class="kw">self</span>):
+        sel = <span class="kw">self</span>.listbox.<span class="fn">curselection</span>()
+        <span class="kw">if</span> sel:
+            task = <span class="kw">self</span>.listbox.<span class="fn">get</span>(sel[<span class="nb">0</span>])
+            <span class="kw">if not</span> task.<span class="fn">startswith</span>(<span class="st">"[DONE] "</span>):
+                <span class="kw">self</span>.listbox.<span class="fn">delete</span>(sel[<span class="nb">0</span>])
+                <span class="kw">self</span>.listbox.<span class="fn">insert</span>(sel[<span class="nb">0</span>], <span class="st">"[DONE] "</span> + task)
+
+<span class="kw">if</span> __name__ == <span class="st">"__main__"</span>:
+    root = tk.<span class="fn">Tk</span>()
+    <span class="fn">ToDoApp</span>(root)
+    root.<span class="fn">mainloop</span>()</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- STYLING ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 35</div>
+        <div class="slide-title">Styling Your <span class="accent">Widgets</span></div>
+        <div class="slide-subtitle">Font tuples, colors, relief styles, and padding -- making the UI look intentional.</div>
+
+        <div class="code-block"><span class="cm"># styling_demo.py  --  common styling attributes across widget types</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"Styling Demo"</span>)
+root.<span class="fn">geometry</span>(<span class="st">"480x320"</span>)
+root.<span class="fn">configure</span>(bg=<span class="st">"#0f0f1a"</span>)   <span class="cm"># set the root window background color</span>
+
+<span class="cm"># Font tuple: (family, size)  or  (family, size, "bold")  or  (family, size, "bold italic")</span>
+tk.<span class="fn">Label</span>(root, text=<span class="st">"Bold 16pt Courier"</span>,
+        font=(<span class="st">"Courier New"</span>, <span class="nb">16</span>, <span class="st">"bold"</span>),
+        fg=<span class="st">"#c9a83a"</span>, bg=<span class="st">"#0f0f1a"</span>).<span class="fn">pack</span>(pady=<span class="nb">8</span>)
+
+<span class="cm"># relief= controls the 3D border style of widgets</span>
+<span class="kw">for</span> style <span class="kw">in</span> [<span class="st">"flat"</span>, <span class="st">"raised"</span>, <span class="st">"sunken"</span>, <span class="st">"groove"</span>, <span class="st">"ridge"</span>]:
+    tk.<span class="fn">Label</span>(root, text=style, relief=style, width=<span class="nb">10</span>,
+            borderwidth=<span class="nb">2</span>, padx=<span class="nb">6</span>, pady=<span class="nb">4</span>,
+            bg=<span class="st">"#1e293b"</span>, fg=<span class="st">"#e2e8f0"</span>).<span class="fn">pack</span>(side=tk.LEFT, padx=<span class="nb">4</span>, pady=<span class="nb">16</span>)
+
+<span class="cm"># Buttons: custom background, foreground, active colors</span>
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Primary Action"</span>,
+         bg=<span class="st">"#3ab577"</span>, fg=<span class="st">"black"</span>,
+         activebackground=<span class="st">"#4fcf8a"</span>, activeforeground=<span class="st">"black"</span>,
+         font=(<span class="st">"Segoe UI"</span>, <span class="nb">11</span>, <span class="st">"bold"</span>),
+         relief=<span class="st">"flat"</span>, padx=<span class="nb">16</span>, pady=<span class="nb">6</span>).<span class="fn">pack</span>(pady=<span class="nb">10</span>)
+
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Danger Action"</span>,
+         bg=<span class="st">"#ef4444"</span>, fg=<span class="st">"white"</span>,
+         activebackground=<span class="st">"#f87171"</span>, activeforeground=<span class="st">"white"</span>,
+         font=(<span class="st">"Segoe UI"</span>, <span class="nb">11</span>, <span class="st">"bold"</span>),
+         relief=<span class="st">"flat"</span>, padx=<span class="nb">16</span>, pady=<span class="nb">6</span>).<span class="fn">pack</span>()
+
+root.<span class="fn">mainloop</span>()</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Color formats:</strong> Tkinter accepts hex colors (<span class="ic">"#ff0000"</span>), named X11 colors (<span class="ic">"red"</span>, <span class="ic">"navy"</span>, <span class="ic">"goldenrod"</span>), and system colors (<span class="ic">"SystemButtonFace"</span> for the platform default). Hex is most predictable across operating systems.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- FILE DIALOGS ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 35</div>
+        <div class="slide-title">File Dialogs: <span class="accent">filedialog</span></div>
+        <div class="slide-subtitle">Let the user navigate the filesystem with a native open/save dialog.</div>
+
+        <div class="code-block"><span class="cm"># filedialog_demo.py  --  open and save dialogs for file-based IT tools</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+<span class="kw">from</span> tkinter <span class="kw">import</span> filedialog, messagebox
+
+<span class="kw">def</span> <span class="fn">open_log_file</span>():
+    <span class="cm"># askopenfilename() returns the selected path as a string
+    # Returns "" if the user cancels -- always check for empty string</span>
+    path = filedialog.<span class="fn">askopenfilename</span>(
+        title=<span class="st">"Select a Log File"</span>,
+        filetypes=[(<span class="st">"Log files"</span>, <span class="st">"*.log"</span>), (<span class="st">"Text files"</span>, <span class="st">"*.txt"</span>), (<span class="st">"All files"</span>, <span class="st">"*.*"</span>)]
+    )
+    <span class="kw">if not</span> path:
+        <span class="kw">return</span>   <span class="cm"># user cancelled</span>
+    <span class="kw">with</span> <span class="fn">open</span>(path, <span class="st">"r"</span>) <span class="kw">as</span> f:
+        content = f.<span class="fn">read</span>()
+    txt_content.<span class="fn">delete</span>(<span class="st">"1.0"</span>, tk.END)
+    txt_content.<span class="fn">insert</span>(<span class="st">"1.0"</span>, content)
+    lbl_path.<span class="fn">config</span>(text=path)
+
+<span class="kw">def</span> <span class="fn">save_output</span>():
+    <span class="cm"># asksaveasfilename() returns the chosen path or "" if cancelled</span>
+    path = filedialog.<span class="fn">asksaveasfilename</span>(
+        defaultextension=<span class="st">".txt"</span>,
+        filetypes=[(<span class="st">"Text files"</span>, <span class="st">"*.txt"</span>), (<span class="st">"All files"</span>, <span class="st">"*.*"</span>)]
+    )
+    <span class="kw">if not</span> path:
+        <span class="kw">return</span>
+    content = txt_content.<span class="fn">get</span>(<span class="st">"1.0"</span>, tk.END)
+    <span class="kw">with</span> <span class="fn">open</span>(path, <span class="st">"w"</span>) <span class="kw">as</span> f:
+        f.<span class="fn">write</span>(content)
+    messagebox.<span class="fn">showinfo</span>(<span class="st">"Saved"</span>, <span class="st">f"File saved to:\n{path}"</span>)
+
+root = tk.<span class="fn">Tk</span>()
+root.<span class="fn">title</span>(<span class="st">"File Dialog Demo"</span>)
+root.<span class="fn">geometry</span>(<span class="st">"560x320"</span>)
+
+lbl_path = tk.<span class="fn">Label</span>(root, text=<span class="st">"No file selected"</span>, fg=<span class="st">"#64748b"</span>, anchor=<span class="st">"w"</span>)
+lbl_path.<span class="fn">pack</span>(fill=tk.X, padx=<span class="nb">10</span>, pady=<span class="nb">4</span>)
+txt_content = tk.<span class="fn">Text</span>(root, font=(<span class="st">"Courier New"</span>, <span class="nb">9</span>))
+txt_content.<span class="fn">pack</span>(fill=tk.BOTH, expand=<span class="kw">True</span>, padx=<span class="nb">10</span>)
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Open"</span>, command=open_log_file).<span class="fn">pack</span>(side=tk.LEFT, padx=<span class="nb">10</span>, pady=<span class="nb">6</span>)
+tk.<span class="fn">Button</span>(root, text=<span class="st">"Save"</span>, command=save_output).<span class="fn">pack</span>(side=tk.LEFT)
+
+root.<span class="fn">mainloop</span>()</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- IT SCENARIO: PING TOOL ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 35 &nbsp;|&nbsp; Real IT Application</div>
+        <div class="slide-title">IT Scenario: <span class="accent">GUI Ping Tool</span></div>
+        <div class="slide-subtitle">Run a system ping command from a GUI, display results in a Text widget.</div>
+
+        <div class="scenario-strip">
+            A help desk technician needs to test reachability from their workstation. You build them a tool with a text field for the IP, a Ping button, and an output area that shows the results -- no terminal needed.
+        </div>
+
+        <div class="code-block"><span class="cm"># ping_tool.py  --  GUI wrapper around the system ping command</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+<span class="kw">from</span> tkinter <span class="kw">import</span> messagebox
+<span class="kw">import</span> subprocess, threading, platform
+
+<span class="kw">class</span> <span class="fn">PingTool</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="kw">self</span>, root):
+        <span class="kw">self</span>.root = root
+        <span class="kw">self</span>.root.<span class="fn">title</span>(<span class="st">"Ping Tool"</span>)
+        <span class="kw">self</span>.root.<span class="fn">geometry</span>(<span class="st">"520x380"</span>)
+        <span class="kw">self</span>.<span class="fn">_build_ui</span>()
+
+    <span class="kw">def</span> <span class="fn">_build_ui</span>(<span class="kw">self</span>):
+        frame_top = tk.<span class="fn">Frame</span>(<span class="kw">self</span>.root)
+        frame_top.<span class="fn">pack</span>(fill=tk.X, padx=<span class="nb">10</span>, pady=<span class="nb">8</span>)
+        tk.<span class="fn">Label</span>(frame_top, text=<span class="st">"Target:"</span>).<span class="fn">pack</span>(side=tk.LEFT)
+        <span class="kw">self</span>.entry = tk.<span class="fn">Entry</span>(frame_top, width=<span class="nb">24</span>)
+        <span class="kw">self</span>.entry.<span class="fn">pack</span>(side=tk.LEFT, padx=<span class="nb">8</span>)
+        <span class="kw">self</span>.entry.<span class="fn">insert</span>(<span class="nb">0</span>, <span class="st">"192.168.1.1"</span>)
+        tk.<span class="fn">Button</span>(frame_top, text=<span class="st">"Ping"</span>, command=<span class="kw">self</span>.start_ping).<span class="fn">pack</span>(side=tk.LEFT)
+        tk.<span class="fn">Button</span>(frame_top, text=<span class="st">"Clear"</span>, command=<span class="kw">self</span>.clear).<span class="fn">pack</span>(side=tk.LEFT, padx=<span class="nb">6</span>)
+
+        <span class="kw">self</span>.txt = tk.<span class="fn">Text</span>(<span class="kw">self</span>.root, bg=<span class="st">"#0a0a12"</span>, fg=<span class="st">"#e2e8f0"</span>,
+                          font=(<span class="st">"Courier New"</span>, <span class="nb">10</span>), wrap=tk.WORD)
+        <span class="kw">self</span>.txt.<span class="fn">pack</span>(fill=tk.BOTH, expand=<span class="kw">True</span>, padx=<span class="nb">10</span>, pady=<span class="nb">4</span>)
+
+    <span class="kw">def</span> <span class="fn">start_ping</span>(<span class="kw">self</span>):
+        host = <span class="kw">self</span>.entry.<span class="fn">get</span>().<span class="fn">strip</span>()
+        <span class="kw">if not</span> host:
+            messagebox.<span class="fn">showwarning</span>(<span class="st">"Input"</span>, <span class="st">"Enter a hostname or IP."</span>)
+            <span class="kw">return</span>
+        <span class="cm"># Run in a background thread so the UI does not freeze</span>
+        threading.<span class="fn">Thread</span>(target=<span class="kw">self</span>.run_ping, args=(host,), daemon=<span class="kw">True</span>).<span class="fn">start</span>()
+
+    <span class="kw">def</span> <span class="fn">run_ping</span>(<span class="kw">self</span>, host):
+        <span class="cm"># -n 4 on Windows, -c 4 on Linux/macOS</span>
+        flag = <span class="st">"-n"</span> <span class="kw">if</span> platform.<span class="fn">system</span>() == <span class="st">"Windows"</span> <span class="kw">else</span> <span class="st">"-c"</span>
+        result = subprocess.<span class="fn">run</span>(
+            [<span class="st">"ping"</span>, flag, <span class="st">"4"</span>, host],
+            capture_output=<span class="kw">True</span>, text=<span class="kw">True</span>
+        )
+        output = result.stdout + result.stderr
+        <span class="cm"># after() schedules a UI update from the main thread (thread-safe)</span>
+        <span class="kw">self</span>.root.<span class="fn">after</span>(<span class="nb">0</span>, <span class="kw">self</span>.show_output, output)
+
+    <span class="kw">def</span> <span class="fn">show_output</span>(<span class="kw">self</span>, output):
+        <span class="kw">self</span>.txt.<span class="fn">insert</span>(tk.END, output + <span class="st">"\n"</span>)
+        <span class="kw">self</span>.txt.<span class="fn">see</span>(tk.END)
+
+    <span class="kw">def</span> <span class="fn">clear</span>(<span class="kw">self</span>):
+        <span class="kw">self</span>.txt.<span class="fn">delete</span>(<span class="st">"1.0"</span>, tk.END)
+
+<span class="kw">if</span> __name__ == <span class="st">"__main__"</span>:
+    root = tk.<span class="fn">Tk</span>()
+    <span class="fn">PingTool</span>(root)
+    root.<span class="fn">mainloop</span>()</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- IT SCENARIO: LOG VIEWER ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 35 &nbsp;|&nbsp; Real IT Application</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Log File Viewer</span></div>
+        <div class="slide-subtitle">Open a log file, display it, search for keywords, highlight results.</div>
+
+        <div class="scenario-strip">
+            A sysadmin needs to review auth.log for failed SSH attempts. You build a viewer that opens any log file, displays it in a scrollable text area, and lets them search for specific strings -- all without leaving Python.
+        </div>
+
+        <div class="code-block"><span class="cm"># log_viewer.py  --  file open + Text widget + search with tag highlighting</span>
+<span class="kw">import</span> tkinter <span class="kw">as</span> tk
+<span class="kw">from</span> tkinter <span class="kw">import</span> filedialog
+
+<span class="kw">class</span> <span class="fn">LogViewer</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="kw">self</span>, root):
+        <span class="kw">self</span>.root = root
+        <span class="kw">self</span>.root.<span class="fn">title</span>(<span class="st">"Log Viewer"</span>)
+        <span class="kw">self</span>.root.<span class="fn">geometry</span>(<span class="st">"700x460"</span>)
+        <span class="kw">self</span>.<span class="fn">_build_ui</span>()
+
+    <span class="kw">def</span> <span class="fn">_build_ui</span>(<span class="kw">self</span>):
+        frame_top = tk.<span class="fn">Frame</span>(<span class="kw">self</span>.root)
+        frame_top.<span class="fn">pack</span>(fill=tk.X, padx=<span class="nb">8</span>, pady=<span class="nb">6</span>)
+        tk.<span class="fn">Button</span>(frame_top, text=<span class="st">"Open File"</span>,
+                  command=<span class="kw">self</span>.open_file).<span class="fn">pack</span>(side=tk.LEFT)
+
+        tk.<span class="fn">Label</span>(frame_top, text=<span class="st">"Search:"</span>).<span class="fn">pack</span>(side=tk.LEFT, padx=(<span class="nb">16</span>, <span class="nb">4</span>))
+        <span class="kw">self</span>.entry_search = tk.<span class="fn">Entry</span>(frame_top, width=<span class="nb">22</span>)
+        <span class="kw">self</span>.entry_search.<span class="fn">pack</span>(side=tk.LEFT)
+        <span class="kw">self</span>.entry_search.<span class="fn">bind</span>(<span class="st">"&lt;Return&gt;"</span>, <span class="kw">lambda</span> e: <span class="kw">self</span>.<span class="fn">search</span>())
+        tk.<span class="fn">Button</span>(frame_top, text=<span class="st">"Find"</span>,
+                  command=<span class="kw">self</span>.search).<span class="fn">pack</span>(side=tk.LEFT, padx=<span class="nb">4</span>)
+        tk.<span class="fn">Button</span>(frame_top, text=<span class="st">"Clear Highlights"</span>,
+                  command=<span class="kw">self</span>.clear_highlights).<span class="fn">pack</span>(side=tk.LEFT, padx=<span class="nb">4</span>)
+
+        frame_text = tk.<span class="fn">Frame</span>(<span class="kw">self</span>.root)
+        frame_text.<span class="fn">pack</span>(fill=tk.BOTH, expand=<span class="kw">True</span>, padx=<span class="nb">8</span>, pady=<span class="nb">4</span>)
+        sb = tk.<span class="fn">Scrollbar</span>(frame_text)
+        sb.<span class="fn">pack</span>(side=tk.RIGHT, fill=tk.Y)
+        <span class="kw">self</span>.txt = tk.<span class="fn">Text</span>(frame_text, yscrollcommand=sb.<span class="fn">set</span>,
+                          font=(<span class="st">"Courier New"</span>, <span class="nb">9</span>), bg=<span class="st">"#0a0a12"</span>, fg=<span class="st">"#e2e8f0"</span>)
+        <span class="kw">self</span>.txt.<span class="fn">pack</span>(fill=tk.BOTH, expand=<span class="kw">True</span>)
+        sb.<span class="fn">config</span>(command=<span class="kw">self</span>.txt.<span class="fn">yview</span>)
+        <span class="cm"># Tag for highlighting search results -- yellow bg</span>
+        <span class="kw">self</span>.txt.<span class="fn">tag_configure</span>(<span class="st">"highlight"</span>, background=<span class="st">"#c9a83a"</span>, foreground=<span class="st">"black"</span>)
+
+    <span class="kw">def</span> <span class="fn">open_file</span>(<span class="kw">self</span>):
+        path = filedialog.<span class="fn">askopenfilename</span>(
+            filetypes=[(<span class="st">"Log files"</span>, <span class="st">"*.log"</span>), (<span class="st">"Text"</span>, <span class="st">"*.txt"</span>), (<span class="st">"All"</span>, <span class="st">"*.*"</span>)])
+        <span class="kw">if not</span> path: <span class="kw">return</span>
+        <span class="kw">with</span> <span class="fn">open</span>(path, <span class="st">"r"</span>, errors=<span class="st">"replace"</span>) <span class="kw">as</span> f:
+            content = f.<span class="fn">read</span>()
+        <span class="kw">self</span>.txt.<span class="fn">delete</span>(<span class="st">"1.0"</span>, tk.END)
+        <span class="kw">self</span>.txt.<span class="fn">insert</span>(<span class="st">"1.0"</span>, content)
+        <span class="kw">self</span>.root.<span class="fn">title</span>(<span class="st">f"Log Viewer -- {path}"</span>)
+
+    <span class="kw">def</span> <span class="fn">search</span>(<span class="kw">self</span>):
+        keyword = <span class="kw">self</span>.entry_search.<span class="fn">get</span>().<span class="fn">strip</span>()
+        <span class="kw">if not</span> keyword: <span class="kw">return</span>
+        <span class="kw">self</span>.<span class="fn">clear_highlights</span>()
+        start = <span class="st">"1.0"</span>
+        count = <span class="nb">0</span>
+        <span class="kw">while</span> <span class="kw">True</span>:
+            pos = <span class="kw">self</span>.txt.<span class="fn">search</span>(keyword, start, stopindex=tk.END)
+            <span class="kw">if not</span> pos: <span class="kw">break</span>
+            end = <span class="st">f"{pos}+{len(keyword)}c"</span>
+            <span class="kw">self</span>.txt.<span class="fn">tag_add</span>(<span class="st">"highlight"</span>, pos, end)
+            start = end
+            count += <span class="nb">1</span>
+        <span class="kw">self</span>.root.<span class="fn">title</span>(<span class="st">f"Log Viewer -- {count} match(es) for '{keyword}'"</span>)
+
+    <span class="kw">def</span> <span class="fn">clear_highlights</span>(<span class="kw">self</span>):
+        <span class="kw">self</span>.txt.<span class="fn">tag_remove</span>(<span class="st">"highlight"</span>, <span class="st">"1.0"</span>, tk.END)
+
+<span class="kw">if</span> __name__ == <span class="st">"__main__"</span>:
+    root = tk.<span class="fn">Tk</span>()
+    <span class="fn">LogViewer</span>(root)
+    root.<span class="fn">mainloop</span>()</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 -- COMMON MISTAKES ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 35</div>
+        <div class="slide-title">Common <span class="accent">Mistakes</span></div>
+        <div class="slide-subtitle">Three categories of errors that catch every Tkinter beginner. Know them before you hit them.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Calling Instead of Referencing</div>
+                <div class="card-desc">
+                    <strong>Wrong:</strong> <span class="ic">command=my_func()</span> -- calls the function right now at widget creation, not on click.<br>
+                    <strong>Right:</strong> <span class="ic">command=my_func</span> -- passes the function object.<br>
+                    If you need to pass arguments: <span class="ic">command=lambda: my_func(arg)</span>.<br>
+                    This is the single most common Tkinter error.
+                </div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Blocking mainloop()</div>
+                <div class="card-desc">
+                    Any long-running code in a callback (sleep, file download, network call) freezes the entire UI. The window stops responding until the operation finishes.<br>
+                    <strong>Fix:</strong> Run slow operations in a <span class="ic">threading.Thread</span> (as shown in the ping tool). Use <span class="ic">root.after()</span> to schedule UI updates from the main thread after the thread finishes.
+                </div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Mixing Layout Managers</div>
+                <div class="card-desc">
+                    Using <span class="ic">pack()</span> and <span class="ic">grid()</span> in the same parent container causes Tkinter to deadlock -- the window appears but all widgets vanish or freeze.<br>
+                    <strong>Fix:</strong> Pick one manager per container. Use <span class="ic">Frame</span> widgets to create isolated sub-containers with their own layout managers.
+                </div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Widget Not Visible</div>
+                <div class="card-desc">You created a widget but forgot to call <span class="ic">.pack()</span>, <span class="ic">.grid()</span>, or <span class="ic">.place()</span>. Tkinter does not show widgets that have not been placed. No error is raised -- the widget just does not appear.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Updating UI from a Thread</div>
+                <div class="card-desc">Tkinter is not thread-safe. Calling <span class="ic">widget.config()</span> directly from a worker thread can corrupt the widget state. Always use <span class="ic">root.after(0, update_function, data)</span> to schedule UI updates from the main event loop thread.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 -- PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 35 &nbsp;|&nbsp; Practice</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Four exercises building from simple to complex. Build each as a class-based application.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Exercise 1 -- GUI Calculator (Warm-Up)</div>
+                <div class="card-desc">
+                    Extend the calculator from Slide 25. Add a backspace button that removes the last character. Add a +/- toggle button that negates the current number. Add keyboard binding so pressing number keys also inputs digits (bind on the root window).<br>
+                    <strong>Files:</strong> calculator_extended.py
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Exercise 2 -- Unit Converter</div>
+                <div class="card-desc">
+                    Build a tool that converts between units. Use Radiobuttons to select the conversion type (Celsius/Fahrenheit, Miles/Kilometers, GB/MB). Entry for input value, Label for result, Button to convert. Validate input: show a messagebox if the user enters a non-numeric value.<br>
+                    <strong>Files:</strong> unit_converter.py
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Exercise 3 -- Text Editor</div>
+                <div class="card-desc">
+                    Build a minimal text editor with a menu bar: File &gt; New, Open, Save, Exit. Help &gt; About. A full-window Text widget for content. A status bar label at the bottom showing the current file path. Track "unsaved changes" -- prompt the user before closing if changes exist.<br>
+                    <strong>Files:</strong> text_editor.py
+                </div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Exercise 4 -- IT Quiz App (Challenge)</div>
+                <div class="card-desc">
+                    Load questions from a list of dicts (question, choices, answer). Display one question at a time with Radiobuttons for choices. Next button advances. Show a score summary at the end. Bonus: shuffle the question order using <span class="ic">random.shuffle()</span>.<br>
+                    <strong>Files:</strong> quiz_app.py
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Standards for all exercises:</strong> Use class-based architecture. Comment every method. Validate all user input -- never let bad data reach a conversion or calculation. Test with at least three different inputs. Submit the .py file with your name and the date in a comment at the top.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 -- KEY VOCABULARY ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 35</div>
+        <div class="slide-title">Key <span class="accent">Vocabulary</span></div>
+        <div class="slide-subtitle">Know these terms. They appear in documentation, interviews, and code review.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Core Concepts</div>
+                <div class="card-desc">
+                    <strong>GUI</strong> -- Graphical User Interface. Visual elements the user interacts with directly.<br>
+                    <strong>Widget</strong> -- a single UI element: button, label, entry, listbox, menu.<br>
+                    <strong>Event</strong> -- an action that occurs in the UI: click, key press, window resize.<br>
+                    <strong>Event Loop</strong> -- the continuous cycle that watches for events and dispatches them to handlers.<br>
+                    <strong>Callback</strong> -- a function that runs in response to an event.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Tkinter-Specific</div>
+                <div class="card-desc">
+                    <strong>mainloop()</strong> -- starts the event loop; blocks until the window closes.<br>
+                    <strong>pack()</strong> -- geometry manager that stacks widgets in order.<br>
+                    <strong>grid()</strong> -- geometry manager using row/column coordinates.<br>
+                    <strong>place()</strong> -- geometry manager using absolute pixel coordinates.<br>
+                    <strong>Frame</strong> -- an invisible container used to group and isolate widgets.<br>
+                    <strong>StringVar / IntVar</strong> -- observable variable classes that trigger UI updates on change.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Patterns and Techniques</div>
+                <div class="card-desc">
+                    <strong>command=</strong> -- attribute that binds a widget to a zero-argument callback.<br>
+                    <strong>bind()</strong> -- method that attaches keyboard or mouse events to any widget.<br>
+                    <strong>lambda</strong> -- anonymous function used to pass arguments through command=.<br>
+                    <strong>textvariable=</strong> -- binds a widget's text to a StringVar for live updates.<br>
+                    <strong>tearoff=0</strong> -- disables the detachable menu option in Menu widgets.<br>
+                    <strong>after()</strong> -- schedules a function call on the main thread after n milliseconds.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Study method:</strong> For each term, write one sentence explaining when you would use it and one sentence explaining what breaks if you misuse it. For example: "mainloop() starts the event loop -- if you forget it, the window appears and immediately disappears." That level of specificity is what sticks.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 -- SUMMARY + MARK COMPLETE ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 35 &nbsp;|&nbsp; COP1034C Obj 7</div>
+        <div class="slide-title">Day 10 Summary: <span class="accent">Key Takeaways</span></div>
+
+        <div class="scenario-strip">
+            You started today writing tools that only a developer could use. You end it with the skills to wrap any Python logic in a window with buttons, forms, menus, and file dialogs that any user can operate. The ping tool from Slide 29 and the log viewer from Slide 30 are production-quality IT utilities. The OOP foundation from Day 9 made both of them clean, readable, and maintainable.
+        </div>
+
+        <div class="section-label">8 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">GUI programs are <strong>event-driven</strong>. You set up widgets, call <code>mainloop()</code>, and then respond to user actions. Code does not run top-to-bottom -- it runs when events fire.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>Tkinter</strong> ships with Python. <code>import tkinter as tk</code> is all you need. Verify with <code>python3 -m tkinter</code>. No pip install required.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Core widgets: <code>Label</code> (display), <code>Button</code> (click), <code>Entry</code> (single-line input), <code>Text</code> (multi-line), <code>Listbox</code> (selection list), <code>Checkbutton</code>, <code>Radiobutton</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Three layout managers: <code>pack()</code> for stacks, <code>grid()</code> for forms and grids, <code>place()</code> for exact pixel positioning. <strong>Never mix pack() and grid() in the same container.</strong></span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><code>command=func</code> not <code>command=func()</code>. The parentheses call immediately. Use <code>lambda: func(arg)</code> to pass arguments. In loops, use <code>lambda x=val: func(x)</code> to capture values.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text"><strong>Class-based architecture</strong>: <code>__init__</code> builds the UI, methods are the callbacks, <code>self</code> holds all widget references. This is the professional pattern. Every real application uses it.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Long operations (network calls, file reads) must run in a <code>threading.Thread</code>. Use <code>root.after(0, update_fn, data)</code> to push results back to the UI thread safely.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text"><code>filedialog</code> for open/save, <code>messagebox</code> for popups, <code>Menu</code> for menu bars. All are in <code>tkinter</code> -- import them from <code>from tkinter import filedialog, messagebox</code>.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Python for IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 35</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* ── Slide navigation state ── */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 35;
+
+    function goToSlide(n) {
+        /* Boundary check */
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Deactivate the currently visible slide */
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        /* Activate the target slide */
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update the gold progress bar at the top */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        /* Update the slide counter label in the nav bar */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Disable Prev on slide 1, Next on last slide */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show Mark Complete button only on the final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard arrow key navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize to slide 1 on page load */
+    goToSlide(1);
+</script>
+
+<script>
+    /* ── Module completion via ModuleProgress component ── */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('code', 'pfi-w4-gui', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<!-- Accessibility enhancements: focus management and ARIA live regions -->
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

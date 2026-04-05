@@ -1,0 +1,1649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Functions: Design, Scope &amp; Parameters | Python for IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container — fixed to viewport, hidden by default */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Max-width wrapper so content does not stretch on wide screens */
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Gold progress bar across the very top */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button — shown only on last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip for scenario or instructor notes */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids — 3-column and 2-column */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        /* Section label — small caps divider text */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Python code block with syntax color spans */
+        .code-block {
+            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #c9a83a; }   /* keywords: def, return, lambda, global, None, True, False, if, for, import */
+        .code-block .fn { color: #06b6d4; }   /* built-in functions and user-defined function names at call site */
+        .code-block .st { color: #3ab577; }   /* string literals */
+        .code-block .cm { color: #475569; }   /* inline comments */
+        .code-block .nb { color: #f472b6; }   /* numeric and boolean literals */
+        .code-block .er { color: #ef4444; }   /* error output lines */
+
+        /* Inline code span used inside card-desc and fact-text */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+    <script src="../../../../components/TryItNow.js"></script>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Functions: Design, Scope & Parameters</h1>
+
+
+<!-- Gold progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:2.94%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 36 &nbsp;|&nbsp; COP1034C Obj 4 &nbsp;|&nbsp; Day 7 of 12</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Python for IT: Day 7<br>
+                <span class="accent">Functions: Design, Scope &amp; Parameters</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                DRY Principle &nbsp;&bull;&nbsp; Parameters &amp; Arguments &nbsp;&bull;&nbsp; Scope &amp; LEGB &nbsp;&bull;&nbsp; Lambda &nbsp;&bull;&nbsp; Recursion
+            </div>
+        </div>
+        <div class="scenario-strip">
+            You have been writing Python for two weeks. You have an IP validation script, a log parser, a port scanner, and a disk-space checker. Every one of them has a nearly identical block that validates an IP address. You have copied and pasted it five times. When you found a bug in it last Tuesday, you had to fix it in five places. Today that ends. Today you write it once, name it, and call it everywhere.
+        </div>
+        <div class="title-meta-row">
+            <span>36 Slides</span>
+            <span>COP1034C Obj 4</span>
+            <span>Day 7 of 12</span>
+            <span>Lambert Ch 5-6</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — WHAT IS A FUNCTION ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 36</div>
+        <div class="slide-title">What Is a <span class="accent">Function?</span></div>
+        <div class="slide-subtitle">A reusable, named block of code. Write it once. Call it anywhere.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">The Core Idea</div>
+                <div class="card-desc">A function groups a set of statements under a single name. When you need that behavior, you call the name instead of rewriting the statements. The function runs, then execution returns to where you called it from. Every call is independent.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">DRY: Don't Repeat Yourself</div>
+                <div class="card-desc">The most important software engineering principle in this course. If you find yourself writing the same code in two places, that code should be a function. When the logic changes or a bug is found, you fix it in exactly one place. DRY code is easier to test, debug, and maintain.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Functions You Already Know</div>
+                <div class="card-desc"><span class="ic">print()</span>, <span class="ic">input()</span>, <span class="ic">len()</span>, <span class="ic">range()</span>, <span class="ic">int()</span>, <span class="ic">str()</span> — these are all functions. They were written once by Python's authors and placed in the standard library. Every time you call them you are reusing someone else's well-tested code. Today you write your own.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Before Functions: The Copy-Paste Trap</div>
+                <div class="card-desc">A 200-line script with IP validation logic at lines 12, 58, 103, 147, and 188. A bug is found on line 12. You fix three copies. You miss two. Your scanner now behaves differently depending on which code path runs. This is how production incidents happen — not from clever attacks, from avoidable repetition.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">After Functions: The Professional Way</div>
+                <div class="card-desc">A 50-line script. <span class="ic">validate_ip()</span> defined once at the top. Called in five places. A bug is found. You fix one line. Every call site gets the fix automatically. The script is smaller, readable, and testable. This is professional code.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — DEFINING FUNCTIONS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 36</div>
+        <div class="slide-title">Defining Functions: <span class="accent">def, Name, Colon, Body</span></div>
+        <div class="slide-subtitle">Four parts. Every function definition uses all four.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">The def Keyword</div>
+                <div class="card-desc"><span class="ic">def</span> tells Python "a function definition is starting." It must be the first token on the line. Python does not run the function body when it sees <span class="ic">def</span> — it only registers that the function exists and records its body for later. Nothing executes until you call the function.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Naming Rules</div>
+                <div class="card-desc">Function names follow the same rules as variable names: <span class="ic">snake_case</span>, start with a letter or underscore, no spaces or hyphens. Name functions as verbs that describe what they do: <span class="ic">validate_ip</span>, <span class="ic">parse_log</span>, <span class="ic">check_port</span>. A good name makes calls read like English sentences.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">The Colon and Body</div>
+                <div class="card-desc">The colon ends the header line. Everything indented below it (4 spaces, PEP 8) is the body. The body ends when indentation returns to the previous level. An empty body is a syntax error — use <span class="ic">pass</span> as a placeholder if the function is not yet implemented.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Anatomy of a function definition</span>
+<span class="cm">#          name           parentheses   colon</span>
+<span class="cm">#           |                  |          |</span>
+<span class="kw">def</span> <span class="fn">greet_user</span>():
+    <span class="cm"># body — 4-space indent required by PEP 8</span>
+    <span class="fn">print</span>(<span class="st">"Hello, IT student"</span>)
+    <span class="fn">print</span>(<span class="st">"Welcome to Day 7"</span>)
+
+<span class="cm"># Nothing happened above — we only defined the function.</span>
+<span class="cm"># To execute the body, call it by name with parentheses:</span>
+<span class="fn">greet_user</span>()    <span class="cm"># Hello, IT student</span>
+                <span class="cm"># Welcome to Day 7</span>
+
+<span class="cm"># Placeholder for a function you plan to write later</span>
+<span class="kw">def</span> <span class="fn">scan_network</span>():
+    <span class="kw">pass</span>    <span class="cm"># valid syntax, does nothing yet — prevents SyntaxError on empty body</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — CALLING FUNCTIONS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 36</div>
+        <div class="slide-title">Calling Functions: <span class="accent">Making Things Happen</span></div>
+        <div class="slide-subtitle">Defining a function is a promise. Calling it is cashing that promise.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">How a Call Works</div>
+                <div class="card-desc">When Python reaches a function call, it pauses the current line, jumps to the function body, runs every line in the body top to bottom, then returns to the exact point where the call was made and continues. The parentheses are required — they trigger execution. Without them, you reference the function object but do not invoke it.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Define Before You Call</div>
+                <div class="card-desc">Python reads files top to bottom. If you call a function on line 5 but define it on line 20, Python raises a <span class="ic">NameError</span> because the name does not exist yet at line 5. Convention: put all function definitions near the top of your script, then call them below. Or use a <span class="ic">main()</span> pattern where all definitions come first and only the final line executes anything.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Define the functions first</span>
+<span class="kw">def</span> <span class="fn">show_banner</span>():
+    <span class="fn">print</span>(<span class="st">"================================"</span>)
+    <span class="fn">print</span>(<span class="st">"  Network Utility v1.0           "</span>)
+    <span class="fn">print</span>(<span class="st">"================================"</span>)
+
+<span class="kw">def</span> <span class="fn">show_menu</span>():
+    <span class="fn">print</span>(<span class="st">"1. Ping check"</span>)
+    <span class="fn">print</span>(<span class="st">"2. Port scan"</span>)
+    <span class="fn">print</span>(<span class="st">"3. Log parser"</span>)
+
+<span class="cm"># Call them — each call runs the body independently</span>
+<span class="fn">show_banner</span>()    <span class="cm"># runs all 3 print statements in show_banner</span>
+<span class="fn">show_menu</span>()      <span class="cm"># runs all 3 print statements in show_menu</span>
+<span class="fn">show_banner</span>()    <span class="cm"># called a second time — identical output, completely independent</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>function_name vs function_name():</strong> <span class="ic">show_banner</span> is the function object — a value you could assign to a variable or pass as an argument. <span class="ic">show_banner()</span> is the call that executes it. This distinction is critical for higher-order functions on Slide 25.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — PARAMETERS VS ARGUMENTS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 36</div>
+        <div class="slide-title">Parameters vs <span class="accent">Arguments</span></div>
+        <div class="slide-subtitle">Two words that describe the same slot at different moments in time.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Parameter — At Definition Time</div>
+                <div class="card-desc">A parameter is the named placeholder in the function header. It lives inside the parentheses of the <span class="ic">def</span> line. When you write <span class="ic">def greet(name):</span>, the word <span class="ic">name</span> is a parameter. It has no value yet — it is a slot waiting to receive one. Parameters describe what the function expects to receive when called.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Argument — At Call Time</div>
+                <div class="card-desc">An argument is the actual value you pass when calling the function. When you write <span class="ic">greet("Alice")</span>, the string <span class="ic">"Alice"</span> is the argument. Python binds the argument to the parameter — <span class="ic">name</span> now refers to <span class="ic">"Alice"</span> for the duration of that call. When the call ends, the binding is destroyed.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># name and port are PARAMETERS (placeholders in the function header)</span>
+<span class="kw">def</span> <span class="fn">check_connection</span>(name, port):
+    <span class="fn">print</span>(<span class="st">f"Checking {name} on port {port}"</span>)
+
+<span class="cm"># "web01" and 443 are ARGUMENTS (actual values passed at call time)</span>
+<span class="fn">check_connection</span>(<span class="st">"web01"</span>, <span class="nb">443</span>)   <span class="cm"># Checking web01 on port 443</span>
+<span class="fn">check_connection</span>(<span class="st">"db02"</span>, <span class="nb">5432</span>)  <span class="cm"># Checking db02 on port 5432</span>
+<span class="fn">check_connection</span>(<span class="st">"fw01"</span>, <span class="nb">22</span>)    <span class="cm"># Checking fw01 on port 22</span>
+
+<span class="cm"># Same function definition, three different calls, three different outputs</span>
+<span class="cm"># The function body is written once but serves any host/port combination</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Memory trick:</strong> <strong>P</strong>arameter = <strong>P</strong>laceholder (in the definition). <strong>A</strong>rgument = <strong>A</strong>ctual value (in the call). Python error messages use these words precisely: "missing 1 required positional argument" means you called the function without supplying all required argument values.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — POSITIONAL ARGUMENTS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 36</div>
+        <div class="slide-title">Positional Arguments: <span class="accent">Order Matters</span></div>
+        <div class="slide-subtitle">Arguments are matched to parameters by their position in the list — first to first, second to second.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">How Position Works</div>
+                <div class="card-desc">The first argument binds to the first parameter, the second to the second, and so on. Python does not look at names — it counts positions. If you have three parameters and call with three arguments in the wrong order, Python will not warn you. You will get wrong results silently. Order errors are one of the most common and hardest-to-spot bugs in function calls.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The Silent Wrong-Order Bug</div>
+                <div class="card-desc">If your function is <span class="ic">def transfer(src, dst, port):</span> and you call <span class="ic">transfer(dst, src, port)</span>, Python silently receives swapped values and proceeds. No error. Wrong behavior. This is why positional arguments should be limited to 2-3 at most — once you have more than 3, the probability of a caller getting the order wrong rises sharply.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Parameters defined in order: name, age, role</span>
+<span class="kw">def</span> <span class="fn">create_user</span>(name, age, role):
+    <span class="fn">print</span>(<span class="st">f"User: {name} | Age: {age} | Role: {role}"</span>)
+
+<span class="cm"># Correct: arguments matched by position — "Alice"->name, 30->age, "admin"->role</span>
+<span class="fn">create_user</span>(<span class="st">"Alice"</span>, <span class="nb">30</span>, <span class="st">"admin"</span>)    <span class="cm"># User: Alice | Age: 30 | Role: admin</span>
+
+<span class="cm"># Wrong order — Python does not raise an error, the output is just wrong</span>
+<span class="fn">create_user</span>(<span class="st">"admin"</span>, <span class="st">"Alice"</span>, <span class="nb">30</span>)    <span class="cm"># User: admin | Age: Alice | Role: 30</span>
+                                        <span class="cm"># Silently incorrect — no error raised</span>
+
+<span class="cm"># Wrong count — this DOES raise a TypeError immediately</span>
+<span class="cm"># create_user("Alice", 30)</span>
+<span class="cm"># TypeError: create_user() missing 1 required positional argument: 'role'</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — KEYWORD ARGUMENTS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 36</div>
+        <div class="slide-title">Keyword Arguments: <span class="accent">Name the Values You Send</span></div>
+        <div class="slide-subtitle">Pass arguments by parameter name instead of position. Order no longer matters.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Syntax</div>
+                <div class="card-desc">Instead of relying on position, write <span class="ic">parameter_name=value</span> at the call site. Python matches each argument to its parameter by name, not by count-from-the-left. You can pass them in any order. Call sites become self-documenting — a reader does not need to look up the function definition to understand what each value is for.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why This Matters in IT Code</div>
+                <div class="card-desc">Consider <span class="ic">connect(host, port, timeout, use_ssl, retry)</span>. Calling it as <span class="ic">connect("10.0.0.1", 443, 30, True, 3)</span> is opaque — what does <span class="ic">True</span> mean? Calling it as <span class="ic">connect("10.0.0.1", port=443, timeout=30, use_ssl=True, retry=3)</span> is immediately readable. Six months later you will thank yourself. Your teammate will thank you today.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Function definition stays the same regardless of call style</span>
+<span class="kw">def</span> <span class="fn">create_user</span>(name, age, role):
+    <span class="fn">print</span>(<span class="st">f"User: {name} | Age: {age} | Role: {role}"</span>)
+
+<span class="cm"># Positional call — order matters</span>
+<span class="fn">create_user</span>(<span class="st">"Alice"</span>, <span class="nb">30</span>, <span class="st">"admin"</span>)
+
+<span class="cm"># Keyword call — order does NOT matter, names do</span>
+<span class="fn">create_user</span>(age=<span class="nb">30</span>, name=<span class="st">"Alice"</span>, role=<span class="st">"admin"</span>)    <span class="cm"># identical result</span>
+<span class="fn">create_user</span>(role=<span class="st">"admin"</span>, age=<span class="nb">30</span>, name=<span class="st">"Alice"</span>)    <span class="cm"># still identical</span>
+
+<span class="cm"># Practical IT example — keyword args make config calls readable</span>
+<span class="kw">def</span> <span class="fn">open_connection</span>(host, port, timeout, use_ssl):
+    <span class="fn">print</span>(<span class="st">f"Connecting to {host}:{port} ssl={use_ssl} timeout={timeout}s"</span>)
+
+<span class="fn">open_connection</span>(<span class="st">"192.168.1.1"</span>, port=<span class="nb">22</span>, timeout=<span class="nb">10</span>, use_ssl=<span class="kw">False</span>)
+<span class="cm"># Connecting to 192.168.1.1:22 ssl=False timeout=10s</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — DEFAULT PARAMETER VALUES ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 36</div>
+        <div class="slide-title">Default Parameter <span class="accent">Values</span></div>
+        <div class="slide-subtitle">Let callers skip arguments they do not need to override.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Syntax</div>
+                <div class="card-desc">Write <span class="ic">param=default_value</span> in the function header. If the caller provides that argument, the default is ignored and the supplied value is used. If the caller omits it, the default is used. This lets a function have sensible out-of-the-box behavior while remaining flexible for cases that need different values.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Critical Rule: Defaults Must Come Last</div>
+                <div class="card-desc">Parameters with defaults must appear after all parameters without defaults. <span class="ic">def f(a, b=5):</span> is valid. <span class="ic">def f(a=5, b):</span> is a <span class="ic">SyntaxError</span>. Python uses position to resolve arguments. Placing a required parameter after an optional one creates an ambiguity Python cannot resolve, so it refuses to parse the file at all.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Default values set in the function header</span>
+<span class="kw">def</span> <span class="fn">connect</span>(host, port=<span class="nb">22</span>, timeout=<span class="nb">10</span>, use_ssl=<span class="kw">False</span>):
+    <span class="fn">print</span>(<span class="st">f"Connecting {host}:{port} ssl={use_ssl} timeout={timeout}s"</span>)
+
+<span class="cm"># Supply only the required argument — defaults fill in the rest</span>
+<span class="fn">connect</span>(<span class="st">"192.168.1.10"</span>)            <span class="cm"># 192.168.1.10:22 ssl=False timeout=10s</span>
+
+<span class="cm"># Override one default, keep others</span>
+<span class="fn">connect</span>(<span class="st">"192.168.1.10"</span>, port=<span class="nb">443</span>)  <span class="cm"># 192.168.1.10:443 ssl=False timeout=10s</span>
+
+<span class="cm"># Override all defaults</span>
+<span class="fn">connect</span>(<span class="st">"10.0.0.1"</span>, port=<span class="nb">443</span>, timeout=<span class="nb">30</span>, use_ssl=<span class="kw">True</span>)
+
+<span class="cm"># SyntaxError — required parameter placed after the optional one</span>
+<span class="cm"># def bad(a=5, b):  # SyntaxError: non-default argument follows default argument</span>
+<span class="cm">#     pass</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — MIXING POSITIONAL AND KEYWORD ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 36</div>
+        <div class="slide-title">Mixing Positional <span class="accent">and Keyword</span></div>
+        <div class="slide-subtitle">You can use both styles in a single call. One absolute rule governs how they may be combined.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">The One Rule</div>
+                <div class="card-desc">Positional arguments must come before keyword arguments in a call. You cannot start with keyword arguments and then switch to positional — that is a <span class="ic">SyntaxError</span>. You also cannot supply the same argument twice: once positionally and once as a keyword results in a <span class="ic">TypeError: got multiple values for argument</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Common Pattern</div>
+                <div class="card-desc">Pass the first 1-2 most obvious arguments positionally — the ones any caller would know without looking up the definition. Use keyword arguments for all optional, boolean, or configuration-style parameters. This keeps calls concise while making every non-obvious value explicit at the call site.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">def</span> <span class="fn">scan_host</span>(host, port=<span class="nb">80</span>, protocol=<span class="st">"TCP"</span>, timeout=<span class="nb">5</span>, verbose=<span class="kw">False</span>):
+    <span class="fn">print</span>(<span class="st">f"Scanning {host}:{port} ({protocol}) verbose={verbose}"</span>)
+
+<span class="cm"># host positional, everything else as keyword — clear and readable</span>
+<span class="fn">scan_host</span>(<span class="st">"10.0.0.1"</span>, port=<span class="nb">443</span>, protocol=<span class="st">"TCP"</span>, verbose=<span class="kw">True</span>)
+
+<span class="cm"># host and port positional, rest as keyword — also valid</span>
+<span class="fn">scan_host</span>(<span class="st">"10.0.0.1"</span>, <span class="nb">443</span>, verbose=<span class="kw">True</span>)
+
+<span class="cm"># INVALID: keyword argument appears before a positional one</span>
+<span class="cm"># scan_host(host="10.0.0.1", 443)</span>
+<span class="cm"># SyntaxError: positional argument follows keyword argument</span>
+
+<span class="cm"># INVALID: same argument supplied twice</span>
+<span class="cm"># scan_host("10.0.0.1", host="10.0.0.2")</span>
+<span class="cm"># TypeError: scan_host() got multiple values for argument 'host'</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — *args ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 36</div>
+        <div class="slide-title">*args: Accept Any Number of <span class="accent">Positional Arguments</span></div>
+        <div class="slide-subtitle">When you do not know how many values the caller will pass — collect them all into a tuple.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">How *args Works</div>
+                <div class="card-desc">The <span class="ic">*</span> before a parameter name tells Python to collect all remaining positional arguments into a single tuple. The name <span class="ic">args</span> is a convention — you could write <span class="ic">*hosts</span> or <span class="ic">*ports</span> for clarity. Inside the function, it behaves exactly like a regular tuple: iterate it, index it, and measure it with <span class="ic">len()</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">When to Use It</div>
+                <div class="card-desc">When the number of inputs is genuinely variable by design. A function that pings multiple hosts, checks multiple ports, or logs multiple messages. If the number of inputs is always fixed, use explicit named parameters — that is clearer. Use <span class="ic">*args</span> only when variable count is part of the function's purpose, not just a shortcut to avoid thinking.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># *hosts collects all positional arguments into a tuple</span>
+<span class="kw">def</span> <span class="fn">ping_hosts</span>(*hosts):
+    <span class="fn">print</span>(<span class="st">f"Received {<span class="fn">len</span>(hosts)} hosts to check"</span>)
+    <span class="kw">for</span> host <span class="kw">in</span> hosts:
+        <span class="fn">print</span>(<span class="st">f"  Pinging {host}..."</span>)
+
+<span class="fn">ping_hosts</span>(<span class="st">"192.168.1.1"</span>)                             <span class="cm"># 1 host</span>
+<span class="fn">ping_hosts</span>(<span class="st">"192.168.1.1"</span>, <span class="st">"10.0.0.1"</span>, <span class="st">"172.16.0.5"</span>)  <span class="cm"># 3 hosts</span>
+
+<span class="cm"># Mix: required parameter first, *ports collects the rest</span>
+<span class="kw">def</span> <span class="fn">check_ports</span>(host, *ports):
+    <span class="cm"># host receives the first positional argument</span>
+    <span class="cm"># ports receives all remaining as a tuple</span>
+    <span class="kw">for</span> p <span class="kw">in</span> ports:
+        <span class="fn">print</span>(<span class="st">f"Checking {host}:{p}"</span>)
+
+<span class="fn">check_ports</span>(<span class="st">"10.0.0.1"</span>, <span class="nb">22</span>, <span class="nb">80</span>, <span class="nb">443</span>, <span class="nb">8080</span>)
+<span class="cm"># host = "10.0.0.1"  |  ports = (22, 80, 443, 8080)</span>
+<span class="cm"># Checking 10.0.0.1:22</span>
+<span class="cm"># Checking 10.0.0.1:80</span>
+<span class="cm"># Checking 10.0.0.1:443</span>
+<span class="cm"># Checking 10.0.0.1:8080</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — TRY IT NOW ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 36 &nbsp;|&nbsp; Try It Now</div>
+        <div class="slide-title">Try It Now: <span class="accent">Write a Function</span></div>
+        <div class="slide-subtitle">Define a function that validates an IP address format.</div>
+        <div class="try-it-now"
+             data-starter="# Write a function called is_valid_ip that takes a string&#10;# and returns True if it has exactly 4 parts separated by dots&#10;# (do not validate the numbers, just count the parts)&#10;"
+             data-solution="def is_valid_ip(ip):&#10;    parts = ip.split(&quot;.&quot;)&#10;    return len(parts) == 4&#10;&#10;print(is_valid_ip(&quot;10.0.1.1&quot;))&#10;print(is_valid_ip(&quot;10.0.1&quot;))&#10;print(is_valid_ip(&quot;not-an-ip&quot;))"
+             data-expected="True
+False
+False"
+             data-height="160">
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 12 — **kwargs ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 36</div>
+        <div class="slide-title">**kwargs: Accept Any Number of <span class="accent">Keyword Arguments</span></div>
+        <div class="slide-subtitle">When you do not know which named options the caller will pass — collect them all into a dict.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">How **kwargs Works</div>
+                <div class="card-desc">The <span class="ic">**</span> tells Python to collect all extra keyword arguments into a dictionary. Keys are the argument names as strings, values are the argument values. The name <span class="ic">kwargs</span> is conventional — you could write <span class="ic">**config</span> or <span class="ic">**options</span> for clarity. Inside the function, it is a plain dictionary with all the standard dict methods available.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">IT Use Case: Variable Config</div>
+                <div class="card-desc">Configuration functions that handle multiple protocol types. SSH, HTTPS, and SNMP each have different options. Rather than listing every possible option as a named parameter, accept <span class="ic">**kwargs</span> and let the caller pass whatever that protocol needs. Use <span class="ic">.get(key, default)</span> inside the function to retrieve specific settings with safe fallbacks.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># **settings collects all keyword arguments into a dict</span>
+<span class="kw">def</span> <span class="fn">configure_device</span>(hostname, **settings):
+    <span class="fn">print</span>(<span class="st">f"Configuring: {hostname}"</span>)
+    <span class="kw">for</span> key, value <span class="kw">in</span> settings.<span class="fn">items</span>():
+        <span class="fn">print</span>(<span class="st">f"  {key} = {value}"</span>)
+
+<span class="fn">configure_device</span>(<span class="st">"router01"</span>, vlan=<span class="nb">10</span>, qos=<span class="kw">True</span>, mtu=<span class="nb">1500</span>)
+<span class="cm"># Configuring: router01</span>
+<span class="cm"># vlan = 10  |  qos = True  |  mtu = 1500</span>
+
+<span class="fn">configure_device</span>(<span class="st">"switch02"</span>, stp=<span class="kw">True</span>, port_security=<span class="kw">True</span>)
+<span class="cm"># Different kwargs, same function — no changes to the definition required</span>
+
+<span class="cm"># Access a specific key safely with a default fallback</span>
+<span class="kw">def</span> <span class="fn">ssh_connect</span>(host, **opts):
+    port    = opts.<span class="fn">get</span>(<span class="st">"port"</span>,    <span class="nb">22</span>)    <span class="cm"># default 22 if caller did not pass port</span>
+    timeout = opts.<span class="fn">get</span>(<span class="st">"timeout"</span>, <span class="nb">10</span>)    <span class="cm"># default 10 if caller did not pass timeout</span>
+    <span class="fn">print</span>(<span class="st">f"SSH {host}:{port} timeout={timeout}s"</span>)</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — *args AND **kwargs TOGETHER ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 36</div>
+        <div class="slide-title">*args and **kwargs <span class="accent">Together</span></div>
+        <div class="slide-subtitle">Full parameter ordering rule: required, defaults, *args, keyword-only, **kwargs.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">The Complete Ordering Rule</div>
+                <div class="card-desc">
+                    When using all parameter types together, they must appear in this order:<br>
+                    1. Required positional parameters<br>
+                    2. Parameters with default values<br>
+                    3. <span class="ic">*args</span> — collects remaining positional arguments<br>
+                    4. Keyword-only parameters (appear after <span class="ic">*args</span>)<br>
+                    5. <span class="ic">**kwargs</span> — collects remaining keyword arguments<br>
+                    Any deviation from this order is a SyntaxError.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Real-World Example: Structured Logger</div>
+                <div class="card-desc">A log function that accepts a required severity level, an unlimited number of message parts to join into one string, and any number of named metadata fields to attach (host, user, session_id, etc.). This exact pattern appears in production logging libraries. The caller decides what metadata to attach — the function handles whatever it receives.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># severity: required | *parts: message chunks to join | **meta: extra context fields</span>
+<span class="kw">def</span> <span class="fn">log_event</span>(severity, *parts, **meta):
+    message  = <span class="st">" "</span>.<span class="fn">join</span>(<span class="fn">str</span>(p) <span class="kw">for</span> p <span class="kw">in</span> parts)
+    meta_str = <span class="st">" "</span>.<span class="fn">join</span>(<span class="st">f"{k}={v}"</span> <span class="kw">for</span> k, v <span class="kw">in</span> meta.<span class="fn">items</span>())
+    <span class="fn">print</span>(<span class="st">f"[{severity}] {message} | {meta_str}"</span>)
+
+<span class="fn">log_event</span>(<span class="st">"ERROR"</span>, <span class="st">"Connection failed"</span>, <span class="st">"after 3 retries"</span>,
+          host=<span class="st">"10.0.0.1"</span>, port=<span class="nb">443</span>)
+<span class="cm"># [ERROR] Connection failed after 3 retries | host=10.0.0.1 port=443</span>
+
+<span class="fn">log_event</span>(<span class="st">"INFO"</span>, <span class="st">"Scan complete"</span>, hosts_checked=<span class="nb">50</span>, elapsed=<span class="st">"4.2s"</span>)
+<span class="cm"># [INFO] Scan complete | hosts_checked=50 elapsed=4.2s</span>
+
+<span class="fn">log_event</span>(<span class="st">"WARN"</span>, <span class="st">"High CPU"</span>, host=<span class="st">"db01"</span>, cpu=<span class="st">"94%"</span>, threshold=<span class="st">"80%"</span>)
+<span class="cm"># [WARN] High CPU | host=db01 cpu=94% threshold=80%</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — RETURN VALUES ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 36</div>
+        <div class="slide-title">Return Values: <span class="accent">Sending Data Back to the Caller</span></div>
+        <div class="slide-subtitle">A function that only prints is a dead end. A function that returns is a building block.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">The return Statement</div>
+                <div class="card-desc"><span class="ic">return</span> does two things simultaneously: it sends a value back to the caller, and it immediately exits the function — no further lines in the body execute after it. The caller receives the returned value and can use it in any way: assign to a variable, pass to another function, evaluate in a condition, or ignore it entirely.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Return Makes Functions Composable</div>
+                <div class="card-desc">A function that prints can only inform a human. A function that returns gives its result to the rest of your program. You can chain calls: <span class="ic">result = f(g(h(x)))</span>. You can store, transform, validate, and log the result. Return is what makes functions into building blocks that combine cleanly into larger systems.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Function that computes and returns a value</span>
+<span class="kw">def</span> <span class="fn">bytes_to_mb</span>(num_bytes):
+    <span class="kw">return</span> num_bytes / (<span class="nb">1024</span> * <span class="nb">1024</span>)
+
+<span class="cm"># Capture the returned value in a variable</span>
+size_mb = <span class="fn">bytes_to_mb</span>(<span class="nb">52428800</span>)
+<span class="fn">print</span>(<span class="st">f"File size: {size_mb:.1f} MB"</span>)   <span class="cm"># File size: 50.0 MB</span>
+
+<span class="cm"># Use the return value directly in an expression — composable</span>
+<span class="fn">print</span>(<span class="st">f"Half: {<span class="fn">bytes_to_mb</span>(<span class="nb">52428800</span>) / <span class="nb">2</span>:.1f} MB"</span>)   <span class="cm"># Half: 25.0 MB</span>
+
+<span class="cm"># return exits immediately — code after return never runs</span>
+<span class="kw">def</span> <span class="fn">validate_port</span>(port):
+    <span class="kw">if</span> port < <span class="nb">1</span> <span class="kw">or</span> port > <span class="nb">65535</span>:
+        <span class="kw">return</span> <span class="kw">False</span>    <span class="cm"># exits here when port is out of range</span>
+    <span class="kw">return</span> <span class="kw">True</span>         <span class="cm"># only reached if port passed the check above</span>
+
+<span class="fn">print</span>(<span class="fn">validate_port</span>(<span class="nb">443</span>))    <span class="cm"># True</span>
+<span class="fn">print</span>(<span class="fn">validate_port</span>(<span class="nb">99999</span>))  <span class="cm"># False</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — RETURNING MULTIPLE VALUES ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 36</div>
+        <div class="slide-title">Returning Multiple Values: <span class="accent">It Is Always a Tuple</span></div>
+        <div class="slide-subtitle">Python lets you write return a, b, c — what actually returns is one tuple: (a, b, c).</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What Python Does</div>
+                <div class="card-desc">When you write <span class="ic">return a, b, c</span>, Python packages those three values into a tuple <span class="ic">(a, b, c)</span> and returns that one tuple. The caller receives exactly one object. You can unpack it immediately into separate variables — <span class="ic">x, y, z = my_function()</span> — or keep the tuple intact and index into it. Both styles work. The tuple is what is actually returned either way.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">IT Use Cases</div>
+                <div class="card-desc">A disk usage function that returns total, used, and free simultaneously. A network scan that returns both a status code and a response time. A file parser that returns the parsed data and any errors encountered. Any operation that naturally produces multiple related results is a candidate for a multi-value return.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Returning multiple values — Python packs them into a tuple</span>
+<span class="kw">def</span> <span class="fn">get_disk_stats</span>(path):
+    <span class="kw">import</span> shutil
+    total, used, free = shutil.<span class="fn">disk_usage</span>(path)
+    <span class="kw">return</span> total, used, free    <span class="cm"># returns a single tuple (total, used, free)</span>
+
+<span class="cm"># Unpack immediately into three named variables</span>
+total, used, free = <span class="fn">get_disk_stats</span>(<span class="st">"/"</span>)
+gb = <span class="nb">1024</span> ** <span class="nb">3</span>
+<span class="fn">print</span>(<span class="st">f"Total: {total/gb:.1f} GB | Used: {used/gb:.1f} GB | Free: {free/gb:.1f} GB"</span>)
+
+<span class="cm"># Or capture as a single tuple and index into it</span>
+stats = <span class="fn">get_disk_stats</span>(<span class="st">"/"</span>)
+<span class="fn">print</span>(<span class="fn">type</span>(stats))       <span class="cm"># &lt;class 'tuple'&gt;</span>
+<span class="fn">print</span>(stats[<span class="nb">0</span>])          <span class="cm"># total bytes</span>
+
+<span class="cm"># Discard values you do not need with the underscore convention</span>
+total, _, free = <span class="fn">get_disk_stats</span>(<span class="st">"/"</span>)   <span class="cm"># _ = "I don't need this value"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — NONE AND MISSING RETURN ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 36</div>
+        <div class="slide-title">None: What Happens With <span class="accent">No return Statement</span></div>
+        <div class="slide-subtitle">Every function returns something. If you do not say what, Python returns None.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">The Implicit None Return</div>
+                <div class="card-desc">When a function body reaches its end without a <span class="ic">return</span> statement, Python automatically returns <span class="ic">None</span>. This is not an error — it is the intended behavior for functions that perform side effects (printing, writing files, modifying objects) rather than computing a value to send back. Functions that "do something" rather than "produce something" are expected to return None.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">The NoneType Trap</div>
+                <div class="card-desc">The bug: you call a function expecting a return value, but it implicitly returns <span class="ic">None</span>. You do <span class="ic">result = my_function()</span> and get <span class="ic">None</span>. Then <span class="ic">result + 1</span> raises <span class="ic">TypeError: unsupported operand type(s) for +: 'NoneType' and 'int'</span>. The error message points to the addition, not to the missing return. This is one of the most common Python beginner errors. Now you know the root cause.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># This function returns None implicitly — it reports, it does not compute</span>
+<span class="kw">def</span> <span class="fn">print_report</span>(host, status):
+    <span class="fn">print</span>(<span class="st">f"{host}: {status}"</span>)
+    <span class="cm"># no return statement — Python returns None after the last line</span>
+
+result = <span class="fn">print_report</span>(<span class="st">"web01"</span>, <span class="st">"online"</span>)   <span class="cm"># prints: web01: online</span>
+<span class="fn">print</span>(result)                               <span class="cm"># None</span>
+
+<span class="cm"># The trap: trying to use None as a computed value</span>
+<span class="cm"># total = print_report("web01", "up") + 1   # TypeError: NoneType + int</span>
+
+<span class="cm"># Bare return with no value also returns None — used as an early exit guard</span>
+<span class="kw">def</span> <span class="fn">process_value</span>(value):
+    <span class="kw">if</span> value < <span class="nb">0</span>:
+        <span class="kw">return</span>        <span class="cm"># returns None, exits immediately, skips the rest</span>
+    <span class="fn">print</span>(<span class="st">f"Processing: {value}"</span>)
+
+<span class="fn">process_value</span>(-<span class="nb">5</span>)   <span class="cm"># prints nothing — returned None at the guard</span>
+<span class="fn">process_value</span>(<span class="nb">10</span>)   <span class="cm"># Processing: 10</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — RETURN VS PRINT ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 36</div>
+        <div class="slide-title">return vs print: <span class="accent">A Crucial Distinction</span></div>
+        <div class="slide-subtitle">They look similar in a single-function script. In a real program they behave completely differently.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">print() — Communication to a Human</div>
+                <div class="card-desc"><span class="ic">print()</span> sends text to the terminal for a human to read. The value is gone after it is displayed — your program cannot capture it, store it, transform it, or pass it to another function. <span class="ic">print()</span> itself returns <span class="ic">None</span>. Functions that call <span class="ic">print()</span> are reporting or displaying. They are not computing or producing values for other code.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">return — Communication to the Program</div>
+                <div class="card-desc"><span class="ic">return</span> sends a value back to the calling code. Nothing appears on screen. The caller gets the value and can do anything with it: store, test, pass forward, chain into another function. Functions that return values are composable. You can build complex behavior by combining simple functions that each return their result.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Version A: print inside function — value is displayed then lost</span>
+<span class="kw">def</span> <span class="fn">double_a</span>(n):
+    <span class="fn">print</span>(n * <span class="nb">2</span>)          <span class="cm"># sends to terminal, cannot be captured</span>
+
+result_a = <span class="fn">double_a</span>(<span class="nb">5</span>)   <span class="cm"># prints "10" to screen</span>
+<span class="fn">print</span>(result_a)            <span class="cm"># None</span>
+<span class="cm"># double_a(5) + 1          # TypeError: NoneType + int</span>
+
+<span class="cm"># Version B: return from function — value is available to the caller</span>
+<span class="kw">def</span> <span class="fn">double_b</span>(n):
+    <span class="kw">return</span> n * <span class="nb">2</span>           <span class="cm"># sends value back to calling code</span>
+
+result_b = <span class="fn">double_b</span>(<span class="nb">5</span>)   <span class="cm"># result_b = 10</span>
+<span class="fn">print</span>(result_b)            <span class="cm"># 10 — now we can display it when we choose</span>
+<span class="fn">print</span>(<span class="fn">double_b</span>(<span class="nb">5</span>) + <span class="nb">1</span>)    <span class="cm"># 11 — composable</span>
+<span class="fn">print</span>(<span class="fn">double_b</span>(<span class="fn">double_b</span>(<span class="nb">3</span>)))  <span class="cm"># 12 — chainable</span>
+
+<span class="cm"># Rule: functions that compute something should return it</span>
+<span class="cm"># Functions that report or display should print (or write to a log)</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — LOCAL SCOPE ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 36</div>
+        <div class="slide-title">Variable Scope: <span class="accent">Local Variables</span></div>
+        <div class="slide-subtitle">Variables created inside a function exist only inside that function. They vanish when the function returns.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What Local Means</div>
+                <div class="card-desc">When you create a variable inside a function body — including parameters — it is local to that function. Python creates it when the function is called and destroys it when the function returns. No code outside the function can read or modify it. This isolation is not a limitation — it is a feature that prevents functions from accidentally interfering with each other.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why Isolation Matters</div>
+                <div class="card-desc">If every function shared all variables with every other function, a bug in one could silently corrupt data in another. Scope isolation means you can reason about a function by reading only that function. You can call it with known inputs and verify expected outputs — nothing outside interferes. This is what makes functions independently testable.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Variables created inside a function are local — invisible outside</span>
+<span class="kw">def</span> <span class="fn">calculate_subnet</span>(ip, cidr):
+    network = <span class="st">f"{ip}/{cidr}"</span>      <span class="cm"># local variable</span>
+    host_count = <span class="nb">2</span> ** (<span class="nb">32</span> - cidr)  <span class="cm"># local variable</span>
+    <span class="kw">return</span> network, host_count
+
+result = <span class="fn">calculate_subnet</span>(<span class="st">"192.168.1.0"</span>, <span class="nb">24</span>)
+<span class="fn">print</span>(result)   <span class="cm"># ('192.168.1.0/24', 256)</span>
+
+<span class="cm"># "network" and "host_count" do not exist here — they were destroyed on return</span>
+<span class="cm"># print(network)      # NameError: name 'network' is not defined</span>
+
+<span class="cm"># Parameters are also local — changes inside do not affect the caller's variable</span>
+<span class="kw">def</span> <span class="fn">double</span>(x):
+    x = x * <span class="nb">2</span>       <span class="cm"># modifies the local copy of x, not the caller's variable</span>
+    <span class="kw">return</span> x
+
+original = <span class="nb">10</span>
+<span class="fn">print</span>(<span class="fn">double</span>(original))   <span class="cm"># 20 — the local x was doubled</span>
+<span class="fn">print</span>(original)            <span class="cm"># 10 — unchanged. The function received a copy.</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — GLOBAL VARIABLES ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 36</div>
+        <div class="slide-title">Variable Scope: <span class="accent">Global Variables</span></div>
+        <div class="slide-subtitle">Module-level variables can be read inside any function — but reassigning them requires the global keyword.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Reading Global Variables</div>
+                <div class="card-desc">A function can read a global variable without special syntax. Python looks in the local scope first, does not find the name, then looks in the module (global) scope. This is useful for true constants — configuration values, version strings, lookup tables — that never change during program execution. By convention, constants use <span class="ic">UPPER_SNAKE_CASE</span>.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Assigning to a Global Name</div>
+                <div class="card-desc">If you write <span class="ic">counter = counter + 1</span> inside a function, Python creates a new local variable named <span class="ic">counter</span>. It does NOT modify the module-level one. Worse: because Python sees the assignment and decides the name is local, even the read on the right side of <span class="ic">=</span> tries to read the local version — which has not been assigned yet. This is an <span class="ic">UnboundLocalError</span>.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Global constants — uppercase convention, readable inside any function</span>
+APP_VERSION  = <span class="st">"2.1.0"</span>
+MAX_RETRIES  = <span class="nb">3</span>
+
+<span class="kw">def</span> <span class="fn">show_header</span>():
+    <span class="fn">print</span>(<span class="st">f"Network Util v{APP_VERSION}"</span>)   <span class="cm"># reads global fine</span>
+    <span class="fn">print</span>(<span class="st">f"Max retries: {MAX_RETRIES}"</span>)    <span class="cm"># reads global fine</span>
+
+<span class="fn">show_header</span>()
+
+<span class="cm"># This does NOT modify the global scan_count — it creates a local shadow</span>
+scan_count = <span class="nb">0</span>
+
+<span class="kw">def</span> <span class="fn">run_scan_broken</span>():
+    scan_count = scan_count + <span class="nb">1</span>
+    <span class="cm"># UnboundLocalError: local variable 'scan_count' referenced before assignment</span>
+    <span class="cm"># Why: Python sees "scan_count =" and decides it is local.</span>
+    <span class="cm"># Then it tries to read the local scan_count on the right side.</span>
+    <span class="cm"># But it has not been assigned yet. Hence UnboundLocalError.</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — TRY IT NOW ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 36 &nbsp;|&nbsp; Try It Now</div>
+        <div class="slide-title">Try It Now: <span class="accent">Default Parameters</span></div>
+        <div class="slide-subtitle">Use default parameter values to make functions flexible.</div>
+        <div class="try-it-now"
+             data-starter="# Write a function ping(host, count=4, timeout=2)&#10;# that prints: &quot;Pinging {host} with {count} packets (timeout={timeout}s)&quot;&#10;"
+             data-solution="def ping(host, count=4, timeout=2):&#10;    print(f&quot;Pinging {host} with {count} packets (timeout={timeout}s)&quot;)&#10;&#10;ping(&quot;10.0.0.1&quot;)&#10;ping(&quot;10.0.0.2&quot;, count=8)&#10;ping(&quot;10.0.0.3&quot;, timeout=5)"
+             data-expected="Pinging 10.0.0.1 with 4 packets (timeout=2s)
+Pinging 10.0.0.2 with 8 packets (timeout=2s)
+Pinging 10.0.0.3 with 4 packets (timeout=5s)"
+             data-height="140">
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 21 — THE global KEYWORD ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 36</div>
+        <div class="slide-title">The <span class="accent">global</span> Keyword</div>
+        <div class="slide-subtitle">Tells Python: when I write this name inside the function, use the module-level variable, not a local one.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Syntax and Behavior</div>
+                <div class="card-desc">Declare <span class="ic">global variable_name</span> as the first statement in the function body. From that point forward, any assignment to that name modifies the actual module-level variable instead of creating a local shadow. The declaration must come before any use of the variable — Python processes function bodies before executing them, but following this order prevents confusion.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">When NOT to Use It — Almost Always</div>
+                <div class="card-desc">Using <span class="ic">global</span> makes functions depend on invisible external state. You cannot call the function in isolation to test it — the result depends on the value of a module-level variable you have to set up first. It creates hidden couplings. If you feel the urge to use <span class="ic">global</span>, the real solution is almost always to pass the value as a parameter and return the updated value.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># global keyword allows a function to modify a module-level variable</span>
+scan_count = <span class="nb">0</span>
+
+<span class="kw">def</span> <span class="fn">run_scan</span>():
+    <span class="kw">global</span> scan_count          <span class="cm"># declare intent before any use</span>
+    scan_count += <span class="nb">1</span>            <span class="cm"># now modifies the module-level variable</span>
+    <span class="fn">print</span>(<span class="st">f"Scan #{scan_count} complete"</span>)
+
+<span class="fn">run_scan</span>()   <span class="cm"># Scan #1 complete</span>
+<span class="fn">run_scan</span>()   <span class="cm"># Scan #2 complete</span>
+
+<span class="cm"># Better design: pass state in as argument, return updated state out</span>
+<span class="kw">def</span> <span class="fn">run_scan_clean</span>(count):
+    count += <span class="nb">1</span>
+    <span class="fn">print</span>(<span class="st">f"Scan #{count} complete"</span>)
+    <span class="kw">return</span> count   <span class="cm"># caller is responsible for storing the updated value</span>
+
+scan_count = <span class="nb">0</span>
+scan_count = <span class="fn">run_scan_clean</span>(scan_count)   <span class="cm"># Scan #1 — explicit, testable, no hidden state</span>
+scan_count = <span class="fn">run_scan_clean</span>(scan_count)   <span class="cm"># Scan #2</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — LEGB RULE ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 36</div>
+        <div class="slide-title">The LEGB Rule: <span class="accent">How Python Resolves Names</span></div>
+        <div class="slide-subtitle">When Python encounters any name, it searches four scopes in a fixed order. LEGB is that order.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">L — Local</div>
+                <div class="card-desc">Python looks here first. Names defined inside the current function, including parameters. If found here, the search stops immediately. Local scope is created fresh each time the function is called and destroyed when it returns. The most specific scope always wins.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">E — Enclosing</div>
+                <div class="card-desc">If not local, Python looks in any enclosing function scopes. This applies when one function is defined inside another. Each nesting level has its own enclosing scope. If you have not written nested functions yet, this level typically does not apply to your code in this course.</div>
+            </div>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">G — Global</div>
+                <div class="card-desc">If not local or enclosing, Python looks at module-level names — everything defined at the top level of your .py file. Constants, module-level variables, and all top-level function definitions live here. This is the scope most beginners think of as "the whole program."</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">B — Built-in</div>
+                <div class="card-desc">If not found in any scope above, Python checks the built-in namespace: <span class="ic">print</span>, <span class="ic">len</span>, <span class="ic">range</span>, <span class="ic">int</span>, <span class="ic">str</span>, <span class="ic">True</span>, <span class="ic">False</span>, <span class="ic">None</span>, <span class="ic">TypeError</span>, etc. If not found here either, Python raises a <span class="ic">NameError: name 'x' is not defined</span>.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Each layer of LEGB demonstrated</span>
+x = <span class="st">"global"</span>           <span class="cm"># G — module-level global</span>
+
+<span class="kw">def</span> <span class="fn">outer</span>():
+    x = <span class="st">"enclosing"</span>     <span class="cm"># E — enclosing scope for inner()</span>
+    <span class="kw">def</span> <span class="fn">inner</span>():
+        x = <span class="st">"local"</span>     <span class="cm"># L — local to inner()</span>
+        <span class="fn">print</span>(x)         <span class="cm"># "local"      L found first, search stops</span>
+        <span class="fn">print</span>(<span class="fn">len</span>)       <span class="cm"># B           len not in L/E/G, found in built-ins</span>
+    <span class="fn">inner</span>()
+    <span class="fn">print</span>(x)             <span class="cm"># "enclosing"  inner's local x is gone</span>
+
+<span class="fn">outer</span>()
+<span class="fn">print</span>(x)                 <span class="cm"># "global"     outer's enclosing x is gone</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — DOCSTRINGS ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 36</div>
+        <div class="slide-title">Docstrings: <span class="accent">Documentation That Lives in the Function</span></div>
+        <div class="slide-subtitle">A triple-quoted string on the first line of the body. Python stores it. Tools and teammates can read it.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What a Docstring Is</div>
+                <div class="card-desc">A triple-quoted string placed as the very first statement in a function body. Python stores it in the function's <span class="ic">__doc__</span> attribute. It describes what the function does, what it expects, and what it returns. It is not a comment — it is data. IDEs, documentation generators (like Sphinx), and the built-in <span class="ic">help()</span> function all read it programmatically.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why It Matters on a Team</div>
+                <div class="card-desc">You will write functions in shared scripts used by your whole team. A docstring means a teammate can type <span class="ic">help(validate_ip)</span> in the Python shell and immediately see what the function does, what arguments it takes, and what it returns — without reading your implementation. This is how every function in the Python standard library works. It is a professional expectation.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Docstring: triple-quoted string as the first statement in the function body</span>
+<span class="kw">def</span> <span class="fn">validate_ip</span>(ip_string):
+    <span class="st">"""Validate that a string is a valid IPv4 address.
+
+    Args:
+        ip_string (str): The IP address to validate (e.g. "192.168.1.1").
+
+    Returns:
+        bool: True if valid IPv4, False otherwise.
+
+    Example:
+        >>> validate_ip("192.168.1.1")
+        True
+        >>> validate_ip("999.0.0.1")
+        False
+    """</span>
+    parts = ip_string.<span class="fn">split</span>(<span class="st">"."</span>)
+    <span class="kw">if</span> <span class="fn">len</span>(parts) != <span class="nb">4</span>:
+        <span class="kw">return</span> <span class="kw">False</span>
+    <span class="kw">return</span> <span class="fn">all</span>(p.<span class="fn">isdigit</span>() <span class="kw">and</span> <span class="nb">0</span> <= <span class="fn">int</span>(p) <= <span class="nb">255</span> <span class="kw">for</span> p <span class="kw">in</span> parts)
+
+<span class="fn">help</span>(validate_ip)              <span class="cm"># displays the docstring in the terminal</span>
+<span class="fn">print</span>(validate_ip.<span class="fn">__doc__</span>)    <span class="cm"># access it as a string programmatically</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — TYPE HINTS ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 36</div>
+        <div class="slide-title">Type Hints: <span class="accent">Annotating Expected Types</span></div>
+        <div class="slide-subtitle">Annotations that tell readers and tools what types a function expects and returns. Python does not enforce them.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Syntax</div>
+                <div class="card-desc">Add a colon and type after each parameter: <span class="ic">name: str</span>. Add an arrow and type after the closing parenthesis for the return type: <span class="ic">-&gt; bool</span>. Use any built-in type (<span class="ic">int</span>, <span class="ic">float</span>, <span class="ic">str</span>, <span class="ic">bool</span>, <span class="ic">list</span>, <span class="ic">dict</span>) or <span class="ic">None</span> for functions that return nothing. Python 3.10+ allows union types with the pipe operator: <span class="ic">str | None</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Documentation, Not Enforcement</div>
+                <div class="card-desc">Python will not raise an error at runtime if you pass the wrong type. Type hints are promises and documentation, not constraints. Their value is for humans reading your code and for tools like <span class="ic">mypy</span> (static type checker) and IDEs that provide autocompletion and inline warnings before your code ever runs. In production codebases, they catch entire categories of bugs at development time.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Without type hints — caller must read the body to know what to pass</span>
+<span class="kw">def</span> <span class="fn">validate_port</span>(port):
+    <span class="kw">return</span> <span class="nb">1</span> <= port <= <span class="nb">65535</span>
+
+<span class="cm"># With type hints — intention is immediately clear from the signature alone</span>
+<span class="kw">def</span> <span class="fn">validate_port</span>(port: <span class="fn">int</span>) -> <span class="fn">bool</span>:
+    <span class="kw">return</span> <span class="nb">1</span> <= port <= <span class="nb">65535</span>
+
+<span class="cm"># More complex: list return and optional (None) return value</span>
+<span class="kw">def</span> <span class="fn">parse_ips</span>(log_line: <span class="fn">str</span>) -> <span class="fn">list</span>:
+    <span class="st">"""Extract all IPv4 addresses from a single log line."""</span>
+    <span class="kw">import</span> re
+    <span class="kw">return</span> re.<span class="fn">findall</span>(<span class="st">r"\b(?:\d{1,3}\.){3}\d{1,3}\b"</span>, log_line)
+
+<span class="kw">def</span> <span class="fn">get_hostname</span>(ip: <span class="fn">str</span>) -> <span class="fn">str</span> | <span class="kw">None</span>:    <span class="cm"># Python 3.10+ union syntax</span>
+    <span class="st">"""Resolve an IP to a hostname, or None if resolution fails."""</span>
+    <span class="kw">import</span> socket
+    <span class="kw">try</span>:
+        <span class="kw">return</span> socket.<span class="fn">gethostbyaddr</span>(ip)[<span class="nb">0</span>]
+    <span class="kw">except</span> socket.herror:
+        <span class="kw">return</span> <span class="kw">None</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — LAMBDA FUNCTIONS ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 36</div>
+        <div class="slide-title">Lambda Functions: <span class="accent">Anonymous Single-Expression Functions</span></div>
+        <div class="slide-subtitle">A compact way to write a simple function without a name. One line, one expression, one implicit return.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Syntax</div>
+                <div class="card-desc"><span class="ic">lambda parameters: expression</span>. The keyword <span class="ic">lambda</span> is followed by a comma-separated parameter list (no parentheses required), a colon, and a single expression whose value is automatically returned. No <span class="ic">def</span>, no <span class="ic">return</span> keyword, no block body. The result is a function object that can be called, assigned, or passed as an argument to another function.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Limitations</div>
+                <div class="card-desc">A lambda can contain only a single expression — no multiple statements, no assignments, no <span class="ic">if</span> blocks (only a ternary conditional). No docstring possible. If you find yourself wanting to write more than one expression, use a regular <span class="ic">def</span>. PEP 8 also discourages assigning lambdas to named variables: if you are naming it, use <span class="ic">def</span> instead.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Regular function and its equivalent lambda</span>
+<span class="kw">def</span> <span class="fn">double_def</span>(x):
+    <span class="kw">return</span> x * <span class="nb">2</span>
+
+double_lam = <span class="kw">lambda</span> x: x * <span class="nb">2</span>
+
+<span class="fn">print</span>(<span class="fn">double_def</span>(<span class="nb">5</span>))   <span class="cm"># 10</span>
+<span class="fn">print</span>(double_lam(<span class="nb">5</span>))   <span class="cm"># 10 — identical result</span>
+
+<span class="cm"># Multi-parameter lambda</span>
+add = <span class="kw">lambda</span> a, b: a + b
+<span class="fn">print</span>(<span class="fn">add</span>(<span class="nb">3</span>, <span class="nb">4</span>))     <span class="cm"># 7</span>
+
+<span class="cm"># Ternary expression inside a lambda (no if block — only ternary)</span>
+classify_port = <span class="kw">lambda</span> p: <span class="st">"well-known"</span> <span class="kw">if</span> p < <span class="nb">1024</span> <span class="kw">else</span> <span class="st">"dynamic"</span>
+<span class="fn">print</span>(<span class="fn">classify_port</span>(<span class="nb">80</span>))     <span class="cm"># well-known</span>
+<span class="fn">print</span>(<span class="fn">classify_port</span>(<span class="nb">54321</span>))  <span class="cm"># dynamic</span>
+
+<span class="cm"># Lambda exists primarily to be passed as an argument — see next slide</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — LAMBDA WITH sorted, filter, map ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 36</div>
+        <div class="slide-title">Lambda in Practice: <span class="accent">sorted(), filter(), map()</span></div>
+        <div class="slide-subtitle">The purpose of lambda is to be passed as a function argument inline without defining a named function.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">sorted() with key=</div>
+                <div class="card-desc"><span class="ic">sorted()</span> accepts a <span class="ic">key</span> argument — a function applied to each element to determine sort order. Lambda is ideal here because you rarely need the key function anywhere else. Sort devices by port number, by hostname length, or by any field in a dict — all in one line.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">filter()</div>
+                <div class="card-desc"><span class="ic">filter(func, iterable)</span> returns only elements for which <span class="ic">func(element)</span> is truthy. Lambda gives you a one-line test. Keep only valid IPs, only open ports, or only ERROR-level entries from a mixed list — without writing a named function for a test you use once.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">map()</div>
+                <div class="card-desc"><span class="ic">map(func, iterable)</span> applies a function to every element and returns the transformed values. Convert a list of byte values to megabytes, transform hostnames to uppercase, or extract one field from each dict in a list — applied to every element without a for loop.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># sorted() — sort network services by port number</span>
+services = [(<span class="st">"ssh"</span>, <span class="nb">22</span>), (<span class="st">"https"</span>, <span class="nb">443</span>), (<span class="st">"ftp"</span>, <span class="nb">21</span>), (<span class="st">"rdp"</span>, <span class="nb">3389</span>)]
+by_port = <span class="fn">sorted</span>(services, key=<span class="kw">lambda</span> s: s[<span class="nb">1</span>])
+<span class="fn">print</span>(by_port)
+<span class="cm"># [('ftp', 21), ('ssh', 22), ('https', 443), ('rdp', 3389)]</span>
+
+<span class="cm"># filter() — keep only well-known ports (under 1024)</span>
+well_known = <span class="fn">list</span>(<span class="fn">filter</span>(<span class="kw">lambda</span> s: s[<span class="nb">1</span>] < <span class="nb">1024</span>, services))
+<span class="fn">print</span>(well_known)
+<span class="cm"># [('ssh', 22), ('https', 443), ('ftp', 21)]</span>
+
+<span class="cm"># map() — format each service as a labeled string for a report</span>
+labels = <span class="fn">list</span>(<span class="fn">map</span>(<span class="kw">lambda</span> s: <span class="st">f"{s[<span class="nb">0</span>].upper()}/TCP:{s[<span class="nb">1</span>]}"</span>, services))
+<span class="fn">print</span>(labels)
+<span class="cm"># ['SSH/TCP:22', 'HTTPS/TCP:443', 'FTP/TCP:21', 'RDP/TCP:3389']</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — HIGHER-ORDER FUNCTIONS ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 36</div>
+        <div class="slide-title">Higher-Order Functions: <span class="accent">Functions as Arguments</span></div>
+        <div class="slide-subtitle">In Python, functions are objects. You can pass them as arguments, return them, and store them in variables.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Functions Are First-Class Objects</div>
+                <div class="card-desc">A function defined with <span class="ic">def</span> is an object assigned to a name — just like an integer or string. You can assign it to another variable (<span class="ic">f = validate_ip</span>), put it in a list, pass it as an argument, or return it from a function. This is not a trick — it is a core Python design decision used throughout the standard library, including <span class="ic">sorted()</span>, <span class="ic">filter()</span>, and <span class="ic">map()</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why This Matters in IT Code</div>
+                <div class="card-desc">Write a single <span class="ic">get_validated_input(prompt, validator)</span> function that accepts any validation function as its second argument. Call it with <span class="ic">validate_ip</span>, <span class="ic">validate_port</span>, or <span class="ic">validate_email</span> — same loop logic, different validation behavior each time. One function replaces three near-identical while loops. Adding a new validator requires no changes to the input-handling code.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Three validator functions — each tests one thing, each is independently testable</span>
+<span class="kw">def</span> <span class="fn">validate_ip</span>(value: <span class="fn">str</span>) -> <span class="fn">bool</span>:
+    parts = value.<span class="fn">split</span>(<span class="st">"."</span>)
+    <span class="kw">return</span> <span class="fn">len</span>(parts) == <span class="nb">4</span> <span class="kw">and</span> <span class="fn">all</span>(p.<span class="fn">isdigit</span>() <span class="kw">and</span> <span class="nb">0</span> <= <span class="fn">int</span>(p) <= <span class="nb">255</span> <span class="kw">for</span> p <span class="kw">in</span> parts)
+
+<span class="kw">def</span> <span class="fn">validate_port</span>(value: <span class="fn">str</span>) -> <span class="fn">bool</span>:
+    <span class="kw">return</span> value.<span class="fn">isdigit</span>() <span class="kw">and</span> <span class="nb">1</span> <= <span class="fn">int</span>(value) <= <span class="nb">65535</span>
+
+<span class="cm"># Higher-order function: accepts ANY validator as its second argument</span>
+<span class="kw">def</span> <span class="fn">get_validated_input</span>(prompt: <span class="fn">str</span>, validator) -> <span class="fn">str</span>:
+    <span class="kw">while</span> <span class="kw">True</span>:
+        value = <span class="fn">input</span>(prompt)
+        <span class="kw">if</span> <span class="fn">validator</span>(value):   <span class="cm"># call whatever function was passed in</span>
+            <span class="kw">return</span> value
+        <span class="fn">print</span>(<span class="st">"Invalid. Try again."</span>)
+
+<span class="cm"># Pass the function OBJECT — no parentheses (not calling it, passing it)</span>
+ip   = <span class="fn">get_validated_input</span>(<span class="st">"Enter target IP: "</span>,   validate_ip)
+port = <span class="fn">get_validated_input</span>(<span class="st">"Enter target port: "</span>, validate_port)</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — RECURSION INTRO ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 36</div>
+        <div class="slide-title">Recursion: <span class="accent">A Function That Calls Itself</span></div>
+        <div class="slide-subtitle">Not magic. A function that solves a large problem by reducing it to a slightly smaller version of itself.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Two Required Parts</div>
+                <div class="card-desc">
+                    Every correct recursive function has exactly two parts:<br>
+                    <strong>Base case</strong> — the condition under which the function returns a value without calling itself. This is what stops the recursion. Without it, the function calls itself forever until Python raises a <span class="ic">RecursionError: maximum recursion depth exceeded</span>.<br>
+                    <strong>Recursive case</strong> — where the function calls itself with a simpler or smaller input, guaranteed to move toward the base case.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">How to Think About It</div>
+                <div class="card-desc">Do not try to trace every call in your head — the call stack for even a simple recursive function becomes complex quickly. Instead, trust the structure: ask "what is the smallest version of this problem with an obvious answer?" That is your base case. Ask "how can I reduce any larger instance by one step toward that answer?" That is your recursive case. If both are correct, the function works.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Concrete example: count how many directories deep a path is</span>
+<span class="kw">import</span> os
+
+<span class="kw">def</span> <span class="fn">count_depth</span>(path: <span class="fn">str</span>) -> <span class="fn">int</span>:
+    <span class="st">"""Count how many directory levels deep path is from the filesystem root."""</span>
+    parent = os.path.<span class="fn">dirname</span>(path)
+
+    <span class="cm"># BASE CASE: path is the root (dirname of root is root itself)</span>
+    <span class="kw">if</span> parent == path:
+        <span class="kw">return</span> <span class="nb">0</span>
+
+    <span class="cm"># RECURSIVE CASE: one level up from here, plus 1 for this level</span>
+    <span class="kw">return</span> <span class="fn">count_depth</span>(parent) + <span class="nb">1</span>
+
+<span class="fn">print</span>(<span class="fn">count_depth</span>(<span class="st">"/var/log/nginx"</span>))    <span class="cm"># 3</span>
+<span class="fn">print</span>(<span class="fn">count_depth</span>(<span class="st">"/etc"</span>))              <span class="cm"># 1</span>
+<span class="fn">print</span>(<span class="fn">count_depth</span>(<span class="st">"/"</span>))                 <span class="cm"># 0  (base case)</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — RECURSION EXAMPLES ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 36</div>
+        <div class="slide-title">Recursion Examples: <span class="accent">Factorial &amp; Fibonacci</span></div>
+        <div class="slide-subtitle">Two classic examples that demonstrate both halves of a recursive function in clean isolation.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Factorial: n!</div>
+                <div class="card-desc"><span class="ic">5! = 5 x 4 x 3 x 2 x 1 = 120</span>. The recursive definition: <span class="ic">n! = n x (n-1)!</span>. Base case: <span class="ic">0! = 1</span> (by mathematical convention). Each call reduces n by exactly 1, guaranteed to reach the base case. The call stack grows to depth n, then unwinds multiplying results back up.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Fibonacci: F(n)</div>
+                <div class="card-desc"><span class="ic">0, 1, 1, 2, 3, 5, 8, 13...</span> Each number is the sum of the two before it. The pattern: <span class="ic">F(n) = F(n-1) + F(n-2)</span>. Two base cases: <span class="ic">F(0) = 0</span>, <span class="ic">F(1) = 1</span>. Warning: naive recursion on Fibonacci is exponentially slow — <span class="ic">F(40)</span> requires over 300 million function calls. This is why recursion is not always the right tool.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Factorial — call stack for factorial(4):</span>
+<span class="cm"># factorial(4) -> 4 * factorial(3)</span>
+<span class="cm">#                     3 * factorial(2)</span>
+<span class="cm">#                         2 * factorial(1)</span>
+<span class="cm">#                             returns 1  (base case)</span>
+<span class="cm">#                         2 * 1 = 2</span>
+<span class="cm">#                     3 * 2 = 6</span>
+<span class="cm"># 4 * 6 = 24</span>
+<span class="kw">def</span> <span class="fn">factorial</span>(n: <span class="fn">int</span>) -> <span class="fn">int</span>:
+    <span class="kw">if</span> n <= <span class="nb">1</span>:
+        <span class="kw">return</span> <span class="nb">1</span>                   <span class="cm"># base case</span>
+    <span class="kw">return</span> n * <span class="fn">factorial</span>(n - <span class="nb">1</span>)  <span class="cm"># recursive case</span>
+
+<span class="fn">print</span>(<span class="fn">factorial</span>(<span class="nb">5</span>))    <span class="cm"># 120</span>
+<span class="fn">print</span>(<span class="fn">factorial</span>(<span class="nb">10</span>))   <span class="cm"># 3628800</span>
+
+<span class="cm"># Fibonacci — correct but do not call past n=35 (exponential time)</span>
+<span class="kw">def</span> <span class="fn">fib</span>(n: <span class="fn">int</span>) -> <span class="fn">int</span>:
+    <span class="kw">if</span> n == <span class="nb">0</span>: <span class="kw">return</span> <span class="nb">0</span>           <span class="cm"># base case 1</span>
+    <span class="kw">if</span> n == <span class="nb">1</span>: <span class="kw">return</span> <span class="nb">1</span>           <span class="cm"># base case 2</span>
+    <span class="kw">return</span> <span class="fn">fib</span>(n - <span class="nb">1</span>) + <span class="fn">fib</span>(n - <span class="nb">2</span>)  <span class="cm"># recursive case</span>
+
+<span class="fn">print</span>(<span class="fn">fib</span>(<span class="nb">10</span>))   <span class="cm"># 55</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — RECURSION VS ITERATION ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 36</div>
+        <div class="slide-title">Recursion vs Iteration: <span class="accent">Choosing the Right Tool</span></div>
+        <div class="slide-subtitle">Both can solve the same problems. The right choice depends on the problem's structure and your constraints.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">When Recursion Is Natural</div>
+                <div class="card-desc">Recursion fits inherently hierarchical problems: traversing directory trees, parsing nested data (JSON, XML), tree-based algorithms, and divide-and-conquer problems like merge sort. When the problem itself is defined recursively ("a directory contains files and other directories"), recursive code mirrors the structure of the problem and is often cleaner than the iterative equivalent.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">When Iteration Is Better</div>
+                <div class="card-desc">Simple sequences, counters, and accumulators are cleaner with loops. Iteration has no call-stack overhead and no depth limit. Python's default recursion limit is 1000 calls. A loop over 10,000 log lines is routine. A recursive function 10,000 levels deep crashes with a <span class="ic">RecursionError</span>. For most IT scripting work, iteration is the safer and more efficient default.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Same problem, both approaches: find all .log files under a directory</span>
+<span class="kw">import</span> os
+
+<span class="cm"># Recursive — mirrors the tree structure naturally</span>
+<span class="kw">def</span> <span class="fn">find_logs_recursive</span>(path: <span class="fn">str</span>) -> <span class="fn">list</span>:
+    results = []
+    <span class="kw">for</span> entry <span class="kw">in</span> os.<span class="fn">listdir</span>(path):
+        full = os.path.<span class="fn">join</span>(path, entry)
+        <span class="kw">if</span> os.path.<span class="fn">isdir</span>(full):
+            results.<span class="fn">extend</span>(<span class="fn">find_logs_recursive</span>(full))  <span class="cm"># recurse into subdir</span>
+        <span class="kw">elif</span> entry.<span class="fn">endswith</span>(<span class="st">".log"</span>):
+            results.<span class="fn">append</span>(full)
+    <span class="kw">return</span> results
+
+<span class="cm"># Iterative — using os.walk(), preferred in production (no stack depth risk)</span>
+<span class="kw">def</span> <span class="fn">find_logs_iterative</span>(path: <span class="fn">str</span>) -> <span class="fn">list</span>:
+    results = []
+    <span class="kw">for</span> root, dirs, files <span class="kw">in</span> os.<span class="fn">walk</span>(path):
+        <span class="kw">for</span> f <span class="kw">in</span> files:
+            <span class="kw">if</span> f.<span class="fn">endswith</span>(<span class="st">".log"</span>):
+                results.<span class="fn">append</span>(os.path.<span class="fn">join</span>(root, f))
+    <span class="kw">return</span> results
+<span class="cm"># os.walk() handles the tree traversal internally without stack depth risk</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 — IT SCENARIO: NETWORK UTILITY LIBRARY ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 36 &nbsp;|&nbsp; IT Scenario</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Building a Network Utility Library</span></div>
+        <div class="slide-subtitle">Three production-ready functions for ping checking, port scanning, and log parsing — organized as one clean module.</div>
+
+        <div class="scenario-strip">
+            Your manager asks you to write a script that checks 30 hosts every 15 minutes: verify they are reachable, confirm specific ports are open, and count any errors in the latest log file. Instead of one 300-line mess, you build three focused functions. Each does exactly one thing. The main script reads like a checklist. When requirements change, you modify one function.
+        </div>
+
+        <div class="code-block"><span class="cm"># net_utils.py — reusable network utility library</span>
+<span class="kw">import</span> subprocess, socket, os
+
+<span class="kw">def</span> <span class="fn">ping_host</span>(host: <span class="fn">str</span>, count: <span class="fn">int</span> = <span class="nb">1</span>) -> <span class="fn">bool</span>:
+    <span class="st">"""Return True if host responds to ICMP ping, False otherwise.
+    Uses subprocess to call the system ping command.
+    """</span>
+    cmd = [<span class="st">"ping"</span>, <span class="st">"-c"</span>, <span class="fn">str</span>(count), <span class="st">"-W"</span>, <span class="st">"2"</span>, host]
+    result = subprocess.<span class="fn">run</span>(cmd, capture_output=<span class="kw">True</span>)
+    <span class="kw">return</span> result.returncode == <span class="nb">0</span>
+
+<span class="kw">def</span> <span class="fn">check_port</span>(host: <span class="fn">str</span>, port: <span class="fn">int</span>, timeout: <span class="fn">float</span> = <span class="nb">3.0</span>) -> <span class="fn">bool</span>:
+    <span class="st">"""Return True if TCP port is open on host within timeout seconds."""</span>
+    <span class="kw">try</span>:
+        <span class="kw">with</span> socket.<span class="fn">create_connection</span>((host, port), timeout=timeout):
+            <span class="kw">return</span> <span class="kw">True</span>
+    <span class="kw">except</span> (OSError, ConnectionRefusedError):
+        <span class="kw">return</span> <span class="kw">False</span>
+
+<span class="kw">def</span> <span class="fn">count_log_errors</span>(log_path: <span class="fn">str</span>, keyword: <span class="fn">str</span> = <span class="st">"ERROR"</span>) -> <span class="fn">int</span>:
+    <span class="st">"""Count lines containing keyword in a log file. Returns 0 if file absent."""</span>
+    <span class="kw">if</span> <span class="kw">not</span> os.path.<span class="fn">exists</span>(log_path):
+        <span class="kw">return</span> <span class="nb">0</span>
+    <span class="kw">with</span> <span class="fn">open</span>(log_path) <span class="kw">as</span> f:
+        <span class="kw">return</span> <span class="fn">sum</span>(<span class="nb">1</span> <span class="kw">for</span> line <span class="kw">in</span> f <span class="kw">if</span> keyword <span class="kw">in</span> line)</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 — IT SCENARIO: DATA VALIDATION FUNCTIONS ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 36 &nbsp;|&nbsp; IT Scenario</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Data Validation Functions</span></div>
+        <div class="slide-subtitle">Three validators — IP, port, email — each independently testable and usable as a higher-order function argument.</div>
+
+        <div class="scenario-strip">
+            Your script reads host configuration from a CSV file submitted by users. Before doing anything with that data, you validate every field. An invalid IP, bad port, or malformed email gets logged and skipped. These three functions are the gatekeepers. Write them once. Test them independently. Pass them to <span class="ic">get_validated_input()</span> from Slide 25 without any changes.
+        </div>
+
+        <div class="code-block"><span class="cm"># validation.py — data validation functions for IT input processing</span>
+<span class="kw">import</span> re
+
+<span class="kw">def</span> <span class="fn">validate_ipv4</span>(ip: <span class="fn">str</span>) -> <span class="fn">bool</span>:
+    <span class="st">"""Return True if ip is a valid dotted-decimal IPv4 address."""</span>
+    parts = ip.<span class="fn">strip</span>().<span class="fn">split</span>(<span class="st">"."</span>)
+    <span class="kw">if</span> <span class="fn">len</span>(parts) != <span class="nb">4</span>:
+        <span class="kw">return</span> <span class="kw">False</span>
+    <span class="kw">return</span> <span class="fn">all</span>(p.<span class="fn">isdigit</span>() <span class="kw">and</span> <span class="nb">0</span> <= <span class="fn">int</span>(p) <= <span class="nb">255</span> <span class="kw">for</span> p <span class="kw">in</span> parts)
+
+<span class="kw">def</span> <span class="fn">validate_port</span>(port_str: <span class="fn">str</span>) -> <span class="fn">bool</span>:
+    <span class="st">"""Return True if port_str is a valid integer in the range 1-65535."""</span>
+    <span class="kw">if</span> <span class="kw">not</span> port_str.<span class="fn">strip</span>().<span class="fn">isdigit</span>():
+        <span class="kw">return</span> <span class="kw">False</span>
+    <span class="kw">return</span> <span class="nb">1</span> <= <span class="fn">int</span>(port_str) <= <span class="nb">65535</span>
+
+<span class="kw">def</span> <span class="fn">validate_email</span>(email: <span class="fn">str</span>) -> <span class="fn">bool</span>:
+    <span class="st">"""Return True if email matches basic RFC 5321 local@domain format."""</span>
+    pattern = <span class="st">r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$"</span>
+    <span class="kw">return</span> <span class="fn">bool</span>(re.<span class="fn">match</span>(pattern, email.<span class="fn">strip</span>()))
+
+<span class="fn">print</span>(<span class="fn">validate_ipv4</span>(<span class="st">"192.168.1.100"</span>))   <span class="cm"># True</span>
+<span class="fn">print</span>(<span class="fn">validate_ipv4</span>(<span class="st">"999.0.0.1"</span>))       <span class="cm"># False</span>
+<span class="fn">print</span>(<span class="fn">validate_port</span>(<span class="st">"443"</span>))              <span class="cm"># True</span>
+<span class="fn">print</span>(<span class="fn">validate_port</span>(<span class="st">"70000"</span>))            <span class="cm"># False</span>
+<span class="fn">print</span>(<span class="fn">validate_email</span>(<span class="st">"admin@corp.com"</span>))  <span class="cm"># True</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 — COMMON MISTAKES ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 36</div>
+        <div class="slide-title">Common Mistakes: <span class="accent">Three That Hit Everyone</span></div>
+        <div class="slide-subtitle">Learn these from a slide instead of from a 2 AM debugging session.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">1 — Forgetting return</div>
+                <div class="card-desc">You write a function that computes a value, then forget to return it. The caller receives <span class="ic">None</span>. The error you see is not "you forgot return" — it is <span class="ic">TypeError: unsupported operand type(s): NoneType + int</span>, pointing to the line that used the result. When you see a NoneType error, the first thing to check is whether the function you called actually returns a value.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">2 — Mutable Default Argument</div>
+                <div class="card-desc">Writing <span class="ic">def f(items=[]):</span> creates one list shared across every call. Python creates the default object once at function definition time. Appending to it in one call leaves it modified for all subsequent calls — even from unrelated parts of your code. The fix: use <span class="ic">def f(items=None):</span> and create a fresh list inside if needed. This is one of Python's most famous gotchas.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">3 — Scope Confusion</div>
+                <div class="card-desc">You modify a variable inside a function expecting it to change the outer variable. Python creates a local shadow instead. No error — just wrong results that are hard to trace. The fix: stop modifying outer state from inside functions. Pass values in as arguments, return updated values out. If you feel the need for <span class="ic">global</span>, restructure the code instead.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Mutable default argument — the famous Python gotcha</span>
+<span class="kw">def</span> <span class="fn">add_host_wrong</span>(host, seen=[]):     <span class="cm"># BAD: [] created once at definition time</span>
+    seen.<span class="fn">append</span>(host)
+    <span class="kw">return</span> seen
+
+<span class="fn">print</span>(<span class="fn">add_host_wrong</span>(<span class="st">"10.0.0.1"</span>))    <span class="cm"># ['10.0.0.1']  — looks right</span>
+<span class="fn">print</span>(<span class="fn">add_host_wrong</span>(<span class="st">"10.0.0.2"</span>))    <span class="cm"># ['10.0.0.1', '10.0.0.2'] — carries over!</span>
+
+<span class="kw">def</span> <span class="fn">add_host_correct</span>(host, seen=<span class="kw">None</span>):  <span class="cm"># GOOD: fresh list created on each call</span>
+    <span class="kw">if</span> seen <span class="kw">is None</span>:
+        seen = []
+    seen.<span class="fn">append</span>(host)
+    <span class="kw">return</span> seen
+
+<span class="fn">print</span>(<span class="fn">add_host_correct</span>(<span class="st">"10.0.0.1"</span>))  <span class="cm"># ['10.0.0.1']</span>
+<span class="fn">print</span>(<span class="fn">add_host_correct</span>(<span class="st">"10.0.0.2"</span>))  <span class="cm"># ['10.0.0.2'] — independent each time</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 — PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 36 &nbsp;|&nbsp; In-Class Practice</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Six exercises from straightforward to stretch. Start at 1. Ask questions while the instructor is here.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><strong>Password Generator:</strong> Write <code>generate_password(length=12, use_symbols=True)</code> that returns a random password string. Use <code>import random, string</code>. Build the character pool from <code>string.ascii_letters + string.digits</code> and optionally <code>string.punctuation</code>. Test with default args, then override both.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>Temperature Converter Library:</strong> Write <code>c_to_f(c)</code>, <code>f_to_c(f)</code>, and <code>k_to_c(k)</code> — each takes a float, returns a float. Add docstrings and type hints. Then write <code>convert(value, from_unit, to_unit)</code> that calls the correct converter based on string arguments <code>"C"</code>, <code>"F"</code>, <code>"K"</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>Recursive File Counter:</strong> Write <code>count_files(directory, extension=None)</code> that recursively counts all files under a directory. If <code>extension</code> is given (e.g. <code>".log"</code>), count only matching files. Use <code>os.listdir()</code> and <code>os.path.isdir()</code>. Test against <code>/var/log</code> or any local directory you have access to.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>Data Validators:</strong> Implement <code>validate_ipv4()</code>, <code>validate_port()</code>, and <code>validate_email()</code> from Slide 30 without looking at the solution. Then write <code>validate_row(ip, port, email)</code> that calls all three and returns a tuple <code>(bool, list)</code> — overall pass/fail and a list of the field names that failed.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>Mini Stats Library:</strong> Write <code>mean(numbers)</code>, <code>median(numbers)</code>, <code>mode(numbers)</code>, and <code>std_dev(numbers)</code> without importing the <code>statistics</code> module. Each accepts a list of numbers and returns a float. Test with <code>[4, 8, 6, 5, 3, 2, 8, 9, 2, 5]</code>. Add docstrings to all four.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text"><strong>Function Decorator Intro (Stretch):</strong> Write a <code>timer</code> decorator that measures how long any function takes to run and prints the elapsed time. Apply it to <code>count_files()</code> from exercise 3 using the <code>@timer</code> syntax. Look up <code>time.perf_counter()</code> and the decorator pattern. This is a Week 4 preview.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 — KEY VOCABULARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 36</div>
+        <div class="slide-title">Key <span class="accent">Vocabulary</span></div>
+        <div class="slide-subtitle">Know these terms. They appear in error messages, documentation, job interviews, and code reviews.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Function Fundamentals</div>
+                <div class="card-desc">
+                    <strong>Function</strong> — a named, reusable block of code invoked by calling its name.<br>
+                    <strong>Definition</strong> — the <span class="ic">def</span> statement that creates the function and its body.<br>
+                    <strong>Call</strong> — executing the function by writing its name followed by <span class="ic">()</span>.<br>
+                    <strong>Parameter</strong> — a named placeholder in the function header (definition time).<br>
+                    <strong>Argument</strong> — the actual value passed to a parameter at call time.<br>
+                    <strong>Return value</strong> — the value sent back to the caller via <span class="ic">return</span>.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Argument Types</div>
+                <div class="card-desc">
+                    <strong>Positional argument</strong> — matched to a parameter by position, left to right.<br>
+                    <strong>Keyword argument</strong> — matched to a parameter by name at the call site.<br>
+                    <strong>Default parameter</strong> — has a fallback value; optional to supply at call time.<br>
+                    <strong>*args</strong> — collects extra positional arguments into a tuple inside the function.<br>
+                    <strong>**kwargs</strong> — collects extra keyword arguments into a dict inside the function.<br>
+                    <strong>Type hint</strong> — annotation declaring expected types; documented, not enforced.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Scope and Advanced Concepts</div>
+                <div class="card-desc">
+                    <strong>Scope</strong> — the region of code where a name is visible and can be accessed.<br>
+                    <strong>Local scope</strong> — names defined inside the current function call only.<br>
+                    <strong>Global scope</strong> — module-level names, visible throughout the entire file.<br>
+                    <strong>LEGB</strong> — Python's name lookup order: Local, Enclosing, Global, Built-in.<br>
+                    <strong>Lambda</strong> — anonymous single-expression function using the <span class="ic">lambda</span> keyword.<br>
+                    <strong>Higher-order function</strong> — a function that accepts or returns another function.<br>
+                    <strong>Recursion</strong> — a function that calls itself; requires a base case to terminate.<br>
+                    <strong>Docstring</strong> — triple-quoted string as first function statement; stored in <span class="ic">__doc__</span>.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 36 — SUMMARY + COMPLETE ==================== -->
+<section class="slide" id="slide-36">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 36 of 36 &nbsp;|&nbsp; COP1034C Obj 4</div>
+        <div class="slide-title">Day 7 Summary: <span class="accent">Key Takeaways</span></div>
+
+        <div class="scenario-strip">
+            You started today with five scripts that all contained a copy of the same IP validation logic. You end today with <span class="ic">validate_ipv4()</span> — defined once, callable from everywhere, with a docstring, type hints, and a clear return contract. A bug found tomorrow gets fixed in one place. A teammate calls <span class="ic">help(validate_ipv4)</span> and knows exactly what to pass. That is the difference between a script and a professional tool.
+        </div>
+
+        <div class="section-label">8 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><strong>DRY — Don't Repeat Yourself.</strong> If the same logic appears in two places, it belongs in a function. Fix it once, fix it everywhere.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>Parameter vs Argument:</strong> <strong>P</strong>arameter = <strong>P</strong>laceholder at definition. <strong>A</strong>rgument = <strong>A</strong>ctual value at call. Python error messages use these words precisely.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Positional: order matters. Keyword: names matter, order does not. Defaults come last. <code>*args</code> = tuple. <code>**kwargs</code> = dict. Positional before keyword in any call.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><code>return</code> sends a value to the caller and exits the function. <code>print()</code> sends text to the screen and returns <code>None</code>. Functions that compute should <strong>return</strong>. NoneType errors usually mean a missing return.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>LEGB:</strong> Local then Enclosing then Global then Built-in. First match wins. <code>NameError</code> means the name was not found in any of the four layers.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Avoid <code>global</code>. Pass values as arguments, return updated values. Functions that modify global state are hard to test and create invisible couplings.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text"><code>lambda x: expr</code> is an anonymous single-expression function. Best passed to <code>sorted(key=)</code>, <code>filter()</code>, and <code>map()</code>. Use <code>def</code> for anything more complex or if it needs a name.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Every recursive function needs a <strong>base case</strong> and a <strong>recursive case</strong>. No base case equals infinite recursion equals <code>RecursionError</code>. When in doubt, use a loop.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Python for IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 36</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* ── Slide navigation state ── */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 36;
+
+    function goToSlide(n) {
+        /* Boundary check */
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Deactivate the currently visible slide */
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        /* Activate the target slide */
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update the gold progress bar at the top */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        /* Update the counter label in the nav bar */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Disable Prev on slide 1, Next on last slide */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show Mark Complete button only on the final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard arrow key navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize to slide 1 on page load */
+    goToSlide(1);
+</script>
+
+<script>
+    /* ── Module completion via ModuleProgress component ── */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('code', 'pfi-w3-functions', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<!-- Accessibility enhancements: focus management and ARIA live regions -->
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

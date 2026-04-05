@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- AccessGuard: blocks unauthenticated and unsorted users -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- AchievementManager: unlocks badges on milestone events -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <!-- ModuleProgress: marks this module complete in Firestore -->
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz 2: Strings, Files &amp; Data Structures | Python for IT</title>
+    <style>
+        /* ── CSS custom properties — Code house green palette ── */
+        :root {
+            --bg:         #0a0e1a;
+            --bg-card:    #0f1625;
+            --bg-option:  #141d2e;
+            --green:      #10b981;
+            --green-dim:  rgba(16, 185, 129, 0.15);
+            --text:       #e2e8f0;
+            --text-muted: #8892a8;
+            --success:    #22c55e;
+            --danger:     #ef4444;
+            --border:     rgba(255,255,255,0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, var(--bg) 0%, #0c1220 50%, #0e1828 100%);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .quiz-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .back-link {
+            color: var(--green);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        .back-link:hover { color: #6ee7b7; transform: translateX(-5px); display: inline-block; }
+
+        .quiz-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: var(--bg-card);
+            border-radius: 14px;
+            border: 1px solid var(--green-dim);
+        }
+
+        .quiz-header h1 {
+            font-size: 1.6rem;
+            color: var(--green);
+            margin-bottom: 0.5rem;
+        }
+
+        .quiz-header .subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .quiz-header .meta {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            font-size: 0.8rem;
+        }
+
+        .quiz-header .meta span {
+            background: var(--bg);
+            padding: 4px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+
+        .progress-bar-wrap {
+            background: var(--bg-card);
+            border-radius: 10px;
+            padding: 14px 18px;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .progress-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .progress-track {
+            flex: 1;
+            height: 8px;
+            background: var(--bg);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--green), var(--success));
+            border-radius: 4px;
+            transition: width 0.4s ease;
+            width: 0%;
+        }
+
+        .score-label {
+            font-size: 0.85rem;
+            color: var(--green);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .question-card {
+            background: var(--bg-card);
+            border-radius: 14px;
+            padding: 2rem;
+            border: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+
+        .question-num {
+            font-size: 0.8rem;
+            color: var(--green);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.75rem;
+        }
+
+        .question-text {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        /* ── Inline code inside question text ── */
+        .question-text code {
+            background: rgba(16, 185, 129, 0.1);
+            color: #6ee7b7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 1rem;
+        }
+
+        /* ── Block code snippets ── */
+        .code-block {
+            background: #080c18;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin: -0.75rem 0 1.25rem 0;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.92rem;
+            color: #a7f3d0;
+            white-space: pre;
+            overflow-x: auto;
+            line-height: 1.7;
+        }
+
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 1rem;
+        }
+
+        .option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 18px;
+            background: var(--bg-option);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .option:hover {
+            border-color: rgba(16, 185, 129, 0.4);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .option.selected  { border-color: var(--green);   background: rgba(16, 185, 129, 0.08); }
+        .option.correct   { border-color: var(--success);  background: rgba(34, 197, 94, 0.1); }
+        .option.incorrect { border-color: var(--danger);   background: rgba(239, 68, 68, 0.08); }
+
+        .option.disabled           { pointer-events: none; opacity: 0.7; }
+        .option.correct.disabled   { opacity: 1; }
+        .option.incorrect.disabled { opacity: 1; }
+
+        .option-letter {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--green);
+            flex-shrink: 0;
+        }
+
+        .option.correct .option-letter   { background: var(--success); color: #fff; border-color: var(--success); }
+        .option.incorrect .option-letter { background: var(--danger);  color: #fff; border-color: var(--danger); }
+
+        .feedback {
+            padding: 14px 18px;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            display: none;
+        }
+
+        .feedback.correct {
+            display: block;
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #86efac;
+        }
+
+        .feedback.incorrect {
+            display: block;
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+
+        .quiz-nav { display: flex; justify-content: flex-end; }
+
+        .next-btn {
+            padding: 10px 24px;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: var(--green);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .next-btn:hover { background: var(--green); color: #fff; }
+        .next-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .next-btn:disabled:hover { background: rgba(16, 185, 129, 0.15); color: var(--green); }
+
+        .results-card {
+            display: none;
+            text-align: center;
+            background: var(--bg-card);
+            border-radius: 14px;
+            padding: 3rem 2rem;
+            border: 1px solid var(--border);
+        }
+
+        .results-card h2 { color: var(--green); font-size: 1.4rem; margin-bottom: 1rem; }
+
+        .score-big {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: var(--success);
+            margin-bottom: 0.5rem;
+        }
+
+        .score-big.low { color: var(--danger); }
+        .score-big.mid { color: #fbbf24; }
+
+        .score-msg { color: var(--text-muted); font-size: 1rem; margin-bottom: 2rem; }
+
+        .results-btns {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .results-btns a,
+        .results-btns button {
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .btn-retry {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.4) !important;
+            color: var(--green);
+        }
+        .btn-retry:hover { background: var(--green); color: #fff; }
+
+        .btn-hub {
+            background: rgba(34, 197, 94, 0.15);
+            border: 1px solid rgba(34, 197, 94, 0.4) !important;
+            color: var(--success);
+        }
+        .btn-hub:hover { background: var(--success); color: #fff; }
+
+        @media (max-width: 640px) {
+            .quiz-container { padding: 1rem; }
+            .question-card  { padding: 1.25rem; }
+            .quiz-header h1 { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+
+        <!-- Back navigation -->
+        <div class="nav-links">
+            <a href="../index.html" class="back-link">&#8592; Python for IT Hub</a>
+        </div>
+
+        <!-- Quiz header -->
+        <div class="quiz-header">
+            <h1>Quiz 2: Strings, Files &amp; Data Structures</h1>
+            <p class="subtitle">String methods, slicing, f-strings, file I/O, lists, tuples, dictionaries, sets</p>
+            <div class="meta">
+                <span>Week 2</span>
+                <span>15 Questions</span>
+                <span>Pass: 70%</span>
+                <span>COP1034C</span>
+            </div>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="progress-bar-wrap">
+            <span class="progress-label" id="progressLabel">Question 1 of 15</span>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <span class="score-label" id="scoreLabel">Score: 0</span>
+        </div>
+
+        <!-- Active question card -->
+        <div class="question-card" id="questionCard">
+            <div class="question-num"  id="questionNum">QUESTION 1</div>
+            <div class="question-text" id="questionText"></div>
+            <div class="options"       id="optionsEl"></div>
+            <div class="feedback"      id="feedback"></div>
+            <div class="quiz-nav">
+                <button class="next-btn" id="nextBtn" onclick="nextQuestion()" disabled>Next Question</button>
+            </div>
+        </div>
+
+        <!-- Results card -->
+        <div class="results-card" id="resultsCard">
+            <h2>Quiz Complete</h2>
+            <div class="score-big" id="finalScore"></div>
+            <p class="score-msg"   id="scoreMsg"></p>
+            <div class="results-btns">
+                <button class="btn-retry" onclick="restartQuiz()">Try Again</button>
+                <a href="../index.html" class="btn-hub">Back to Python Hub</a>
+            </div>
+        </div>
+
+    </div><!-- /.quiz-container -->
+
+    <script>
+        /* ── Question bank — Week 2: Strings, Files & Data Structures ── */
+        /* Correct answer distribution: A=4, B=4, C=4, D=3               */
+        var questions = [
+            {
+                /* Q1 — string slicing */
+                q:    "What is the output of the following code?",
+                code: "s = 'Python'\nprint(s[1:4])",
+                opts: ["yth", "Pyt", "ytho", "tho"],
+                ans:  0,
+                exp:  "String slicing uses [start:stop] where start is inclusive and stop is exclusive. s[1:4] starts at index 1 ('y') and goes up to but not including index 4 ('h'). Result: 'yth'."
+            },
+            {
+                /* Q2 — string method upper/lower */
+                q:    "What does <code>'Hello World'.lower()</code> return?",
+                opts: ["'HELLO WORLD'", "'hello world'", "hello world", "'Hello World'"],
+                ans:  1,
+                exp:  "The lower() method returns a new string with all characters converted to lowercase. String methods in Python do not modify the original string — they return a new one."
+            },
+            {
+                /* Q3 — string split */
+                q:    "What is the output of the following code?",
+                code: "line = 'alice,bob,carol'\nparts = line.split(',')\nprint(parts[2])",
+                opts: ["bob", "['alice', 'bob', 'carol']", "carol", "alice"],
+                ans:  2,
+                exp:  "split(',') breaks the string at every comma and returns a list. The resulting list is ['alice', 'bob', 'carol']. Index 2 is 'carol'."
+            },
+            {
+                /* Q4 — f-string */
+                q:    "What is the output of the following code?",
+                code: "name = 'Ada'\nscore = 95\nprint(f'{name} scored {score}%')",
+                opts: ["Ada scored score%", "{name} scored {score}%", "name scored score%", "Ada scored 95%"],
+                ans:  3,
+                exp:  "An f-string (formatted string literal) evaluates expressions inside curly braces at runtime. The variables name and score are substituted with their values, producing 'Ada scored 95%'."
+            },
+            {
+                /* Q5 — file open mode */
+                q:    "Which file open mode creates a new file or OVERWRITES an existing one?",
+                opts: ["'r'", "'a'", "'x'", "'w'"],
+                ans:  3,
+                exp:  "'w' opens a file for writing. If the file already exists, its contents are erased. If it does not exist, a new file is created. Use 'a' to append without overwriting, and 'x' to fail if the file already exists."
+            },
+            {
+                /* Q6 — with statement */
+                q:    "What is the primary benefit of using the <code>with open(...)</code> syntax for file I/O?",
+                opts: [
+                    "It automatically closes the file when the block exits",
+                    "It reads the file faster",
+                    "It converts the file contents to a list",
+                    "It prevents other programs from reading the file"
+                ],
+                ans:  0,
+                exp:  "The 'with' statement is a context manager. It guarantees that the file handle is closed when the block exits — even if an exception occurs. This prevents resource leaks and is the recommended pattern for all file I/O."
+            },
+            {
+                /* Q7 — list append and indexing */
+                q:    "What is the output of the following code?",
+                code: "nums = [10, 20, 30]\nnums.append(40)\nprint(nums[-1])",
+                opts: ["40", "10", "30", "[10, 20, 30, 40]"],
+                ans:  0,
+                exp:  "append() adds 40 to the end of the list, making it [10, 20, 30, 40]. Negative indexing counts from the end: index -1 refers to the last element, which is 40."
+            },
+            {
+                /* Q8 — list pop */
+                q:    "What does <code>my_list.pop(0)</code> do?",
+                opts: [
+                    "Returns the first element without removing it",
+                    "Raises an IndexError",
+                    "Removes and returns the last element",
+                    "Removes and returns the first element"
+                ],
+                ans:  3,
+                exp:  "pop(index) removes the element at the given index and returns it. pop(0) targets the first element. With no argument, pop() removes and returns the last element."
+            },
+            {
+                /* Q9 — tuple immutability */
+                q:    "What happens when you run the following code?",
+                code: "coords = (10, 20)\ncoords[0] = 99",
+                opts: [
+                    "Raises a TypeError",
+                    "coords becomes (99, 20)",
+                    "coords becomes [99, 20]",
+                    "Raises a ValueError"
+                ],
+                ans:  0,
+                exp:  "Tuples are immutable — their elements cannot be changed after creation. Attempting to assign to an index raises a TypeError: 'tuple' object does not support item assignment."
+            },
+            {
+                /* Q10 — dictionary access */
+                q:    "What is the output of the following code?",
+                code: "user = {'name': 'Zara', 'role': 'admin'}\nprint(user.get('email', 'not set'))",
+                opts: ["email", "not set", "None", "KeyError"],
+                ans:  1,
+                exp:  "dict.get(key, default) returns the value for the key if it exists, or the default if it does not. Since 'email' is not in the dictionary, 'not set' is returned. This is safer than direct bracket access, which would raise a KeyError."
+            },
+            {
+                /* Q11 — dictionary iteration */
+                q:    "Which method returns key-value pairs from a dictionary so you can iterate over both at once?",
+                opts: [".keys()", ".items()", ".pairs()", ".values()"],
+                ans:  1,
+                exp:  "dict.items() returns a view of (key, value) tuples. Use it in a for loop: 'for k, v in d.items()'. .keys() returns only keys, .values() returns only values, and .pairs() does not exist."
+            },
+            {
+                /* Q12 — set deduplication */
+                q:    "What is the output of the following code?",
+                code: "data = [3, 1, 4, 1, 5, 9, 2, 6, 5]\nunique = set(data)\nprint(len(unique))",
+                opts: ["5", "6", "7", "9"],
+                ans:  2,
+                exp:  "Converting a list to a set removes duplicates. The values 1 and 5 each appear twice. The unique values are {1, 2, 3, 4, 5, 6, 9} — seven distinct elements. len() of that set is 7."
+            },
+            {
+                /* Q13 — list comprehension */
+                q:    "What does the following list comprehension produce?",
+                code: "result = [x**2 for x in range(1, 5)]\nprint(result)",
+                opts: ["[2, 4, 6, 8]", "[0, 1, 4, 9]", "[1, 4, 9, 16, 25]", "[1, 4, 9, 16]"],
+                ans:  3,
+                exp:  "range(1, 5) produces 1, 2, 3, 4. The expression x**2 squares each value. Result: [1, 4, 9, 16]. Note: range(1, 5) excludes 5, so 5**2=25 is not included."
+            },
+            {
+                /* Q14 — string find */
+                q:    "What is the output of <code>'cybersecurity'.find('sec')</code>?",
+                opts: ["-1", "5", "3", "4"],
+                ans:  1,
+                exp:  "find() returns the index of the first occurrence of the substring. In 'cybersecurity', 'sec' begins at index 5 (c=0, y=1, b=2, e=3, r=4, s=5). If the substring is not found, find() returns -1."
+            },
+            {
+                /* Q15 — set membership */
+                q:    "What is the output of the following code?",
+                code: "ports = {22, 80, 443}\nprint(443 in ports)\nprint(8080 in ports)",
+                opts: ["False False", "False True", "True False", "True True"],
+                ans:  2,
+                exp:  "The 'in' operator tests membership in a set. 443 is in the set, so the first print produces True. 8080 is not in the set, so the second print produces False. Sets offer O(1) average-case membership testing."
+            }
+        ];
+
+        /* ── Quiz state ── */
+        var current  = 0;
+        var score    = 0;
+        var answered = false;
+        var TOTAL    = questions.length;
+
+        /* ── Render the current question ── */
+        function loadQuestion() {
+            var q = questions[current];
+
+            document.getElementById('questionNum').textContent   = 'QUESTION ' + (current + 1);
+            document.getElementById('progressLabel').textContent = 'Question ' + (current + 1) + ' of ' + TOTAL;
+            document.getElementById('progressFill').style.width  = ((current + 1) / TOTAL * 100) + '%';
+
+            /* innerHTML renders inline <code> tags */
+            document.getElementById('questionText').innerHTML = q.q;
+
+            /* Append optional code block */
+            if (q.code) {
+                var block = document.createElement('pre');
+                block.className   = 'code-block';
+                block.textContent = q.code;
+                document.getElementById('questionText').appendChild(block);
+            }
+
+            /* Build answer options */
+            var html    = '';
+            var letters = ['A', 'B', 'C', 'D'];
+            for (var i = 0; i < q.opts.length; i++) {
+                html += '<div class="option" onclick="selectAnswer(' + i + ')">' +
+                        '<span class="option-letter">' + letters[i] + '</span>' +
+                        '<span>' + q.opts[i] + '</span></div>';
+            }
+            document.getElementById('optionsEl').innerHTML = html;
+
+            /* Reset state for this question */
+            document.getElementById('feedback').className   = 'feedback';
+            document.getElementById('feedback').textContent = '';
+            document.getElementById('nextBtn').disabled     = true;
+            answered = false;
+        }
+
+        /* ── Handle answer selection ── */
+        function selectAnswer(idx) {
+            if (answered) return;
+            answered = true;
+
+            var q    = questions[current];
+            var opts = document.querySelectorAll('.option');
+
+            /* Highlight all options: correct green, chosen-wrong red */
+            for (var i = 0; i < opts.length; i++) {
+                opts[i].classList.add('disabled');
+                if (i === q.ans)        opts[i].classList.add('correct');
+                else if (i === idx)     opts[i].classList.add('incorrect');
+            }
+
+            /* Display feedback explanation */
+            var fb = document.getElementById('feedback');
+            if (idx === q.ans) {
+                score++;
+                fb.className   = 'feedback correct';
+                fb.textContent = 'Correct! ' + q.exp;
+            } else {
+                fb.className   = 'feedback incorrect';
+                fb.textContent = 'Incorrect. ' + q.exp;
+            }
+
+            document.getElementById('scoreLabel').textContent = 'Score: ' + score;
+            document.getElementById('nextBtn').disabled = false;
+
+            if (current === TOTAL - 1) {
+                document.getElementById('nextBtn').textContent = 'See Results';
+            }
+        }
+
+        /* ── Advance to next question or results ── */
+        function nextQuestion() {
+            current++;
+            if (current >= TOTAL) { showResults(); return; }
+            loadQuestion();
+        }
+
+        /* ── Show results card ── */
+        function showResults() {
+            document.getElementById('questionCard').style.display       = 'none';
+            document.querySelector('.progress-bar-wrap').style.display  = 'none';
+
+            document.getElementById('resultsCard').style.display = 'block';
+
+            var pct      = Math.round((score / TOTAL) * 100);
+            var scoreBig = document.getElementById('finalScore');
+            scoreBig.textContent = score + '/' + TOTAL + ' (' + pct + '%)';
+
+            if      (pct >= 80) scoreBig.className = 'score-big';
+            else if (pct >= 70) scoreBig.className = 'score-big mid';
+            else                scoreBig.className = 'score-big low';
+
+            var msg = '';
+            if      (pct >= 90) msg = 'Excellent! You have a strong command of Python strings, file I/O, and data structures.';
+            else if (pct >= 70) msg = 'Good work — you passed. Review any missed topics before moving to Week 3.';
+            else if (pct >= 50) msg = 'Close, but not quite. Revisit the Week 2 slides and try again.';
+            else                msg = 'Return to the Week 2 materials and retake this quiz.';
+            document.getElementById('scoreMsg').textContent = msg;
+
+            /* Mark module complete on pass */
+            if (pct >= 70 && typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('code', 'pfi-w2-quiz', { returnUrl: '../index.html' });
+            }
+        }
+
+        /* ── Reset for retry ── */
+        function restartQuiz() {
+            current  = 0;
+            score    = 0;
+            answered = false;
+            document.getElementById('scoreLabel').textContent          = 'Score: 0';
+            document.getElementById('questionCard').style.display      = '';
+            document.querySelector('.progress-bar-wrap').style.display = '';
+            document.getElementById('resultsCard').style.display       = 'none';
+            document.getElementById('nextBtn').textContent             = 'Next Question';
+            loadQuestion();
+        }
+
+        /* ── Initialise ── */
+        loadQuestion();
+    </script>
+</body>
+</html>

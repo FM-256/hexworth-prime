@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: require sorted house membership before content is visible -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress tracking and achievement unlocks -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graphics &amp; Image Processing with Python | Python for IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Viewport-locked slide deck -- only .active is displayed */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Max-width wrapper so content does not stretch on wide screens */
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Gold progress bar across the very top */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button -- shown only on last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip for scenario or instructor notes */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids -- 3-column and 2-column */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        /* Section label -- small caps divider text */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Python code block with syntax color spans */
+        .code-block {
+            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #c9a83a; }   /* keywords: import, def, for, while, if, True, False */
+        .code-block .fn { color: #06b6d4; }   /* built-in / library functions: print, range, turtle */
+        .code-block .st { color: #3ab577; }   /* string literals */
+        .code-block .cm { color: #475569; }   /* inline comments */
+        .code-block .nb { color: #f472b6; }   /* numeric and boolean literals */
+        .code-block .er { color: #ef4444; }   /* error output lines */
+        .code-block .out { color: #94a3b8; }  /* console output / visual result descriptions */
+
+        /* Inline code span for use inside card-desc and fact-text */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Two-column layout for code + result side-by-side */
+        .code-result-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+        }
+        .result-box {
+            background: rgba(58, 181, 119, 0.05); border: 1px solid rgba(58, 181, 119, 0.2);
+            border-radius: 6px; padding: 10px 14px;
+            font-size: 0.82rem; color: #94a3b8; line-height: 1.6;
+        }
+        .result-box .result-label {
+            font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.08em; color: #3ab577; margin-bottom: 6px;
+        }
+        .result-box .result-desc { color: #cbd5e1; font-style: italic; }
+
+        /* Step-by-step numbered list */
+        .step-list { display: flex; flex-direction: column; gap: 7px; }
+        .step-row { display: flex; gap: 12px; align-items: flex-start; font-size: 0.875rem; }
+        .step-num {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a;
+            border-radius: 50%; width: 22px; height: 22px; min-width: 22px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.72rem; font-weight: 700; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .code-result-grid { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+    <script src="../../../../components/TryItNow.js"></script>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Graphics & Image Processing with Python</h1>
+
+
+<!-- Gold progress bar -- width is set by goToSlide() on every navigation -->
+<div id="progress-bar" style="width:3.33%"></div>
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 31 &nbsp;|&nbsp; COP1034C Obj 5 &nbsp;|&nbsp; Day 8 of 12</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Python for IT: Day 8<br>
+                <span class="accent">Graphics &amp; Image Processing</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Turtle Graphics &nbsp;&bull;&nbsp; Drawing with Code &nbsp;&bull;&nbsp; Colors &amp; Animation &nbsp;&bull;&nbsp; Pillow/PIL &nbsp;&bull;&nbsp; IT Visualizations
+            </div>
+        </div>
+        <div class="scenario-strip">
+            You've built functions. You've written loops. Today those skills produce something you can actually see on screen. A network topology map. A bar chart from live data. A drawing pad that responds to your keystrokes. Programming stops being abstract the moment your code draws something. Today is that moment.
+        </div>
+        <div class="title-meta-row">
+            <span>31 Slides</span>
+            <span>COP1034C Obj 5</span>
+            <span>Day 8 of 12</span>
+            <span>Week 3 Tuesday</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 -- WHAT IS TURTLE GRAPHICS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 31</div>
+        <div class="slide-title">What Is <span class="accent">Turtle Graphics?</span></div>
+        <div class="slide-subtitle">A drawing library that ships with every Python installation -- no pip install needed.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Standard Library Module</div>
+                <div class="card-desc">The <span class="ic">turtle</span> module is part of Python's standard library. It is available in Python 3.12 and every version before it. You import it and it works -- no installation, no dependencies, no configuration.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Visual Programming Model</div>
+                <div class="card-desc">Imagine a turtle sitting on a canvas holding a pen. You give it movement instructions. When the pen is down, the turtle draws a line as it moves. When the pen is up, it moves without leaving a mark. Everything you draw is just movement + pen state.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Where It Came From</div>
+                <div class="card-desc">Turtle graphics originated in the Logo programming language in the 1960s at MIT. It was designed specifically to teach programming to beginners by making code output immediately visible. Python's implementation keeps that same philosophy.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Why It Matters for IT Students</div>
+                <div class="card-desc">Turtle teaches you to think spatially about code -- loops, functions, and coordinate math all become concrete. You write a function, call it five times, and a star appears. The logic is identical to functions you will write for network automation -- just with a visible result instead of a log file.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">What It Produces</div>
+                <div class="card-desc">A popup window with a canvas. The turtle starts at the center (0, 0) facing right (east). Every command you issue moves or rotates it. The window stays open until you close it or call <span class="ic">turtle.done()</span>. You can make diagrams, charts, games, and art.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 -- GETTING STARTED ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 31</div>
+        <div class="slide-title">Getting Started: <span class="accent">First Lines of Turtle Code</span></div>
+        <div class="slide-subtitle">Four lines are all it takes to draw your first shape on screen.</div>
+
+        <div class="code-result-grid">
+            <div class="code-block"><span class="kw">import</span> turtle           <span class="cm"># load the turtle module from stdlib</span>
+
+turtle.<span class="fn">forward</span>(<span class="nb">100</span>)     <span class="cm"># move the turtle forward 100 pixels</span>
+turtle.<span class="fn">right</span>(<span class="nb">90</span>)       <span class="cm"># rotate 90 degrees clockwise</span>
+turtle.<span class="fn">forward</span>(<span class="nb">100</span>)     <span class="cm"># move forward again</span>
+turtle.<span class="fn">done</span>()           <span class="cm"># keep window open until user closes it</span></div>
+            <div class="result-box">
+                <div class="result-label">Visual Result</div>
+                <div class="result-desc">A popup window appears. The turtle (a small arrow by default) draws a horizontal line 100 pixels long, turns right 90 degrees, then draws a vertical line 100 pixels downward. Two sides of a square. The window stays open until you click the X.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">import turtle</div>
+                <div class="card-desc">Loads the module. After this line you access everything through the <span class="ic">turtle.</span> namespace. Alternatively use <span class="ic">from turtle import *</span> to call functions directly without the prefix -- but the prefix form is clearer and recommended.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">turtle.done()</div>
+                <div class="card-desc">Also written as <span class="ic">turtle.mainloop()</span>. Tells Python to keep the window alive waiting for user input. Without it, the script finishes instantly and the window closes before you can see anything. Always end turtle programs with this call.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Running Turtle Code</div>
+                <div class="card-desc">Run from a .py file with <span class="ic">python3 filename.py</span> or from IDLE. Do not run turtle code in Jupyter notebooks or most online REPLs -- they do not support a popup window. A local Python 3.12 installation with IDLE works perfectly.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 -- BASIC MOVEMENT ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 31</div>
+        <div class="slide-title">Basic Movement: <span class="accent">The Four Directions</span></div>
+        <div class="slide-subtitle">Every drawing starts with these four commands. Each has a shorthand alias.</div>
+
+        <div class="code-result-grid">
+            <div class="code-block"><span class="kw">import</span> turtle
+
+turtle.<span class="fn">forward</span>(<span class="nb">150</span>)   <span class="cm"># alias: turtle.fd(150)</span>
+turtle.<span class="fn">right</span>(<span class="nb">90</span>)     <span class="cm"># alias: turtle.rt(90)</span>
+turtle.<span class="fn">forward</span>(<span class="nb">100</span>)   <span class="cm"># move in the new direction</span>
+turtle.<span class="fn">left</span>(<span class="nb">45</span>)       <span class="cm"># alias: turtle.lt(45)</span>
+turtle.<span class="fn">backward</span>(<span class="nb">80</span>)   <span class="cm"># alias: turtle.bk(80)</span>
+turtle.<span class="fn">done</span>()</div>
+            <div class="result-box">
+                <div class="result-label">Visual Result</div>
+                <div class="result-desc">The turtle draws a horizontal line rightward (150px), turns down, draws 100px downward, rotates 45 degrees counterclockwise, then backs up 80px along a diagonal. You get an angular path -- not a closed shape, but you can see every command's effect clearly.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Angles: Degrees, Not Radians</div>
+                <div class="card-desc">Turtle uses degrees. <span class="ic">right(90)</span> is a quarter turn clockwise. <span class="ic">left(90)</span> is a quarter turn counterclockwise. <span class="ic">right(180)</span> reverses direction. <span class="ic">right(360)</span> is a full circle back to the start. You do not need to convert to radians.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Accumulated Turns</div>
+                <div class="card-desc">The turtle always turns relative to its current heading -- not relative to north or the screen. If the turtle is facing southeast and you call <span class="ic">right(90)</span>, it will now face southwest. Draw on paper first when working out complex shapes.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Shorthand aliases:</strong> <span class="ic">fd</span> = forward, <span class="ic">bk</span> = backward, <span class="ic">rt</span> = right, <span class="ic">lt</span> = left. The aliases are identical in behavior. Use whichever makes your code more readable to you.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 -- PEN UP / PEN DOWN / GOTO ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 31</div>
+        <div class="slide-title">Moving Without Drawing: <span class="accent">penup, pendown, goto</span></div>
+        <div class="slide-subtitle">Lift the pen to reposition without leaving a mark. Essential for multi-shape drawings.</div>
+
+        <div class="code-result-grid">
+            <div class="code-block"><span class="kw">import</span> turtle
+
+turtle.<span class="fn">forward</span>(<span class="nb">100</span>)     <span class="cm"># draws a line -- pen is down by default</span>
+
+turtle.<span class="fn">penup</span>()          <span class="cm"># alias: turtle.pu()  -- lift the pen</span>
+turtle.<span class="fn">goto</span>(<span class="nb">-150</span>, <span class="nb">50</span>)   <span class="cm"># jump to coordinate (-150, 50) without drawing</span>
+turtle.<span class="fn">pendown</span>()        <span class="cm"># alias: turtle.pd()  -- put the pen back down</span>
+turtle.<span class="fn">forward</span>(<span class="nb">100</span>)     <span class="cm"># draws a second line in the new position</span>
+
+turtle.<span class="fn">home</span>()            <span class="cm"># return to (0,0) facing east, does NOT reset pen state</span>
+turtle.<span class="fn">done</span>()</div>
+            <div class="result-box">
+                <div class="result-label">Visual Result</div>
+                <div class="result-desc">Two disconnected horizontal lines appear. The first line is drawn near the center. The turtle then jumps invisibly to the upper-left area and draws a second line. There is no connecting line between them because the pen was up during the jump.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">goto(x, y)</div>
+                <div class="card-desc">Teleports the turtle to an absolute canvas coordinate. If the pen is down, a straight line is drawn to the destination. If the pen is up, no line is drawn. Coordinates: (0, 0) is center, x increases rightward, y increases upward.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">home()</div>
+                <div class="card-desc">Moves the turtle back to position (0, 0) and resets its heading to east (right). If the pen is currently down, a line is drawn back to (0, 0). Call <span class="ic">penup()</span> before <span class="ic">home()</span> if you do not want that line.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">setx() and sety()</div>
+                <div class="card-desc"><span class="ic">turtle.setx(100)</span> moves to x=100 while keeping the current y. <span class="ic">turtle.sety(-50)</span> moves to y=-50 while keeping the current x. Useful when you only need to change one axis at a time.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 -- PEN CONTROL ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 31</div>
+        <div class="slide-title">Pen Control: <span class="accent">Size, Speed, Shape, Visibility</span></div>
+        <div class="slide-subtitle">Adjust the pen and turtle appearance before drawing begins.</div>
+
+        <div class="code-block"><span class="kw">import</span> turtle
+
+turtle.<span class="fn">pensize</span>(<span class="nb">4</span>)        <span class="cm"># alias: turtle.width(4) -- set line thickness to 4 pixels</span>
+turtle.<span class="fn">speed</span>(<span class="nb">5</span>)          <span class="cm"># 1=slowest, 6=normal, 10=fast, 0=instant (no animation)</span>
+turtle.<span class="fn">shape</span>(<span class="st">'turtle'</span>)    <span class="cm"># cursor shape: 'arrow', 'turtle', 'circle', 'square', 'classic'</span>
+turtle.<span class="fn">hideturtle</span>()      <span class="cm"># alias: turtle.ht() -- hide the cursor while drawing (faster)</span>
+
+turtle.<span class="fn">forward</span>(<span class="nb">200</span>)       <span class="cm"># draws a thick line without showing the cursor</span>
+turtle.<span class="fn">showturtle</span>()      <span class="cm"># alias: turtle.st() -- show the cursor again</span>
+turtle.<span class="fn">done</span>()</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">pensize(n)</div>
+                <div class="card-desc">Sets the line width in pixels. Default is 1. Thicker lines (3-5) look better for finished diagrams. Very thick lines (10+) are useful for bold outlines or bar charts.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">speed(n)</div>
+                <div class="card-desc">Controls animation speed. Values 1-10 with 1 being slowest (useful for teaching/demo) and 10 being fastest. Speed 0 is special -- it disables animation entirely and draws instantly. Use 0 for any program that draws many shapes.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">hideturtle()</div>
+                <div class="card-desc">Hides the cursor arrow/turtle shape. The drawing still happens -- you just do not see the cursor moving. Speeds up rendering noticeably for complex drawings. Best practice: call <span class="ic">hideturtle()</span> at the start of any program that draws hundreds of lines.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Performance tip:</strong> For complex drawings, set <span class="ic">speed(0)</span> and call <span class="ic">hideturtle()</span> at the start. The visual result is identical but the program completes in seconds rather than minutes.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 -- DRAWING A SQUARE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 31</div>
+        <div class="slide-title">Drawing a Square: <span class="accent">From Repeated Code to a Loop</span></div>
+        <div class="slide-subtitle">Watch the evolution from verbose, repetitive code to clean, loop-driven code.</div>
+
+        <div class="code-result-grid">
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">Version 1 -- Repeated Code (do not write this)</div>
+                <div class="code-block"><span class="kw">import</span> turtle
+turtle.<span class="fn">forward</span>(<span class="nb">100</span>)
+turtle.<span class="fn">right</span>(<span class="nb">90</span>)
+turtle.<span class="fn">forward</span>(<span class="nb">100</span>)
+turtle.<span class="fn">right</span>(<span class="nb">90</span>)
+turtle.<span class="fn">forward</span>(<span class="nb">100</span>)
+turtle.<span class="fn">right</span>(<span class="nb">90</span>)
+turtle.<span class="fn">forward</span>(<span class="nb">100</span>)
+turtle.<span class="fn">right</span>(<span class="nb">90</span>)
+turtle.<span class="fn">done</span>()</div>
+            </div>
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">Version 2 -- Loop (write this instead)</div>
+                <div class="code-block"><span class="kw">import</span> turtle
+
+<span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">4</span>):       <span class="cm"># repeat exactly 4 times</span>
+    turtle.<span class="fn">forward</span>(<span class="nb">100</span>)  <span class="cm"># draw one side</span>
+    turtle.<span class="fn">right</span>(<span class="nb">90</span>)     <span class="cm"># turn 90 degrees</span>
+
+turtle.<span class="fn">done</span>()</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Why the Loop Wins</div>
+                <div class="card-desc">Both versions draw an identical square. The loop version is 5 lines instead of 10. More importantly, if you want to change the side length you change one number instead of four. If you want a bigger square (200 pixels), you change <span class="ic">100</span> to <span class="ic">200</span> once.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why _ as the Loop Variable?</div>
+                <div class="card-desc">The underscore <span class="ic">_</span> is a valid variable name that Python programmers use when the loop counter is not needed inside the body. Here we only care about how many times the loop runs (4), not the current count. Using <span class="ic">i</span> works too but <span class="ic">_</span> signals intent clearly.</div>
+            </div>
+        </div>
+
+        <div class="box box-green" style="font-size:0.83rem;">
+            <strong>Result:</strong> A square 100 pixels per side appears, drawn from the center of the canvas. The turtle starts at (0,0) facing east and ends exactly where it started after four 90-degree turns totaling 360 degrees.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 -- DRAWING SHAPES WITH LOOPS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 31</div>
+        <div class="slide-title">Drawing Shapes: <span class="accent">The Exterior Angle Formula</span></div>
+        <div class="slide-subtitle">One formula unlocks every regular polygon -- triangle through dodecagon and beyond.</div>
+
+        <div class="code-block"><span class="kw">import</span> turtle
+
+<span class="cm"># Triangle: 3 sides, exterior angle = 360 / 3 = 120 degrees</span>
+<span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">3</span>):
+    turtle.<span class="fn">forward</span>(<span class="nb">100</span>); turtle.<span class="fn">right</span>(<span class="nb">120</span>)
+
+turtle.<span class="fn">penup</span>(); turtle.<span class="fn">goto</span>(<span class="nb">150</span>, <span class="nb">0</span>); turtle.<span class="fn">pendown</span>()
+
+<span class="cm"># Pentagon: 5 sides, exterior angle = 360 / 5 = 72 degrees</span>
+<span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">5</span>):
+    turtle.<span class="fn">forward</span>(<span class="nb">80</span>); turtle.<span class="fn">right</span>(<span class="nb">72</span>)
+
+turtle.<span class="fn">penup</span>(); turtle.<span class="fn">goto</span>(<span class="nb">-180</span>, <span class="nb">0</span>); turtle.<span class="fn">pendown</span>()
+
+<span class="cm"># Hexagon: 6 sides, exterior angle = 360 / 6 = 60 degrees</span>
+<span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">6</span>):
+    turtle.<span class="fn">forward</span>(<span class="nb">70</span>); turtle.<span class="fn">right</span>(<span class="nb">60</span>)
+
+turtle.<span class="fn">done</span>()</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">The Formula</div>
+                <div class="card-desc">For any regular polygon with <em>n</em> sides: <strong>exterior angle = 360 / n</strong>. A square has 4 sides: 360 / 4 = 90 degrees. A hexagon has 6 sides: 360 / 6 = 60 degrees. This works for any n. A circle is just a polygon with very many very short sides.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Visual Result</div>
+                <div class="card-desc">Three shapes appear side by side on the canvas: a triangle on the left, a hexagon on the right, and a pentagon in the center-right area. Each is a closed, regular polygon. All drawn with the same two-line loop body -- just different numbers.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 -- THE POLYGON FUNCTION ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 31</div>
+        <div class="slide-title">The Polygon Function: <span class="accent">Reusable Drawing Logic</span></div>
+        <div class="slide-subtitle">This is where functions from Day 7 become powerful -- one function, any shape.</div>
+
+        <div class="code-result-grid">
+            <div class="code-block"><span class="kw">import</span> turtle
+
+<span class="kw">def</span> <span class="fn">draw_polygon</span>(sides, length):
+    <span class="st">"""Draw a regular polygon with the given number
+    of sides and side length in pixels."""</span>
+    angle = <span class="nb">360</span> / sides       <span class="cm"># exterior angle formula</span>
+    <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(sides):
+        turtle.<span class="fn">forward</span>(length)
+        turtle.<span class="fn">right</span>(angle)
+
+<span class="cm"># Draw a triangle, square, pentagon, hexagon, octagon</span>
+positions = [(<span class="nb">-300</span>, <span class="nb">0</span>), (<span class="nb">-150</span>, <span class="nb">0</span>), (<span class="nb">0</span>, <span class="nb">0</span>), (<span class="nb">150</span>, <span class="nb">0</span>), (<span class="nb">300</span>, <span class="nb">0</span>)]
+shapes   = [(<span class="nb">3</span>, <span class="nb">80</span>), (<span class="nb">4</span>, <span class="nb">70</span>), (<span class="nb">5</span>, <span class="nb">60</span>), (<span class="nb">6</span>, <span class="nb">55</span>), (<span class="nb">8</span>, <span class="nb">50</span>)]
+
+<span class="kw">for</span> (x, y), (sides, length) <span class="kw">in</span> <span class="fn">zip</span>(positions, shapes):
+    turtle.<span class="fn">penup</span>(); turtle.<span class="fn">goto</span>(x, y); turtle.<span class="fn">pendown</span>()
+    <span class="fn">draw_polygon</span>(sides, length)
+
+turtle.<span class="fn">done</span>()</div>
+            <div class="result-box">
+                <div class="result-label">Visual Result</div>
+                <div class="result-desc">Five regular polygons appear in a row across the canvas: triangle, square, pentagon, hexagon, and octagon. Each is slightly smaller than the previous so they fit without overlapping. All of them were drawn by the same nine-line function called with different arguments.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>The payoff of functions:</strong> Without the function you would write 50+ lines of repeated turtle commands. With the function you write 9 lines once and call it 5 times. Every concept from Day 7 (parameters, docstrings, reuse) is in action right here.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 -- CIRCLES AND ARCS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 31</div>
+        <div class="slide-title">Circles and Arcs: <span class="accent">turtle.circle()</span></div>
+        <div class="slide-subtitle">Draw full circles or partial arcs with a single command.</div>
+
+        <div class="code-result-grid">
+            <div class="code-block"><span class="kw">import</span> turtle
+
+<span class="cm"># Full circle -- radius 80 pixels</span>
+turtle.<span class="fn">circle</span>(<span class="nb">80</span>)
+
+turtle.<span class="fn">penup</span>(); turtle.<span class="fn">goto</span>(<span class="nb">200</span>, <span class="nb">0</span>); turtle.<span class="fn">pendown</span>()
+
+<span class="cm"># Half circle (arc) -- radius 60, extent 180 degrees</span>
+turtle.<span class="fn">circle</span>(<span class="nb">60</span>, <span class="nb">180</span>)
+
+turtle.<span class="fn">penup</span>(); turtle.<span class="fn">goto</span>(<span class="nb">-200</span>, <span class="nb">0</span>); turtle.<span class="fn">pendown</span>()
+
+<span class="cm"># Quarter arc -- radius 100, extent 90 degrees</span>
+turtle.<span class="fn">circle</span>(<span class="nb">100</span>, <span class="nb">90</span>)
+
+<span class="cm"># Negative radius draws the circle clockwise (below the turtle)</span>
+turtle.<span class="fn">penup</span>(); turtle.<span class="fn">goto</span>(<span class="nb">0</span>, <span class="nb">-150</span>); turtle.<span class="fn">pendown</span>()
+turtle.<span class="fn">circle</span>(<span class="nb">-50</span>)
+
+turtle.<span class="fn">done</span>()</div>
+            <div class="result-box">
+                <div class="result-label">Visual Result</div>
+                <div class="result-desc">A full circle appears near center. A half-dome arc is drawn on the right. A quarter-circle curve appears on the left. A clockwise circle (drawn below the start point) appears at the bottom. Each demonstrates a different use of the extent and radius sign parameters.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">circle(radius, extent)</div>
+                <div class="card-desc"><span class="ic">radius</span> controls the size. <span class="ic">extent</span> (optional, default 360) controls how much of the circle to draw. <span class="ic">extent=180</span> gives a semicircle. <span class="ic">extent=90</span> gives a quarter arc. The circle is always drawn to the left of the turtle's current heading.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Negative Radius</div>
+                <div class="card-desc">A negative radius flips the circle to the right of the turtle's heading (clockwise direction). <span class="ic">circle(50)</span> draws counterclockwise above the start. <span class="ic">circle(-50)</span> draws clockwise below it. Useful for rounded corners and decorative curves.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 -- COLORS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 31</div>
+        <div class="slide-title">Colors: <span class="accent">Named Colors and Hex Codes</span></div>
+        <div class="slide-subtitle">Turtle supports every CSS color name and full hex notation.</div>
+
+        <div class="code-block"><span class="kw">import</span> turtle
+
+<span class="cm"># color() sets both pen color and fill color at once</span>
+turtle.<span class="fn">color</span>(<span class="st">'red'</span>)
+turtle.<span class="fn">forward</span>(<span class="nb">100</span>)
+
+turtle.<span class="fn">penup</span>(); turtle.<span class="fn">goto</span>(<span class="nb">0</span>, <span class="nb">-50</span>); turtle.<span class="fn">pendown</span>()
+
+<span class="cm"># pencolor() changes only the line color -- fill color stays separate</span>
+turtle.<span class="fn">pencolor</span>(<span class="st">'#06b6d4'</span>)    <span class="cm"># hex code: cyan</span>
+turtle.<span class="fn">forward</span>(<span class="nb">100</span>)
+
+turtle.<span class="fn">penup</span>(); turtle.<span class="fn">goto</span>(<span class="nb">0</span>, <span class="nb">-100</span>); turtle.<span class="fn">pendown</span>()
+
+<span class="cm"># fillcolor() changes only the fill (used with begin_fill/end_fill)</span>
+turtle.<span class="fn">fillcolor</span>(<span class="st">'#c9a83a'</span>)   <span class="cm"># hex code: gold</span>
+turtle.<span class="fn">pencolor</span>(<span class="st">'white'</span>)
+
+<span class="cm"># RGB tuples also work -- colormode must be set to 255 first</span>
+turtle.<span class="fn">colormode</span>(<span class="nb">255</span>)
+turtle.<span class="fn">pencolor</span>(<span class="nb">58</span>, <span class="nb">181</span>, <span class="nb">119</span>)   <span class="cm"># same as #3ab577 (green)</span>
+
+turtle.<span class="fn">done</span>()</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Named Colors</div>
+                <div class="card-desc">Turtle recognizes all standard HTML/CSS color names: 'red', 'blue', 'green', 'orange', 'purple', 'yellow', 'black', 'white', 'cyan', 'magenta', 'coral', 'navy', 'teal', and hundreds more. Spelling matters -- 'darkslategray' not 'dark slate gray'.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Hex Codes</div>
+                <div class="card-desc">Any six-digit hex color: <span class="ic">'#FF0000'</span> is red, <span class="ic">'#00FF00'</span> is green, <span class="ic">'#0000FF'</span> is blue. Case-insensitive. Same hex codes you use in HTML/CSS -- directly transferable knowledge.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">RGB Tuples</div>
+                <div class="card-desc">After calling <span class="ic">turtle.colormode(255)</span>, you can pass RGB values as separate integers: <span class="ic">pencolor(255, 128, 0)</span> for orange. Each value is 0-255. Useful when you generate colors mathematically in a loop (e.g., cycling hue for a rainbow spiral).</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 -- FILL ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 31</div>
+        <div class="slide-title">Filling Shapes: <span class="accent">begin_fill and end_fill</span></div>
+        <div class="slide-subtitle">Any closed shape drawn between these two calls gets filled with the current fill color.</div>
+
+        <div class="code-result-grid">
+            <div class="code-block"><span class="kw">import</span> turtle
+
+<span class="cm"># Filled square in gold</span>
+turtle.<span class="fn">fillcolor</span>(<span class="st">'#c9a83a'</span>)   <span class="cm"># set fill color before begin_fill</span>
+turtle.<span class="fn">pencolor</span>(<span class="st">'white'</span>)        <span class="cm"># white border around the fill</span>
+turtle.<span class="fn">pensize</span>(<span class="nb">2</span>)
+turtle.<span class="fn">begin_fill</span>()             <span class="cm"># start recording the fill region</span>
+<span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">4</span>):
+    turtle.<span class="fn">forward</span>(<span class="nb">100</span>)
+    turtle.<span class="fn">right</span>(<span class="nb">90</span>)
+turtle.<span class="fn">end_fill</span>()               <span class="cm"># fill the enclosed region now</span>
+
+turtle.<span class="fn">penup</span>(); turtle.<span class="fn">goto</span>(<span class="nb">200</span>, <span class="nb">0</span>); turtle.<span class="fn">pendown</span>()
+
+<span class="cm"># Filled circle in cyan</span>
+turtle.<span class="fn">fillcolor</span>(<span class="st">'#06b6d4'</span>)
+turtle.<span class="fn">begin_fill</span>()
+turtle.<span class="fn">circle</span>(<span class="nb">60</span>)
+turtle.<span class="fn">end_fill</span>()
+
+turtle.<span class="fn">done</span>()</div>
+            <div class="result-box">
+                <div class="result-label">Visual Result</div>
+                <div class="result-desc">A gold-filled square with a white border appears on the left half of the canvas. A solid cyan circle appears on the right. Both are fully filled with clean outlines. The fill is applied when end_fill() is called -- not during drawing.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>How fill works:</strong> Turtle uses an even-odd fill rule. Everything you draw between <span class="ic">begin_fill()</span> and <span class="ic">end_fill()</span> defines the boundary. The shape does not need to be perfectly closed -- turtle will fill the nearest implied region. But closing the shape yourself produces the most predictable result.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — TRY IT NOW ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 31 &nbsp;|&nbsp; Try It Now</div>
+        <div class="slide-title">Try It Now: <span class="accent">Shape Math</span></div>
+        <div class="slide-subtitle">Calculate coordinates for a hexagon (turtle prep).</div>
+        <div class="try-it-now"
+             data-starter="import math&#10;&#10;# Calculate the 6 corner coordinates of a regular hexagon&#10;# centered at (0,0) with radius 100&#10;radius = 100&#10;for i in range(6):&#10;    angle = math.radians(60 * i)&#10;    x = round(radius * math.cos(angle), 1)&#10;    y = round(radius * math.sin(angle), 1)&#10;    print(f&quot;Corner {i+1}: ({x}, {y})&quot;)"
+             data-expected="Corner 1: (100.0, 0.0)
+Corner 2: (50.0, 86.6)
+Corner 3: (-50.0, 86.6)
+Corner 4: (-100.0, 0.0)
+Corner 5: (-50.0, -86.6)
+Corner 6: (50.0, -86.6)"
+             data-height="180">
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 14 -- SCREEN SETUP ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 31</div>
+        <div class="slide-title">Screen Setup: <span class="accent">turtle.Screen()</span></div>
+        <div class="slide-subtitle">Control the window size, background color, and title before drawing anything.</div>
+
+        <div class="code-result-grid">
+            <div class="code-block"><span class="kw">import</span> turtle
+
+<span class="cm"># Get a reference to the screen object</span>
+screen = turtle.<span class="fn">Screen</span>()
+
+<span class="cm"># Set window dimensions and title</span>
+screen.<span class="fn">setup</span>(width=<span class="nb">900</span>, height=<span class="nb">600</span>)
+screen.<span class="fn">title</span>(<span class="st">'Network Topology Viewer'</span>)
+screen.<span class="fn">bgcolor</span>(<span class="st">'#090910'</span>)    <span class="cm"># dark background -- hex works here too</span>
+
+<span class="cm"># Now draw with a contrasting color</span>
+turtle.<span class="fn">pencolor</span>(<span class="st">'#c9a83a'</span>)
+turtle.<span class="fn">pensize</span>(<span class="nb">3</span>)
+turtle.<span class="fn">speed</span>(<span class="nb">0</span>)
+turtle.<span class="fn">hideturtle</span>()
+
+<span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">4</span>):
+    turtle.<span class="fn">forward</span>(<span class="nb">200</span>)
+    turtle.<span class="fn">right</span>(<span class="nb">90</span>)
+
+screen.<span class="fn">mainloop</span>()   <span class="cm"># equivalent to turtle.done()</span></div>
+            <div class="result-box">
+                <div class="result-label">Visual Result</div>
+                <div class="result-desc">A 900x600 window opens with a very dark background and the title "Network Topology Viewer" in the title bar. A gold square 200 pixels per side is drawn instantly (speed 0, no cursor visible). The window looks like a professional tool rather than a default demo.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">setup(width, height)</div>
+                <div class="card-desc">You can pass absolute pixel values or fractions: <span class="ic">setup(0.75, 0.75)</span> opens the window at 75% of screen width and height. Useful for making programs that adapt to different monitor sizes without hardcoding pixel dimensions.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">bgcolor()</div>
+                <div class="card-desc">Sets the canvas background color. Accepts named colors and hex strings. Default is white. Dark backgrounds make colored drawings pop dramatically. You can call <span class="ic">bgcolor()</span> at any point -- it changes the background immediately.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 -- COORDINATES ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 31</div>
+        <div class="slide-title">The Canvas Coordinate System: <span class="accent">Where Is (0, 0)?</span></div>
+        <div class="slide-subtitle">Understanding the coordinate plane is essential for placing shapes precisely.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Origin Is Center</div>
+                <div class="card-desc">Unlike HTML where (0, 0) is the top-left corner, the turtle canvas places (0, 0) at the exact center of the window. X increases to the right. Y increases upward. A point at (200, 150) is 200 pixels right of center and 150 pixels above center.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Quadrant Reference</div>
+                <div class="card-desc">Top-right quadrant: x positive, y positive. Top-left: x negative, y positive. Bottom-left: x negative, y negative. Bottom-right: x positive, y negative. On a 900x600 window, the corners are approximately at (+450, +300), (-450, +300), (-450, -300), and (+450, -300).</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">import</span> turtle
+
+<span class="cm"># Label the four corners to visualize the coordinate system</span>
+turtle.<span class="fn">speed</span>(<span class="nb">0</span>); turtle.<span class="fn">hideturtle</span>(); turtle.<span class="fn">penup</span>()
+
+corners = [(<span class="nb">200</span>, <span class="nb">150</span>), (<span class="nb">-200</span>, <span class="nb">150</span>), (<span class="nb">-200</span>, <span class="nb">-150</span>), (<span class="nb">200</span>, <span class="nb">-150</span>)]
+labels  = [<span class="st">'(200,150)'</span>, <span class="st">'(-200,150)'</span>, <span class="st">'(-200,-150)'</span>, <span class="st">'(200,-150)'</span>]
+
+<span class="kw">for</span> (x, y), label <span class="kw">in</span> <span class="fn">zip</span>(corners, labels):
+    turtle.<span class="fn">goto</span>(x, y)
+    turtle.<span class="fn">pendown</span>(); turtle.<span class="fn">dot</span>(<span class="nb">8</span>, <span class="st">'#c9a83a'</span>)   <span class="cm"># gold dot at corner</span>
+    turtle.<span class="fn">penup</span>()
+    turtle.<span class="fn">write</span>(label, font=(<span class="st">'Arial'</span>, <span class="nb">10</span>, <span class="st">'normal'</span>))
+
+<span class="cm"># Mark origin</span>
+turtle.<span class="fn">goto</span>(<span class="nb">0</span>, <span class="nb">0</span>); turtle.<span class="fn">dot</span>(<span class="nb">12</span>, <span class="st">'red'</span>)
+turtle.<span class="fn">write</span>(<span class="st">'  (0,0) origin'</span>, font=(<span class="st">'Arial'</span>, <span class="nb">11</span>, <span class="st">'bold'</span>))
+turtle.<span class="fn">done</span>()</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Practical tip:</strong> When placing a shape at a specific location, use <span class="ic">penup(); goto(x, y); pendown()</span> before drawing. The shape will start at that coordinate. For centered shapes, calculate the offset: a 100-pixel square centered at (200, 100) should start at <span class="ic">goto(150, 75)</span> -- half the width and height subtracted.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 -- DRAWING TEXT ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 31</div>
+        <div class="slide-title">Drawing Text: <span class="accent">turtle.write()</span></div>
+        <div class="slide-subtitle">Place labels, titles, and annotations directly on the canvas.</div>
+
+        <div class="code-result-grid">
+            <div class="code-block"><span class="kw">import</span> turtle
+
+turtle.<span class="fn">speed</span>(<span class="nb">0</span>); turtle.<span class="fn">hideturtle</span>(); turtle.<span class="fn">penup</span>()
+
+<span class="cm"># Basic write at current position</span>
+turtle.<span class="fn">goto</span>(<span class="nb">-200</span>, <span class="nb">100</span>)
+turtle.<span class="fn">write</span>(<span class="st">'Hello, Python!'</span>,
+    font=(<span class="st">'Arial'</span>, <span class="nb">20</span>, <span class="st">'bold'</span>))
+
+<span class="cm"># Centered text</span>
+turtle.<span class="fn">goto</span>(<span class="nb">0</span>, <span class="nb">0</span>)
+turtle.<span class="fn">write</span>(<span class="st">'Centered Label'</span>,
+    align=<span class="st">'center'</span>,
+    font=(<span class="st">'Courier New'</span>, <span class="nb">14</span>, <span class="st">'normal'</span>))
+
+<span class="cm"># Right-aligned in italic</span>
+turtle.<span class="fn">goto</span>(<span class="nb">200</span>, <span class="nb">-80</span>)
+turtle.<span class="fn">pencolor</span>(<span class="st">'#c9a83a'</span>)
+turtle.<span class="fn">write</span>(<span class="st">'Server: 192.168.1.10'</span>,
+    align=<span class="st">'right'</span>,
+    font=(<span class="st">'Arial'</span>, <span class="nb">12</span>, <span class="st">'italic'</span>))
+
+turtle.<span class="fn">done</span>()</div>
+            <div class="result-box">
+                <div class="result-label">Visual Result</div>
+                <div class="result-desc">Three text labels appear on a dark canvas: a bold 20pt "Hello, Python!" label on the upper left, a 14pt centered label at the origin, and a gold italic label showing an IP address on the lower right. Text color follows the current pen color at the time write() is called.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">font Tuple</div>
+                <div class="card-desc">The <span class="ic">font</span> parameter takes a 3-tuple: <span class="ic">(family, size, style)</span>. Family: any system font name in quotes. Size: integer point size. Style: 'normal', 'bold', 'italic', or 'bold italic'. All three are required.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">align</div>
+                <div class="card-desc">'left' (default), 'center', or 'right'. Alignment is relative to the turtle's current x position. 'center' means the text is horizontally centered on the turtle. Use 'center' for column headers in charts and node labels in diagrams.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">move Parameter</div>
+                <div class="card-desc"><span class="ic">write('text', move=True)</span> advances the turtle to the end of the written text. Useful for appending text without manually calculating text width. Default is <span class="ic">move=False</span> which leaves the turtle in place.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 -- MULTIPLE TURTLES ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 31</div>
+        <div class="slide-title">Multiple Turtles: <span class="accent">Independent Cursors on One Canvas</span></div>
+        <div class="slide-subtitle">Create as many turtle objects as you need -- each has its own position, heading, and pen state.</div>
+
+        <div class="code-result-grid">
+            <div class="code-block"><span class="kw">import</span> turtle
+
+<span class="cm"># Create two independent turtle objects</span>
+t1 = turtle.<span class="fn">Turtle</span>()
+t2 = turtle.<span class="fn">Turtle</span>()
+
+<span class="cm"># Configure t1 -- red, draws on the left</span>
+t1.<span class="fn">pencolor</span>(<span class="st">'#ef4444'</span>)
+t1.<span class="fn">pensize</span>(<span class="nb">3</span>)
+t1.<span class="fn">speed</span>(<span class="nb">0</span>)
+
+<span class="cm"># Configure t2 -- cyan, draws on the right</span>
+t2.<span class="fn">pencolor</span>(<span class="st">'#06b6d4'</span>)
+t2.<span class="fn">pensize</span>(<span class="nb">3</span>)
+t2.<span class="fn">speed</span>(<span class="nb">0</span>)
+
+<span class="cm"># Move t2 to a separate area before drawing</span>
+t2.<span class="fn">penup</span>(); t2.<span class="fn">goto</span>(<span class="nb">200</span>, <span class="nb">0</span>); t2.<span class="fn">pendown</span>()
+
+<span class="cm"># Draw shapes independently</span>
+<span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">4</span>):
+    t1.<span class="fn">forward</span>(<span class="nb">100</span>); t1.<span class="fn">right</span>(<span class="nb">90</span>)    <span class="cm"># t1 draws a red square (left)</span>
+
+<span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">3</span>):
+    t2.<span class="fn">forward</span>(<span class="nb">100</span>); t2.<span class="fn">right</span>(<span class="nb">120</span>)   <span class="cm"># t2 draws a cyan triangle (right)</span>
+
+turtle.<span class="fn">done</span>()</div>
+            <div class="result-box">
+                <div class="result-label">Visual Result</div>
+                <div class="result-desc">A red square appears on the left side of the canvas. A cyan triangle appears on the right. They are completely independent -- each turtle has its own color, position, and pen state. Neither one interferes with the other.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>When to use multiple turtles:</strong> Drawing multiple disconnected elements (a network diagram with several nodes), creating parallel animation, or separating drawing concerns (one turtle for shapes, one for text labels). The <span class="ic">turtle.Turtle()</span> class is used instead of the module-level functions -- it gives you named objects with independent state.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 -- EVENT HANDLING ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 31</div>
+        <div class="slide-title">Event Handling: <span class="accent">Keyboard and Mouse Input</span></div>
+        <div class="slide-subtitle">Connect user actions to functions -- the foundation of interactive programs.</div>
+
+        <div class="code-result-grid">
+            <div class="code-block"><span class="kw">import</span> turtle
+
+screen = turtle.<span class="fn">Screen</span>()
+screen.<span class="fn">title</span>(<span class="st">'Interactive Events Demo'</span>)
+
+<span class="cm"># Draw a dot wherever the user clicks the canvas</span>
+<span class="kw">def</span> <span class="fn">on_click</span>(x, y):
+    turtle.<span class="fn">penup</span>()
+    turtle.<span class="fn">goto</span>(x, y)
+    turtle.<span class="fn">dot</span>(<span class="nb">10</span>, <span class="st">'#c9a83a'</span>)   <span class="cm"># gold dot at click position</span>
+
+<span class="cm"># Clear the canvas when 'c' is pressed</span>
+<span class="kw">def</span> <span class="fn">clear_screen</span>():
+    turtle.<span class="fn">clear</span>()              <span class="cm"># removes all drawings, keeps turtle position</span>
+
+<span class="cm"># Quit cleanly when 'q' is pressed</span>
+<span class="kw">def</span> <span class="fn">quit_program</span>():
+    screen.<span class="fn">bye</span>()               <span class="cm"># closes the turtle window</span>
+
+<span class="cm"># Register the event handlers</span>
+screen.<span class="fn">onclick</span>(on_click)        <span class="cm"># call on_click(x, y) on mouse click</span>
+screen.<span class="fn">onkey</span>(clear_screen, <span class="st">'c'</span>) <span class="cm"># call clear_screen when 'c' is pressed</span>
+screen.<span class="fn">onkey</span>(quit_program, <span class="st">'q'</span>)  <span class="cm"># call quit_program when 'q' is pressed</span>
+screen.<span class="fn">listen</span>()                 <span class="cm"># REQUIRED: activate keyboard listening</span>
+
+screen.<span class="fn">mainloop</span>()</div>
+            <div class="result-box">
+                <div class="result-label">Visual Result</div>
+                <div class="result-desc">The window opens and waits. Every time you click anywhere on the canvas, a gold dot appears at that exact coordinate. Press 'c' and all dots are erased. Press 'q' and the window closes. No button is clicked -- events drive everything.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Critical:</strong> <span class="ic">screen.listen()</span> must be called after registering key handlers. Without it, keyboard events are not captured. This is one of the most common beginner mistakes with turtle event programs.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 -- ARROW KEY CONTROL ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 31</div>
+        <div class="slide-title">Arrow Key Control: <span class="accent">Drive the Turtle with Your Keyboard</span></div>
+        <div class="slide-subtitle">Bind the four arrow keys to movement functions -- instantly interactive.</div>
+
+        <div class="code-result-grid">
+            <div class="code-block"><span class="kw">import</span> turtle
+
+screen = turtle.<span class="fn">Screen</span>()
+screen.<span class="fn">title</span>(<span class="st">'Keyboard Control'</span>)
+screen.<span class="fn">bgcolor</span>(<span class="st">'#090910'</span>)
+
+t = turtle.<span class="fn">Turtle</span>()
+t.<span class="fn">shape</span>(<span class="st">'turtle'</span>)
+t.<span class="fn">pencolor</span>(<span class="st">'#c9a83a'</span>)
+t.<span class="fn">speed</span>(<span class="nb">0</span>)
+
+STEP = <span class="nb">20</span>    <span class="cm"># pixels per keypress</span>
+
+<span class="kw">def</span> <span class="fn">move_forward</span>():  t.<span class="fn">forward</span>(STEP)
+<span class="kw">def</span> <span class="fn">move_backward</span>(): t.<span class="fn">backward</span>(STEP)
+<span class="kw">def</span> <span class="fn">turn_left</span>():    t.<span class="fn">left</span>(<span class="nb">15</span>)
+<span class="kw">def</span> <span class="fn">turn_right</span>():   t.<span class="fn">right</span>(<span class="nb">15</span>)
+
+screen.<span class="fn">onkey</span>(move_forward,  <span class="st">'Up'</span>)
+screen.<span class="fn">onkey</span>(move_backward, <span class="st">'Down'</span>)
+screen.<span class="fn">onkey</span>(turn_left,     <span class="st">'Left'</span>)
+screen.<span class="fn">onkey</span>(turn_right,    <span class="st">'Right'</span>)
+screen.<span class="fn">listen</span>()
+
+screen.<span class="fn">mainloop</span>()</div>
+            <div class="result-box">
+                <div class="result-label">Visual Result</div>
+                <div class="result-desc">A turtle cursor appears at center. Up arrow moves it forward 20 pixels, leaving a gold trail. Down arrow reverses. Left and right arrows rotate 15 degrees. The result is a freeform drawing tool controlled entirely by arrow keys. Students immediately start making shapes by steering.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Key Name Strings</div>
+                <div class="card-desc">Arrow keys use the strings <span class="ic">'Up'</span>, <span class="ic">'Down'</span>, <span class="ic">'Left'</span>, <span class="ic">'Right'</span> (capitalized). Regular letter keys use lowercase: <span class="ic">'a'</span>, <span class="ic">'b'</span>. Special keys: <span class="ic">'space'</span>, <span class="ic">'Return'</span>, <span class="ic">'Escape'</span>, <span class="ic">'BackSpace'</span>. Wrong capitalization means the handler silently never fires.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Extension: Pen Toggle</div>
+                <div class="card-desc">Add <span class="ic">screen.onkey(lambda: t.penup() if t.isdown() else t.pendown(), 'space')</span> to let the user lift and drop the pen with the spacebar. Now students have a complete drawing tool: steer with arrows, lift pen with space. Total code: ~20 lines.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 -- HOUSE PROJECT ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 31</div>
+        <div class="slide-title">Combining Concepts: <span class="accent">Drawing a House</span></div>
+        <div class="slide-subtitle">Square body, triangle roof, door, and windows -- each drawn by a dedicated function.</div>
+
+        <div class="code-result-grid">
+            <div class="code-block"><span class="kw">import</span> turtle
+
+t = turtle.<span class="fn">Turtle</span>()
+t.<span class="fn">speed</span>(<span class="nb">0</span>); t.<span class="fn">hideturtle</span>()
+
+<span class="kw">def</span> <span class="fn">draw_square</span>(t, x, y, size, color):
+    t.<span class="fn">fillcolor</span>(color); t.<span class="fn">penup</span>(); t.<span class="fn">goto</span>(x, y); t.<span class="fn">pendown</span>()
+    t.<span class="fn">begin_fill</span>()
+    <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">4</span>): t.<span class="fn">forward</span>(size); t.<span class="fn">right</span>(<span class="nb">90</span>)
+    t.<span class="fn">end_fill</span>()
+
+<span class="kw">def</span> <span class="fn">draw_triangle</span>(t, x, y, size, color):
+    t.<span class="fn">fillcolor</span>(color); t.<span class="fn">penup</span>(); t.<span class="fn">goto</span>(x, y); t.<span class="fn">pendown</span>()
+    t.<span class="fn">begin_fill</span>()
+    <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">3</span>): t.<span class="fn">forward</span>(size); t.<span class="fn">left</span>(<span class="nb">120</span>)
+    t.<span class="fn">end_fill</span>()
+
+<span class="cm"># House body (gray square), roof (gold triangle), door (red), windows (cyan)</span>
+<span class="fn">draw_square</span>(t, <span class="nb">-100</span>, <span class="nb">-100</span>, <span class="nb">200</span>, <span class="st">'#334155'</span>)   <span class="cm"># body</span>
+<span class="fn">draw_triangle</span>(t, <span class="nb">-100</span>, <span class="nb">100</span>, <span class="nb">200</span>, <span class="st">'#c9a83a'</span>)  <span class="cm"># roof</span>
+<span class="fn">draw_square</span>(t,  <span class="nb">-25</span>, <span class="nb">-100</span>,  <span class="nb">50</span>, <span class="st">'#ef4444'</span>)   <span class="cm"># door</span>
+<span class="fn">draw_square</span>(t, <span class="nb">-80</span>,  <span class="nb">-10</span>,  <span class="nb">40</span>, <span class="st">'#06b6d4'</span>)   <span class="cm"># left window</span>
+<span class="fn">draw_square</span>(t,  <span class="nb">40</span>,  <span class="nb">-10</span>,  <span class="nb">40</span>, <span class="st">'#06b6d4'</span>)   <span class="cm"># right window</span>
+
+turtle.<span class="fn">done</span>()</div>
+            <div class="result-box">
+                <div class="result-label">Visual Result</div>
+                <div class="result-desc">A simple house appears: a dark gray 200x200 square body with a gold triangular roof sitting on top, a centered red door at the bottom, and two cyan windows. Every element was placed using coordinates. The same five functions could draw an entire street scene with a loop.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 -- CLOCK FACE ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 31</div>
+        <div class="slide-title">Combining Concepts: <span class="accent">Drawing a Clock Face</span></div>
+        <div class="slide-subtitle">Loops + math + coordinates produce the 12 hour markers with zero repetition.</div>
+
+        <div class="code-result-grid">
+            <div class="code-block"><span class="kw">import</span> turtle
+<span class="kw">import</span> math
+
+t = turtle.<span class="fn">Turtle</span>()
+t.<span class="fn">speed</span>(<span class="nb">0</span>); t.<span class="fn">hideturtle</span>()
+turtle.<span class="fn">bgcolor</span>(<span class="st">'#090910'</span>)
+
+RADIUS = <span class="nb">150</span>
+CENTER_X, CENTER_Y = <span class="nb">0</span>, <span class="nb">0</span>
+
+<span class="cm"># Draw the outer circle</span>
+t.<span class="fn">pencolor</span>(<span class="st">'#c9a83a'</span>); t.<span class="fn">pensize</span>(<span class="nb">3</span>)
+t.<span class="fn">penup</span>(); t.<span class="fn">goto</span>(<span class="nb">0</span>, <span class="nb">-RADIUS</span>); t.<span class="fn">pendown</span>()
+t.<span class="fn">circle</span>(RADIUS)
+
+<span class="cm"># Place 12 hour markers using trigonometry</span>
+<span class="kw">for</span> hour <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">1</span>, <span class="nb">13</span>):
+    angle = math.<span class="fn">radians</span>(<span class="nb">90</span> - hour * <span class="nb">30</span>)     <span class="cm"># 30 degrees per hour</span>
+    tx = CENTER_X + (RADIUS - <span class="nb">20</span>) * math.<span class="fn">cos</span>(angle)
+    ty = CENTER_Y + (RADIUS - <span class="nb">20</span>) * math.<span class="fn">sin</span>(angle)
+    t.<span class="fn">penup</span>(); t.<span class="fn">goto</span>(tx, ty - <span class="nb">8</span>); t.<span class="fn">pendown</span>()
+    t.<span class="fn">pencolor</span>(<span class="st">'#f1f5f9'</span>)
+    t.<span class="fn">write</span>(<span class="fn">str</span>(hour), align=<span class="st">'center'</span>, font=(<span class="st">'Arial'</span>, <span class="nb">12</span>, <span class="st">'bold'</span>))
+
+turtle.<span class="fn">done</span>()</div>
+            <div class="result-box">
+                <div class="result-label">Visual Result</div>
+                <div class="result-desc">A gold circle 150 pixels in radius appears on the dark background. The numbers 1 through 12 are placed around the interior edge, evenly spaced using trigonometric positioning. The result looks like a clean analog clock face -- drawn entirely by a loop that runs 12 times.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>The math pattern:</strong> To place items evenly around a circle, use <span class="ic">x = cx + r * math.cos(angle)</span> and <span class="ic">y = cy + r * math.sin(angle)</span> where angle steps by <span class="ic">2 * math.pi / count</span>. This exact pattern appears in network diagrams, pie charts, and radial menus.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 -- ANIMATION BASICS ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 31</div>
+        <div class="slide-title">Animation Basics: <span class="accent">tracer() and update()</span></div>
+        <div class="slide-subtitle">Turn off automatic screen refreshing and control exactly when the frame updates.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Why Automatic Refreshing Is a Problem</div>
+                <div class="card-desc">By default, turtle redraws the screen after every single drawing command. If you move something 100 times per second, the screen flickers badly. The fix is to batch all updates and only refresh the screen once per logical frame.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">tracer(0) + update()</div>
+                <div class="card-desc"><span class="ic">turtle.tracer(0)</span> disables automatic screen refresh. You do all your drawing in memory. Then call <span class="ic">turtle.update()</span> to push one complete frame to the screen. This produces smooth animation with no flicker -- the same technique used in game engines.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">import</span> turtle
+
+screen = turtle.<span class="fn">Screen</span>()
+screen.<span class="fn">setup</span>(<span class="nb">600</span>, <span class="nb">400</span>)
+screen.<span class="fn">bgcolor</span>(<span class="st">'#090910'</span>)
+turtle.<span class="fn">tracer</span>(<span class="nb">0</span>)            <span class="cm"># disable auto-refresh -- nothing draws until update() is called</span>
+
+t = turtle.<span class="fn">Turtle</span>()
+t.<span class="fn">hideturtle</span>(); t.<span class="fn">pensize</span>(<span class="nb">2</span>); t.<span class="fn">pencolor</span>(<span class="st">'#c9a83a'</span>)
+
+x, angle = <span class="nb">0</span>, <span class="nb">0</span>
+<span class="kw">while</span> angle &lt; <span class="nb">720</span>:          <span class="cm"># draw a two-revolution expanding spiral</span>
+    t.<span class="fn">penup</span>()
+    t.<span class="fn">goto</span>(x, <span class="nb">0</span>)
+    t.<span class="fn">pendown</span>()
+    t.<span class="fn">forward</span>(<span class="nb">5</span>)
+    t.<span class="fn">right</span>(<span class="nb">10</span>)
+    x += <span class="nb">0.5</span>
+    angle += <span class="nb">10</span>
+    turtle.<span class="fn">update</span>()          <span class="cm"># push one frame -- smooth, no flicker</span>
+
+turtle.<span class="fn">done</span>()</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Frame rate:</strong> The speed at which your while loop executes determines the animation speed. No built-in frame rate limiter exists in turtle -- if you need consistent timing, import <span class="ic">time</span> and call <span class="ic">time.sleep(0.016)</span> inside the loop for approximately 60 frames per second.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 -- BOUNCING BALL ANIMATION ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 31</div>
+        <div class="slide-title">Animation Example: <span class="accent">Bouncing Ball</span></div>
+        <div class="slide-subtitle">A ball with velocity, boundary detection, and smooth frame updates.</div>
+
+        <div class="code-result-grid">
+            <div class="code-block"><span class="kw">import</span> turtle
+
+screen = turtle.<span class="fn">Screen</span>()
+screen.<span class="fn">setup</span>(<span class="nb">600</span>, <span class="nb">400</span>)
+screen.<span class="fn">bgcolor</span>(<span class="st">'#090910'</span>)
+turtle.<span class="fn">tracer</span>(<span class="nb">0</span>)
+
+ball = turtle.<span class="fn">Turtle</span>()
+ball.<span class="fn">shape</span>(<span class="st">'circle'</span>)
+ball.<span class="fn">color</span>(<span class="st">'#c9a83a'</span>)
+ball.<span class="fn">penup</span>()               <span class="cm"># ball moves without drawing trails</span>
+
+dx, dy = <span class="nb">3</span>, <span class="nb">3</span>              <span class="cm"># velocity: pixels per frame</span>
+
+<span class="kw">while</span> <span class="kw">True</span>:
+    x = ball.<span class="fn">xcor</span>() + dx   <span class="cm"># next x position</span>
+    y = ball.<span class="fn">ycor</span>() + dy   <span class="cm"># next y position</span>
+
+    <span class="cm"># Bounce off left/right walls (canvas half-width = 300)</span>
+    <span class="kw">if</span> x &gt; <span class="nb">290</span> <span class="kw">or</span> x &lt; <span class="nb">-290</span>:
+        dx *= <span class="nb">-1</span>            <span class="cm"># reverse horizontal direction</span>
+
+    <span class="cm"># Bounce off top/bottom walls (canvas half-height = 200)</span>
+    <span class="kw">if</span> y &gt; <span class="nb">190</span> <span class="kw">or</span> y &lt; <span class="nb">-190</span>:
+        dy *= <span class="nb">-1</span>            <span class="cm"># reverse vertical direction</span>
+
+    ball.<span class="fn">goto</span>(x, y)
+    turtle.<span class="fn">update</span>()         <span class="cm"># render this frame</span></div>
+            <div class="result-box">
+                <div class="result-label">Visual Result</div>
+                <div class="result-desc">A gold circle bounces smoothly around the dark canvas, reversing direction when it hits any of the four walls. No pen trails appear because penup() is set. The motion is fluid because tracer(0) + update() renders complete frames rather than individual pen moves.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            <strong>xcor() and ycor():</strong> These methods return the turtle's current x and y coordinates as floats. Essential for boundary detection in any animation. Check: <span class="ic">ball.xcor()</span> returns the current x position. <span class="ic">ball.ycor()</span> returns the current y position.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 -- STAMPING ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 31</div>
+        <div class="slide-title">Stamping: <span class="accent">Leave Copies Without Drawing Lines</span></div>
+        <div class="slide-subtitle">stamp() prints the current turtle shape at the current position -- like a rubber stamp.</div>
+
+        <div class="code-result-grid">
+            <div class="code-block"><span class="kw">import</span> turtle
+
+turtle.<span class="fn">speed</span>(<span class="nb">0</span>)
+turtle.<span class="fn">shape</span>(<span class="st">'turtle'</span>)   <span class="cm"># the stamped image is the current shape</span>
+turtle.<span class="fn">penup</span>()            <span class="cm"># no line trails between stamps</span>
+
+colors = [<span class="st">'#ef4444'</span>, <span class="st">'#c9a83a'</span>, <span class="st">'#3ab577'</span>, <span class="st">'#06b6d4'</span>]
+stamp_ids = []            <span class="cm"># keep IDs so we can remove stamps later</span>
+
+<span class="cm"># Stamp a row of colored turtles</span>
+<span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">8</span>):
+    turtle.<span class="fn">goto</span>(-<span class="nb">280</span> + i * <span class="nb">80</span>, <span class="nb">0</span>)
+    turtle.<span class="fn">fillcolor</span>(colors[i % <span class="fn">len</span>(colors)])
+    stamp_id = turtle.<span class="fn">stamp</span>()   <span class="cm"># returns an integer ID for this stamp</span>
+    stamp_ids.<span class="fn">append</span>(stamp_id)
+
+<span class="cm"># Remove every other stamp after 2 seconds</span>
+<span class="kw">import</span> time
+time.<span class="fn">sleep</span>(<span class="nb">2</span>)
+<span class="kw">for</span> sid <span class="kw">in</span> stamp_ids[::<span class="nb">2</span>]:     <span class="cm"># slice: every other stamp ID</span>
+    turtle.<span class="fn">clearstamp</span>(sid)
+
+turtle.<span class="fn">done</span>()</div>
+            <div class="result-box">
+                <div class="result-label">Visual Result</div>
+                <div class="result-desc">Eight colored turtle icons appear in a horizontal row, cycling through red, gold, green, and cyan. After two seconds, the alternating ones disappear, leaving four stamps evenly spaced. No drawing lines appear anywhere -- only stamp imprints.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">stamp() Return Value</div>
+                <div class="card-desc"><span class="ic">stamp()</span> returns an integer stamp ID. Store this if you want to remove individual stamps later with <span class="ic">clearstamp(id)</span>. Call <span class="ic">clearstamps()</span> (no argument) to remove all stamps at once. Useful for trail effects in animation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">IT Use Case: Node Icons</div>
+                <div class="card-desc">In a network diagram, stamp square shapes at router positions and circle shapes at switch positions. No drawing commands needed between stamps -- just <span class="ic">penup(); goto(x, y); stamp()</span>. Combined with <span class="ic">write()</span> for labels, you have a complete diagram tool.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 -- IMAGE PROCESSING CONCEPTS ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 31</div>
+        <div class="slide-title">Image Processing Concepts: <span class="accent">Pixels and RGB</span></div>
+        <div class="slide-subtitle">Before writing image code, understand the data structure that represents every image.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What Is a Pixel?</div>
+                <div class="card-desc">A pixel (picture element) is the smallest unit of a digital image. A 1920x1080 image has 2,073,600 pixels arranged in a grid. Each pixel stores a single color value. At normal viewing distance, you cannot distinguish individual pixels -- they blend into a continuous image.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">RGB Color Model</div>
+                <div class="card-desc">Each pixel's color is represented as three integers: Red, Green, Blue. Each channel ranges from 0 (no intensity) to 255 (full intensity). Red = (255, 0, 0). White = (255, 255, 255). Black = (0, 0, 0). Gray = equal values of all three, e.g., (128, 128, 128).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Resolution and File Size</div>
+                <div class="card-desc">A 1920x1080 RGB image in raw form requires 1920 x 1080 x 3 bytes = approximately 6 MB of memory. File formats like JPEG and PNG compress this dramatically. When Python loads an image into memory it is fully uncompressed -- every pixel is individually accessible.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">RGBA -- The Fourth Channel</div>
+                <div class="card-desc">Some images have a fourth channel: Alpha (transparency). RGBA values are (R, G, B, A) where A = 0 means fully transparent and A = 255 means fully opaque. PNG files support alpha. JPEG files do not. When you see a checkerboard pattern behind an image, that is the viewer showing transparent pixels.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Accessing Pixel Data in Python</div>
+                <div class="card-desc">Python itself does not load images. You need a library. The standard choice is Pillow (the maintained fork of PIL -- Python Imaging Library). It gives you <span class="ic">Image.open()</span>, <span class="ic">image.getpixel(x, y)</span>, <span class="ic">image.putpixel(x, y, color)</span>, and save functions for every common format.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 -- PILLOW LIBRARY ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 31</div>
+        <div class="slide-title">The Pillow Library: <span class="accent">Opening and Inspecting Images</span></div>
+        <div class="slide-subtitle">Pillow is not in the standard library -- install it once, then use it everywhere.</div>
+
+        <div class="code-result-grid">
+            <div class="code-block"><span class="cm"># Install Pillow (run once in terminal, not in your script)</span>
+<span class="cm"># pip install Pillow</span>
+
+<span class="kw">from</span> PIL <span class="kw">import</span> Image
+
+<span class="cm"># Open any JPEG or PNG image file</span>
+img = Image.<span class="fn">open</span>(<span class="st">'photo.jpg'</span>)
+
+<span class="cm"># Basic properties</span>
+<span class="fn">print</span>(img.<span class="fn">size</span>)       <span class="out"># (1920, 1080) -- width, height in pixels</span>
+<span class="fn">print</span>(img.<span class="fn">mode</span>)       <span class="out"># 'RGB' or 'RGBA' or 'L' (grayscale)</span>
+<span class="fn">print</span>(img.<span class="fn">format</span>)     <span class="out"># 'JPEG' or 'PNG'</span>
+
+<span class="cm"># Get the RGB value of the pixel at coordinate (100, 200)</span>
+pixel = img.<span class="fn">getpixel</span>((<span class="nb">100</span>, <span class="nb">200</span>))
+<span class="fn">print</span>(pixel)           <span class="out"># (142, 89, 34) -- example RGB tuple</span>
+
+<span class="cm"># Get direct pixel access object -- faster for bulk operations</span>
+pixels = img.<span class="fn">load</span>()
+r, g, b = pixels[<span class="nb">100</span>, <span class="nb">200</span>]  <span class="cm"># indexed as [x, y]</span>
+
+<span class="cm"># Display the image (opens in default image viewer)</span>
+img.<span class="fn">show</span>()
+
+<span class="cm"># Save a modified image</span>
+img.<span class="fn">save</span>(<span class="st">'output.jpg'</span>)</div>
+            <div class="result-box">
+                <div class="result-label">Output</div>
+                <div class="result-desc">Running this script against a JPEG photo prints the dimensions, color mode, and file format to the console. getpixel() returns a tuple of three integers representing the color at that exact coordinate. show() opens the image in your system image viewer. No drawing window -- this is pure data.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Pillow coordinate system:</strong> Unlike turtle, Pillow uses (0, 0) as the top-left corner of the image. X increases rightward. Y increases downward. This matches the HTML/CSS coordinate model -- important to remember when converting between systems.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 -- GRAYSCALE CONVERSION ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 31</div>
+        <div class="slide-title">Pillow Example: <span class="accent">Grayscale Conversion Pixel by Pixel</span></div>
+        <div class="slide-subtitle">Manually compute grayscale values to understand what image processing libraries do internally.</div>
+
+        <div class="code-result-grid">
+            <div class="code-block"><span class="kw">from</span> PIL <span class="kw">import</span> Image
+
+<span class="cm"># Open source image</span>
+img = Image.<span class="fn">open</span>(<span class="st">'photo.jpg'</span>).<span class="fn">convert</span>(<span class="st">'RGB'</span>)   <span class="cm"># ensure RGB mode</span>
+width, height = img.<span class="fn">size</span>
+
+<span class="cm"># Create a blank image of the same size for our output</span>
+gray_img = Image.<span class="fn">new</span>(<span class="st">'RGB'</span>, (width, height))
+src  = img.<span class="fn">load</span>()          <span class="cm"># fast pixel access for source</span>
+dest = gray_img.<span class="fn">load</span>()     <span class="cm"># fast pixel access for destination</span>
+
+<span class="cm"># ITU-R BT.601 luminance formula -- perceptual grayscale</span>
+<span class="kw">for</span> y <span class="kw">in</span> <span class="fn">range</span>(height):
+    <span class="kw">for</span> x <span class="kw">in</span> <span class="fn">range</span>(width):
+        r, g, b = src[x, y]
+        <span class="cm"># Human eyes are more sensitive to green, less to blue</span>
+        gray = <span class="fn">int</span>(<span class="nb">0.299</span> * r + <span class="nb">0.587</span> * g + <span class="nb">0.114</span> * b)
+        dest[x, y] = (gray, gray, gray)  <span class="cm"># all three channels = same value</span>
+
+gray_img.<span class="fn">save</span>(<span class="st">'photo_gray.jpg'</span>)
+<span class="fn">print</span>(<span class="st">f'Saved grayscale image: {width}x{height} = {width*height:,} pixels processed'</span>)
+<span class="out"># Saved grayscale image: 1920x1080 = 2,073,600 pixels processed</span></div>
+            <div class="result-box">
+                <div class="result-label">Visual Result</div>
+                <div class="result-desc">The original color photo is saved as a grayscale JPEG. When viewed, all color is gone but tone and detail remain perfectly. The formula weights green most heavily because human eyes have more green-sensitive cones. This is the same algorithm used by every image editing application.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            <strong>One-liner alternative:</strong> <span class="ic">img.convert('L').save('gray.jpg')</span> does the same conversion in a single line. Pillow uses the same ITU formula internally. The manual version above is shown so you understand what is happening -- the same understanding you need to implement any custom filter (brightness, contrast, blur).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 -- IT SCENARIO: NETWORK TOPOLOGY ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 31</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Network Topology Diagram with Turtle</span></div>
+        <div class="slide-subtitle">Draw nodes and connections representing a real small-office network.</div>
+
+        <div class="code-result-grid">
+            <div class="code-block"><span class="kw">import</span> turtle
+
+t = turtle.<span class="fn">Turtle</span>(); t.<span class="fn">speed</span>(<span class="nb">0</span>); t.<span class="fn">hideturtle</span>()
+turtle.<span class="fn">bgcolor</span>(<span class="st">'#0f0f1a'</span>); turtle.<span class="fn">tracer</span>(<span class="nb">0</span>)
+
+<span class="kw">def</span> <span class="fn">draw_node</span>(t, x, y, label, color):
+    <span class="st">"""Draw a labeled circle node at (x, y)."""</span>
+    t.<span class="fn">penup</span>(); t.<span class="fn">goto</span>(x, y - <span class="nb">20</span>); t.<span class="fn">pendown</span>()
+    t.<span class="fn">fillcolor</span>(color); t.<span class="fn">pencolor</span>(<span class="st">'#e2e8f0'</span>); t.<span class="fn">pensize</span>(<span class="nb">1</span>)
+    t.<span class="fn">begin_fill</span>(); t.<span class="fn">circle</span>(<span class="nb">20</span>); t.<span class="fn">end_fill</span>()
+    t.<span class="fn">penup</span>(); t.<span class="fn">goto</span>(x, y - <span class="nb">42</span>)
+    t.<span class="fn">pencolor</span>(<span class="st">'#94a3b8'</span>)
+    t.<span class="fn">write</span>(label, align=<span class="st">'center'</span>, font=(<span class="st">'Arial'</span>, <span class="nb">9</span>, <span class="st">'normal'</span>))
+
+<span class="kw">def</span> <span class="fn">draw_link</span>(t, x1, y1, x2, y2):
+    <span class="st">"""Draw a line between two node centers."""</span>
+    t.<span class="fn">penup</span>(); t.<span class="fn">goto</span>(x1, y1); t.<span class="fn">pendown</span>()
+    t.<span class="fn">pencolor</span>(<span class="st">'#475569'</span>); t.<span class="fn">pensize</span>(<span class="nb">1</span>)
+    t.<span class="fn">goto</span>(x2, y2)
+
+<span class="cm"># Node positions: router at center, switches below, hosts at edges</span>
+nodes = {<span class="st">'Router'</span>: (<span class="nb">0</span>, <span class="nb">100</span>), <span class="st">'SW-01'</span>: (<span class="nb">-150</span>, <span class="nb">0</span>), <span class="st">'SW-02'</span>: (<span class="nb">150</span>, <span class="nb">0</span>),
+         <span class="st">'PC-01'</span>: (<span class="nb">-250</span>, <span class="nb">-120</span>), <span class="st">'PC-02'</span>: (<span class="nb">-80</span>, <span class="nb">-120</span>),
+         <span class="st">'SRV-01'</span>: (<span class="nb">80</span>, <span class="nb">-120</span>), <span class="st">'SRV-02'</span>: (<span class="nb">250</span>, <span class="nb">-120</span>)}
+colors = {<span class="st">'Router'</span>: <span class="st">'#c9a83a'</span>, <span class="st">'SW-01'</span>: <span class="st">'#06b6d4'</span>, <span class="st">'SW-02'</span>: <span class="st">'#06b6d4'</span>,
+          <span class="st">'PC-01'</span>: <span class="st">'#3ab577'</span>, <span class="st">'PC-02'</span>: <span class="st">'#3ab577'</span>,
+          <span class="st">'SRV-01'</span>: <span class="st">'#ef4444'</span>, <span class="st">'SRV-02'</span>: <span class="st">'#ef4444'</span>}
+links  = [(<span class="st">'Router'</span>, <span class="st">'SW-01'</span>), (<span class="st">'Router'</span>, <span class="st">'SW-02'</span>),
+          (<span class="st">'SW-01'</span>, <span class="st">'PC-01'</span>), (<span class="st">'SW-01'</span>, <span class="st">'PC-02'</span>),
+          (<span class="st">'SW-02'</span>, <span class="st">'SRV-01'</span>), (<span class="st">'SW-02'</span>, <span class="st">'SRV-02'</span>)]
+
+<span class="kw">for</span> src, dst <span class="kw">in</span> links:
+    <span class="fn">draw_link</span>(t, *nodes[src], *nodes[dst])
+<span class="kw">for</span> name, (x, y) <span class="kw">in</span> nodes.<span class="fn">items</span>():
+    <span class="fn">draw_node</span>(t, x, y, name, colors[name])
+
+turtle.<span class="fn">update</span>(); turtle.<span class="fn">done</span>()</div>
+            <div class="result-box">
+                <div class="result-label">Visual Result</div>
+                <div class="result-desc">A network topology diagram appears on the dark canvas: a gold Router at top center connected to two cyan switches (SW-01, SW-02). Each switch connects to two hosts -- green PC nodes on the left branch, red server nodes on the right branch. Gray lines represent network links. Labels identify every device.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 -- IT SCENARIO: BAR CHART ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 31</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Bar Chart from Server Data</span></div>
+        <div class="slide-subtitle">Visualize CPU utilization across five servers using turtle bar drawing.</div>
+
+        <div class="code-result-grid">
+            <div class="code-block"><span class="kw">import</span> turtle
+
+t = turtle.<span class="fn">Turtle</span>(); t.<span class="fn">speed</span>(<span class="nb">0</span>); t.<span class="fn">hideturtle</span>()
+turtle.<span class="fn">bgcolor</span>(<span class="st">'#0f0f1a'</span>); turtle.<span class="fn">tracer</span>(<span class="nb">0</span>)
+
+<span class="cm"># Server CPU utilization data (percent)</span>
+servers = [<span class="st">'WEB-01'</span>, <span class="st">'WEB-02'</span>, <span class="st">'DB-01'</span>, <span class="st">'DB-02'</span>, <span class="st">'MGMT'</span>]
+cpu_pct = [<span class="nb">72</span>, <span class="nb">45</span>, <span class="nb">91</span>, <span class="nb">38</span>, <span class="nb">18</span>]
+
+BAR_W  = <span class="nb">80</span>    <span class="cm"># bar width in pixels</span>
+MAX_H  = <span class="nb">200</span>   <span class="cm"># chart height in pixels (= 100%)</span>
+START_X = <span class="nb">-220</span> <span class="cm"># x coordinate of the first bar</span>
+BASE_Y  = <span class="nb">-150</span> <span class="cm"># y coordinate of the chart baseline</span>
+
+<span class="kw">for</span> i, (name, pct) <span class="kw">in</span> <span class="fn">enumerate</span>(zip(servers, cpu_pct)):
+    bar_h = (pct / <span class="nb">100</span>) * MAX_H      <span class="cm"># scale percent to pixel height</span>
+    x = START_X + i * (BAR_W + <span class="nb">20</span>)  <span class="cm"># space bars 20px apart</span>
+
+    <span class="cm"># Color code: green &lt; 60%, gold 60-80%, red &gt; 80%</span>
+    <span class="kw">if</span> pct &gt; <span class="nb">80</span>:   color = <span class="st">'#ef4444'</span>
+    <span class="kw">elif</span> pct &gt; <span class="nb">59</span>: color = <span class="st">'#c9a83a'</span>
+    <span class="kw">else</span>:          color = <span class="st">'#3ab577'</span>
+
+    <span class="cm"># Draw filled bar</span>
+    t.<span class="fn">fillcolor</span>(color); t.<span class="fn">pencolor</span>(<span class="st">'#1e293b'</span>)
+    t.<span class="fn">penup</span>(); t.<span class="fn">goto</span>(x, BASE_Y); t.<span class="fn">pendown</span>()
+    t.<span class="fn">begin_fill</span>()
+    <span class="kw">for</span> side, dist <span class="kw">in</span> [(<span class="nb">0</span>, BAR_W), (<span class="nb">90</span>, bar_h), (<span class="nb">90</span>, BAR_W), (<span class="nb">90</span>, bar_h)]:
+        t.<span class="fn">forward</span>(dist); t.<span class="fn">left</span>(<span class="nb">90</span>)
+    t.<span class="fn">end_fill</span>()
+
+    <span class="cm"># Label below bar</span>
+    t.<span class="fn">penup</span>(); t.<span class="fn">goto</span>(x + BAR_W // <span class="nb">2</span>, BASE_Y - <span class="nb">20</span>); t.<span class="fn">pencolor</span>(<span class="st">'#94a3b8'</span>)
+    t.<span class="fn">write</span>(name, align=<span class="st">'center'</span>, font=(<span class="st">'Arial'</span>, <span class="nb">8</span>, <span class="st">'normal'</span>))
+    t.<span class="fn">goto</span>(x + BAR_W // <span class="nb">2</span>, BASE_Y + bar_h + <span class="nb">4</span>)
+    t.<span class="fn">write</span>(<span class="st">f'{pct}%'</span>, align=<span class="st">'center'</span>, font=(<span class="st">'Arial'</span>, <span class="nb">9</span>, <span class="st">'bold'</span>))
+
+turtle.<span class="fn">update</span>(); turtle.<span class="fn">done</span>()</div>
+            <div class="result-box">
+                <div class="result-label">Visual Result</div>
+                <div class="result-desc">Five vertical bars appear side by side. WEB-01 (72%) shows a gold bar. DB-01 (91%) shows a tall red bar -- the alert color. DB-02 (38%) and MGMT (18%) show short green bars. Each bar is labeled below with the server name and above the top with the percentage. Immediately readable as a health dashboard.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 -- PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 31</div>
+        <div class="slide-title">Practice Exercises: <span class="accent">Build Something Real</span></div>
+        <div class="slide-subtitle">Five exercises spanning basic to advanced. Complete at least three before next class.</div>
+
+        <div class="step-list">
+            <div class="step-row">
+                <div class="step-num">1</div>
+                <div class="step-text">
+                    <strong>The House (Basic)</strong> -- Draw the house from slide 19 from scratch without looking at the code. Then extend it: add a chimney (a small rectangle on the roof), a path (two parallel lines from the door to the bottom of the canvas), and a sun (a yellow circle in the upper-right corner). This tests your ability to place shapes by coordinate.
+                </div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">2</div>
+                <div class="step-text">
+                    <strong>Spiral Generator (Intermediate)</strong> -- Write a function <span class="ic">draw_spiral(sides, start_length, increment, turns)</span> that draws an expanding spiral polygon. Each turn increases the side length by <span class="ic">increment</span>. Call it with different values: <span class="ic">draw_spiral(4, 5, 5, 40)</span> for a square spiral, <span class="ic">draw_spiral(3, 5, 4, 50)</span> for a triangle spiral. Use <span class="ic">pencolor</span> that cycles through a list of colors per side.
+                </div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">3</div>
+                <div class="step-text">
+                    <strong>Olympic Rings (Intermediate)</strong> -- Draw five interlocked circles (blue, yellow, black, green, red) in the classic Olympic arrangement. The rings are positioned so adjacent rings overlap slightly. Each circle has radius 50, no fill, pen size 5. Place the three top rings at y=0 and the two bottom rings at y=-50, offset so they sit between the top rings. This tests goto, penup/pendown, and pencolor coordination.
+                </div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">4</div>
+                <div class="step-text">
+                    <strong>Interactive Drawing Pad (Advanced)</strong> -- Combine slides 18 and 21 to build a drawing pad. Arrow keys steer the turtle, spacebar toggles pen up/down, 'c' clears the canvas, '+' increases pen size by 1, '-' decreases it, and '1'-'4' switch between four preset colors (red, cyan, gold, green). Display the current mode in the window title using <span class="ic">screen.title()</span>. This tests event handlers, state variables, and function organization.
+                </div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">5</div>
+                <div class="step-text">
+                    <strong>Data Visualizer (Advanced)</strong> -- Extend the bar chart from slide 28. Read the server data from a Python list of dictionaries: <span class="ic">[{'name': 'WEB-01', 'cpu': 72, 'mem': 58}, ...]</span>. Draw two sets of bars per server (CPU and memory), side by side with different colors. Add a legend in the upper-right corner, axis labels, and a title drawn with <span class="ic">turtle.write()</span>. This tests layout calculation, data structures, and function design.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 -- SUMMARY ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 31 &nbsp;|&nbsp; COP1034C Obj 5 &nbsp;|&nbsp; Day 8 of 12</div>
+        <div class="slide-title">Graphics &amp; Image Processing -- <span class="accent">Key Takeaways</span></div>
+
+        <div class="scenario-strip">
+            You now have two tools: turtle for generating visual output with code (diagrams, charts, animations, interactive programs) and Pillow for reading, modifying, and saving image files at the pixel level. Every function, loop, and data structure you learned this semester is directly applicable to both. The next time you need to visualize data or process an image, you have the Python vocabulary to do it.
+        </div>
+
+        <div class="section-label">8 Concepts to Carry Out of Today</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">The <strong>turtle module</strong> is standard library. Import, call movement commands, end with <code>turtle.done()</code>. Every drawing is just movement + pen state.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><code>penup()</code> / <code>pendown()</code> + <code>goto(x, y)</code> let you reposition without drawing. Canvas origin (0, 0) is center; x increases right, y increases up.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Any regular polygon: <strong>exterior angle = 360 / sides</strong>. A loop with <code>forward(n); right(angle)</code> repeated <em>sides</em> times draws it closed.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><code>color()</code> / <code>pencolor()</code> / <code>fillcolor()</code> accept named colors, hex strings, or RGB tuples. <code>begin_fill()</code> + <code>end_fill()</code> fills a closed region.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><code>turtle.Turtle()</code> creates named objects with independent state. Multiple turtles draw on the same canvas without interfering.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Events: <code>onkey(fn, 'Key')</code> + <code>onclick(fn)</code> + <code>screen.listen()</code> make programs interactive. <strong>listen() must be called</strong> or keyboard events do nothing.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text"><code>tracer(0)</code> + <code>update()</code> = smooth animation. Disable auto-refresh, draw all changes in memory, push one complete frame per iteration.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text"><strong>Pillow</strong> (<code>pip install Pillow</code>): <code>Image.open()</code>, <code>img.load()</code> for pixel access, process in nested loops, <code>img.save()</code>. Coordinates are top-left origin, y increases downward.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Fixed bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Python for IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 31</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    // ── Slide navigation state ─────────────────────────────────────────────────
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 31;
+
+    /**
+     * goToSlide(n) — activate slide n, update progress bar, counter, and buttons.
+     * Shows the Mark Complete button only on the last slide.
+     */
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        // Deactivate current slide
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        // Activate next slide
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        // Update gold progress bar width as a percentage
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        // Update slide counter text
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        // Disable Previous on slide 1, Next on last slide
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        // Show Mark Complete button only on the final slide
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    // Keyboard navigation: left/right arrow keys advance slides
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    // Initialize to slide 1 on page load
+    goToSlide(1);
+</script>
+
+<script>
+    /**
+     * completeModule() — record completion via ModuleProgress and return to course hub.
+     * Called by the Mark Complete button on the final slide.
+     */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('code', 'pfi-w3-graphics', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<!-- Accessibility enhancements: focus management, ARIA live region for slide counter -->
+<script src="../../../../components/PresentationA11y.js"></script>
+
+</body>
+</html>

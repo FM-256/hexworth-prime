@@ -1,0 +1,1850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: require 'sorted' role before rendering any content -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>String Processing &amp; Text Files | Python for IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container — fixed to viewport, hidden by default */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Max-width wrapper so content does not stretch on ultra-wide screens */
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Gold progress bar pinned to very top of viewport */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button — shown only on last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography hierarchy */
+        .slide-meta     { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title    { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Gold scenario callout strip */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box       { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08);  border: 1px solid rgba(6, 182, 212, 0.3);  color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08);  border: 1px solid rgba(239, 68, 68, 0.3);  color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3);  color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids — 3-column and 2-column layouts */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        /* Small-caps section divider label */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts row */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row  { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Syntax-colored Python code block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #c9a83a; }   /* keywords: if, for, with, import, True, False, None */
+        .code-block .fn { color: #06b6d4; }   /* built-in functions: print, open, len, str, int */
+        .code-block .st { color: #3ab577; }   /* string literals */
+        .code-block .cm { color: #475569; }   /* inline comments */
+        .code-block .nb { color: #f472b6; }   /* numeric and boolean literals */
+        .code-block .er { color: #ef4444; }   /* error output lines */
+
+        /* Inline code span used inside card-desc and fact-text */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Two-column layout for code + output side by side */
+        .code-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .code-pair { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+    <script src="../../../../components/TryItNow.js"></script>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">String Processing & Text Files</h1>
+
+
+<!-- Gold progress bar — width updated by goToSlide() on every navigation event -->
+<div id="progress-bar" style="width:2.94%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 36 &nbsp;|&nbsp; COP1034C Obj 4-5 &nbsp;|&nbsp; Day 4 of 12</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Python for IT: Day 4<br>
+                <span class="accent">String Processing &amp; Text Files</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                String Methods &nbsp;&bull;&nbsp; Slicing &nbsp;&bull;&nbsp; File I/O &nbsp;&bull;&nbsp; Logs &nbsp;&bull;&nbsp; Configs &nbsp;&bull;&nbsp; CSV
+            </div>
+        </div>
+        <div class="scenario-strip">
+            A server at your company is generating thousands of log lines every hour. Your manager asks you to find out how many ERROR-level events occurred yesterday, which services triggered them, and write a summary report. The log is a plain text file. Every line is a string. Every piece of data you need is hiding inside those strings. Today you learn the tools to pull it out.
+        </div>
+        <div class="title-meta-row">
+            <span>36 Slides</span>
+            <span>COP1034C Obj 4-5</span>
+            <span>Day 4 of 12</span>
+            <span>Lambert Ch 4-5</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — STRING REVIEW ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 36</div>
+        <div class="slide-title">String Review: <span class="accent">Quotes, Concatenation, f-strings</span></div>
+        <div class="slide-subtitle">Day 1 callback — strings are the most common data type in IT scripting.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Three Ways to Quote</div>
+                <div class="card-desc">
+                    Single: <span class="ic">'hello'</span><br>
+                    Double: <span class="ic">"hello"</span><br>
+                    Triple: <span class="ic">"""multi-line"""</span><br>
+                    Single and double are equivalent. Use double when your string contains apostrophes. Triple for multi-line strings or docstrings.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Concatenation with +</div>
+                <div class="card-desc">
+                    The <span class="ic">+</span> operator joins strings end to end. Both sides must be strings — you cannot add a string and an integer directly. Use <span class="ic">str()</span> to convert first, or use an f-string which handles it automatically.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">f-strings (Python 3.6+)</div>
+                <div class="card-desc">
+                    Prefix the string with <span class="ic">f</span> and embed expressions in curly braces. The expression is evaluated at runtime and inserted. This is the preferred way to build strings in modern Python — cleaner and faster than concatenation or <span class="ic">.format()</span>.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Concatenation — both sides must be str</span>
+host = <span class="st">"db-prod-01"</span>
+port = <span class="nb">5432</span>
+msg  = <span class="st">"Connecting to "</span> + host + <span class="st">" on port "</span> + <span class="fn">str</span>(port)
+<span class="fn">print</span>(msg)   <span class="cm"># Connecting to db-prod-01 on port 5432</span>
+
+<span class="cm"># f-string — cleaner, handles non-string values automatically</span>
+msg = <span class="st">f"Connecting to {host} on port {port}"</span>
+<span class="fn">print</span>(msg)   <span class="cm"># Connecting to db-prod-01 on port 5432</span>
+
+<span class="cm"># f-strings evaluate any expression inside {}</span>
+<span class="fn">print</span>(<span class="st">f"Servers checked: {<span class="nb">50</span> * <span class="nb">2</span>}"</span>)   <span class="cm"># Servers checked: 100</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — STRING INDEXING ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 36</div>
+        <div class="slide-title">String Indexing: <span class="accent">Accessing Individual Characters</span></div>
+        <div class="slide-subtitle">Strings are sequences. Every character has an address. Two addressing schemes exist.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Positive Indices (left to right)</div>
+                <div class="card-desc">
+                    Counting starts at <strong>0</strong>, not 1. This is called zero-based indexing and is standard in most programming languages. For a string of length n, the last valid index is n-1. Accessing index n raises an <span class="ic">IndexError</span>.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Negative Indices (right to left)</div>
+                <div class="card-desc">
+                    Index <span class="ic">-1</span> is always the last character. Index <span class="ic">-2</span> is second from last. Negative indices count backward from the end. This is useful when you need the last few characters and do not know the string length.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Log prefix example: "ERROR: disk usage at 94%"</span>
+log = <span class="st">"ERROR: disk usage at 94%"</span>
+
+<span class="cm"># Positive indices: first character is index 0</span>
+<span class="fn">print</span>(log[<span class="nb">0</span>])    <span class="cm"># 'E'</span>
+<span class="fn">print</span>(log[<span class="nb">1</span>])    <span class="cm"># 'R'</span>
+<span class="fn">print</span>(log[<span class="nb">5</span>])    <span class="cm"># ':'</span>
+
+<span class="cm"># Negative indices: -1 is always the last character</span>
+<span class="fn">print</span>(log[<span class="nb">-1</span>])   <span class="cm"># '%'</span>
+<span class="fn">print</span>(log[<span class="nb">-2</span>])   <span class="cm"># '4'</span>
+<span class="fn">print</span>(log[<span class="nb">-3</span>])   <span class="cm"># '9'</span>
+
+<span class="cm"># len() gives the total count of characters</span>
+<span class="fn">print</span>(<span class="fn">len</span>(log))   <span class="cm"># 24</span>
+<span class="fn">print</span>(log[<span class="fn">len</span>(log) - <span class="nb">1</span>])  <span class="cm"># '%' — same as log[-1]</span></div>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            <div class="box-label">IndexError</div>
+            Accessing an index that does not exist raises <strong>IndexError: string index out of range</strong>.
+            A string of 10 characters has indices 0 through 9. Accessing index 10 crashes. This is one of the most common runtime errors beginners encounter.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — STRING SLICING ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 36</div>
+        <div class="slide-title">String Slicing: <span class="accent">Extracting Substrings</span></div>
+        <div class="slide-subtitle">Slicing returns a new string containing the characters from start up to (not including) stop.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Basic Syntax: s[start:stop]</div>
+                <div class="card-desc">
+                    Returns characters from index <span class="ic">start</span> up to but <strong>not including</strong> index <span class="ic">stop</span>. The stop index is exclusive. Omit <span class="ic">start</span> to begin from 0. Omit <span class="ic">stop</span> to go to the end.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">With Step: s[start:stop:step]</div>
+                <div class="card-desc">
+                    The third parameter controls how many characters to skip between selections. <span class="ic">s[::2]</span> takes every other character. <span class="ic">s[::-1]</span> reverses the entire string — step of -1 walks backward through every character.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Slicing Never Crashes</div>
+                <div class="card-desc">
+                    Unlike indexing, a slice with out-of-range values does not raise an error. Python simply returns whatever is available. <span class="ic">"hello"[0:100]</span> returns <span class="ic">"hello"</span> — it stops at the end of the string gracefully.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Syslog line: extract the severity level and message</span>
+entry = <span class="st">"2024-11-14 08:22:01 ERROR sshd: Failed password for root"</span>
+
+<span class="cm"># Extract the date (first 10 characters: indices 0-9)</span>
+date = entry[<span class="nb">0</span>:<span class="nb">10</span>]
+<span class="fn">print</span>(date)      <span class="cm"># 2024-11-14</span>
+
+<span class="cm"># Extract the time (indices 11-18)</span>
+time = entry[<span class="nb">11</span>:<span class="nb">19</span>]
+<span class="fn">print</span>(time)      <span class="cm"># 08:22:01</span>
+
+<span class="cm"># Omit start — from the beginning</span>
+<span class="fn">print</span>(entry[:<span class="nb">10</span>])   <span class="cm"># 2024-11-14</span>
+
+<span class="cm"># Omit stop — from index 20 to the end</span>
+<span class="fn">print</span>(entry[<span class="nb">20</span>:])   <span class="cm"># ERROR sshd: Failed password for root</span>
+
+<span class="cm"># Reverse the entire string with [::-1]</span>
+word = <span class="st">"server"</span>
+<span class="fn">print</span>(word[::<span class="nb">-1</span>])   <span class="cm"># revres</span>
+
+<span class="cm"># Every other character</span>
+<span class="fn">print</span>(<span class="st">"abcdefgh"</span>[::<span class="nb">2</span>])  <span class="cm"># aceg</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — STRING IMMUTABILITY ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 36</div>
+        <div class="slide-title">String Immutability: <span class="accent">Strings Cannot Be Changed In Place</span></div>
+        <div class="slide-subtitle">Once a string is created, its characters cannot be modified. You must create a new string.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">What Immutable Means</div>
+                <div class="card-desc">
+                    Immutable means "cannot be changed after creation." You cannot reassign a character at a specific index the way you can with a list. Any string operation that appears to modify a string actually creates a brand-new string object and returns it.
+                </div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Why Python Made This Choice</div>
+                <div class="card-desc">
+                    Immutability makes strings safe to use as dictionary keys and set members (both require objects that don't change). It also means two variables can point to the same string object in memory without either one accidentally changing it.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># This will crash — strings do not support item assignment</span>
+hostname = <span class="st">"web-prod-01"</span>
+<span class="cm"># hostname[0] = 'W'   &lt;-- TypeError: 'str' object does not support item assignment</span>
+
+<span class="cm"># Correct: build a new string</span>
+hostname = <span class="st">"W"</span> + hostname[<span class="nb">1</span>:]
+<span class="fn">print</span>(hostname)   <span class="cm"># Web-prod-01</span>
+
+<span class="cm"># String methods return new strings — they do not modify the original</span>
+original = <span class="st">"access denied"</span>
+upper    = original.upper()
+
+<span class="fn">print</span>(original)  <span class="cm"># access denied   (unchanged)</span>
+<span class="fn">print</span>(upper)     <span class="cm"># ACCESS DENIED   (new string)</span>
+
+<span class="cm"># To keep the result, assign it back to the variable</span>
+original = original.upper()
+<span class="fn">print</span>(original)  <span class="cm"># ACCESS DENIED</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Common mistake:</strong> calling <span class="ic">s.upper()</span> and then printing <span class="ic">s</span> expecting it to be uppercase. It is not. You must capture the return value: <span class="ic">s = s.upper()</span> or <span class="ic">result = s.upper()</span>.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — CASE METHODS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 36</div>
+        <div class="slide-title">String Methods: <span class="accent">Case Conversion</span></div>
+        <div class="slide-subtitle">Five methods for changing letter case. Each returns a new string.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">upper() and lower()</div>
+                <div class="card-desc">
+                    <span class="ic">.upper()</span> converts every letter to uppercase.<br>
+                    <span class="ic">.lower()</span> converts every letter to lowercase.<br>
+                    Essential for case-insensitive comparisons: normalize both sides to the same case before comparing. Non-letter characters (numbers, punctuation) are unaffected.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">capitalize() and title()</div>
+                <div class="card-desc">
+                    <span class="ic">.capitalize()</span> — first character uppercase, rest lowercase.<br>
+                    <span class="ic">.title()</span> — first character of every word uppercase.<br>
+                    Useful for formatting names and headings. <span class="ic">.title()</span> treats any character after whitespace or punctuation as a word boundary.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">swapcase()</div>
+                <div class="card-desc">
+                    Flips every letter: uppercase becomes lowercase, lowercase becomes uppercase. Rarely needed in production code but useful for obfuscation exercises, and it appears on Python certification exams. Good to know.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Case methods — all return new strings</span>
+service = <span class="st">"Apache Web Server"</span>
+
+<span class="fn">print</span>(service.upper())       <span class="cm"># APACHE WEB SERVER</span>
+<span class="fn">print</span>(service.lower())       <span class="cm"># apache web server</span>
+<span class="fn">print</span>(service.swapcase())    <span class="cm"># aPACHE wEB sERVER</span>
+<span class="fn">print</span>(service.capitalize())  <span class="cm"># Apache web server  (only first letter up)</span>
+<span class="fn">print</span>(service.title())       <span class="cm"># Apache Web Server  (every word capitalized)</span>
+
+<span class="cm"># Practical: case-insensitive comparison to parse log severity</span>
+level = <span class="st">"error"</span>
+<span class="kw">if</span> level.upper() == <span class="st">"ERROR"</span>:
+    <span class="fn">print</span>(<span class="st">"Critical — page the on-call engineer"</span>)</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>IT pattern:</strong> When you parse log files, the severity level might be written as ERROR, error, or Error depending on the application. Always normalize with <span class="ic">.upper()</span> or <span class="ic">.lower()</span> before comparing so your script handles all three.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — STRIP METHODS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 36</div>
+        <div class="slide-title">String Methods: <span class="accent">strip(), lstrip(), rstrip()</span></div>
+        <div class="slide-subtitle">Remove unwanted whitespace or specific characters from the edges of a string.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">strip()</div>
+                <div class="card-desc">
+                    Removes whitespace from <strong>both ends</strong> of the string. "Whitespace" includes spaces, tabs (<span class="ic">\t</span>), and newlines (<span class="ic">\n</span>). Does not touch characters in the middle of the string. This is the one you will call most often when processing file input.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">lstrip() and rstrip()</div>
+                <div class="card-desc">
+                    <span class="ic">.lstrip()</span> removes from the <strong>left</strong> (leading) end only.<br>
+                    <span class="ic">.rstrip()</span> removes from the <strong>right</strong> (trailing) end only.<br>
+                    When reading files, every line ends with a newline <span class="ic">\n</span>. Use <span class="ic">.rstrip()</span> or <span class="ic">.strip()</span> to remove it before processing.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Stripping Specific Characters</div>
+                <div class="card-desc">
+                    Pass a string argument to strip those specific characters instead of whitespace. <span class="ic">"***alert***".strip('*')</span> returns <span class="ic">"alert"</span>. The argument is a set of characters to remove, not a substring — all matching characters from the edge are removed.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Every line read from a file ends with '\n' — strip it</span>
+raw_line = <span class="st">"  ERROR: disk usage at 94%\n"</span>
+clean    = raw_line.strip()
+<span class="fn">print</span>(repr(raw_line))  <span class="cm"># '  ERROR: disk usage at 94%\n'</span>
+<span class="fn">print</span>(repr(clean))     <span class="cm"># 'ERROR: disk usage at 94%'</span>
+
+<span class="cm"># lstrip: remove only leading whitespace</span>
+<span class="fn">print</span>(<span class="st">"   hello   "</span>.lstrip())   <span class="cm"># 'hello   '</span>
+
+<span class="cm"># rstrip: remove only trailing whitespace (common when reading files)</span>
+<span class="fn">print</span>(<span class="st">"   hello   "</span>.rstrip())   <span class="cm"># '   hello'</span>
+
+<span class="cm"># Strip specific characters from edges</span>
+<span class="fn">print</span>(<span class="st">"###CRITICAL###"</span>.strip(<span class="st">'#'</span>))   <span class="cm"># CRITICAL</span>
+<span class="fn">print</span>(<span class="st">"/var/log/syslog/"</span>.rstrip(<span class="st">'/'</span>)) <span class="cm"># /var/log/syslog</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — SPLIT ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 36</div>
+        <div class="slide-title">String Methods: <span class="accent">split()</span></div>
+        <div class="slide-subtitle">Break one string into a list of smaller strings by cutting at a delimiter.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Default: Split on Any Whitespace</div>
+                <div class="card-desc">
+                    Called with no arguments, <span class="ic">.split()</span> splits on any whitespace (spaces, tabs, newlines) and discards consecutive whitespace. It handles extra spaces between words automatically. Returns a list of strings.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Split on a Specific Delimiter</div>
+                <div class="card-desc">
+                    Pass a string argument: <span class="ic">.split(',')</span> splits on commas, <span class="ic">.split(':')</span> on colons, <span class="ic">.split('\t')</span> on tabs. The delimiter is consumed — it does not appear in the resulting list. Use this to parse CSV lines, key=value config lines, and structured log formats.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Split syslog line into its components</span>
+line = <span class="st">"2024-11-14 08:22:01 ERROR sshd: Failed password for root"</span>
+
+parts = line.split()           <span class="cm"># split on any whitespace</span>
+<span class="fn">print</span>(parts[<span class="nb">0</span>])  <span class="cm"># 2024-11-14  (date)</span>
+<span class="fn">print</span>(parts[<span class="nb">1</span>])  <span class="cm"># 08:22:01   (time)</span>
+<span class="fn">print</span>(parts[<span class="nb">2</span>])  <span class="cm"># ERROR      (severity)</span>
+
+<span class="cm"># Split a CSV line on comma</span>
+csv_line = <span class="st">"hostname,192.168.1.10,open,443"</span>
+fields   = csv_line.split(<span class="st">","</span>)
+<span class="fn">print</span>(fields)    <span class="cm"># ['hostname', '192.168.1.10', 'open', '443']</span>
+<span class="fn">print</span>(fields[<span class="nb">1</span>]) <span class="cm"># 192.168.1.10</span>
+
+<span class="cm"># Split a config line on '=' (maxsplit=1 stops after the first split)</span>
+config_line = <span class="st">"db_host=db-prod-01.internal"</span>
+key, value  = config_line.split(<span class="st">"="</span>, <span class="nb">1</span>)
+<span class="fn">print</span>(key)    <span class="cm"># db_host</span>
+<span class="fn">print</span>(value)  <span class="cm"># db-prod-01.internal</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>maxsplit parameter:</strong> <span class="ic">.split('=', 1)</span> splits at most once. Use this when the value portion of a config line might itself contain the delimiter (e.g., a password containing an equals sign).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — JOIN ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 36</div>
+        <div class="slide-title">String Methods: <span class="accent">join()</span></div>
+        <div class="slide-subtitle">The opposite of split. Combine a list of strings into one string with a separator between each item.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Syntax Is Reversed — Read Carefully</div>
+                <div class="card-desc">
+                    The separator string calls <span class="ic">.join()</span>, and the list is the argument: <span class="ic">separator.join(list)</span>. This trips up nearly everyone at first. Think of the separator as the glue, and the list as the pieces being glued together.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why join() Instead of a Loop?</div>
+                <div class="card-desc">
+                    You could concatenate list items in a <span class="ic">for</span> loop, but that creates a new string on every iteration, which is slow for large lists. <span class="ic">.join()</span> allocates the final string once and fills it in. For 10,000 items, <span class="ic">.join()</span> is many times faster.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Rebuild a CSV line from a list of fields</span>
+fields = [<span class="st">"hostname"</span>, <span class="st">"192.168.1.10"</span>, <span class="st">"open"</span>, <span class="st">"443"</span>]
+csv    = <span class="st">","</span>.join(fields)
+<span class="fn">print</span>(csv)   <span class="cm"># hostname,192.168.1.10,open,443</span>
+
+<span class="cm"># Build a filesystem path from components</span>
+parts    = [<span class="st">""</span>, <span class="st">"var"</span>, <span class="st">"log"</span>, <span class="st">"nginx"</span>, <span class="st">"access.log"</span>]
+filepath = <span class="st">"/"</span>.join(parts)
+<span class="fn">print</span>(filepath)  <span class="cm"># /var/log/nginx/access.log</span>
+
+<span class="cm"># Join words with a space (common for rebuilding split text)</span>
+words    = [<span class="st">"Failed"</span>, <span class="st">"password"</span>, <span class="st">"for"</span>, <span class="st">"root"</span>]
+sentence = <span class="st">" "</span>.join(words)
+<span class="fn">print</span>(sentence)  <span class="cm"># Failed password for root</span>
+
+<span class="cm"># Join without separator — concatenate directly</span>
+octets = [<span class="st">"192"</span>, <span class="st">"168"</span>, <span class="st">"1"</span>, <span class="st">"10"</span>]
+<span class="fn">print</span>(<span class="st">"."</span>.join(octets))   <span class="cm"># 192.168.1.10</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — FIND / INDEX / RFIND ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 36</div>
+        <div class="slide-title">String Methods: <span class="accent">find(), index(), rfind()</span></div>
+        <div class="slide-subtitle">Locate the position of a substring within a string.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">find()</div>
+                <div class="card-desc">
+                    Returns the index of the first occurrence of the substring. Returns <span class="ic">-1</span> if not found — it does not crash. Always check the return value before using it as an index. Optionally pass start and end positions to search a slice.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">index()</div>
+                <div class="card-desc">
+                    Identical to <span class="ic">.find()</span> except it raises a <span class="ic">ValueError</span> if the substring is not found. Use <span class="ic">.index()</span> only when you are certain the substring exists and want the program to crash visibly if it does not.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">rfind()</div>
+                <div class="card-desc">
+                    Like <span class="ic">.find()</span> but searches from the <strong>right</strong> and returns the index of the <strong>last</strong> occurrence. Useful for finding the last slash in a file path or the last occurrence of a delimiter in a line.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Search for a substring in a log line</span>
+line = <span class="st">"Nov 14 08:22:01 server01 sshd[8821]: Failed password for root"</span>
+
+pos = line.find(<span class="st">"Failed"</span>)
+<span class="fn">print</span>(pos)          <span class="cm"># 39  (index where 'Failed' starts)</span>
+<span class="fn">print</span>(line[pos:])   <span class="cm"># Failed password for root</span>
+
+<span class="cm"># find() returns -1 when not found — safe to check</span>
+<span class="fn">print</span>(line.find(<span class="st">"ERROR"</span>))   <span class="cm"># -1  (not found)</span>
+
+<span class="kw">if</span> line.find(<span class="st">"Failed"</span>) != -<span class="nb">1</span>:
+    <span class="fn">print</span>(<span class="st">"Authentication failure detected"</span>)
+
+<span class="cm"># rfind: locate the last slash to extract a filename</span>
+path = <span class="st">"/var/log/nginx/access.log"</span>
+last_slash = path.rfind(<span class="st">"/"</span>)
+filename   = path[last_slash + <span class="nb">1</span>:]
+<span class="fn">print</span>(filename)   <span class="cm"># access.log</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — TRY IT NOW ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 36 &nbsp;|&nbsp; Try It Now</div>
+        <div class="slide-title">Try It Now: <span class="accent">String Methods</span></div>
+        <div class="slide-subtitle">Clean up messy user input with string methods.</div>
+        <div class="try-it-now"
+             data-starter="raw_input = &quot;  Hello, World!  &quot;&#10;&#10;# Strip whitespace, convert to lowercase, replace comma with nothing&#10;"
+             data-solution="raw_input = &quot;  Hello, World!  &quot;&#10;cleaned = raw_input.strip().lower().replace(&quot;,&quot;, &quot;&quot;)&#10;print(cleaned)"
+             data-expected="hello world!"
+             data-height="120">
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 12 — REPLACE ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 36</div>
+        <div class="slide-title">String Methods: <span class="accent">replace()</span></div>
+        <div class="slide-subtitle">Substitute all occurrences of a substring with a new value. Returns a new string.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Syntax</div>
+                <div class="card-desc">
+                    <span class="ic">s.replace(old, new)</span> — replaces every occurrence of <span class="ic">old</span> with <span class="ic">new</span>.<br>
+                    <span class="ic">s.replace(old, new, count)</span> — replaces at most <span class="ic">count</span> occurrences.<br>
+                    Returns a new string. The original is unchanged. Case-sensitive.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">IT Use Cases</div>
+                <div class="card-desc">
+                    Sanitize log output before writing to a report. Replace old server names with new ones in a config file. Strip unwanted characters from user input. Mask sensitive values: replace the actual password with asterisks.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Replace all occurrences</span>
+config = <span class="st">"server=web-old-01\nbackup=web-old-02\nprimary=web-old-01"</span>
+updated = config.replace(<span class="st">"web-old-01"</span>, <span class="st">"web-new-01"</span>)
+<span class="fn">print</span>(updated)
+<span class="cm"># server=web-new-01</span>
+<span class="cm"># backup=web-old-02</span>
+<span class="cm"># primary=web-new-01</span>
+
+<span class="cm"># Replace with a count limit (only first 1 occurrence)</span>
+text = <span class="st">"error error error"</span>
+<span class="fn">print</span>(text.replace(<span class="st">"error"</span>, <span class="st">"ERROR"</span>, <span class="nb">1</span>))  <span class="cm"># ERROR error error</span>
+
+<span class="cm"># Remove a character by replacing it with an empty string</span>
+dirty = <span class="st">"192.168.1.10\r"</span>   <span class="cm"># carriage return from a Windows file</span>
+clean = dirty.replace(<span class="st">"\r"</span>, <span class="st">""</span>)
+<span class="fn">print</span>(repr(clean))   <span class="cm"># '192.168.1.10'</span>
+
+<span class="cm"># Mask a password in a log message</span>
+msg = <span class="st">"Connecting with password=s3cr3tP@ss to db-prod"</span>
+safe = msg.replace(<span class="st">"s3cr3tP@ss"</span>, <span class="st">"********"</span>)
+<span class="fn">print</span>(safe)  <span class="cm"># Connecting with password=******** to db-prod</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — COUNT / STARTSWITH / ENDSWITH ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 36</div>
+        <div class="slide-title">String Methods: <span class="accent">count(), startswith(), endswith()</span></div>
+        <div class="slide-subtitle">Count occurrences and test the edges of a string without scanning the whole thing.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">count()</div>
+                <div class="card-desc">
+                    Returns the number of non-overlapping occurrences of the substring. <span class="ic">"aaa".count("aa")</span> returns 1, not 2 — after matching at index 0, it continues from index 2. Accepts optional start and end arguments to limit the search range.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">startswith()</div>
+                <div class="card-desc">
+                    Returns <span class="ic">True</span> if the string begins with the specified prefix. Accepts a tuple of prefixes — returns True if the string starts with any of them. More efficient than a slice comparison for this purpose.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">endswith()</div>
+                <div class="card-desc">
+                    Returns <span class="ic">True</span> if the string ends with the specified suffix. Also accepts a tuple. Very useful for checking file extensions: <span class="ic">filename.endswith(('.log', '.txt'))</span> tests both in one call.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># count: how many times does 'timeout' appear in a log block?</span>
+log_block = <span class="st">"timeout on db01\ntimeout on db02\nconnected to db03\ntimeout on db04"</span>
+<span class="fn">print</span>(log_block.count(<span class="st">"timeout"</span>))  <span class="cm"># 3</span>
+
+<span class="cm"># startswith: filter only error lines from a log</span>
+lines = [
+    <span class="st">"ERROR: disk full on /dev/sda1"</span>,
+    <span class="st">"INFO: backup completed"</span>,
+    <span class="st">"ERROR: NIC down on eth0"</span>,
+    <span class="st">"WARNING: memory at 88%"</span>,
+]
+errors = [l <span class="kw">for</span> l <span class="kw">in</span> lines <span class="kw">if</span> l.startswith(<span class="st">"ERROR"</span>)]
+<span class="fn">print</span>(errors)
+<span class="cm"># ['ERROR: disk full on /dev/sda1', 'ERROR: NIC down on eth0']</span>
+
+<span class="cm"># endswith with a tuple: find log and config files in a list</span>
+files = [<span class="st">"syslog.log"</span>, <span class="st">"readme.txt"</span>, <span class="st">"httpd.conf"</span>, <span class="st">"auth.log"</span>]
+logs  = [f <span class="kw">for</span> f <span class="kw">in</span> files <span class="kw">if</span> f.endswith((<span class="st">'.log'</span>, <span class="st">'.conf'</span>))]
+<span class="fn">print</span>(logs)  <span class="cm"># ['syslog.log', 'httpd.conf', 'auth.log']</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — VALIDATION METHODS ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 36</div>
+        <div class="slide-title">String Methods: <span class="accent">isdigit(), isalpha(), isalnum(), isspace()</span></div>
+        <div class="slide-subtitle">Test the contents of a string before processing it. Returns True or False.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What These Methods Test</div>
+                <div class="card-desc">
+                    <span class="ic">.isdigit()</span> — True if every character is a digit (0-9).<br>
+                    <span class="ic">.isalpha()</span> — True if every character is a letter (a-z, A-Z).<br>
+                    <span class="ic">.isalnum()</span> — True if every character is a letter or digit.<br>
+                    <span class="ic">.isspace()</span> — True if every character is whitespace (space, tab, newline).<br>
+                    All return False for an empty string.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">When to Use Them</div>
+                <div class="card-desc">
+                    Validate user input before converting. Check that a port number field contains only digits before calling <span class="ic">int()</span>. Detect blank lines in a file. Verify that a username contains only alphanumeric characters. These checks prevent crashes caused by malformed data.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># isdigit: validate port number before converting</span>
+port_input = <span class="st">"8080"</span>
+<span class="kw">if</span> port_input.isdigit():
+    port = <span class="fn">int</span>(port_input)
+    <span class="fn">print</span>(<span class="st">f"Scanning port {port}"</span>)   <span class="cm"># Scanning port 8080</span>
+<span class="kw">else</span>:
+    <span class="fn">print</span>(<span class="st">"Invalid port — must be numeric"</span>)
+
+<span class="cm"># isalpha: check that a hostname label has no digits</span>
+<span class="fn">print</span>(<span class="st">"webserver"</span>.isalpha())    <span class="cm"># True</span>
+<span class="fn">print</span>(<span class="st">"web01"</span>.isalpha())        <span class="cm"># False — contains digits</span>
+<span class="fn">print</span>(<span class="st">"web01"</span>.isalnum())        <span class="cm"># True  — letters and digits only</span>
+
+<span class="cm"># isspace: skip blank lines when reading a config file</span>
+lines = [<span class="st">"[global]"</span>, <span class="st">"  "</span>, <span class="st">"port=22"</span>, <span class="st">"\n"</span>, <span class="st">"host=0.0.0.0"</span>]
+<span class="kw">for</span> line <span class="kw">in</span> lines:
+    <span class="kw">if</span> <span class="kw">not</span> line.strip().isspace() <span class="kw">and</span> line.strip():
+        <span class="fn">print</span>(line.strip())</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Note:</strong> <span class="ic">.isdigit()</span> returns False for <span class="ic">"3.14"</span> because the decimal point is not a digit. To validate a float-like string, use a <span class="ic">try/except</span> around <span class="ic">float()</span> — covered on slide 32.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — F-STRING FORMATTING SPECS ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 36</div>
+        <div class="slide-title">f-String Formatting: <span class="accent">Format Specifications</span></div>
+        <div class="slide-subtitle">Control how values look inside f-strings using format specs after the colon.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Decimal Places: :.2f</div>
+                <div class="card-desc">
+                    <span class="ic">{value:.2f}</span> formats a float to 2 decimal places. The <span class="ic">f</span> means fixed-point notation. Change the number to control precision. <span class="ic">:.4f</span> gives 4 decimal places. Essential for displaying percentages and measurements.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Width and Alignment: :&gt;10</div>
+                <div class="card-desc">
+                    <span class="ic">{value:&gt;10}</span> right-aligns the value in a field 10 characters wide. <span class="ic">&lt;</span> left-aligns. <span class="ic">^</span> centers. Padding fills with spaces by default. Use this to produce columns that line up in terminal output or report files.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Zero-Padding: :05d</div>
+                <div class="card-desc">
+                    <span class="ic">{value:05d}</span> formats an integer in a field of width 5, padded with zeros on the left. <span class="ic">d</span> means decimal integer. Use this when generating sequential filenames, log record IDs, or zero-padded timestamps.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Practical: format a system health report row</span>
+hostname = <span class="st">"db-prod-01"</span>
+cpu      = <span class="nb">73.6781</span>
+mem      = <span class="nb">88.5</span>
+disk     = <span class="nb">94</span>
+
+<span class="cm"># :.1f = 1 decimal place, :&lt;14 = left-align in 14 chars, :5.1f = width 5 with 1 decimal</span>
+<span class="fn">print</span>(<span class="st">f"{'Host':<span class="nb">&lt;14</span>} {'CPU':&gt;<span class="nb">7</span>} {'MEM':&gt;<span class="nb">7</span>} {'DISK':&gt;<span class="nb">7</span>}"</span>)
+<span class="fn">print</span>(<span class="st">f"{hostname:<span class="nb">&lt;14</span>} {cpu:<span class="nb">7.1f</span>}% {mem:<span class="nb">7.1f</span>}% {disk:<span class="nb">7</span>}%"</span>)
+<span class="cm"># Host           CPU     MEM    DISK</span>
+<span class="cm"># db-prod-01   73.7%   88.5%     94%</span>
+
+<span class="cm"># Zero-padded file number for log rotation naming</span>
+<span class="kw">for</span> i <span class="kw">in</span> range(<span class="nb">1</span>, <span class="nb">6</span>):
+    <span class="fn">print</span>(<span class="st">f"archive_{i:<span class="nb">04d</span>}.log"</span>)
+<span class="cm"># archive_0001.log</span>
+<span class="cm"># archive_0002.log  ...</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — .FORMAT() METHOD ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 36</div>
+        <div class="slide-title">String Formatting: <span class="accent">The .format() Method</span></div>
+        <div class="slide-subtitle">The older formatting style, still common in production codebases built before Python 3.6.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Positional and Named Placeholders</div>
+                <div class="card-desc">
+                    <span class="ic">{}</span> placeholders are filled in order from left to right by the arguments to <span class="ic">.format()</span>. You can also use numeric indices <span class="ic">{0}</span>, <span class="ic">{1}</span> to refer to specific arguments by position, or named placeholders <span class="ic">{host}</span> with keyword arguments.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">f-string vs .format()</div>
+                <div class="card-desc">
+                    f-strings are faster, more readable, and the modern standard. Use f-strings for new code. Understand <span class="ic">.format()</span> because you will read it in existing scripts, Stack Overflow answers, documentation examples, and vendor tools written before 2016.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Positional placeholders — filled left to right</span>
+msg = <span class="st">"Host {} is running on port {}"</span>.format(<span class="st">"web-prod-01"</span>, <span class="nb">443</span>)
+<span class="fn">print</span>(msg)   <span class="cm"># Host web-prod-01 is running on port 443</span>
+
+<span class="cm"># Indexed placeholders — reuse or reorder arguments</span>
+template = <span class="st">"[{0}] {1} — {1} triggered on {0}"</span>
+<span class="fn">print</span>(template.format(<span class="st">"db-prod-01"</span>, <span class="st">"CRITICAL"</span>))
+<span class="cm"># [db-prod-01] CRITICAL — CRITICAL triggered on db-prod-01</span>
+
+<span class="cm"># Named placeholders — clearer for multi-field strings</span>
+report = <span class="st">"Host: {host}\nStatus: {status}\nUptime: {uptime}h"</span>
+<span class="fn">print</span>(report.format(host=<span class="st">"app-prod-02"</span>, status=<span class="st">"OK"</span>, uptime=<span class="nb">312</span>))
+<span class="cm"># Host: app-prod-02</span>
+<span class="cm"># Status: OK</span>
+<span class="cm"># Uptime: 312h</span>
+
+<span class="cm"># Format specs work the same way as in f-strings</span>
+<span class="fn">print</span>(<span class="st">"CPU: {:.1f}%"</span>.format(<span class="nb">73.6781</span>))   <span class="cm"># CPU: 73.7%</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — ESCAPE CHARACTERS ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 36</div>
+        <div class="slide-title">Escape Characters &amp; <span class="accent">Raw Strings</span></div>
+        <div class="slide-subtitle">Special character sequences that represent characters you cannot type directly.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Common Escape Sequences</div>
+                <div class="card-desc">
+                    <span class="ic">\n</span> — newline (moves to next line)<br>
+                    <span class="ic">\t</span> — tab (horizontal indent)<br>
+                    <span class="ic">\\</span> — literal backslash<br>
+                    <span class="ic">\'</span> — literal single quote inside single-quoted string<br>
+                    <span class="ic">\"</span> — literal double quote inside double-quoted string
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Raw Strings: r"..."</div>
+                <div class="card-desc">
+                    A raw string prefixed with <span class="ic">r</span> treats every backslash as a literal character, not an escape sequence. Used for Windows file paths and regular expression patterns where backslashes are meaningful. <span class="ic">r"C:\Users\admin\logs"</span> does not interpret <span class="ic">\U</span> or <span class="ic">\a</span>.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Why This Matters for File Paths</div>
+                <div class="card-desc">
+                    On Windows, file paths use backslashes: <span class="ic">C:\Users\alice</span>. In a Python string, <span class="ic">\U</span> and <span class="ic">\a</span> are escape sequences. Either double every backslash (<span class="ic">C:\\Users\\alice</span>) or use a raw string (<span class="ic">r"C:\Users\alice"</span>). On Linux/macOS this is not an issue — paths use forward slashes.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Newline and tab in a formatted report</span>
+report = <span class="st">"Host: db-prod-01\nStatus: OK\nUptime: 312h"</span>
+<span class="fn">print</span>(report)
+<span class="cm"># Host: db-prod-01</span>
+<span class="cm"># Status: OK</span>
+<span class="cm"># Uptime: 312h</span>
+
+<span class="cm"># Literal backslash in a Windows path (double each backslash)</span>
+path1 = <span class="st">"C:\\Users\\admin\\Documents\\logs"</span>
+<span class="fn">print</span>(path1)   <span class="cm"># C:\Users\admin\Documents\logs</span>
+
+<span class="cm"># Same path using a raw string — easier to read</span>
+path2 = r<span class="st">"C:\Users\admin\Documents\logs"</span>
+<span class="fn">print</span>(path2)   <span class="cm"># C:\Users\admin\Documents\logs</span>
+
+<span class="cm"># repr() shows escape sequences explicitly — useful for debugging</span>
+line = <span class="st">"192.168.1.10\r\n"</span>
+<span class="fn">print</span>(repr(line))   <span class="cm"># '192.168.1.10\r\n'  (shows the \r and \n literally)</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — STRING METHODS CHEAT SHEET ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 36</div>
+        <div class="slide-title">String Methods: <span class="accent">Quick Reference</span></div>
+        <div class="slide-subtitle">Everything covered in slides 6-16 in one place. Return a new string unless noted.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Case &amp; Cleanup</div>
+                <div class="card-desc">
+                    <span class="ic">.upper()</span> — all uppercase<br>
+                    <span class="ic">.lower()</span> — all lowercase<br>
+                    <span class="ic">.title()</span> — first letter of each word up<br>
+                    <span class="ic">.capitalize()</span> — first letter up only<br>
+                    <span class="ic">.strip()</span> — remove edge whitespace<br>
+                    <span class="ic">.lstrip()</span> / <span class="ic">.rstrip()</span> — one side only
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Split, Join, Replace</div>
+                <div class="card-desc">
+                    <span class="ic">.split(sep)</span> — string to list<br>
+                    <span class="ic">sep.join(list)</span> — list to string<br>
+                    <span class="ic">.replace(old, new)</span> — substitute all<br>
+                    <span class="ic">.replace(old, new, n)</span> — substitute n times
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Search &amp; Test</div>
+                <div class="card-desc">
+                    <span class="ic">.find(s)</span> — index or -1<br>
+                    <span class="ic">.index(s)</span> — index or ValueError<br>
+                    <span class="ic">.rfind(s)</span> — last occurrence<br>
+                    <span class="ic">.count(s)</span> — number of occurrences<br>
+                    <span class="ic">.startswith(s)</span> — True/False<br>
+                    <span class="ic">.endswith(s)</span> — True/False<br>
+                    <span class="ic">.isdigit()</span> / <span class="ic">.isalpha()</span> / <span class="ic">.isalnum()</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <div class="box-label">The Golden Rule</div>
+            String methods do not change the original string. They <strong>return</strong> a new one. You must assign the result:
+            <span class="ic">line = line.strip()</span> not just <span class="ic">line.strip()</span>.
+            If you call a method and wonder why nothing changed — this is the reason.
+        </div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            You can chain methods: <span class="ic">line.strip().lower().replace("error", "ERROR")</span> — each method runs on the result of the previous one. Useful but keep chains short so they remain readable.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — WHY FILES MATTER ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 36 &nbsp;|&nbsp; File I/O Begins</div>
+        <div class="slide-title">File I/O: <span class="accent">Why Files Matter for IT</span></div>
+        <div class="slide-subtitle">Nearly everything in IT is stored in a file. Learning to read and write files is foundational.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Configuration Files</div>
+                <div class="card-desc">
+                    Every service you run reads its settings from a file: <span class="ic">/etc/ssh/sshd_config</span>, <span class="ic">/etc/nginx/nginx.conf</span>, <span class="ic">C:\Windows\System32\drivers\etc\hosts</span>. Scripts that deploy and configure services must read and write these files.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Log Files</div>
+                <div class="card-desc">
+                    Services write their events to log files: <span class="ic">/var/log/syslog</span>, <span class="ic">/var/log/auth.log</span>, <span class="ic">/var/log/nginx/access.log</span>. Parsing logs with Python lets you extract error counts, detect intrusions, and generate alerts automatically.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">CSV and Data Files</div>
+                <div class="card-desc">
+                    Inventory spreadsheets exported from Excel. Network scan results from Nmap. User account lists from Active Directory. All of these become CSV files that Python scripts can read, filter, and transform without human interaction.
+                </div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            This is the scenario we are building toward: a file called <span class="ic">syslog.txt</span> contains 500 log lines. Your script will open it, read every line, count how many are ERROR, WARNING, and INFO, then write a summary report to <span class="ic">report.txt</span>. By the end of today's slides, you will have every tool needed to write that script.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — OPEN() AND FILE MODES ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 36</div>
+        <div class="slide-title">Opening Files: <span class="accent">open() and File Modes</span></div>
+        <div class="slide-subtitle">open() creates a connection between your Python script and a file on disk.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Syntax</div>
+                <div class="card-desc">
+                    <span class="ic">open(filename, mode, encoding)</span><br>
+                    <span class="ic">filename</span> — path to the file as a string.<br>
+                    <span class="ic">mode</span> — what you intend to do (read, write, append).<br>
+                    <span class="ic">encoding</span> — character encoding. Always specify <span class="ic">encoding='utf-8'</span> for text files to avoid platform-specific surprises.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">File Modes</div>
+                <div class="card-desc">
+                    <span class="ic">'r'</span> — read (default). File must exist.<br>
+                    <span class="ic">'w'</span> — write. Creates the file, or <strong>overwrites</strong> it entirely if it exists.<br>
+                    <span class="ic">'a'</span> — append. Creates the file if missing, adds to the end if it exists.<br>
+                    <span class="ic">'x'</span> — exclusive create. Fails with an error if the file already exists.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Open for reading — file must already exist</span>
+f = <span class="fn">open</span>(<span class="st">"syslog.txt"</span>, <span class="st">"r"</span>, encoding=<span class="st">"utf-8"</span>)
+content = f.read()
+f.close()   <span class="cm"># always close when done — frees the file handle</span>
+
+<span class="cm"># Open for writing — DESTROYS existing content</span>
+f = <span class="fn">open</span>(<span class="st">"report.txt"</span>, <span class="st">"w"</span>, encoding=<span class="st">"utf-8"</span>)
+f.write(<span class="st">"Daily Log Summary\n"</span>)
+f.close()
+
+<span class="cm"># Open for appending — preserves existing content</span>
+f = <span class="fn">open</span>(<span class="st">"report.txt"</span>, <span class="st">"a"</span>, encoding=<span class="st">"utf-8"</span>)
+f.write(<span class="st">"New entry added\n"</span>)
+f.close()</div>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            <div class="box-label">Critical Warning</div>
+            Opening an existing file in mode <span class="ic">'w'</span> immediately <strong>erases all of its contents</strong>, even before you write anything new. There is no confirmation prompt. This is one of the most common data loss mistakes in scripting. Be certain before using write mode on a file that matters.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — WITH STATEMENT ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 36</div>
+        <div class="slide-title">The <span class="accent">with</span> Statement: Context Manager</div>
+        <div class="slide-subtitle">The right way to work with files. Automatically closes the file even if an exception occurs.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What It Does</div>
+                <div class="card-desc">
+                    The <span class="ic">with</span> statement creates a context. When execution leaves the <span class="ic">with</span> block — whether normally or because an exception was raised — Python automatically calls the file's <span class="ic">.close()</span> method. You cannot forget to close the file. This is not optional best practice — it is the standard pattern.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why It Matters</div>
+                <div class="card-desc">
+                    A file that is not properly closed can hold a lock on disk, leave write buffers unflushed (data you wrote may not actually appear in the file), and exhaust the operating system's file descriptor limit if many files are opened in a loop. The <span class="ic">with</span> statement eliminates all three risks.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Without with — must remember to close, no protection from crashes</span>
+f = <span class="fn">open</span>(<span class="st">"syslog.txt"</span>, <span class="st">"r"</span>, encoding=<span class="st">"utf-8"</span>)
+content = f.read()
+f.close()   <span class="cm"># if an error occurs before this line, file stays open forever</span>
+
+<span class="cm"># With 'with' — close is guaranteed, always use this form</span>
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"syslog.txt"</span>, <span class="st">"r"</span>, encoding=<span class="st">"utf-8"</span>) <span class="kw">as</span> f:
+    content = f.read()
+<span class="cm"># f is automatically closed here, even if an exception occurred above</span>
+
+<span class="cm"># Open two files at once with a single with statement</span>
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"syslog.txt"</span>, <span class="st">"r"</span>, encoding=<span class="st">"utf-8"</span>) <span class="kw">as</span> src, \
+     <span class="fn">open</span>(<span class="st">"report.txt"</span>,  <span class="st">"w"</span>, encoding=<span class="st">"utf-8"</span>) <span class="kw">as</span> dst:
+    <span class="kw">for</span> line <span class="kw">in</span> src:
+        <span class="kw">if</span> <span class="st">"ERROR"</span> <span class="kw">in</span> line:
+            dst.write(line)</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Rule:</strong> From this point forward, every file you open in this course uses the <span class="ic">with</span> statement. No exceptions. If you open a file without <span class="ic">with</span> on a submitted assignment, points will be deducted.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — TRY IT NOW ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 36 &nbsp;|&nbsp; Try It Now</div>
+        <div class="slide-title">Try It Now: <span class="accent">Split and Join</span></div>
+        <div class="slide-subtitle">Split a log line into parts and rebuild it.</div>
+        <div class="try-it-now"
+             data-starter="log_line = &quot;2024-03-15 08:22:19 ERROR Connection refused&quot;&#10;&#10;# Split on spaces, print each part on its own line&#10;"
+             data-solution="log_line = &quot;2024-03-15 08:22:19 ERROR Connection refused&quot;&#10;parts = log_line.split()&#10;for part in parts:&#10;    print(part)"
+             data-expected="2024-03-15
+08:22:19
+ERROR
+Connection
+refused"
+             data-height="120">
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 23 — READING FILES ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 36</div>
+        <div class="slide-title">Reading Files: <span class="accent">read(), readline(), readlines()</span></div>
+        <div class="slide-subtitle">Three methods for reading file content. Choose based on size and how you need to process the data.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">read()</div>
+                <div class="card-desc">
+                    Reads the <strong>entire file</strong> into a single string. Simple for small files. Dangerous for large files — a 500 MB log file becomes a 500 MB string in memory. The string includes all newlines as <span class="ic">\n</span> characters.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">readline()</div>
+                <div class="card-desc">
+                    Reads one line at a time. Each call advances the file position to the next line. Returns an empty string <span class="ic">""</span> when there are no more lines. Rarely used directly — the <span class="ic">for</span> loop approach (slide 22) is cleaner for most purposes.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">readlines()</div>
+                <div class="card-desc">
+                    Reads all lines and returns a <strong>list of strings</strong>, one string per line. Each string includes the trailing <span class="ic">\n</span>. Use when you need random access to specific line numbers. For sequential processing, use the <span class="ic">for</span> loop instead.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># File: syslog.txt (first 3 lines shown)</span>
+<span class="cm"># Nov 14 08:20:01 server01 sshd: Accepted publickey for alice</span>
+<span class="cm"># Nov 14 08:22:01 server01 sshd: Failed password for root</span>
+<span class="cm"># Nov 14 08:25:14 server01 CRON: session opened for root</span>
+
+<span class="cm"># read() — whole file as one string</span>
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"syslog.txt"</span>, <span class="st">"r"</span>, encoding=<span class="st">"utf-8"</span>) <span class="kw">as</span> f:
+    all_text = f.read()
+<span class="fn">print</span>(<span class="fn">type</span>(all_text))   <span class="cm"># &lt;class 'str'&gt;</span>
+
+<span class="cm"># readlines() — list of lines</span>
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"syslog.txt"</span>, <span class="st">"r"</span>, encoding=<span class="st">"utf-8"</span>) <span class="kw">as</span> f:
+    lines = f.readlines()
+<span class="fn">print</span>(lines[<span class="nb">0</span>])   <span class="cm"># 'Nov 14 08:20:01 server01 sshd: Accepted publickey for alice\n'</span>
+<span class="fn">print</span>(lines[<span class="nb">1</span>])   <span class="cm"># 'Nov 14 08:22:01 server01 sshd: Failed password for root\n'</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — ITERATING LINE BY LINE ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 36</div>
+        <div class="slide-title">Reading Files: <span class="accent">Line-by-Line with a for Loop</span></div>
+        <div class="slide-subtitle">The most memory-efficient way to read a file. Python loads one line at a time.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Why This Is the Right Default</div>
+                <div class="card-desc">
+                    When you iterate a file object directly in a <span class="ic">for</span> loop, Python reads one line at a time from disk, processes it, then discards it. A 1 GB log file uses only a few kilobytes of memory at any point. <span class="ic">readlines()</span> loads the entire file into RAM first — fine for small files, a problem for large ones.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Each Line Includes the Newline</div>
+                <div class="card-desc">
+                    Every line delivered by the <span class="ic">for</span> loop ends with <span class="ic">\n</span> (or <span class="ic">\r\n</span> on Windows line endings). Always call <span class="ic">.strip()</span> or <span class="ic">.rstrip()</span> as your first operation on each line. If you skip this, trailing whitespace causes your string comparisons to fail silently.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Count lines by severity level in a syslog file</span>
+error_count   = <span class="nb">0</span>
+warning_count = <span class="nb">0</span>
+info_count    = <span class="nb">0</span>
+
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"syslog.txt"</span>, <span class="st">"r"</span>, encoding=<span class="st">"utf-8"</span>) <span class="kw">as</span> f:
+    <span class="kw">for</span> line <span class="kw">in</span> f:
+        line = line.strip()    <span class="cm"># remove trailing \n every time</span>
+        <span class="kw">if</span> <span class="kw">not</span> line:           <span class="cm"># skip blank lines</span>
+            <span class="kw">continue</span>
+        parts = line.split()   <span class="cm"># tokenize on whitespace</span>
+        <span class="kw">if</span> <span class="fn">len</span>(parts) &gt;= <span class="nb">5</span>:
+            level = parts[<span class="nb">4</span>].upper()
+            <span class="kw">if</span> level == <span class="st">"ERROR"</span>:   error_count   += <span class="nb">1</span>
+            <span class="kw">if</span> level == <span class="st">"WARNING"</span>: warning_count += <span class="nb">1</span>
+            <span class="kw">if</span> level == <span class="st">"INFO"</span>:    info_count    += <span class="nb">1</span>
+
+<span class="fn">print</span>(<span class="st">f"ERROR:   {error_count}"</span>)
+<span class="fn">print</span>(<span class="st">f"WARNING: {warning_count}"</span>)
+<span class="fn">print</span>(<span class="st">f"INFO:    {info_count}"</span>)</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — WRITING FILES ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 36</div>
+        <div class="slide-title">Writing Files: <span class="accent">write() and writelines()</span></div>
+        <div class="slide-subtitle">Two methods for writing text to a file. write() for single strings, writelines() for lists.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">write()</div>
+                <div class="card-desc">
+                    Writes a single string to the file. Does <strong>not</strong> add a newline automatically — you must include <span class="ic">\n</span> if you want each call to start on a new line. Returns the number of characters written (you can ignore this return value in most scripts).
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">writelines()</div>
+                <div class="card-desc">
+                    Accepts a list (or any iterable) of strings and writes them one after another. Does <strong>not</strong> add newlines between items — if each string in the list should be on its own line, the newline must already be part of the string. Use a list comprehension to add <span class="ic">\n</span> if needed.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># write(): one string at a time, newlines are your responsibility</span>
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"report.txt"</span>, <span class="st">"w"</span>, encoding=<span class="st">"utf-8"</span>) <span class="kw">as</span> f:
+    f.write(<span class="st">"=== Daily Log Summary ===\n"</span>)
+    f.write(<span class="st">f"Date: 2024-11-14\n"</span>)
+    f.write(<span class="st">f"ERROR:   12\n"</span>)
+    f.write(<span class="st">f"WARNING: 47\n"</span>)
+    f.write(<span class="st">f"INFO:    383\n"</span>)
+
+<span class="cm"># writelines(): write a list of strings all at once</span>
+lines = [
+    <span class="st">"=== Daily Log Summary ===\n"</span>,
+    <span class="st">"Date: 2024-11-14\n"</span>,
+    <span class="st">"ERROR:   12\n"</span>,
+    <span class="st">"WARNING: 47\n"</span>,
+]
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"report.txt"</span>, <span class="st">"w"</span>, encoding=<span class="st">"utf-8"</span>) <span class="kw">as</span> f:
+    f.writelines(lines)
+
+<span class="cm"># Add newlines to a list that doesn't have them</span>
+items = [<span class="st">"alice"</span>, <span class="st">"bob"</span>, <span class="st">"charlie"</span>]
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"users.txt"</span>, <span class="st">"w"</span>, encoding=<span class="st">"utf-8"</span>) <span class="kw">as</span> f:
+    f.writelines(item + <span class="st">"\n"</span> <span class="kw">for</span> item <span class="kw">in</span> items)</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — APPENDING ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 36</div>
+        <div class="slide-title">Appending to Files: <span class="accent">Mode 'a'</span></div>
+        <div class="slide-subtitle">Add new content to the end of an existing file without destroying what is already there.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">When to Use Append Mode</div>
+                <div class="card-desc">
+                    Use <span class="ic">'a'</span> when you are <strong>adding</strong> to a file that should accumulate data over time: an audit log, a daily report, a list of completed jobs. The file pointer starts at the end of the existing content. If the file does not exist, mode <span class="ic">'a'</span> creates it — same as <span class="ic">'w'</span> in that regard.
+                </div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Append vs Write — Know the Difference</div>
+                <div class="card-desc">
+                    Mode <span class="ic">'w'</span> truncates (empties) the file first. Mode <span class="ic">'a'</span> does not. This is the entire difference. A script that runs on a schedule and opens its log file with <span class="ic">'w'</span> will erase the previous run's output every time. Open with <span class="ic">'a'</span> to keep a running history.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Script that runs nightly — appends to a running audit log</span>
+<span class="kw">import</span> datetime
+
+timestamp = datetime.datetime.now().strftime(<span class="st">"%Y-%m-%d %H:%M:%S"</span>)
+summary   = <span class="st">f"[{timestamp}] Scan complete — 3 hosts unreachable\n"</span>
+
+<span class="cm"># Append mode: adds to the end, never overwrites</span>
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"audit.log"</span>, <span class="st">"a"</span>, encoding=<span class="st">"utf-8"</span>) <span class="kw">as</span> f:
+    f.write(summary)
+
+<span class="cm"># After three nightly runs, audit.log contains:</span>
+<span class="cm"># [2024-11-12 02:00:01] Scan complete — 1 host unreachable</span>
+<span class="cm"># [2024-11-13 02:00:02] Scan complete — 0 hosts unreachable</span>
+<span class="cm"># [2024-11-14 02:00:01] Scan complete — 3 hosts unreachable</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Common pattern:</strong> A script opens a results file in <span class="ic">'w'</span> mode at the start to create a fresh report for that run, then closes it. If the same script is also writing an audit trail, it opens the audit file in <span class="ic">'a'</span> mode. Two separate files, two different modes, each serving a different purpose.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — FILE PATHS ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 36</div>
+        <div class="slide-title">File Paths: <span class="accent">Relative, Absolute, and os.path</span></div>
+        <div class="slide-subtitle">Getting the path right is the difference between your script running and a FileNotFoundError.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Relative Paths</div>
+                <div class="card-desc">
+                    Relative to the <strong>current working directory</strong> when the script runs. <span class="ic">"syslog.txt"</span> looks in the same folder as the script. <span class="ic">"logs/syslog.txt"</span> looks in a <span class="ic">logs</span> subfolder. The CWD can change based on where you launch the script from — this trips up beginners constantly.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Absolute Paths</div>
+                <div class="card-desc">
+                    A full path from the root of the filesystem. <span class="ic">"/var/log/syslog"</span> on Linux. <span class="ic">"C:\\Logs\\syslog.txt"</span> on Windows. Always works regardless of where you run the script from. Use absolute paths in production scripts on servers. Use relative paths for portable code that travels with its data files.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">os.path Basics</div>
+                <div class="card-desc">
+                    The <span class="ic">os.path</span> module provides platform-safe path operations. <span class="ic">os.path.exists()</span> checks before opening. <span class="ic">os.path.join()</span> builds paths correctly on both Windows and Linux. <span class="ic">os.path.basename()</span> extracts just the filename from a full path.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">import</span> os
+
+<span class="cm"># os.path.join: builds the correct path for the current OS</span>
+<span class="cm"># On Linux: /var/log/syslog  |  On Windows: C:\var\log\syslog</span>
+path = os.path.join(<span class="st">"var"</span>, <span class="st">"log"</span>, <span class="st">"syslog"</span>)
+<span class="fn">print</span>(path)   <span class="cm"># var/log/syslog (Linux) or var\log\syslog (Windows)</span>
+
+<span class="cm"># os.path.exists: check before opening to give a clearer error</span>
+log_path = <span class="st">"/var/log/auth.log"</span>
+<span class="kw">if</span> os.path.exists(log_path):
+    <span class="kw">with</span> <span class="fn">open</span>(log_path, <span class="st">"r"</span>, encoding=<span class="st">"utf-8"</span>) <span class="kw">as</span> f:
+        <span class="fn">print</span>(f.readline().strip())
+<span class="kw">else</span>:
+    <span class="fn">print</span>(<span class="st">f"Log file not found: {log_path}"</span>)
+
+<span class="cm"># os.path.basename: extract filename from a full path</span>
+full = <span class="st">"/var/log/nginx/access.log"</span>
+<span class="fn">print</span>(os.path.basename(full))    <span class="cm"># access.log</span>
+<span class="fn">print</span>(os.path.dirname(full))     <span class="cm"># /var/log/nginx</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — CSV FILES ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 36</div>
+        <div class="slide-title">CSV Files: <span class="accent">Parsing Manually with split()</span></div>
+        <div class="slide-subtitle">CSV is the lingua franca of data exchange in IT. Every tool exports to it.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What a CSV File Looks Like</div>
+                <div class="card-desc">
+                    Comma-Separated Values. Each row is one line. Fields within a row are separated by commas. The first row is usually a header naming each column. Some CSVs use a tab or semicolon as the delimiter instead — the approach is the same, just change the delimiter in <span class="ic">.split()</span>.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Manual Parsing vs csv Module</div>
+                <div class="card-desc">
+                    For simple CSVs with no quoted fields containing commas, <span class="ic">.split(',')</span> is sufficient. Python also has a built-in <span class="ic">csv</span> module that handles quoted fields, escaping, and edge cases automatically. This slide covers the manual approach — the <span class="ic">csv</span> module is covered in a later week.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># File: network_hosts.csv</span>
+<span class="cm"># hostname,ip_address,status,open_port</span>
+<span class="cm"># web-prod-01,192.168.10.5,up,443</span>
+<span class="cm"># db-prod-01,192.168.10.10,up,5432</span>
+<span class="cm"># backup-01,192.168.10.20,down,0</span>
+
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"network_hosts.csv"</span>, <span class="st">"r"</span>, encoding=<span class="st">"utf-8"</span>) <span class="kw">as</span> f:
+    header = f.readline().strip()     <span class="cm"># read and skip the header row</span>
+    <span class="fn">print</span>(<span class="st">f"Columns: {header}"</span>)
+
+    <span class="kw">for</span> line <span class="kw">in</span> f:
+        line   = line.strip()
+        <span class="kw">if</span> <span class="kw">not</span> line:
+            <span class="kw">continue</span>
+        fields = line.split(<span class="st">","</span>)      <span class="cm"># split on comma</span>
+        hostname, ip, status, port = fields   <span class="cm"># unpack directly</span>
+        <span class="kw">if</span> status == <span class="st">"down"</span>:
+            <span class="fn">print</span>(<span class="st">f"ALERT: {hostname} ({ip}) is DOWN"</span>)
+
+<span class="cm"># Output:</span>
+<span class="cm"># Columns: hostname,ip_address,status,open_port</span>
+<span class="cm"># ALERT: backup-01 (192.168.10.20) is DOWN</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — IT SCENARIO: SYSLOG PARSER ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 36 &nbsp;|&nbsp; IT Scenario</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Parse a Syslog File</span></div>
+        <div class="slide-subtitle">Count ERROR, WARNING, and INFO lines in a real syslog format file.</div>
+
+        <div class="scenario-strip" style="font-size:0.83rem;">
+            Your Linux server writes syslog lines in this format: <span class="ic">Nov 14 08:22:01 server01 sshd[8821]: Failed password for root from 10.0.0.5</span>. The severity keyword appears at position 4 when you split on whitespace. The goal: count each severity level and report the totals.
+        </div>
+
+        <div class="code-block"><span class="cm"># File: syslog.txt (sample lines)</span>
+<span class="cm"># Nov 14 08:20:01 server01 INFO sshd: session opened for alice</span>
+<span class="cm"># Nov 14 08:22:01 server01 ERROR sshd: Failed password for root</span>
+<span class="cm"># Nov 14 08:23:44 server01 WARNING kernel: disk usage 88% on /dev/sda1</span>
+<span class="cm"># Nov 14 08:25:14 server01 INFO CRON: session opened for root</span>
+<span class="cm"># Nov 14 08:30:02 server01 ERROR sshd: Failed password for admin</span>
+
+counts = {<span class="st">"ERROR"</span>: <span class="nb">0</span>, <span class="st">"WARNING"</span>: <span class="nb">0</span>, <span class="st">"INFO"</span>: <span class="nb">0</span>, <span class="st">"OTHER"</span>: <span class="nb">0</span>}
+
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"syslog.txt"</span>, <span class="st">"r"</span>, encoding=<span class="st">"utf-8"</span>) <span class="kw">as</span> f:
+    <span class="kw">for</span> line <span class="kw">in</span> f:
+        line = line.strip()
+        <span class="kw">if</span> <span class="kw">not</span> line:
+            <span class="kw">continue</span>
+        parts = line.split()
+        level = parts[<span class="nb">4</span>].upper() <span class="kw">if</span> <span class="fn">len</span>(parts) &gt; <span class="nb">4</span> <span class="kw">else</span> <span class="st">"OTHER"</span>
+        <span class="kw">if</span> level <span class="kw">in</span> counts:
+            counts[level] += <span class="nb">1</span>
+        <span class="kw">else</span>:
+            counts[<span class="st">"OTHER"</span>] += <span class="nb">1</span>
+
+<span class="fn">print</span>(<span class="st">f"ERROR:   {counts['ERROR']:&gt;5}"</span>)
+<span class="fn">print</span>(<span class="st">f"WARNING: {counts['WARNING']:&gt;5}"</span>)
+<span class="fn">print</span>(<span class="st">f"INFO:    {counts['INFO']:&gt;5}"</span>)
+<span class="cm"># ERROR:       2</span>
+<span class="cm"># WARNING:     1</span>
+<span class="cm"># INFO:         2</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — IT SCENARIO: CONFIG FILE PARSER ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 36 &nbsp;|&nbsp; IT Scenario</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Read a Config File into a Dictionary</span></div>
+        <div class="slide-subtitle">Parse key=value configuration files — the format used by hundreds of Linux services.</div>
+
+        <div class="scenario-strip" style="font-size:0.83rem;">
+            A config file like <span class="ic">/etc/myapp/config.ini</span> stores settings as <span class="ic">key=value</span> pairs, one per line. Comments start with <span class="ic">#</span>. Blank lines separate sections. Your script needs to read it into a dictionary so the rest of the program can look up settings by name.
+        </div>
+
+        <div class="code-block"><span class="cm"># File: app.conf</span>
+<span class="cm"># Database configuration for myapp</span>
+<span class="cm"># db_host=db-prod-01.internal</span>
+<span class="cm"># db_port=5432</span>
+<span class="cm"># db_name=inventory</span>
+<span class="cm"># db_user=appuser</span>
+<span class="cm"># max_connections=20</span>
+<span class="cm"># timeout=30</span>
+
+config = {}
+
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"app.conf"</span>, <span class="st">"r"</span>, encoding=<span class="st">"utf-8"</span>) <span class="kw">as</span> f:
+    <span class="kw">for</span> line <span class="kw">in</span> f:
+        line = line.strip()
+        <span class="kw">if</span> <span class="kw">not</span> line <span class="kw">or</span> line.startswith(<span class="st">"#"</span>):   <span class="cm"># skip blank and comment lines</span>
+            <span class="kw">continue</span>
+        <span class="kw">if</span> <span class="st">"="</span> <span class="kw">in</span> line:
+            key, value = line.split(<span class="st">"="</span>, <span class="nb">1</span>)    <span class="cm"># maxsplit=1: value may contain =</span>
+            config[key.strip()] = value.strip()
+
+<span class="cm"># Access values by key</span>
+<span class="fn">print</span>(config[<span class="st">"db_host"</span>])          <span class="cm"># db-prod-01.internal</span>
+<span class="fn">print</span>(config[<span class="st">"db_port"</span>])          <span class="cm"># 5432  (still a string — convert if needed)</span>
+port = <span class="fn">int</span>(config[<span class="st">"db_port"</span>])     <span class="cm"># 5432 as integer</span>
+<span class="fn">print</span>(<span class="st">f"Connecting to {config['db_host']}:{port}"</span>)
+<span class="cm"># Connecting to db-prod-01.internal:5432</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 — IT SCENARIO: WRITE A REPORT ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 36 &nbsp;|&nbsp; IT Scenario</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Write a Report File</span></div>
+        <div class="slide-subtitle">Combine everything: read a log, count by severity, write a formatted report.</div>
+
+        <div class="code-block"><span class="cm"># Full pipeline: read syslog.txt, analyze, write report.txt</span>
+<span class="kw">import</span> datetime
+
+counts  = {<span class="st">"ERROR"</span>: <span class="nb">0</span>, <span class="st">"WARNING"</span>: <span class="nb">0</span>, <span class="st">"INFO"</span>: <span class="nb">0</span>}
+errors  = []   <span class="cm"># collect ERROR lines for the detail section</span>
+
+<span class="cm"># --- Phase 1: read and analyze the log ---</span>
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"syslog.txt"</span>, <span class="st">"r"</span>, encoding=<span class="st">"utf-8"</span>) <span class="kw">as</span> f:
+    <span class="kw">for</span> line <span class="kw">in</span> f:
+        line  = line.strip()
+        parts = line.split()
+        <span class="kw">if</span> <span class="fn">len</span>(parts) &lt; <span class="nb">5</span>:
+            <span class="kw">continue</span>
+        level = parts[<span class="nb">4</span>].upper()
+        <span class="kw">if</span> level <span class="kw">in</span> counts:
+            counts[level] += <span class="nb">1</span>
+            <span class="kw">if</span> level == <span class="st">"ERROR"</span>:
+                errors.append(line)
+
+<span class="cm"># --- Phase 2: write the report ---</span>
+now = datetime.datetime.now().strftime(<span class="st">"%Y-%m-%d %H:%M:%S"</span>)
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"report.txt"</span>, <span class="st">"w"</span>, encoding=<span class="st">"utf-8"</span>) <span class="kw">as</span> f:
+    f.write(<span class="st">f"=== Syslog Analysis Report ===\n"</span>)
+    f.write(<span class="st">f"Generated: {now}\n\n"</span>)
+    f.write(<span class="st">f"SUMMARY\n"</span>)
+    <span class="kw">for</span> level, count <span class="kw">in</span> counts.items():
+        f.write(<span class="st">f"  {level:<span class="nb">&lt;10</span>}: {count}\n"</span>)
+    f.write(<span class="st">f"\nERROR DETAILS ({<span class="fn">len</span>(errors)} total)\n"</span>)
+    <span class="kw">for</span> e <span class="kw">in</span> errors:
+        f.write(<span class="st">f"  {e}\n"</span>)
+
+<span class="fn">print</span>(<span class="st">"Report written to report.txt"</span>)</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 — COMMON MISTAKES ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 36</div>
+        <div class="slide-title">Common Mistakes: <span class="accent">File I/O Pitfalls</span></div>
+        <div class="slide-subtitle">Errors that every beginner makes. Learn them here so you make them at most once.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Forgetting to Close the File</div>
+                <div class="card-desc">
+                    When you call <span class="ic">f.write()</span>, Python buffers the data in memory. It is only guaranteed to reach the disk when the file is closed. If the script crashes before <span class="ic">f.close()</span>, the data may be lost. Use <span class="ic">with</span> to make this impossible — the close happens automatically.
+                </div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Using 'w' When You Mean 'a'</div>
+                <div class="card-desc">
+                    Opening an existing file with mode <span class="ic">'w'</span> silently erases everything in it. No warning. No confirmation. Before writing, ask yourself: should the previous content survive? If yes, use <span class="ic">'a'</span>. If you are building a fresh report each run, <span class="ic">'w'</span> is correct.
+                </div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">FileNotFoundError</div>
+                <div class="card-desc">
+                    Opening a file with <span class="ic">'r'</span> when the file does not exist raises <span class="ic">FileNotFoundError</span>. Check the path carefully — it is usually a typo or a wrong working directory. Use <span class="ic">os.path.exists()</span> to check first, or use <span class="ic">try/except</span> (slide 32) to handle it gracefully.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Mistake 1: not using 'with' — data lost on crash</span>
+f = <span class="fn">open</span>(<span class="st">"output.txt"</span>, <span class="st">"w"</span>)
+f.write(<span class="st">"important data"</span>)
+<span class="cm"># script crashes here — output.txt may be empty</span>
+
+<span class="cm"># Mistake 2: stripping the wrong side — comparison fails</span>
+line = <span class="st">"ERROR: disk full\n"</span>
+<span class="kw">if</span> line == <span class="st">"ERROR: disk full"</span>:   <span class="cm"># False! \n is still there</span>
+    <span class="fn">print</span>(<span class="st">"match"</span>)
+<span class="kw">if</span> line.strip() == <span class="st">"ERROR: disk full"</span>:  <span class="cm"># True</span>
+    <span class="fn">print</span>(<span class="st">"match"</span>)
+
+<span class="cm"># Mistake 3: reading after the file pointer is exhausted</span>
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"syslog.txt"</span>, <span class="st">"r"</span>) <span class="kw">as</span> f:
+    all_text = f.read()    <span class="cm"># reads entire file, pointer now at end</span>
+    lines    = f.readlines()   <span class="cm"># returns [] — nothing left to read</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 — PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 36</div>
+        <div class="slide-title">Practice Exercises: <span class="accent">Six Challenges</span></div>
+        <div class="slide-subtitle">Work through these during lab time. Each one builds directly on today's material.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">1. Word Counter</div>
+                <div class="card-desc">Read a text file. Count the total number of words (split on whitespace). Print the 5 most common words and how many times each appears. Hint: build a dictionary of word counts.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">2. Find and Replace in a File</div>
+                <div class="card-desc">Read a config file. Replace every occurrence of an old server hostname with a new one. Write the updated content to a new file. Do not overwrite the original. Print how many replacements were made.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">3. Caesar Cipher</div>
+                <div class="card-desc">Read a file of plaintext. Shift every letter 3 positions forward in the alphabet (A becomes D, Z wraps to C). Write the ciphertext to a new file. Preserve non-letter characters unchanged. Hint: use <span class="ic">ord()</span> and <span class="ic">chr()</span>.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">4. CSV Parser</div>
+                <div class="card-desc">Read <span class="ic">network_hosts.csv</span> (hostname, ip, status, port). Print a formatted table of all hosts whose status is "down". Count how many hosts are up vs down. Write a summary to <span class="ic">down_report.txt</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">5. Log Analyzer</div>
+                <div class="card-desc">Read <span class="ic">syslog.txt</span>. Count ERROR, WARNING, and INFO lines. Extract all unique IP addresses that appear in ERROR lines (the IP is the last word on the line). Write the full report to <span class="ic">log_analysis.txt</span>.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">6. Config Reader</div>
+                <div class="card-desc">Read <span class="ic">app.conf</span> into a dictionary. Validate that the required keys <span class="ic">db_host</span>, <span class="ic">db_port</span>, and <span class="ic">db_name</span> are all present. Convert <span class="ic">db_port</span> and <span class="ic">max_connections</span> to integers. Print a formatted connection string.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 — TRY/EXCEPT PREVIEW ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 36</div>
+        <div class="slide-title">try/except Preview: <span class="accent">Handling FileNotFoundError</span></div>
+        <div class="slide-subtitle">A brief look at error handling before it is fully covered in Week 4.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What Is an Exception?</div>
+                <div class="card-desc">
+                    When Python encounters an error at runtime — a file that doesn't exist, a division by zero, a variable that is the wrong type — it raises an <strong>exception</strong>. If your code does not catch the exception, the entire program stops and prints a traceback. <span class="ic">try/except</span> lets you catch the exception and decide what to do instead of crashing.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">FileNotFoundError</div>
+                <div class="card-desc">
+                    Raised when you try to open a file with mode <span class="ic">'r'</span> and the file does not exist. This is the most common file I/O exception you will encounter. Catching it lets you print a helpful message and exit cleanly instead of dumping a traceback at the user.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Without error handling — crashes with a traceback</span>
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"missing.txt"</span>, <span class="st">"r"</span>) <span class="kw">as</span> f:
+    content = f.read()
+<span class="cm"># FileNotFoundError: [Errno 2] No such file or directory: 'missing.txt'</span>
+
+<span class="cm"># With try/except — graceful failure</span>
+<span class="kw">try</span>:
+    <span class="kw">with</span> <span class="fn">open</span>(<span class="st">"syslog.txt"</span>, <span class="st">"r"</span>, encoding=<span class="st">"utf-8"</span>) <span class="kw">as</span> f:
+        content = f.read()
+    <span class="fn">print</span>(<span class="st">f"Read {<span class="fn">len</span>(content)} characters"</span>)
+<span class="kw">except</span> <span class="fn">FileNotFoundError</span>:
+    <span class="fn">print</span>(<span class="st">"Error: syslog.txt not found. Check the file path and try again."</span>)
+<span class="kw">except</span> <span class="fn">PermissionError</span>:
+    <span class="fn">print</span>(<span class="st">"Error: permission denied. Run as root or check file permissions."</span>)
+
+<span class="cm"># Week 4 covers: multiple exception types, else, finally, raising your own exceptions</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Rule for now:</strong> When you write a script that opens a file given by a user (a path typed at the command line, for example), always wrap the <span class="ic">open()</span> call in a <span class="ic">try/except FileNotFoundError</span> block. It takes two extra lines and makes your scripts professional.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 — KEY VOCABULARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 36</div>
+        <div class="slide-title">Key <span class="accent">Vocabulary</span></div>
+        <div class="slide-subtitle">Terms introduced today. Know the definition and be able to use each one in code.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Strings</div>
+                <div class="card-desc">
+                    <strong>Index</strong> — the integer position of a character (0-based).<br>
+                    <strong>Slice</strong> — a range of characters extracted from a string using <span class="ic">[start:stop:step]</span>.<br>
+                    <strong>Immutable</strong> — cannot be changed in place; must create a new string.<br>
+                    <strong>Delimiter</strong> — the character used to separate fields in a structured string.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">String Methods</div>
+                <div class="card-desc">
+                    <strong>Method</strong> — a function attached to an object, called with dot notation.<br>
+                    <strong>Chaining</strong> — calling multiple methods in sequence: <span class="ic">s.strip().lower()</span>.<br>
+                    <strong>Return value</strong> — what a method gives back; must be assigned to be kept.<br>
+                    <strong>Format spec</strong> — the part after <span class="ic">:</span> inside an f-string <span class="ic">{value:.2f}</span>.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">File I/O</div>
+                <div class="card-desc">
+                    <strong>File handle</strong> — the object returned by <span class="ic">open()</span>, used to read or write.<br>
+                    <strong>Context manager</strong> — the <span class="ic">with</span> statement; guarantees resource cleanup.<br>
+                    <strong>File mode</strong> — <span class="ic">'r'</span>, <span class="ic">'w'</span>, <span class="ic">'a'</span>, <span class="ic">'x'</span> — how the file will be accessed.<br>
+                    <strong>Encoding</strong> — how bytes are mapped to characters; always use <span class="ic">utf-8</span>.<br>
+                    <strong>Exception</strong> — a runtime error that can be caught with <span class="ic">try/except</span>.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <div class="box-label">Carry This Out</div>
+            Strings and files appear in every Python script you will write in IT. <span class="ic">.strip()</span>, <span class="ic">.split()</span>, <span class="ic">.join()</span>, and <span class="ic">with open()</span> are not optional knowledge — they are the four tools you will reach for in virtually every file-processing task. Know them cold.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 36 — SUMMARY + MARK COMPLETE ==================== -->
+<section class="slide" id="slide-36">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 36 of 36 &nbsp;|&nbsp; COP1034C Obj 4-5 &nbsp;|&nbsp; Day 4 of 12</div>
+        <div class="slide-title">Day 4 Summary: <span class="accent">String Processing &amp; Text Files</span></div>
+
+        <div class="scenario-strip">
+            You now have every tool needed to solve the scenario from slide 1. Open <span class="ic">syslog.txt</span> with a <span class="ic">with</span> statement, iterate line by line with a <span class="ic">for</span> loop, <span class="ic">.strip()</span> the newline, <span class="ic">.split()</span> the fields, check severity with <span class="ic">.upper()</span>, count with a dictionary, then open <span class="ic">report.txt</span> in write mode and use <span class="ic">f.write()</span> with formatted f-strings. That script is under 25 lines. You can write it right now.
+        </div>
+
+        <div class="section-label">8 Things to Carry Out of Today</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><strong>Indexing</strong> is zero-based. Negative indices count from the end. <code>s[-1]</code> is always the last character.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>Slicing</strong> with <code>s[start:stop:step]</code> returns a new string. The stop index is exclusive. <code>s[::-1]</code> reverses.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>Strings are immutable.</strong> Methods return new strings. Assign the result or nothing changes: <code>s = s.strip()</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>.strip() every line</strong> from a file before doing anything else. Every line read from a file ends with <code>\n</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>.split()</strong> breaks a string into a list. <strong>sep.join(list)</strong> rebuilds a list into a string. They are inverses.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text"><strong>Always use <code>with open(...) as f:</code></strong> — it guarantees the file closes, even if an exception occurs.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Mode <strong>'w' overwrites</strong>. Mode <strong>'a' appends</strong>. Know which you need before you open the file.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Wrap <strong>file opens in try/except FileNotFoundError</strong> for any file path that comes from user input or a variable.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar — always visible -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Python for IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 36</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* Slide navigation state */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 36;
+
+    /* Move to slide n — validate, update DOM, update controls */
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Hide current slide */
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        /* Show new slide */
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update gold progress bar */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES * 100) + '%';
+
+        /* Update slide counter text */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Disable Prev on first slide, Next on last */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show Mark Complete button only on the final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard navigation — arrow keys advance or retreat slides */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize to slide 1 */
+    goToSlide(1);
+</script>
+
+<script>
+    /* Mark this module complete via ModuleProgress and return to course hub */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('code', 'pfi-w2-strings', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<!-- Accessibility: keyboard trap management, ARIA live region for slide announcements -->
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

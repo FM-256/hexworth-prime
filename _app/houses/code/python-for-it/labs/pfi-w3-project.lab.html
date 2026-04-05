@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 3 Project: Turtle Art | Python for IT</title>
+    <style>
+        :root {
+            --code-primary: #10b981;
+            --code-secondary: #059669;
+            --code-dark: #064e3b;
+            --code-glow: rgba(16, 185, 129, 0.3);
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #0f1623;
+            --bg-tertiary: #161f30;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; line-height: 1.6; }
+        .lab-container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+        .back-link { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--code-primary); text-decoration: none; margin-bottom: 1rem; transition: all 0.3s ease; }
+        .back-link:hover { color: #34d399; transform: translateX(-5px); }
+        .lab-header { text-align: center; margin-bottom: 2rem; padding: 2rem; background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary)); border-radius: 16px; border: 1px solid var(--code-primary); box-shadow: 0 0 30px var(--code-glow); }
+        .lab-header h1 { font-size: 2.2rem; margin-bottom: 0.5rem; background: linear-gradient(135deg, var(--code-primary), #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 1rem; margin-bottom: 1rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-secondary); }
+        .progress-section { background: var(--bg-secondary); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid rgba(16, 185, 129, 0.2); }
+        .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .progress-bar { height: 12px; background: var(--bg-tertiary); border-radius: 6px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--code-primary), var(--success)); border-radius: 6px; transition: width 0.5s ease; }
+        .section { background: var(--bg-secondary); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; border: 1px solid rgba(16, 185, 129, 0.2); transition: all 0.3s ease; }
+        .section:hover { border-color: var(--code-primary); box-shadow: 0 0 20px var(--code-glow); }
+        .section.completed { border-color: var(--success); background: linear-gradient(135deg, var(--bg-secondary), rgba(34, 197, 94, 0.08)); }
+        .section-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+        .section-number { width: 50px; height: 50px; background: linear-gradient(135deg, var(--code-primary), var(--code-secondary)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; color: #fff; }
+        .section-title h2 { font-size: 1.3rem; }
+        .section-title .time { color: var(--text-secondary); font-size: 0.85rem; }
+        .objective { background: var(--bg-tertiary); padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid var(--code-primary); }
+        .objective strong { color: var(--code-primary); }
+        .code-block { background: #0d1117; border-radius: 8px; padding: 1rem 1.25rem; font-family: 'Courier New', monospace; font-size: 0.85rem; overflow-x: auto; margin: 1rem 0; border-left: 3px solid var(--code-primary); white-space: pre; line-height: 1.7; }
+        .code-block .kw  { color: #ff7b72; }
+        .code-block .fn  { color: #d2a8ff; }
+        .code-block .st  { color: #a5d6ff; }
+        .code-block .cm  { color: #6e7681; }
+        .code-block .num { color: #79c0ff; }
+        .code-block .out { color: var(--code-primary); }
+        .question-block { background: var(--bg-tertiary); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 10px; padding: 1.5rem; margin-bottom: 1rem; }
+        .question-block label { display: block; color: var(--code-primary); font-weight: 600; margin-bottom: 0.5rem; }
+        .question-block input { width: 100%; padding: 10px 14px; background: rgba(0,0,0,0.3); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 0.9rem; font-family: 'Courier New', monospace; }
+        .question-block input:focus { outline: none; border-color: var(--code-primary); box-shadow: 0 0 10px var(--code-glow); }
+        .check-btn { padding: 10px 24px; background: linear-gradient(135deg, var(--code-primary), var(--code-secondary)); color: white; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.3s; margin-top: 0.5rem; }
+        .check-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px var(--code-glow); }
+        .feedback { padding: 10px 16px; border-radius: 8px; margin-top: 10px; font-size: 0.9rem; display: none; }
+        .feedback.correct   { display: block; background: rgba(34,197,94,0.15); border: 1px solid var(--success); color: var(--success); }
+        .feedback.incorrect { display: block; background: rgba(239,68,68,0.15); border: 1px solid var(--danger); color: var(--danger); }
+        .tip-box  { background: rgba(245,158,11,0.08); border: 1px solid var(--warning); border-radius: 8px; padding: 1rem; margin: 1rem 0; font-size: 0.9rem; }
+        .tip-box strong  { color: var(--warning); }
+        .info-box { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3); border-radius: 8px; padding: 1rem; margin: 1rem 0; font-size: 0.9rem; }
+        .info-box strong { color: var(--code-primary); }
+        .content-section { margin-bottom: 1.5rem; }
+        .content-section h3 { color: var(--code-primary); margin-bottom: 0.75rem; font-size: 1rem; }
+        .content-section p { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .requirement-list { list-style: none; }
+        .requirement-list li { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem; color: var(--text-secondary); }
+        .requirement-list li:last-child { border-bottom: none; }
+        .req-num { color: var(--code-primary); font-weight: bold; min-width: 24px; }
+        .completion-btn { width: 100%; padding: 1rem 2rem; background: linear-gradient(135deg, var(--code-primary), var(--code-secondary)); color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; margin-top: 1.5rem; }
+        .completion-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px var(--code-glow); }
+        .completion-btn.completed { background: var(--success); cursor: default; transform: none; }
+        @media (max-width: 768px) { .lab-container { padding: 1rem; } .lab-header h1 { font-size: 1.8rem; } }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <a href="../index.html" class="back-link">&larr; Python for IT Hub</a>
+
+        <header class="lab-header">
+            <h1>Week 3 Project: Turtle Art</h1>
+            <p class="subtitle">Build a complete turtle graphics program that draws a scene using functions, loops, color fills, and speed control</p>
+            <div class="lab-meta">
+                <span class="meta-item">75 minutes</span>
+                <span class="meta-item">Intermediate</span>
+                <span class="meta-item">4 Sections</span>
+            </div>
+        </header>
+
+        <div class="progress-section">
+            <div class="progress-header">
+                <span>Lab Progress</span>
+                <span id="progressText">0 / 4 sections</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Section 1: Plan Your Design -->
+        <div class="section" id="section1">
+            <div class="section-header">
+                <div class="section-number">1</div>
+                <div class="section-title">
+                    <h2>Plan Your Design</h2>
+                    <span class="time">15 minutes</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Project Goal:</strong> You will build a single Python file that draws a multi-element scene using turtle. The program must meet all requirements listed below. This section covers planning and the starting template.
+            </div>
+
+            <div class="content-section">
+                <h3>Project Requirements</h3>
+                <ul class="requirement-list">
+                    <li><span class="req-num">1.</span> At least three distinct shapes drawn by separate functions</li>
+                    <li><span class="req-num">2.</span> At least two filled shapes using begin_fill() / end_fill()</li>
+                    <li><span class="req-num">3.</span> At least three different colors used for fills or pen colors</li>
+                    <li><span class="req-num">4.</span> One shape drawn inside a loop (e.g., repeated stars or petals)</li>
+                    <li><span class="req-num">5.</span> Turtle cursor hidden and drawing speed set appropriately</li>
+                    <li><span class="req-num">6.</span> A descriptive comment at the top of the file explaining what is drawn</li>
+                </ul>
+            </div>
+
+            <div class="content-section">
+                <h3>Starter Template</h3>
+                <div class="code-block"><span class="cm"># Week 3 Turtle Art Project
+# Scene: [describe your scene here — e.g., "A house with a yard and sky"]
+# Author: [your name]</span>
+
+<span class="kw">import</span> turtle
+
+<span class="cm"># Setup screen and turtle</span>
+screen = turtle.Screen()
+screen.title(<span class="st">"My Turtle Art"</span>)
+screen.bgcolor(<span class="st">"skyblue"</span>)
+
+t = turtle.Turtle()
+t.speed(<span class="num">10</span>)          <span class="cm"># fast drawing</span>
+t.hideturtle()      <span class="cm"># hide the cursor arrow when done</span>
+
+<span class="cm"># ---- Define your drawing functions below this line ----</span>
+
+<span class="cm"># ---- Call your functions below this line ----</span>
+
+turtle.done()</div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Plan before coding:</strong> Sketch your scene on paper first. Decide which shapes you will draw, where each one will go (use goto() to position), and what colors each will use. Planning takes 5 minutes but saves 20 minutes of debugging.
+            </div>
+
+            <div class="question-block">
+                <label>Q1: What method hides the turtle cursor arrow so it does not appear in your finished drawing?</label>
+                <input type="text" id="q1_1" placeholder="Method name">
+                <button class="check-btn" onclick="checkAnswer('q1_1', 'hideturtle', 'fb1_1', true)">Check</button>
+                <div class="feedback" id="fb1_1"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q2: What method controls how fast the turtle draws? (0 = instant, 1 = slowest, 10 = fast)</label>
+                <input type="text" id="q1_2" placeholder="Method name">
+                <button class="check-btn" onclick="checkAnswer('q1_2', 'speed', 'fb1_2', true)">Check</button>
+                <div class="feedback" id="fb1_2"></div>
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(1)">Mark Section Complete</button>
+        </div>
+
+        <!-- Section 2: Basic Shapes -->
+        <div class="section" id="section2">
+            <div class="section-header">
+                <div class="section-number">2</div>
+                <div class="section-title">
+                    <h2>Basic Shapes</h2>
+                    <span class="time">20 minutes</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Exercise:</strong> Add at least three shape-drawing functions to your project file. The example below shows a house — use it or replace it with your own design. Each shape must be its own function.
+            </div>
+
+            <div class="content-section">
+                <h3>Example: House Shape Functions</h3>
+                <div class="code-block"><span class="cm"># Example shape functions — modify or replace with your own design</span>
+
+<span class="kw">def</span> <span class="fn">draw_rectangle</span>(t, x, y, width, height):
+    <span class="cm">    """Draw a rectangle starting at (x, y)."""</span>
+    t.penup()
+    t.goto(x, y)
+    t.pendown()
+    <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(<span class="num">2</span>):
+        t.forward(width)
+        t.left(<span class="num">90</span>)
+        t.forward(height)
+        t.left(<span class="num">90</span>)
+
+<span class="kw">def</span> <span class="fn">draw_triangle</span>(t, x, y, size):
+    <span class="cm">    """Draw an equilateral triangle (roof shape) at (x, y)."""</span>
+    t.penup()
+    t.goto(x, y)
+    t.pendown()
+    <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(<span class="num">3</span>):
+        t.forward(size)
+        t.left(<span class="num">120</span>)
+
+<span class="kw">def</span> <span class="fn">draw_circle</span>(t, x, y, radius):
+    <span class="cm">    """Draw a circle at (x, y) as the sun."""</span>
+    t.penup()
+    t.goto(x, y)
+    t.pendown()
+    t.circle(radius)
+
+<span class="cm"># Call the functions</span>
+draw_rectangle(t, -<span class="num">60</span>, -<span class="num">100</span>, <span class="num">120</span>, <span class="num">100</span>)
+draw_triangle(t,  -<span class="num">60</span>,    <span class="num">0</span>, <span class="num">120</span>)
+draw_circle(t,   <span class="num">150</span>,  <span class="num">100</span>,  <span class="num">40</span>)</div>
+            </div>
+
+            <div class="question-block">
+                <label>Q1: How many separate drawing functions does your project have? (Must be at least 3)</label>
+                <input type="text" id="q2_1" placeholder="Number">
+                <button class="check-btn" onclick="checkAnswer('q2_1', '3', 'fb2_1', true)">Check</button>
+                <div class="feedback" id="fb2_1"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q2: What turtle method do you call before goto() to move without drawing a line?</label>
+                <input type="text" id="q2_2" placeholder="Method name">
+                <button class="check-btn" onclick="checkAnswer('q2_2', 'penup', 'fb2_2', true)">Check</button>
+                <div class="feedback" id="fb2_2"></div>
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(2)">Mark Section Complete</button>
+        </div>
+
+        <!-- Section 3: Add Color -->
+        <div class="section" id="section3">
+            <div class="section-header">
+                <div class="section-number">3</div>
+                <div class="section-title">
+                    <h2>Add Color</h2>
+                    <span class="time">20 minutes</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Exercise:</strong> Update your drawing functions to add fill colors. Each function should accept a color argument and use begin_fill() / end_fill() around the shape drawing code.
+            </div>
+
+            <div class="content-section">
+                <h3>Adding Fill to Your Functions</h3>
+                <div class="code-block"><span class="cm"># Updated function with fill color parameter</span>
+
+<span class="kw">def</span> <span class="fn">draw_filled_rectangle</span>(t, x, y, width, height, fill_color):
+    <span class="cm">    """Draw a filled rectangle.
+
+    Parameters:
+        fill_color — any named color or hex string like '#ff0000'
+    """</span>
+    t.penup()
+    t.goto(x, y)
+    t.pendown()
+    t.fillcolor(fill_color)
+    t.begin_fill()
+    <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(<span class="num">2</span>):
+        t.forward(width)
+        t.left(<span class="num">90</span>)
+        t.forward(height)
+        t.left(<span class="num">90</span>)
+    t.end_fill()
+
+<span class="cm"># Draw three shapes with different colors</span>
+draw_filled_rectangle(t, -<span class="num">60</span>, -<span class="num">100</span>, <span class="num">120</span>, <span class="num">100</span>, <span class="st">"tan"</span>)       <span class="cm"># house walls</span>
+draw_filled_rectangle(t,  -<span class="num">15</span>, -<span class="num">100</span>,  <span class="num">30</span>,  <span class="num">50</span>, <span class="st">"brown"</span>)     <span class="cm"># door</span>
+draw_filled_rectangle(t,  -<span class="num">55</span>,  -<span class="num">20</span>,  <span class="num">30</span>,  <span class="num">30</span>, <span class="st">"lightblue"</span>) <span class="cm"># window</span></div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Color options:</strong> Turtle accepts named colors like <code>"red"</code>, <code>"skyblue"</code>, <code>"goldenrod"</code> or hex strings like <code>"#ff5733"</code>. For a full list of named colors, search "Python turtle named colors". Color names are case-insensitive.
+            </div>
+
+            <div class="question-block">
+                <label>Q1: What method call must come BEFORE drawing the shape to mark the area for filling?</label>
+                <input type="text" id="q3_1" placeholder="Method name">
+                <button class="check-btn" onclick="checkAnswer('q3_1', 'begin_fill', 'fb3_1', true)">Check</button>
+                <div class="feedback" id="fb3_1"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q2: What method call must come AFTER drawing the shape to apply the fill?</label>
+                <input type="text" id="q3_2" placeholder="Method name">
+                <button class="check-btn" onclick="checkAnswer('q3_2', 'end_fill', 'fb3_2', true)">Check</button>
+                <div class="feedback" id="fb3_2"></div>
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(3)">Mark Section Complete</button>
+        </div>
+
+        <!-- Section 4: Complete Drawing -->
+        <div class="section" id="section4">
+            <div class="section-header">
+                <div class="section-number">4</div>
+                <div class="section-title">
+                    <h2>Complete Drawing</h2>
+                    <span class="time">20 minutes</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Exercise:</strong> Finalize your project by adding the loop-drawn element (requirement 4) and ensuring all six requirements are met. Run the complete program and verify the output matches your plan.
+            </div>
+
+            <div class="content-section">
+                <h3>Loop-Drawn Element Example: Star Pattern</h3>
+                <div class="code-block"><span class="cm"># Add a loop-drawn element to your scene</span>
+
+<span class="kw">def</span> <span class="fn">draw_stars</span>(t, x, y, count, size):
+    <span class="cm">    """Draw a row of small stars using a loop."""</span>
+    t.color(<span class="st">"yellow"</span>)
+    t.penup()
+    t.goto(x, y)
+    t.pendown()
+
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(count):
+        <span class="cm">        # Draw one 5-pointed star (exterior angle = 144 degrees)</span>
+        t.fillcolor(<span class="st">"yellow"</span>)
+        t.begin_fill()
+        <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(<span class="num">5</span>):
+            t.forward(size)
+            t.right(<span class="num">144</span>)
+        t.end_fill()
+
+        <span class="cm">        # Move to the next star position without drawing</span>
+        t.penup()
+        t.forward(size * <span class="num">2</span>)
+        t.pendown()
+
+draw_stars(t, -<span class="num">200</span>, <span class="num">150</span>, <span class="num">5</span>, <span class="num">20</span>)  <span class="cm"># 5 stars across the top</span>
+
+<span class="cm"># Final: hide the cursor and keep window open</span>
+t.hideturtle()
+turtle.done()</div>
+            </div>
+
+            <div class="info-box">
+                <strong>5-pointed star angle:</strong> A regular 5-pointed star uses a right turn of 144 degrees (not 72). This is because you are drawing the star by skipping every other point, which requires a larger turn. The formula is: 180 - (180 / points) for a polygon, but stars use 180 - (180 * 2 / points).
+            </div>
+
+            <div class="question-block">
+                <label>Q1: What is the turn angle used to draw each point of a 5-pointed star?</label>
+                <input type="text" id="q4_1" placeholder="Degrees">
+                <button class="check-btn" onclick="checkAnswer('q4_1', '144', 'fb4_1', false)">Check</button>
+                <div class="feedback" id="fb4_1"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q2: How many of the six project requirements does your completed program satisfy? (Type a number from 1-6)</label>
+                <input type="text" id="q4_2" placeholder="Number">
+                <button class="check-btn" onclick="checkAnswer('q4_2', '6', 'fb4_2', false)">Check</button>
+                <div class="feedback" id="fb4_2"></div>
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(4)">Mark Project Complete</button>
+        </div>
+    </div>
+
+    <script>
+        /* Unique localStorage key for this lab */
+        var STORAGE_KEY = 'pfi_w3_project_lab_progress';
+        var TOTAL = 4;
+        var completedSections = [];
+
+        var SECTION_ANSWERS = {
+            1: [
+                { id: 'q1_1', answer: 'hideturtle', fuzzy: true },
+                { id: 'q1_2', answer: 'speed',      fuzzy: true }
+            ],
+            2: [
+                { id: 'q2_1', answer: '3',     fuzzy: true },
+                { id: 'q2_2', answer: 'penup', fuzzy: true }
+            ],
+            3: [
+                { id: 'q3_1', answer: 'begin_fill', fuzzy: true },
+                { id: 'q3_2', answer: 'end_fill',   fuzzy: true }
+            ],
+            4: [
+                { id: 'q4_1', answer: '144', fuzzy: false },
+                { id: 'q4_2', answer: '6',   fuzzy: false }
+            ]
+        };
+
+        function loadProgress() {
+            var saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                completedSections = JSON.parse(saved);
+                completedSections.forEach(function(num) {
+                    var sec = document.getElementById('section' + num);
+                    if (sec) {
+                        sec.classList.add('completed');
+                        var btn = sec.querySelector('.completion-btn');
+                        if (btn) { btn.classList.add('completed'); btn.textContent = 'Completed'; }
+                    }
+                });
+            }
+            updateProgress();
+        }
+
+        function saveProgress() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(completedSections));
+        }
+
+        function updateProgress() {
+            var count = completedSections.length;
+            var pct   = (count / TOTAL) * 100;
+            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('progressText').textContent = count + ' / ' + TOTAL + ' sections';
+        }
+
+        function checkAnswer(inputId, correctAnswer, feedbackId, fuzzy) {
+            var input      = document.getElementById(inputId);
+            var feedback   = document.getElementById(feedbackId);
+            var userAnswer = input.value.trim().toLowerCase();
+            var correct    = correctAnswer.toLowerCase();
+            feedback.className = 'feedback';
+
+            if (!userAnswer) {
+                feedback.className   = 'feedback incorrect';
+                feedback.textContent = 'Enter an answer first.';
+                return;
+            }
+
+            var isCorrect = fuzzy
+                ? (userAnswer.indexOf(correct) !== -1 || correct.indexOf(userAnswer) !== -1)
+                : (userAnswer === correct);
+
+            if (isCorrect) {
+                feedback.className   = 'feedback correct';
+                feedback.textContent = 'Correct!';
+            } else {
+                feedback.className   = 'feedback incorrect';
+                feedback.textContent = 'Not quite. Expected: ' + correctAnswer;
+            }
+        }
+
+        function completeSection(num) {
+            if (completedSections.indexOf(num) !== -1) return;
+
+            var questions = SECTION_ANSWERS[num];
+            if (questions) {
+                var anyFilled  = false;
+                var allCorrect = true;
+
+                questions.forEach(function(q) {
+                    var input = document.getElementById(q.id);
+                    if (!input) return;
+                    var val = input.value.trim().toLowerCase();
+                    var exp = q.answer.toLowerCase();
+                    if (val) anyFilled = true;
+
+                    if (q.fuzzy) {
+                        if (val.indexOf(exp) === -1 && exp.indexOf(val) === -1) allCorrect = false;
+                    } else {
+                        if (val !== exp) allCorrect = false;
+                    }
+                });
+
+                if (!anyFilled) {
+                    var sec = document.getElementById('section' + num);
+                    var fb  = sec.querySelector('.feedback');
+                    if (fb) { fb.className = 'feedback incorrect'; fb.textContent = 'Answer all questions before marking this section complete.'; }
+                    return;
+                }
+
+                if (!allCorrect) {
+                    questions.forEach(function(q) {
+                        checkAnswer(q.id, q.answer, 'fb' + q.id.substring(1), q.fuzzy);
+                    });
+                    return;
+                }
+            }
+
+            completedSections.push(num);
+            var sec = document.getElementById('section' + num);
+            sec.classList.add('completed');
+            var btn = sec.querySelector('.completion-btn');
+            btn.classList.add('completed');
+            btn.textContent = 'Completed';
+            saveProgress();
+            updateProgress();
+
+            if (completedSections.length === TOTAL) {
+                if (typeof ModuleProgress !== 'undefined') {
+                    ModuleProgress.complete('code', 'pfi-w3-project', { returnUrl: '../index.html' });
+                }
+                setTimeout(function() {
+                    alert('Project Complete!\n\nYou built a complete turtle graphics program with multiple shape functions, filled shapes, multiple colors, a loop-drawn element, and a hidden cursor. These are the building blocks for any interactive drawing program.');
+                }, 500);
+            }
+        }
+
+        loadProgress();
+    </script>
+
+    <script src="../../../../components/TrailHunter.js"></script>
+</body>
+</html>

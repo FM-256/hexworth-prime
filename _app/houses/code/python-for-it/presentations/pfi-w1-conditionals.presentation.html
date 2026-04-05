@@ -1,0 +1,1536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: blocks unenrolled users from viewing content -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress tracking and achievement system -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Flow: Conditionals | Python for IT</title>
+    <style>
+        /* -- Reset -- */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* -- Slide container: viewport-locked, hidden by default -- */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* -- Gold progress bar at top of viewport -- */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* -- Fixed bottom navigation bar -- */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* -- Mark Complete button: only visible on final slide -- */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* -- Slide typography -- */
+        .slide-meta     { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title    { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* -- Scenario strip: italic gold-bordered callout -- */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
+        }
+
+        /* -- Colored info boxes -- */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* -- Title slide hero block -- */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* -- Card grids -- */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card .card-desc code { font-family: 'Courier New', monospace; color: #c9a83a; background: rgba(201, 168, 58, 0.1); padding: 1px 4px; border-radius: 3px; font-size: 0.85em; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        /* -- Section label above grouped content -- */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* -- Numbered summary facts on final slide -- */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* -- Python code blocks with manual syntax highlighting -- */
+        .code-block {
+            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.65; white-space: pre;
+        }
+        .code-block .kw { color: #c9a83a; }   /* Python keywords: if, elif, else, and, or, not, etc. */
+        .code-block .fn { color: #06b6d4; }   /* built-in functions: print, input, len, int, etc. */
+        .code-block .st { color: #3ab577; }   /* string literals */
+        .code-block .cm { color: #475569; }   /* inline comments */
+        .code-block .nb { color: #f472b6; }   /* number literals and booleans */
+        .code-block .er { color: #ef4444; }   /* error / warning output */
+
+        /* -- Compact two-column code comparison layout -- */
+        .code-compare {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+        }
+        .code-compare-label {
+            font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 4px;
+        }
+        .code-compare-label.bad  { color: #ef4444; }
+        .code-compare-label.good { color: #3ab577; }
+
+        /* -- Responsive breakpoints -- */
+        @media (max-height: 700px) {
+            .slide-inner { gap: 9px; }
+            .slide-title { font-size: 1.4rem; }
+            .title-hero .big-title { font-size: 1.9rem; }
+            .code-block { font-size: 0.76rem; padding: 8px 12px; }
+        }
+        @media (max-width: 768px) {
+            .card-grid { grid-template-columns: 1fr; }
+            .card-grid-2 { grid-template-columns: 1fr; }
+            .slide-title { font-size: 1.3rem; }
+            .code-compare { grid-template-columns: 1fr; }
+        }
+    </style>
+    <script src="../../../../components/TryItNow.js"></script>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Control Flow: Conditionals</h1>
+
+
+<!-- Gold progress bar — width is set by goToSlide() on every navigation -->
+<div id="progress-bar" style="width:3.125%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 34 &nbsp;|&nbsp; COP1034C Obj 2 &nbsp;|&nbsp; Day 2 of 12</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Python for IT: Day 2<br>
+                <span class="accent">Control Flow: Conditionals</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Code runs top to bottom by default. Conditionals give it the power to choose.
+            </div>
+        </div>
+        <div class="scenario-strip">
+            A user submits a login form. The system needs to check: is the username valid? Is the password correct? Is the account locked? Has the account exceeded the maximum failed attempts? Every one of these checks is a conditional -- an if/else decision. By the end of today, you will write all of them.
+        </div>
+        <div class="title-meta-row">
+            <span>34 Slides</span>
+            <span>COP1034C Obj 2</span>
+            <span>Day 2 of 12</span>
+            <span>if / elif / else / match</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — WHAT IS CONTROL FLOW ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 34</div>
+        <div class="slide-title">What Is <span class="accent">Control Flow?</span></div>
+        <div class="slide-subtitle">By default, Python runs every line from top to bottom -- exactly once. Control flow changes that.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Default: Top to Bottom</div>
+                <div class="card-desc">Without control flow, every line executes in order, no matter what. Line 1, line 2, line 3... to the end. This works for simple scripts, but real programs need to make decisions.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Conditionals: Make Decisions</div>
+                <div class="card-desc">An <code>if</code> statement checks a condition and runs a block of code only when that condition is True. Today's entire topic. Programs without decisions are just calculators.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Loops: Repeat Actions</div>
+                <div class="card-desc">A <code>for</code> or <code>while</code> loop runs a block of code multiple times. Day 3 topic. Loops and conditionals together are the backbone of every real program.</div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            Real life example: IF the traffic light is red, THEN stop. ELSE go. That is a conditional. Your car does not check the speed limit, calculate fuel, and play music before deciding to stop -- it checks one condition and takes one of two actions. Python conditionals work exactly the same way.
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <div class="box-label">Why This Matters for IT</div>
+            Every system you will ever work with is controlled by conditionals. Firewalls use them to allow or deny traffic. Monitoring scripts use them to decide when to alert. Login systems use them to verify credentials. If you understand conditionals, you understand how software makes decisions.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — BOOLEAN EXPRESSIONS REVIEW ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 34</div>
+        <div class="slide-title">Boolean Expressions <span class="accent">Review</span></div>
+        <div class="slide-subtitle">Every conditional depends on an expression that evaluates to exactly one of two values: True or False.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Comparison Operators</div>
+                <div class="card-desc">
+                    <code>==</code> equal to<br>
+                    <code>!=</code> not equal to<br>
+                    <code>&lt;</code> less than &nbsp; <code>&gt;</code> greater than<br>
+                    <code>&lt;=</code> less or equal &nbsp; <code>&gt;=</code> greater or equal<br>
+                    All of these return <code>True</code> or <code>False</code>.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Results Are Always Boolean</div>
+                <div class="card-desc">
+                    <code>5 &gt; 3</code> evaluates to <code>True</code><br>
+                    <code>5 &gt; 10</code> evaluates to <code>False</code><br>
+                    <code>"hello" == "Hello"</code> is <code>False</code> -- case matters<br>
+                    <code>10 != 10</code> is <code>False</code> -- they are equal<br>
+                    You can store a boolean: <code>result = 5 &gt; 3</code>
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Day 1 Recap</div>
+                <div class="card-desc">On Day 1 you saw that <code>bool</code> is a data type. <code>True</code> and <code>False</code> are the only two values of that type. Today we use them constantly -- every <code>if</code> condition produces a boolean result.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Each of these expressions produces True or False</span>
+age = <span class="nb">17</span>
+<span class="fn">print</span>(age >= <span class="nb">18</span>)          <span class="cm"># False  -- 17 is not >= 18</span>
+<span class="fn">print</span>(age != <span class="nb">18</span>)          <span class="cm"># True   -- 17 is not equal to 18</span>
+<span class="fn">print</span>(<span class="nb">10</span> == <span class="nb">10.0</span>)         <span class="cm"># True   -- Python compares values, not types here</span>
+<span class="fn">print</span>(<span class="st">"hello"</span> == <span class="st">"Hello"</span>) <span class="cm"># False  -- string comparison is case-sensitive</span>
+<span class="fn">print</span>(<span class="nb">100</span> != <span class="nb">100</span>)         <span class="cm"># False  -- they are equal, so != is False</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — THE if STATEMENT — SYNTAX ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 34</div>
+        <div class="slide-title">The <span class="accent">if</span> Statement: Syntax</div>
+        <div class="slide-subtitle">Three rules. Break any one of them and Python will refuse to run your code.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Rule 1: The Keyword</div>
+                <div class="card-desc">Start with the keyword <code>if</code> (lowercase). Then write your condition. Then a colon. The colon is not optional -- it tells Python that a code block is starting.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Rule 2: The Colon</div>
+                <div class="card-desc">The colon <code>:</code> at the end of the <code>if</code> line is mandatory. If you forget it, Python raises a <code>SyntaxError</code> immediately. Every <code>if</code>, <code>elif</code>, and <code>else</code> line ends with a colon.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Rule 3: Indentation</div>
+                <div class="card-desc">Everything inside the <code>if</code> block must be indented by exactly 4 spaces. This is how Python knows what belongs inside the block. No curly braces like JavaScript or C. Indentation IS the structure.</div>
+            </div>
+        </div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-compare-label bad">WRONG: Missing colon</div>
+                <div class="code-block"><span class="kw">if</span> age >= <span class="nb">18</span>
+    <span class="fn">print</span>(<span class="st">"Adult"</span>)
+<span class="er"># SyntaxError: expected ':'</span></div>
+            </div>
+            <div>
+                <div class="code-compare-label bad">WRONG: Missing indentation</div>
+                <div class="code-block"><span class="kw">if</span> age >= <span class="nb">18</span>:
+<span class="fn">print</span>(<span class="st">"Adult"</span>)
+<span class="er"># IndentationError: expected an indented block</span></div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># CORRECT: keyword + condition + colon + indented body</span>
+<span class="kw">if</span> age >= <span class="nb">18</span>:
+    <span class="fn">print</span>(<span class="st">"You can vote"</span>)      <span class="cm"># 4 spaces before print</span>
+    <span class="fn">print</span>(<span class="st">"You can sign contracts"</span>) <span class="cm"># still inside the if block</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Editor tip:</strong> Set your editor to insert 4 spaces when you press Tab. In VS Code: File &gt; Preferences &gt; Settings, search "Tab Size", set to 4. Also enable "Insert Spaces" so you are never mixing tabs and spaces.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — THE if STATEMENT — EXAMPLES ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 34</div>
+        <div class="slide-title">The <span class="accent">if</span> Statement: Examples</div>
+        <div class="slide-subtitle">The body of an if block can be one line or twenty. Every line in the body must be indented.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Single-Line Body</div>
+                <div class="card-desc">The simplest case: one condition, one action. The body is a single indented line. If the condition is False, that line is silently skipped and execution continues below the if block.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Multi-Line Body</div>
+                <div class="card-desc">All lines indented at the same level belong to the same block. You can have as many lines as needed. The block ends when indentation returns to the level of the <code>if</code> keyword.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Single-line body</span>
+<span class="kw">if</span> age >= <span class="nb">18</span>:
+    <span class="fn">print</span>(<span class="st">"You can vote"</span>)
+
+<span class="cm"># Multi-line body -- all three lines are inside the if block</span>
+temperature = <span class="nb">103.7</span>
+
+<span class="kw">if</span> temperature > <span class="nb">100</span>:
+    <span class="fn">print</span>(<span class="st">"WARNING: Server overheating!"</span>)
+    <span class="fn">print</span>(<span class="st">f"Current temperature: {temperature} degrees F"</span>)
+    <span class="fn">print</span>(<span class="st">"Shutting down non-essential services..."</span>)
+
+<span class="cm"># This line is NOT inside the if block -- indentation is back to column 0</span>
+<span class="fn">print</span>(<span class="st">"Temperature check complete"</span>)</div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            Walk through: temperature is 103.7. Is 103.7 &gt; 100? Yes. All three print statements run. Then execution drops out of the block and prints "Temperature check complete." Now change temperature to 98.6 -- the if body is skipped entirely, only the last print runs.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — if/else: TWO PATHS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 34</div>
+        <div class="slide-title">if / else: <span class="accent">Two Paths</span></div>
+        <div class="slide-subtitle">An if block runs when the condition is True. The else block runs when it is False. One or the other -- never both.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">How else Works</div>
+                <div class="card-desc"><code>else</code> has no condition of its own. It is the catch-all that runs when the <code>if</code> condition is False. It must follow the <code>if</code> block with no gap, and it ends with a colon just like <code>if</code>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Exactly One Path Runs</div>
+                <div class="card-desc">The if/else guarantees exactly one of the two blocks will run. Never zero. Never both. This makes it perfect for binary decisions: allowed or denied, found or not found, valid or invalid.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Syntax: if condition runs when True, else runs when False</span>
+<span class="kw">if</span> condition:
+    <span class="cm"># this block runs when condition is True</span>
+    <span class="fn">print</span>(<span class="st">"Condition was True"</span>)
+<span class="kw">else</span>:
+    <span class="cm"># this block runs when condition is False</span>
+    <span class="fn">print</span>(<span class="st">"Condition was False"</span>)
+
+<span class="cm"># Practical example: even or odd check</span>
+number = <span class="nb">7</span>
+
+<span class="kw">if</span> number % <span class="nb">2</span> == <span class="nb">0</span>:
+    <span class="fn">print</span>(<span class="st">f"{number} is even"</span>)
+<span class="kw">else</span>:
+    <span class="fn">print</span>(<span class="st">f"{number} is odd"</span>)
+
+<span class="cm"># Output: 7 is odd</span>
+<span class="cm"># The modulo operator % gives the remainder after division</span>
+<span class="cm"># 7 % 2 = 1, which is not 0, so the else block runs</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — if/else IT EXAMPLE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 34</div>
+        <div class="slide-title">if / else: <span class="accent">IT Example</span></div>
+        <div class="slide-subtitle">Disk space monitoring -- a script that runs on every server in your environment every 5 minutes.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">The Problem</div>
+                <div class="card-desc">A server with a full disk stops writing logs, stops accepting uploads, and may crash services. A monitoring script checks free space and takes action before that happens. The threshold is 5 GB -- below that, alert.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Walk Through Both Paths</div>
+                <div class="card-desc">When <code>free_gb = 4.2</code>: is 4.2 &lt; 5? Yes. The if block runs -- warning prints. When <code>free_gb = 12.0</code>: is 12.0 &lt; 5? No. The else block runs -- OK message prints. Both paths are always covered.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Disk space check -- runs on each monitored server</span>
+free_gb = <span class="nb">4.2</span>
+threshold_gb = <span class="nb">5</span>
+server_name = <span class="st">"web-prod-01"</span>
+
+<span class="kw">if</span> free_gb < threshold_gb:
+    <span class="fn">print</span>(<span class="st">f"WARNING: Low disk space on {server_name}"</span>)
+    <span class="fn">print</span>(<span class="st">f"Only {free_gb} GB remaining -- threshold is {threshold_gb} GB"</span>)
+    <span class="fn">print</span>(<span class="st">"Creating ServiceNow ticket..."</span>)
+<span class="kw">else</span>:
+    <span class="fn">print</span>(<span class="st">f"OK: {server_name} has {free_gb} GB free"</span>)
+
+<span class="cm"># Output with free_gb = 4.2:</span>
+<span class="cm"># WARNING: Low disk space on web-prod-01</span>
+<span class="cm"># Only 4.2 GB remaining -- threshold is 5 GB</span>
+<span class="cm"># Creating ServiceNow ticket...</span></div>
+
+        <div class="box box-green" style="font-size:0.83rem;">
+            <strong>Real-world context:</strong> This exact pattern runs in Nagios, Zabbix, Datadog, and every other monitoring platform. The platform collects the metric, your script checks it against a threshold, and it triggers an action. You just wrote the core of a monitoring agent.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — if/elif/else: MULTIPLE BRANCHES ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 34</div>
+        <div class="slide-title">if / elif / else: <span class="accent">Multiple Branches</span></div>
+        <div class="slide-subtitle">When two paths are not enough. elif adds as many branches as you need.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What elif Means</div>
+                <div class="card-desc"><code>elif</code> is Python's shorthand for "else if." It adds an additional condition to check only if all previous conditions were False. You can chain as many <code>elif</code> blocks as needed.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Top to Bottom, First Match Wins</div>
+                <div class="card-desc">Python checks the <code>if</code> first. If False, it checks the first <code>elif</code>. If False, the next <code>elif</code>. It stops at the first True condition. The remaining conditions are never evaluated.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">else Is Optional</div>
+                <div class="card-desc">The final <code>else</code> catches everything that did not match any condition above. It is optional -- if you leave it out and nothing matches, the entire chain is skipped silently. Include it when you need a guaranteed action.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Full if/elif/else structure</span>
+<span class="kw">if</span> condition1:
+    <span class="cm"># runs if condition1 is True</span>
+<span class="kw">elif</span> condition2:
+    <span class="cm"># runs if condition1 is False AND condition2 is True</span>
+<span class="kw">elif</span> condition3:
+    <span class="cm"># runs if condition1 and condition2 are False AND condition3 is True</span>
+<span class="kw">else</span>:
+    <span class="cm"># runs if NONE of the conditions above were True</span>
+
+<span class="cm"># Key point: Python stops at the FIRST match</span>
+<span class="cm"># If condition1 is True, condition2 and condition3 are never checked</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — TRY IT NOW ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 34 &nbsp;|&nbsp; Try It Now</div>
+        <div class="slide-title">Try It Now: <span class="accent">If/Else Check</span></div>
+        <div class="slide-subtitle">Write a conditional that checks a server status.</div>
+        <div class="try-it-now"
+             data-starter="status = &quot;offline&quot;&#10;&#10;# If status is &quot;online&quot;, print &quot;Server is running&quot;&#10;# Otherwise, print &quot;Server is DOWN&quot;&#10;"
+             data-solution="status = &quot;offline&quot;&#10;if status == &quot;online&quot;:&#10;    print(&quot;Server is running&quot;)&#10;else:&#10;    print(&quot;Server is DOWN&quot;)"
+             data-expected="Server is DOWN"
+             data-height="140">
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 10 — GRADE CALCULATOR ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 34</div>
+        <div class="slide-title">if / elif / else: <span class="accent">Grade Calculator</span></div>
+        <div class="slide-subtitle">A complete working example. Walk through it line by line with score = 85.</div>
+
+        <div class="code-block"><span class="cm"># Grade calculator -- converts a numeric score to a letter grade</span>
+score = <span class="fn">int</span>(<span class="fn">input</span>(<span class="st">"Enter your score (0-100): "</span>))
+
+<span class="kw">if</span> score >= <span class="nb">90</span>:
+    grade = <span class="st">"A"</span>
+<span class="kw">elif</span> score >= <span class="nb">80</span>:
+    grade = <span class="st">"B"</span>
+<span class="kw">elif</span> score >= <span class="nb">70</span>:
+    grade = <span class="st">"C"</span>
+<span class="kw">elif</span> score >= <span class="nb">60</span>:
+    grade = <span class="st">"D"</span>
+<span class="kw">else</span>:
+    grade = <span class="st">"F"</span>
+
+<span class="fn">print</span>(<span class="st">f"Score: {score}  |  Grade: {grade}"</span>)</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Walk Through with score = 85</div>
+                <div class="card-desc">Is 85 &gt;= 90? No. Move to next.<br>Is 85 &gt;= 80? Yes! Assign "B". Stop.<br>The &gt;= 70 and &gt;= 60 checks never run.<br>Output: Score: 85 | Grade: B</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why Not Grade "C" Too?</div>
+                <div class="card-desc">85 is also &gt;= 70 and &gt;= 60. But Python stopped at the first True match (&gt;= 80). That is why the output is B, not C. This "stop at first match" behavior is exactly what you want for mutually exclusive categories.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — ORDER MATTERS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 34</div>
+        <div class="slide-title">Order <span class="accent">Matters</span></div>
+        <div class="slide-subtitle">The order you write your elif conditions determines which one wins. Wrong order, wrong output.</div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-compare-label bad">WRONG ORDER -- broken grade calculator</div>
+                <div class="code-block">score = <span class="nb">95</span>
+
+<span class="kw">if</span> score >= <span class="nb">60</span>:      <span class="cm"># matches FIRST!</span>
+    grade = <span class="st">"D"</span>
+<span class="kw">elif</span> score >= <span class="nb">70</span>:
+    grade = <span class="st">"C"</span>      <span class="cm"># never reached</span>
+<span class="kw">elif</span> score >= <span class="nb">80</span>:
+    grade = <span class="st">"B"</span>      <span class="cm"># never reached</span>
+<span class="kw">elif</span> score >= <span class="nb">90</span>:
+    grade = <span class="st">"A"</span>      <span class="cm"># never reached</span>
+
+<span class="cm"># Output: D  -- a 95 gets a D!</span></div>
+            </div>
+            <div>
+                <div class="code-compare-label good">CORRECT ORDER -- most restrictive first</div>
+                <div class="code-block">score = <span class="nb">95</span>
+
+<span class="kw">if</span> score >= <span class="nb">90</span>:      <span class="cm"># checks highest first</span>
+    grade = <span class="st">"A"</span>      <span class="cm"># matches! stops here</span>
+<span class="kw">elif</span> score >= <span class="nb">80</span>:
+    grade = <span class="st">"B"</span>
+<span class="kw">elif</span> score >= <span class="nb">70</span>:
+    grade = <span class="st">"C"</span>
+<span class="kw">elif</span> score >= <span class="nb">60</span>:
+    grade = <span class="st">"D"</span>
+
+<span class="cm"># Output: A  -- correct</span></div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <div class="box-label">The Rule</div>
+            When conditions overlap (a score of 95 is &gt;= 90, and also &gt;= 80, and also &gt;= 70), always check from most specific to least specific. For ranges that go up, check highest first. For ranges that go down, check lowest first. Draw out your ranges on paper before you code them if you are unsure.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — LOGICAL OPERATORS IN CONDITIONALS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 34</div>
+        <div class="slide-title">Logical Operators <span class="accent">in Conditionals</span></div>
+        <div class="slide-subtitle">Combine multiple conditions into one expression using and, or, and not.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">and: Both Must Be True</div>
+                <div class="card-desc"><code>condition1 and condition2</code> is True only when BOTH sides are True. If the left side is False, Python does not even check the right side (short-circuit). Use <code>and</code> when all requirements must be met simultaneously.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">or: At Least One Must Be True</div>
+                <div class="card-desc"><code>condition1 or condition2</code> is True when EITHER side is True. If the left side is True, Python skips the right side. Use <code>or</code> when any one of several conditions is sufficient.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">not: Flip the Result</div>
+                <div class="card-desc"><code>not condition</code> reverses the boolean. If the condition is True, <code>not</code> makes it False. If False, <code>not</code> makes it True. Use <code>not</code> to check that something is absent or disabled.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># and: user must be 18 AND have a valid ID</span>
+<span class="kw">if</span> age >= <span class="nb">18</span> <span class="kw">and</span> has_id:
+    <span class="fn">print</span>(<span class="st">"Entry allowed"</span>)
+
+<span class="cm"># or: either condition qualifies for the weekend discount</span>
+<span class="kw">if</span> day == <span class="st">"Saturday"</span> <span class="kw">or</span> day == <span class="st">"Sunday"</span>:
+    <span class="fn">print</span>(<span class="st">"Weekend discount applied"</span>)
+
+<span class="cm"># not: redirect to login page if the user is NOT logged in</span>
+<span class="kw">if</span> <span class="kw">not</span> logged_in:
+    <span class="fn">print</span>(<span class="st">"Redirecting to /login"</span>)</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — COMBINING CONDITIONS IT EXAMPLES ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 34</div>
+        <div class="slide-title">Combining Conditions: <span class="accent">IT Examples</span></div>
+        <div class="slide-subtitle">Real scenarios where you need more than one condition at once.</div>
+
+        <div class="code-block"><span class="cm"># Network access control: all three conditions must be met</span>
+is_employee = <span class="kw">True</span>
+has_vpn     = <span class="kw">True</span>
+is_suspended = <span class="kw">False</span>
+
+<span class="kw">if</span> is_employee <span class="kw">and</span> has_vpn <span class="kw">and</span> <span class="kw">not</span> is_suspended:
+    <span class="fn">print</span>(<span class="st">"Access granted to internal network"</span>)
+<span class="kw">else</span>:
+    <span class="fn">print</span>(<span class="st">"Access denied"</span>)
+
+<span class="cm"># Port number validation: reject anything outside the valid range</span>
+port = <span class="fn">int</span>(<span class="fn">input</span>(<span class="st">"Enter port number: "</span>))
+
+<span class="kw">if</span> port < <span class="nb">1</span> <span class="kw">or</span> port > <span class="nb">65535</span>:
+    <span class="fn">print</span>(<span class="st">f"Error: {port} is not a valid port number"</span>)
+    <span class="fn">print</span>(<span class="st">"Valid range is 1 through 65535"</span>)
+<span class="kw">else</span>:
+    <span class="fn">print</span>(<span class="st">f"Port {port} is valid"</span>)</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Access Control Pattern</div>
+                <div class="card-desc">This is the exact logic used in network access control lists (ACLs), VPN gateway policies, and Zero Trust architectures. Employee? VPN connected? Account active? All three must be True. Any one failure denies access.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Range Validation Pattern</div>
+                <div class="card-desc">The port check uses <code>or</code> because either extreme is invalid. A port below 1 OR above 65535 should be rejected. The valid middle range is automatically the <code>else</code> case. This pattern applies to IP addresses, subnet masks, timeout values, and more.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — NESTED if STATEMENTS ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 34</div>
+        <div class="slide-title">Nested <span class="accent">if Statements</span></div>
+        <div class="slide-subtitle">An if inside another if. Use when the second decision only makes sense after the first one passes.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">When to Nest</div>
+                <div class="card-desc">Nest when decisions depend on each other. You cannot check someone's password if you have not confirmed the account exists. You cannot check admin privileges if the user is not authenticated. The second check is only meaningful inside the first.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Indentation Doubles</div>
+                <div class="card-desc">Each level of nesting adds another 4 spaces of indentation. The outer <code>if</code> body is at 4 spaces. The inner <code>if</code> body is at 8 spaces. The inner <code>else</code> is at 4 spaces (same level as inner <code>if</code>). Count your spaces carefully.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Login system: check account exists, then check password</span>
+has_account      = <span class="kw">True</span>
+password_correct = <span class="kw">False</span>
+
+<span class="kw">if</span> has_account:
+    <span class="cm"># We are now inside the outer if block (4 spaces)</span>
+    <span class="kw">if</span> password_correct:
+        <span class="cm"># Inside both the outer and inner if (8 spaces)</span>
+        <span class="fn">print</span>(<span class="st">"Login successful -- welcome back!"</span>)
+    <span class="kw">else</span>:
+        <span class="cm"># Inside the outer if, but in the inner else (8 spaces)</span>
+        <span class="fn">print</span>(<span class="st">"Incorrect password -- try again"</span>)
+<span class="kw">else</span>:
+    <span class="cm"># Outside the account check entirely (0 spaces from outer else)</span>
+    <span class="fn">print</span>(<span class="st">"Account not found -- please register"</span>)
+
+<span class="cm"># Output: Incorrect password -- try again</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — NESTED vs FLAT ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 34</div>
+        <div class="slide-title">Nested vs <span class="accent">Flat: A Comparison</span></div>
+        <div class="slide-subtitle">Deep nesting is hard to read, hard to debug, and hard to maintain. Prefer flat when you can.</div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-compare-label bad">NESTED -- hard to read at 3+ levels</div>
+                <div class="code-block"><span class="kw">if</span> a:
+    <span class="kw">if</span> b:
+        <span class="kw">if</span> c:
+            do_thing()
+        <span class="kw">else</span>:
+            <span class="fn">print</span>(<span class="st">"c failed"</span>)
+    <span class="kw">else</span>:
+        <span class="fn">print</span>(<span class="st">"b failed"</span>)
+<span class="kw">else</span>:
+    <span class="fn">print</span>(<span class="st">"a failed"</span>)</div>
+            </div>
+            <div>
+                <div class="code-compare-label good">FLAT -- easier to read and debug</div>
+                <div class="code-block"><span class="kw">if</span> <span class="kw">not</span> a:
+    <span class="fn">print</span>(<span class="st">"a failed"</span>)
+<span class="kw">elif</span> <span class="kw">not</span> b:
+    <span class="fn">print</span>(<span class="st">"b failed"</span>)
+<span class="kw">elif</span> <span class="kw">not</span> c:
+    <span class="fn">print</span>(<span class="st">"c failed"</span>)
+<span class="kw">else</span>:
+    do_thing()</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <div class="box-label">The Guard Clause Pattern</div>
+            The flat version uses a technique called "early exit" or "guard clauses." Instead of nesting deeper for the happy path, you check failure conditions early and exit (or print an error). The successful case falls through to the end. This is the professional Python style -- most linters flag nesting beyond 3 levels.
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            <strong>Rule of thumb:</strong> If your code is indented more than 3 levels (12+ spaces from column 0), consider whether you can flatten it with <code>and</code>, use <code>elif</code>, or extract the inner logic into a separate function.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — TERNARY EXPRESSION ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 34</div>
+        <div class="slide-title">Ternary Expression: <span class="accent">Inline if</span></div>
+        <div class="slide-subtitle">A one-line shorthand for simple if/else assignments. Useful, but only for simple cases.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">The Syntax</div>
+                <div class="card-desc">
+                    <code>value = result_if_true if condition else result_if_false</code><br><br>
+                    Read it left to right: "Set value to result_if_true IF condition ELSE result_if_false." The condition goes in the middle, not at the start.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">When to Use It</div>
+                <div class="card-desc">Use the ternary only for simple variable assignments where both outcomes are short. Never cram complex logic into a ternary. If it takes more than a few seconds to read, write the full if/else instead. Readability beats brevity.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Ternary syntax: value = result_if_true if condition else result_if_false</span>
+age = <span class="nb">20</span>
+status = <span class="st">"Adult"</span> <span class="kw">if</span> age >= <span class="nb">18</span> <span class="kw">else</span> <span class="st">"Minor"</span>
+<span class="fn">print</span>(status)    <span class="cm"># Adult</span>
+
+<span class="cm"># The full if/else equivalent -- same logic, more lines</span>
+<span class="kw">if</span> age >= <span class="nb">18</span>:
+    status = <span class="st">"Adult"</span>
+<span class="kw">else</span>:
+    status = <span class="st">"Minor"</span>
+
+<span class="cm"># IT example: label a service as healthy or degraded</span>
+response_ms = <span class="nb">340</span>
+health_label = <span class="st">"healthy"</span> <span class="kw">if</span> response_ms < <span class="nb">200</span> <span class="kw">else</span> <span class="st">"degraded"</span>
+<span class="fn">print</span>(<span class="st">f"API service status: {health_label}"</span>)
+<span class="cm"># Output: API service status: degraded</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — match/case ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 34</div>
+        <div class="slide-title">match / case: <span class="accent">Pattern Matching</span></div>
+        <div class="slide-subtitle">Python 3.10 introduced match/case -- a cleaner way to write multi-branch conditionals against known values.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">When to Use match/case</div>
+                <div class="card-desc">Use <code>match</code> when you are comparing a single value against a fixed set of known options. It is cleaner than a long if/elif/elif/elif chain when every branch checks the same variable. Requires Python 3.10 or later.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Wildcard: _</div>
+                <div class="card-desc">The underscore <code>_</code> is the wildcard pattern. It matches anything that did not match an earlier case. It behaves like the <code>else</code> in an if/elif/else chain. Always put it last.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># match/case: server management command dispatcher</span>
+command = <span class="fn">input</span>(<span class="st">"Enter command (start/stop/restart/status): "</span>)
+
+<span class="kw">match</span> command:
+    <span class="kw">case</span> <span class="st">"start"</span>:
+        <span class="fn">print</span>(<span class="st">"Starting all services..."</span>)
+    <span class="kw">case</span> <span class="st">"stop"</span>:
+        <span class="fn">print</span>(<span class="st">"Stopping all services..."</span>)
+    <span class="kw">case</span> <span class="st">"restart"</span>:
+        <span class="fn">print</span>(<span class="st">"Restarting services -- this takes 30 seconds"</span>)
+    <span class="kw">case</span> <span class="st">"status"</span>:
+        <span class="fn">print</span>(<span class="st">"Checking service status..."</span>)
+    <span class="kw">case</span> _:
+        <span class="fn">print</span>(<span class="st">f"Unknown command: '{command}'"</span>)
+        <span class="fn">print</span>(<span class="st">"Valid commands: start, stop, restart, status"</span>)</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Version check:</strong> Run <code>python3 --version</code> in your terminal. If you see 3.10 or higher, you can use <code>match</code>. If you see 3.9 or lower, use if/elif/else instead. Most school systems running Python 3.12 support match/case.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — TRY IT NOW ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 34 &nbsp;|&nbsp; Try It Now</div>
+        <div class="slide-title">Try It Now: <span class="accent">Grade Calculator</span></div>
+        <div class="slide-subtitle">Use if/elif/else to assign a letter grade.</div>
+        <div class="try-it-now"
+             data-starter="score = 85&#10;&#10;# A: 90+, B: 80+, C: 70+, D: 60+, F: below 60&#10;# Print the letter grade&#10;"
+             data-solution="score = 85&#10;if score >= 90:&#10;    grade = &quot;A&quot;&#10;elif score >= 80:&#10;    grade = &quot;B&quot;&#10;elif score >= 70:&#10;    grade = &quot;C&quot;&#10;elif score >= 60:&#10;    grade = &quot;D&quot;&#10;else:&#10;    grade = &quot;F&quot;&#10;print(grade)"
+             data-expected="B"
+             data-height="180">
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 19 — TRUTHY AND FALSY ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 34</div>
+        <div class="slide-title">Truthy and <span class="accent">Falsy Values</span></div>
+        <div class="slide-subtitle">In Python, every value has a boolean interpretation. You do not always need == to check a condition.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Falsy Values (evaluate to False)</div>
+                <div class="card-desc">
+                    <code>False</code> -- the boolean False<br>
+                    <code>0</code> and <code>0.0</code> -- zero integers and floats<br>
+                    <code>""</code> -- empty string<br>
+                    <code>None</code> -- the absence of a value<br>
+                    <code>[]</code> -- empty list<br>
+                    <code>{}</code> -- empty dictionary<br>
+                    <code>()</code> -- empty tuple
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Truthy Values (evaluate to True)</div>
+                <div class="card-desc">
+                    Everything that is NOT in the falsy list.<br>
+                    <code>1</code>, <code>-1</code>, <code>3.14</code> -- any non-zero number<br>
+                    <code>"hello"</code> -- any non-empty string<br>
+                    <code>[1, 2, 3]</code> -- any non-empty list<br>
+                    Any object that has not defined <code>__bool__</code> to return False.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Truthy/falsy in practice -- Python idiom</span>
+username = <span class="fn">input</span>(<span class="st">"Enter username: "</span>)
+
+<span class="kw">if</span> username:                       <span class="cm"># shorthand for: if username != ""</span>
+    <span class="fn">print</span>(<span class="st">f"Hello, {username}!"</span>)
+<span class="kw">else</span>:
+    <span class="fn">print</span>(<span class="st">"No username entered"</span>)
+
+failed_attempts = <span class="nb">0</span>
+
+<span class="kw">if</span> failed_attempts:                <span class="cm"># shorthand for: if failed_attempts != 0</span>
+    <span class="fn">print</span>(<span class="st">f"Warning: {failed_attempts} failed login attempts"</span>)
+<span class="kw">else</span>:
+    <span class="fn">print</span>(<span class="st">"No failed attempts recorded"</span>)
+<span class="cm"># Output: No failed attempts recorded  (0 is falsy)</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Why this matters:</strong> You will see this pattern everywhere in professional Python code. <code>if username:</code> is cleaner and more Pythonic than <code>if username != "":</code>. Both work, but the shorter form is the standard you will see in open-source projects and professional codebases.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — ASSIGNMENT vs COMPARISON ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 34</div>
+        <div class="slide-title">Common Mistake: <span class="accent">= vs ==</span></div>
+        <div class="slide-subtitle">The single most common error for students coming from everyday math notation. One character changes everything.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">= is Assignment</div>
+                <div class="card-desc"><code>x = 5</code> means "store the value 5 in the variable x." It does not ask a question. It does not return True or False. It sets a value. Never use = inside a condition.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">== is Comparison</div>
+                <div class="card-desc"><code>x == 5</code> means "is x equal to 5?" It asks a question and returns True or False. This is what you use inside an if condition. Two equals signs, always, inside conditionals.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># WRONG: using = inside an if condition</span>
+x = <span class="nb">5</span>
+<span class="kw">if</span> x = <span class="nb">5</span>:           <span class="cm"># SyntaxError: invalid syntax</span>
+    <span class="fn">print</span>(<span class="st">"x is 5"</span>)
+
+<span class="cm"># CORRECT: using == to compare</span>
+<span class="kw">if</span> x == <span class="nb">5</span>:           <span class="cm"># asks: is x equal to 5?</span>
+    <span class="fn">print</span>(<span class="st">"x is 5"</span>)   <span class="cm"># True, so this runs</span>
+
+<span class="cm"># Python 3 raises SyntaxError immediately -- it protects you</span>
+<span class="cm"># Some older languages (C, JavaScript) allow this and silently do the wrong thing</span>
+<span class="cm"># Python's error is helpful -- read SyntaxErrors carefully</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Good news:</strong> Python is strict about this. If you accidentally write <code>if x = 5:</code>, Python will refuse to run and show a SyntaxError. In C or older JavaScript, this would silently assign 5 to x and evaluate to True -- always running the block. Python's strictness is a feature, not a bug.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — CHECKING MULTIPLE VALUES ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 34</div>
+        <div class="slide-title">Common Mistake: <span class="accent">Checking Multiple Values</span></div>
+        <div class="slide-subtitle">A very common beginner pattern that looks right but is always True -- regardless of what day it is.</div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-compare-label bad">WRONG -- always True, every day</div>
+                <div class="code-block">day = <span class="st">"Monday"</span>
+
+<span class="kw">if</span> day == <span class="st">"Saturday"</span> <span class="kw">or</span> <span class="st">"Sunday"</span>:
+    <span class="fn">print</span>(<span class="st">"Weekend!"</span>)
+
+<span class="cm"># Why: Python reads this as:</span>
+<span class="cm"># (day == "Saturday") or ("Sunday")</span>
+<span class="cm"># "Sunday" is a non-empty string</span>
+<span class="cm"># Non-empty strings are truthy -- always True</span>
+<span class="cm"># So this prints "Weekend!" on Monday!</span></div>
+            </div>
+            <div>
+                <div class="code-compare-label good">CORRECT -- two full comparisons</div>
+                <div class="code-block">day = <span class="st">"Monday"</span>
+
+<span class="kw">if</span> day == <span class="st">"Saturday"</span> <span class="kw">or</span> day == <span class="st">"Sunday"</span>:
+    <span class="fn">print</span>(<span class="st">"Weekend!"</span>)
+<span class="kw">else</span>:
+    <span class="fn">print</span>(<span class="st">"Weekday"</span>)
+
+<span class="cm"># EVEN BETTER: use the 'in' operator</span>
+<span class="kw">if</span> day <span class="kw">in</span> (<span class="st">"Saturday"</span>, <span class="st">"Sunday"</span>):
+    <span class="fn">print</span>(<span class="st">"Weekend!"</span>)
+
+<span class="cm"># Output: Weekday  (correct for Monday)</span></div>
+            </div>
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            <div class="box-label">The in Operator</div>
+            <code>value in (option1, option2, option3)</code> checks whether the value matches any item in the tuple. It is cleaner and more readable than chaining <code>or</code> comparisons. Use it when you are checking a variable against a fixed set of valid values -- weekdays, valid commands, allowed status codes, etc.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — INDENTATION ERRORS ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 34</div>
+        <div class="slide-title">Common Mistake: <span class="accent">Indentation Errors</span></div>
+        <div class="slide-subtitle">Python uses whitespace to define structure. Inconsistent indentation is a fatal error.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Tabs vs Spaces</div>
+                <div class="card-desc">Mixing tab characters and space characters causes an <code>IndentationError</code> that can be invisible in your editor. Configure your editor to always convert Tab key presses into 4 spaces. Never mix them in the same file.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">VS Code Configuration</div>
+                <div class="card-desc">Bottom status bar: click the "Spaces: 4" indicator to open indentation settings. Set to "Spaces" and "4." Also install the "Python" extension from Microsoft -- it auto-enforces PEP 8 indentation rules and highlights problems before you run.</div>
+            </div>
+        </div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-compare-label bad">WRONG: inconsistent indentation</div>
+                <div class="code-block"><span class="kw">if</span> age >= <span class="nb">18</span>:
+    <span class="fn">print</span>(<span class="st">"Adult"</span>)      <span class="cm"># 4 spaces</span>
+      <span class="fn">print</span>(<span class="st">"Can vote"</span>)  <span class="cm"># 6 spaces</span>
+<span class="er"># IndentationError: unexpected indent</span></div>
+            </div>
+            <div>
+                <div class="code-compare-label good">CORRECT: uniform 4-space indentation</div>
+                <div class="code-block"><span class="kw">if</span> age >= <span class="nb">18</span>:
+    <span class="fn">print</span>(<span class="st">"Adult"</span>)      <span class="cm"># 4 spaces</span>
+    <span class="fn">print</span>(<span class="st">"Can vote"</span>)  <span class="cm"># 4 spaces</span>
+<span class="cm"># Both lines are in the if block. No error.</span></div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Pro tip:</strong> In VS Code, enable "Render Whitespace" under View &gt; Appearance. This shows dots for spaces and arrows for tabs. You will instantly see if you have mixed whitespace. Run Python with <code>python3 -tt yourfile.py</code> to get a warning if tabs and spaces are mixed.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — INPUT VALIDATION PATTERN ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 34</div>
+        <div class="slide-title">Input Validation <span class="accent">Pattern</span></div>
+        <div class="slide-subtitle">Never trust user input. Always validate it before using it. This is a core security principle.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Why Validate?</div>
+                <div class="card-desc">If a user types "hello" when your program expects a number and you run <code>int("hello")</code>, Python raises a <code>ValueError</code> and crashes. Validate first: is it a number? Is it in the expected range? Can you safely use it?</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">str.isdigit()</div>
+                <div class="card-desc"><code>"42".isdigit()</code> returns <code>True</code>. <code>"hello".isdigit()</code> returns <code>False</code>. <code>"-5".isdigit()</code> returns <code>False</code> -- it does not handle negatives. Use it to check whether a string contains only digit characters before converting with <code>int()</code>.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Safe age input with two layers of validation</span>
+age_str = <span class="fn">input</span>(<span class="st">"Enter your age: "</span>)
+
+<span class="kw">if</span> age_str.isdigit():               <span class="cm"># Layer 1: is it a number at all?</span>
+    age = <span class="fn">int</span>(age_str)              <span class="cm"># safe to convert now</span>
+    <span class="kw">if</span> age < <span class="nb">0</span> <span class="kw">or</span> age > <span class="nb">150</span>:      <span class="cm"># Layer 2: is the number sensible?</span>
+        <span class="fn">print</span>(<span class="st">"Error: that age is not realistic"</span>)
+    <span class="kw">else</span>:
+        <span class="fn">print</span>(<span class="st">f"Your age is {age}"</span>)
+        <span class="kw">if</span> age >= <span class="nb">18</span>:
+            <span class="fn">print</span>(<span class="st">"You are an adult"</span>)
+        <span class="kw">else</span>:
+            <span class="fn">print</span>(<span class="st">"You are a minor"</span>)
+<span class="kw">else</span>:
+    <span class="fn">print</span>(<span class="st">"Error: please enter a number, not letters or symbols"</span>)</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — MENU SYSTEM PATTERN ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 34</div>
+        <div class="slide-title">Menu System <span class="accent">Pattern</span></div>
+        <div class="slide-subtitle">A command-line menu is the classic application of if/elif/else. You will build this in almost every script.</div>
+
+        <div class="code-block"><span class="cm"># Command-line administration menu</span>
+<span class="fn">print</span>(<span class="st">"=== Server Admin Console ==="</span>)
+<span class="fn">print</span>(<span class="st">"1. Check system status"</span>)
+<span class="fn">print</span>(<span class="st">"2. Run vulnerability scan"</span>)
+<span class="fn">print</span>(<span class="st">"3. View recent logs"</span>)
+<span class="fn">print</span>(<span class="st">"4. Exit"</span>)
+
+choice = <span class="fn">input</span>(<span class="st">"Select an option (1-4): "</span>)
+
+<span class="kw">if</span> choice == <span class="st">"1"</span>:
+    <span class="fn">print</span>(<span class="st">"Checking system status..."</span>)
+<span class="kw">elif</span> choice == <span class="st">"2"</span>:
+    <span class="fn">print</span>(<span class="st">"Launching vulnerability scanner..."</span>)
+<span class="kw">elif</span> choice == <span class="st">"3"</span>:
+    <span class="fn">print</span>(<span class="st">"Loading last 50 log entries..."</span>)
+<span class="kw">elif</span> choice == <span class="st">"4"</span>:
+    <span class="fn">print</span>(<span class="st">"Exiting. Goodbye."</span>)
+<span class="kw">else</span>:
+    <span class="fn">print</span>(<span class="st">f"Invalid option: '{choice}'. Please enter 1, 2, 3, or 4."</span>)</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Important:</strong> <code>input()</code> always returns a string. When the user types "1", the variable <code>choice</code> contains the string <code>"1"</code>, not the integer <code>1</code>. That is why the comparisons use <code>"1"</code> in quotes, not <code>1</code> without quotes. <code>choice == 1</code> would always be False because a string never equals an integer in Python.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — IT SCENARIO: LOGIN SYSTEM ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 34</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Login System</span></div>
+        <div class="slide-subtitle">Building the login check we described on slide 1. Real credential validation with meaningful error messages.</div>
+
+        <div class="code-block"><span class="cm"># Simple login checker with specific error messages per failure type</span>
+<span class="cm"># Constants: uppercase names by convention -- these are fixed values</span>
+VALID_USER = <span class="st">"admin"</span>
+VALID_PASS = <span class="st">"Secure@2024!"</span>
+MAX_ATTEMPTS = <span class="nb">3</span>
+
+username = <span class="fn">input</span>(<span class="st">"Username: "</span>)
+password = <span class="fn">input</span>(<span class="st">"Password: "</span>)
+
+<span class="kw">if</span> username == VALID_USER <span class="kw">and</span> password == VALID_PASS:
+    <span class="cm"># Both correct: grant access</span>
+    <span class="fn">print</span>(<span class="st">"Access granted. Welcome, administrator."</span>)
+    <span class="fn">print</span>(<span class="st">"Last login: 2024-04-01 08:42 UTC"</span>)
+<span class="kw">elif</span> username != VALID_USER:
+    <span class="cm"># Wrong username: do not reveal which credential failed (security practice)</span>
+    <span class="fn">print</span>(<span class="st">"Authentication failed. Invalid credentials."</span>)
+<span class="kw">else</span>:
+    <span class="cm"># Username matched but password did not</span>
+    <span class="fn">print</span>(<span class="st">"Authentication failed. Invalid credentials."</span>)
+    <span class="fn">print</span>(<span class="st">"Note: after 3 failed attempts, account will be locked"</span>)</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Security note:</strong> Notice that both the "wrong username" and "wrong password" cases print the same generic message. This is intentional. If the error message said "username not found," an attacker could use it to enumerate valid usernames. Always return the same error for any failed authentication. This is called credential stuffing protection.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — IT SCENARIO: HTTP STATUS CODES ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 34</div>
+        <div class="slide-title">IT Scenario: <span class="accent">HTTP Status Codes</span></div>
+        <div class="slide-subtitle">Every web response has a status code. A monitoring script needs to interpret them automatically.</div>
+
+        <div class="code-block"><span class="cm"># HTTP response code interpreter -- used in web monitoring scripts</span>
+status_code = <span class="nb">404</span>
+
+<span class="kw">if</span> status_code == <span class="nb">200</span>:
+    <span class="fn">print</span>(<span class="st">"200 OK -- page loaded successfully"</span>)
+<span class="kw">elif</span> status_code == <span class="nb">301</span>:
+    <span class="fn">print</span>(<span class="st">"301 Moved Permanently -- update your bookmark"</span>)
+<span class="kw">elif</span> status_code == <span class="nb">302</span>:
+    <span class="fn">print</span>(<span class="st">"302 Found -- temporary redirect"</span>)
+<span class="kw">elif</span> status_code == <span class="nb">403</span>:
+    <span class="fn">print</span>(<span class="st">"403 Forbidden -- you do not have permission"</span>)
+<span class="kw">elif</span> status_code == <span class="nb">404</span>:
+    <span class="fn">print</span>(<span class="st">"404 Not Found -- page does not exist"</span>)
+<span class="kw">elif</span> status_code >= <span class="nb">500</span>:
+    <span class="fn">print</span>(<span class="st">f"{status_code} Server Error -- something broke on the server side"</span>)
+    <span class="fn">print</span>(<span class="st">"Alert: paging on-call engineer"</span>)
+<span class="kw">else</span>:
+    <span class="fn">print</span>(<span class="st">f"Unexpected status code: {status_code}"</span>)</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Mix of == and &gt;=</div>
+                <div class="card-desc">Notice the last meaningful branch uses <code>&gt;= 500</code> instead of listing every 5xx code. Codes 500, 502, 503, 504, and others all indicate server errors. One range check handles all of them. Mix specific checks and range checks as needed.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Real-World Use</div>
+                <div class="card-desc">Tools like Nagios, UptimeRobot, and Pingdom use exactly this logic. They make an HTTP request, receive a status code, and run it through a conditional chain to determine the alert level. You are building real monitoring logic.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — IT SCENARIO: PASSWORD STRENGTH ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 34</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Password Strength</span></div>
+        <div class="slide-subtitle">A password checker that tests requirements in order and gives specific feedback on the first failure it finds.</div>
+
+        <div class="code-block"><span class="cm"># Password strength checker with specific failure feedback</span>
+password = <span class="fn">input</span>(<span class="st">"Create a password: "</span>)
+
+<span class="kw">if</span> <span class="fn">len</span>(password) < <span class="nb">8</span>:
+    <span class="cm"># len() returns the number of characters in the string</span>
+    <span class="fn">print</span>(<span class="st">"Too short -- password must be at least 8 characters"</span>)
+<span class="kw">elif</span> password.isalpha():
+    <span class="cm"># isalpha() is True if ALL characters are letters -- no digits</span>
+    <span class="fn">print</span>(<span class="st">"Too simple -- add at least one number"</span>)
+<span class="kw">elif</span> password.islower():
+    <span class="cm"># islower() is True if ALL letters are lowercase -- no uppercase</span>
+    <span class="fn">print</span>(<span class="st">"Too simple -- add at least one uppercase letter"</span>)
+<span class="kw">elif</span> password.isupper():
+    <span class="cm"># isupper() is True if ALL letters are uppercase -- no lowercase</span>
+    <span class="fn">print</span>(<span class="st">"Too simple -- add at least one lowercase letter"</span>)
+<span class="kw">else</span>:
+    <span class="fn">print</span>(<span class="st">"Password accepted -- meets minimum requirements"</span>)</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Discussion:</strong> This checker only catches the FIRST problem it finds. If the password is 3 characters and all lowercase, it reports "too short" but does not mention the other issues. This is the "fail fast, one message at a time" pattern. An alternative design checks all conditions independently with separate ifs (not elif) and collects all errors. Which approach gives better user experience?
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — PRACTICE: ROCK PAPER SCISSORS ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 34</div>
+        <div class="slide-title">Practice: <span class="accent">Rock Paper Scissors</span></div>
+        <div class="slide-subtitle">A fun example that uses complex combined conditions. Read the logic carefully -- this is the real challenge of conditionals.</div>
+
+        <div class="code-block"><span class="kw">import</span> random
+
+choices  = [<span class="st">"rock"</span>, <span class="st">"paper"</span>, <span class="st">"scissors"</span>]
+computer = random.choice(choices)           <span class="cm"># pick a random element from the list</span>
+player   = <span class="fn">input</span>(<span class="st">"rock, paper, or scissors? "</span>).lower()   <span class="cm"># .lower() normalizes input</span>
+
+<span class="cm"># Check player chose a valid option before evaluating the result</span>
+<span class="kw">if</span> player <span class="kw">not in</span> choices:
+    <span class="fn">print</span>(<span class="st">f"'{player}' is not a valid choice. Please enter rock, paper, or scissors."</span>)
+<span class="kw">elif</span> player == computer:
+    <span class="fn">print</span>(<span class="st">f"Both chose {player} -- it's a tie!"</span>)
+<span class="kw">elif</span> (player == <span class="st">"rock"</span> <span class="kw">and</span> computer == <span class="st">"scissors"</span>) <span class="kw">or</span> \
+     (player == <span class="st">"paper"</span> <span class="kw">and</span> computer == <span class="st">"rock"</span>) <span class="kw">or</span> \
+     (player == <span class="st">"scissors"</span> <span class="kw">and</span> computer == <span class="st">"paper"</span>):
+    <span class="fn">print</span>(<span class="st">f"You chose {player}, computer chose {computer} -- you win!"</span>)
+<span class="kw">else</span>:
+    <span class="fn">print</span>(<span class="st">f"You chose {player}, computer chose {computer} -- computer wins!"</span>)</div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            <div class="box-label">Line Continuation with Backslash</div>
+            The long <code>elif</code> condition is split across three lines using <code>\</code> (backslash) at the end of each line. Python treats lines ending with <code>\</code> as continuing on the next line. This keeps your code readable instead of one extremely long line that extends off the screen. The backslash must be the very last character on the line -- no space after it.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 34</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Write each of these programs on your own. Do not look at the solution until you have a working attempt.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Exercise 1: Sign Check</div>
+                <div class="card-desc">Ask the user for a number. Print whether it is positive, negative, or zero. Use three branches. Test with 5, -3, and 0.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Exercise 2: Tax Calculator</div>
+                <div class="card-desc">Ask for income. Apply tax rates: under $10,000 = 10%, $10,000-$40,000 = 15%, $40,001-$85,000 = 22%, above $85,000 = 24%. Print the tax owed. Remember to calculate the amount, not just the rate.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Exercise 3: Leap Year</div>
+                <div class="card-desc">A year is a leap year if divisible by 4, EXCEPT centuries (divisible by 100) are NOT leap years, UNLESS also divisible by 400. Year 2000 is a leap year. Year 1900 is not. Year 2024 is. Use <code>%</code> and nested or combined conditions.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Exercise 4: BMI Calculator</div>
+                <div class="card-desc">Ask for weight in kg and height in meters. Calculate BMI: <code>bmi = weight / (height ** 2)</code>. Print the WHO category: below 18.5 = underweight, 18.5-24.9 = normal, 25.0-29.9 = overweight, 30+ = obese.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Exercise 5: Triangle Validator</div>
+                <div class="card-desc">Ask for three side lengths. A valid triangle requires that each side be less than the sum of the other two. Check all three combinations with <code>and</code>. If valid, also check if it is equilateral, isosceles, or scalene.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Exercise 6: Network Classifier</div>
+                <div class="card-desc">Ask for an IP address's first octet (a number 1-255). Classify it: 1-126 = Class A, 128-191 = Class B, 192-223 = Class C, 224-239 = Class D (multicast), 240-255 = Class E (reserved). 127 is loopback.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — SHORT-CIRCUIT EVALUATION ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 34</div>
+        <div class="slide-title">Short-Circuit <span class="accent">Evaluation</span></div>
+        <div class="slide-subtitle">Python stops evaluating and/or expressions as soon as it knows the final result. This has practical consequences.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">and Short-Circuit</div>
+                <div class="card-desc">If the left side of <code>and</code> is False, the whole expression is False no matter what the right side is. Python skips the right side entirely. The right side is never evaluated. Use this to safely guard risky operations.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">or Short-Circuit</div>
+                <div class="card-desc">If the left side of <code>or</code> is True, the whole expression is True no matter what the right side is. Python skips the right side entirely. Use this to provide a fallback value when the first option is empty or None.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># SHORT-CIRCUIT AND: prevents a divide-by-zero crash</span>
+x = <span class="nb">0</span>
+
+<span class="kw">if</span> x != <span class="nb">0</span> <span class="kw">and</span> <span class="nb">10</span> / x > <span class="nb">2</span>:
+    <span class="fn">print</span>(<span class="st">"Quotient is greater than 2"</span>)
+<span class="kw">else</span>:
+    <span class="fn">print</span>(<span class="st">"x is zero -- division skipped safely"</span>)
+<span class="cm"># Because x != 0 is False, the 10 / x expression never runs</span>
+<span class="cm"># Without short-circuit, 10 / 0 would raise ZeroDivisionError</span>
+
+<span class="cm"># SHORT-CIRCUIT OR: use a default if the variable is empty</span>
+username = <span class="st">""</span>
+display_name = username <span class="kw">or</span> <span class="st">"Guest"</span>
+<span class="fn">print</span>(<span class="st">f"Hello, {display_name}!"</span>)   <span class="cm"># Hello, Guest!</span>
+<span class="cm"># username is falsy (empty string), so 'or' evaluates and returns "Guest"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 — THE pass STATEMENT ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 34</div>
+        <div class="slide-title">The <span class="accent">pass</span> Statement</div>
+        <div class="slide-subtitle">Python requires that every code block contain at least one statement. pass fills that requirement when you have nothing to put there yet.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What pass Does</div>
+                <div class="card-desc"><code>pass</code> is a no-operation statement. It does nothing. It exists purely to satisfy Python's syntax requirement that a block cannot be empty. The interpreter reads it, acknowledges it, and moves on. No action is taken.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">When to Use It</div>
+                <div class="card-desc">Use <code>pass</code> as a placeholder during development. You might know a branch needs to exist but have not yet written the logic. Write the structure first with <code>pass</code> to make the code runnable, then fill it in. Common in large projects and when scaffolding new features.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># pass as a placeholder during development</span>
+severity = <span class="nb">1</span>
+
+<span class="kw">if</span> severity == <span class="nb">1</span>:
+    <span class="kw">pass</span>   <span class="cm"># TODO: implement PagerDuty alert integration</span>
+<span class="kw">elif</span> severity == <span class="nb">2</span>:
+    <span class="fn">print</span>(<span class="st">"Creating ServiceNow ticket"</span>)
+<span class="kw">elif</span> severity == <span class="nb">3</span>:
+    <span class="fn">print</span>(<span class="st">"Logging to syslog"</span>)
+
+<span class="cm"># Without 'pass', Python raises SyntaxError:</span>
+<span class="cm"># "expected an indented block after 'if' statement"</span>
+
+<span class="cm"># pass also works in function definitions and loops</span>
+<span class="kw">def</span> alert_admin():
+    <span class="kw">pass</span>   <span class="cm"># stub -- implement later</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 — DEBUGGING CONDITIONALS ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 34</div>
+        <div class="slide-title">Debugging <span class="accent">Conditionals</span></div>
+        <div class="slide-subtitle">When your conditional is not doing what you expect, use these techniques to find out why.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Technique 1: Print Before Checking</div>
+                <div class="card-desc">Print the variable AND its type before the if statement. A common bug is checking a string against an integer or vice versa. <code>f"{val!r}"</code> prints the repr -- you will see quotes around strings, making the type visible.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Technique 2: Print Inside Each Branch</div>
+                <div class="card-desc">Add a print statement as the first line of each branch. This tells you definitively which branch Python entered. Remove the debug prints before submitting -- or use a <code>DEBUG = True</code> flag to toggle them.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Technique 3: Test Each Condition Alone</div>
+                <div class="card-desc">Open the Python interactive interpreter (type <code>python3</code> in terminal). Type just the condition expression and press Enter. Python evaluates and prints the result. Check if it is True or False before putting it inside an if.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Debug pattern: check variable value and type before the conditional</span>
+age = <span class="fn">input</span>(<span class="st">"Enter age: "</span>)         <span class="cm"># user types: 25</span>
+<span class="fn">print</span>(<span class="st">f"DEBUG: age={age!r} type={<span class="fn">type</span>(age).__name__}"</span>)
+<span class="cm"># Output: DEBUG: age='25' type=str</span>
+<span class="cm"># Problem: age is a string, not an integer!</span>
+
+<span class="kw">if</span> age >= <span class="nb">18</span>:           <span class="cm"># TypeError: '>=' not supported between str and int</span>
+    <span class="fn">print</span>(<span class="st">"Adult"</span>)
+
+<span class="cm"># Fix: convert before comparing</span>
+age = <span class="fn">int</span>(<span class="fn">input</span>(<span class="st">"Enter age: "</span>))
+<span class="fn">print</span>(<span class="st">f"DEBUG: age={age!r} type={<span class="fn">type</span>(age).__name__}"</span>)
+<span class="cm"># Output: DEBUG: age=25 type=int  -- now it works</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 — KEY VOCABULARY ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 34</div>
+        <div class="slide-title">Key <span class="accent">Vocabulary</span></div>
+        <div class="slide-subtitle">Terms you must know for quizzes, exams, and professional conversations. Know the definition, not just the word.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Conditional / Branch</div>
+                <div class="card-desc">A conditional is a statement that chooses between two or more paths of execution based on a boolean condition. Each possible path is called a branch. Only one branch executes per run.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Boolean Expression</div>
+                <div class="card-desc">An expression that evaluates to exactly <code>True</code> or <code>False</code>. Built from comparison operators (<code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&gt;</code>) and logical operators (<code>and</code>, <code>or</code>, <code>not</code>).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Truthy / Falsy</div>
+                <div class="card-desc">A value is "truthy" if Python treats it as True in a boolean context. A value is "falsy" if Python treats it as False. Falsy values: <code>0</code>, <code>""</code>, <code>None</code>, <code>[]</code>, <code>{}</code>, <code>False</code>. Everything else is truthy.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Short-Circuit Evaluation</div>
+                <div class="card-desc">Python stops evaluating an <code>and</code> or <code>or</code> expression as soon as the result is known. The right-side expression may not be evaluated at all. Used to prevent errors from risky operations.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Ternary Expression</div>
+                <div class="card-desc">A one-line inline conditional: <code>x if condition else y</code>. Returns <code>x</code> when condition is True, returns <code>y</code> when False. Use only for simple assignments -- complex ternaries reduce readability.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Indentation / Code Block</div>
+                <div class="card-desc">A code block is a group of statements that share the same indentation level. Python uses indentation -- not braces -- to define blocks. The standard is 4 spaces per level. Inconsistent indentation causes <code>IndentationError</code>.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 — SUMMARY + COMPLETE ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 34 &nbsp;|&nbsp; COP1034C Obj 2</div>
+        <div class="slide-title">Conditionals -- <span class="accent">Key Takeaways</span></div>
+
+        <div class="scenario-strip">
+            You now have the tools to write the login system from slide 1. Check if the username is valid. Check if the password is correct. Check if the account is locked. Each check is an if or elif. Combined with and and or, you can build any access control logic a real system requires. Day 3 adds loops -- the final piece of control flow.
+        </div>
+
+        <div class="section-label">7 Rules to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><code>if</code> checks a condition. The colon and 4-space indentation are mandatory. Forget either one and Python stops immediately with a SyntaxError or IndentationError.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><code>elif</code> adds more branches. Python checks top to bottom and stops at the first True match. Order your conditions from most specific to least specific.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><code>else</code> has no condition. It runs when nothing above matched. It is optional, but include it as a defensive catch-all in any script that handles user input or external data.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><code>and</code> / <code>or</code> / <code>not</code> combine conditions. Use <code>and</code> when all must be true. Use <code>or</code> when any one is enough. Use <code>not</code> to check for the absence of something.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Nesting is acceptable up to 2-3 levels. Beyond that, flatten with <code>and</code>, use <code>elif</code>, or extract inner logic into a function. Deep nesting is a code quality warning.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Always validate user input before using it. Check that it is the right type, the right length, and within the expected range. Never pass raw <code>input()</code> results directly to <code>int()</code> without checking first.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text"><code>=</code> assigns a value. <code>==</code> compares values. Never confuse them inside a condition. Python raises SyntaxError to protect you, but only in Python -- other languages silently do the wrong thing.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom nav: back to Python for IT hub, Prev/Next, slide counter -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Python for IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 34</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* -- Slide navigation state -- */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 34;
+
+    /* goToSlide: deactivates current slide, activates target slide,
+       updates progress bar, counter, and button states */
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Remove active class from current slide */
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        /* Update state and activate new slide */
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update gold progress bar width as a percentage */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        /* Update the slide counter text */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Disable Prev on slide 1, Next on last slide */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show Mark Complete button only on the final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard navigation: left/right arrow keys move between slides */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize to slide 1 on page load */
+    goToSlide(1);
+</script>
+
+<script>
+    /* completeModule: marks this presentation complete in ModuleProgress
+       and returns the student to the Python for IT hub */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('code', 'pfi-w1-conditionals', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<!-- Accessibility: keyboard traps, ARIA live regions, focus management -->
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

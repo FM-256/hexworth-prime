@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 3 Project: Network Device Manager | Python for IT</title>
+    <style>
+        :root {
+            --code-primary: #10b981;
+            --code-secondary: #059669;
+            --code-dark: #064e3b;
+            --code-glow: rgba(16, 185, 129, 0.3);
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #0f1623;
+            --bg-tertiary: #161f30;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; line-height: 1.6; }
+        .lab-container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+        .back-link { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--code-primary); text-decoration: none; margin-bottom: 1rem; transition: all 0.3s ease; }
+        .back-link:hover { color: #34d399; transform: translateX(-5px); }
+        .lab-header { text-align: center; margin-bottom: 2rem; padding: 2rem; background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary)); border-radius: 16px; border: 1px solid var(--code-primary); box-shadow: 0 0 30px var(--code-glow); }
+        .lab-header h1 { font-size: 2.2rem; margin-bottom: 0.5rem; background: linear-gradient(135deg, var(--code-primary), #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 1rem; margin-bottom: 1rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-secondary); }
+        .progress-section { background: var(--bg-secondary); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid rgba(16, 185, 129, 0.2); }
+        .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .progress-bar { height: 12px; background: var(--bg-tertiary); border-radius: 6px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--code-primary), var(--success)); border-radius: 6px; transition: width 0.5s ease; }
+        .section { background: var(--bg-secondary); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; border: 1px solid rgba(16, 185, 129, 0.2); transition: all 0.3s ease; }
+        .section:hover { border-color: var(--code-primary); box-shadow: 0 0 20px var(--code-glow); }
+        .section.completed { border-color: var(--success); background: linear-gradient(135deg, var(--bg-secondary), rgba(34, 197, 94, 0.08)); }
+        .section-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+        .section-number { width: 50px; height: 50px; background: linear-gradient(135deg, var(--code-primary), var(--code-secondary)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; color: #fff; }
+        .section-title h2 { font-size: 1.3rem; }
+        .section-title .time { color: var(--text-secondary); font-size: 0.85rem; }
+        .objective { background: var(--bg-tertiary); padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid var(--code-primary); }
+        .objective strong { color: var(--code-primary); }
+        .code-block { background: #0d1117; border-radius: 8px; padding: 1rem 1.25rem; font-family: 'Courier New', monospace; font-size: 0.85rem; overflow-x: auto; margin: 1rem 0; border-left: 3px solid var(--code-primary); white-space: pre; line-height: 1.7; }
+        .code-block .kw  { color: #ff7b72; }
+        .code-block .fn  { color: #d2a8ff; }
+        .code-block .st  { color: #a5d6ff; }
+        .code-block .cm  { color: #6e7681; }
+        .code-block .num { color: #79c0ff; }
+        .code-block .out { color: var(--code-primary); }
+        .question-block { background: var(--bg-tertiary); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 10px; padding: 1.5rem; margin-bottom: 1rem; }
+        .question-block label { display: block; color: var(--code-primary); font-weight: 600; margin-bottom: 0.5rem; }
+        .question-block input { width: 100%; padding: 10px 14px; background: rgba(0,0,0,0.3); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 0.9rem; font-family: 'Courier New', monospace; }
+        .question-block input:focus { outline: none; border-color: var(--code-primary); box-shadow: 0 0 10px var(--code-glow); }
+        .check-btn { padding: 10px 24px; background: linear-gradient(135deg, var(--code-primary), var(--code-secondary)); color: white; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.3s; margin-top: 0.5rem; }
+        .check-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px var(--code-glow); }
+        .feedback { padding: 10px 16px; border-radius: 8px; margin-top: 10px; font-size: 0.9rem; display: none; }
+        .feedback.correct   { display: block; background: rgba(34,197,94,0.15); border: 1px solid var(--success); color: var(--success); }
+        .feedback.incorrect { display: block; background: rgba(239,68,68,0.15); border: 1px solid var(--danger); color: var(--danger); }
+        .tip-box  { background: rgba(245,158,11,0.08); border: 1px solid var(--warning); border-radius: 8px; padding: 1rem; margin: 1rem 0; font-size: 0.9rem; }
+        .tip-box strong  { color: var(--warning); }
+        .info-box { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3); border-radius: 8px; padding: 1rem; margin: 1rem 0; font-size: 0.9rem; }
+        .info-box strong { color: var(--code-primary); }
+        .content-section { margin-bottom: 1.5rem; }
+        .content-section h3 { color: var(--code-primary); margin-bottom: 0.75rem; font-size: 1rem; }
+        .content-section p { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .requirement-list { list-style: none; }
+        .requirement-list li { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem; color: var(--text-secondary); }
+        .requirement-list li:last-child { border-bottom: none; }
+        .req-num { color: var(--code-primary); font-weight: bold; min-width: 24px; }
+        .rubric-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin: 1rem 0; }
+        .rubric-table th { background: var(--bg-tertiary); color: var(--code-primary); padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid rgba(16,185,129,0.3); }
+        .rubric-table td { padding: 0.65rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); color: var(--text-secondary); }
+        .rubric-table tr:last-child td { border-bottom: none; color: var(--text-primary); font-weight: 600; }
+        .rubric-table .pts { color: var(--code-primary); font-weight: 600; text-align: right; }
+        .completion-btn { width: 100%; padding: 1rem 2rem; background: linear-gradient(135deg, var(--code-primary), var(--code-secondary)); color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; margin-top: 1.5rem; }
+        .completion-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px var(--code-glow); }
+        .completion-btn.completed { background: var(--success); cursor: default; transform: none; }
+        @media (max-width: 768px) { .lab-container { padding: 1rem; } .lab-header h1 { font-size: 1.8rem; } }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <a href="../index.html" class="back-link">&larr; Python for IT Hub</a>
+
+        <header class="lab-header">
+            <h1>Week 3 Project: Network Device Manager</h1>
+            <p class="subtitle">Design and implement an OOP-based network device management tool with inheritance, polymorphism, and a turtle graphics topology view</p>
+            <div class="lab-meta">
+                <span class="meta-item">90 minutes</span>
+                <span class="meta-item">Graded Project</span>
+                <span class="meta-item">5 Sections</span>
+            </div>
+        </header>
+
+        <div class="progress-section">
+            <div class="progress-header">
+                <span>Project Progress</span>
+                <span id="progressText">0 / 5 sections</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Section 1: Project Overview -->
+        <div class="section" id="section1">
+            <div class="section-header">
+                <div class="section-number">1</div>
+                <div class="section-title">
+                    <h2>Project Overview</h2>
+                    <span class="time">Read carefully before coding</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>What You Are Building:</strong> An object-oriented Python program that models a small network environment. You will define a class hierarchy for network devices, build a manager class that stores and queries devices, and use turtle graphics to draw a labeled topology diagram of the devices currently in the manager.
+            </div>
+
+            <div class="content-section">
+                <h3>Why This Matters</h3>
+                <p>Network automation tools — Netmiko, NAPALM, Ansible network modules — are built on exactly this pattern: a class hierarchy that models device types, with shared base methods and type-specific behaviors. When you understand how to structure a NetworkDevice class with Router and Switch subclasses, reading those real tools becomes straightforward.</p>
+                <p>This project exercises the complete Week 3 OOP skill set: class definition, __init__, __str__, inheritance, method overriding, polymorphism, and the DeviceManager collection pattern. The turtle visualization ties OOP to Week 3 graphics work.</p>
+            </div>
+
+            <div class="content-section">
+                <h3>Learning Objectives</h3>
+                <ul class="requirement-list">
+                    <li><span class="req-num">1.</span> Define classes with __init__ and __str__ methods following Python conventions</li>
+                    <li><span class="req-num">2.</span> Use inheritance to extend a base class without duplicating code</li>
+                    <li><span class="req-num">3.</span> Override methods in child classes to change behavior while keeping the same interface</li>
+                    <li><span class="req-num">4.</span> Demonstrate polymorphism by calling the same method on a mixed list of object types</li>
+                    <li><span class="req-num">5.</span> Use turtle graphics to visualize a data structure (the device list) programmatically</li>
+                </ul>
+            </div>
+
+            <div class="content-section">
+                <h3>Class Architecture Overview</h3>
+                <p>Your program will have four classes and a set of menu functions. The diagram below shows the relationship between them.</p>
+                <div class="code-block"><span class="out">NetworkDevice  (base class)
+    |-- hostname, ip_address, device_type, status
+    |-- __init__, __str__, ping(), get_info()
+    |
+    +-- Router(NetworkDevice)
+    |       |-- routing_protocol  (extra attribute)
+    |       |-- show_routes()     (Router-specific)
+    |       |-- get_info()        (overrides base)
+    |
+    +-- Switch(NetworkDevice)
+            |-- port_count        (extra attribute)
+            |-- show_vlans()      (Switch-specific)
+            |-- get_info()        (overrides base)
+
+DeviceManager
+    |-- devices  (list of NetworkDevice objects)
+    |-- add_device(), remove_device()
+    |-- find_device(), list_all()
+
+Menu functions (top-level, not methods):
+    show_menu(), handle_add(), handle_remove()
+    handle_ping(), draw_topology()</span></div>
+            </div>
+
+            <div class="content-section">
+                <h3>Sample Program Run</h3>
+                <p>After adding a Router and a Switch, selecting "List Devices" should produce output similar to this:</p>
+                <div class="code-block"><span class="out">--- Network Devices ---
+[Router] CORE-RTR-01 | 10.0.0.1 | Status: online
+  Protocol : OSPF
+  Routes   : 10.0.0.0/8, 192.168.0.0/24, 0.0.0.0/0
+
+[Switch] ACCESS-SW-02 | 10.0.0.5 | Status: online
+  Ports    : 48
+  VLANs    : VLAN 1 (default), VLAN 10 (mgmt), VLAN 20 (servers)</span></div>
+            </div>
+
+            <div class="info-box">
+                <strong>Simulated data:</strong> You are not connecting to real devices. ping() returns a simulated string like "Reply from 10.0.0.1: bytes=32 time=1ms TTL=128" based on the device's stored IP. show_routes() and show_vlans() return hardcoded or parameter-based lists. The behavior is realistic even though the data is fabricated.
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(1)">Mark Section Read</button>
+        </div>
+
+        <!-- Section 2: Requirements -->
+        <div class="section" id="section2">
+            <div class="section-header">
+                <div class="section-number">2</div>
+                <div class="section-title">
+                    <h2>Requirements</h2>
+                    <span class="time">Your program must satisfy all 10 items</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Grading is based on these requirements.</strong> Requirements 1 through 4 cover OOP fundamentals. Requirements 5 through 7 cover organization and visualization. Requirements 8 through 10 cover documentation, design quality, and execution.
+            </div>
+
+            <div class="content-section">
+                <ul class="requirement-list">
+                    <li><span class="req-num">1.</span> At least 2 classes have __init__ and __str__ — NetworkDevice, Router, Switch, and DeviceManager all need __init__; at minimum NetworkDevice and one child class need __str__</li>
+                    <li><span class="req-num">2.</span> Router and Switch both inherit from NetworkDevice using the <code>class Router(NetworkDevice):</code> syntax; each child calls <code>super().__init__()</code> inside its own __init__</li>
+                    <li><span class="req-num">3.</span> Router and Switch each override the get_info() method from NetworkDevice — the child version must return or print different output than the base class version</li>
+                    <li><span class="req-num">4.</span> Each class (NetworkDevice, Router, Switch, DeviceManager) has at least 3 methods beyond __init__ and __str__</li>
+                    <li><span class="req-num">5.</span> DeviceManager stores all devices in a list attribute called devices; add_device, remove_device (by hostname), find_device (by hostname), and list_all methods are all present and functional</li>
+                    <li><span class="req-num">6.</span> Menu operations are implemented as top-level functions (not inside any class); each function handles one menu action and calls manager methods to do the work</li>
+                    <li><span class="req-num">7.</span> A draw_topology() function uses turtle to draw each device in the manager as a labeled shape — at minimum a rectangle or circle per device with the hostname printed below it; at least 3 devices must be drawn when 3 are in the manager</li>
+                    <li><span class="req-num">8.</span> Every class and every method has a docstring (triple-quoted string immediately after the def line) explaining its purpose</li>
+                    <li><span class="req-num">9.</span> At least one loop in the main menu or a menu function iterates over the devices list and calls the same method on each device regardless of type — this demonstrates polymorphism</li>
+                    <li><span class="req-num">10.</span> Program runs without errors through a full session: add two devices of different types, list all, ping one, draw topology, remove one, list again, exit</li>
+                </ul>
+            </div>
+
+            <div class="tip-box">
+                <strong>Turtle window blocks execution:</strong> turtle.done() keeps the drawing window open but freezes the Python process. Structure your program so draw_topology() is an optional menu choice — do not call it unconditionally at startup or it will block the rest of the program until the user closes the window.
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(2)">Mark Section Read</button>
+        </div>
+
+        <!-- Section 3: Starter Guide -->
+        <div class="section" id="section3">
+            <div class="section-header">
+                <div class="section-number">3</div>
+                <div class="section-title">
+                    <h2>Starter Guide</h2>
+                    <span class="time">Hints and class skeletons — not the solution</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Use these skeletons to start your file.</strong> Every method body is left empty or stubbed. Add the logic yourself. The signatures, docstrings, and attribute names shown here are the ones the rubric expects to see.
+            </div>
+
+            <div class="content-section">
+                <h3>NetworkDevice Base Class Skeleton</h3>
+                <div class="code-block"><span class="kw">class</span> <span class="fn">NetworkDevice</span>:
+    <span class="st">"""Base class representing a generic network device.
+
+    Attributes:
+        hostname    (str)  : device hostname, e.g. CORE-RTR-01
+        ip_address  (str)  : IPv4 address, e.g. 10.0.0.1
+        device_type (str)  : 'router', 'switch', etc.
+        status      (str)  : 'online' or 'offline'
+    """</span>
+
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, hostname, ip_address, device_type, status=<span class="st">"online"</span>):
+        <span class="st">"""Initialize a NetworkDevice with identity and status fields."""</span>
+        <span class="cm">        # Assign parameters to instance attributes</span>
+        <span class="kw">pass</span>
+
+    <span class="kw">def</span> <span class="fn">__str__</span>(self):
+        <span class="st">"""Return a one-line summary string for this device."""</span>
+        <span class="cm">        # Return an f-string: "[device_type] hostname | ip_address | Status: status"</span>
+        <span class="kw">pass</span>
+
+    <span class="kw">def</span> <span class="fn">ping</span>(self):
+        <span class="st">"""Simulate a ping to this device and return a result string."""</span>
+        <span class="cm">        # Return a string like: "Reply from 10.0.0.1: bytes=32 time=2ms TTL=64"</span>
+        <span class="kw">pass</span>
+
+    <span class="kw">def</span> <span class="fn">get_info</span>(self):
+        <span class="st">"""Return a formatted string with this device's details."""</span>
+        <span class="cm">        # Base version: return hostname, ip, type, and status</span>
+        <span class="kw">pass</span>
+
+    <span class="kw">def</span> <span class="fn">set_status</span>(self, new_status):
+        <span class="st">"""Update the device status to the given string."""</span>
+        <span class="kw">pass</span></div>
+            </div>
+
+            <div class="content-section">
+                <h3>Router Child Class Skeleton</h3>
+                <div class="code-block"><span class="kw">class</span> <span class="fn">Router</span>(NetworkDevice):
+    <span class="st">"""A network router. Extends NetworkDevice with routing information.
+
+    Additional Attributes:
+        routing_protocol (str)  : e.g. 'OSPF', 'BGP', 'EIGRP', 'Static'
+        routes           (list) : list of route strings in CIDR notation
+    """</span>
+
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, hostname, ip_address, routing_protocol=<span class="st">"OSPF"</span>):
+        <span class="st">"""Initialize a Router — calls super().__init__ with device_type='router'."""</span>
+        <span class="cm">        # Call the parent constructor — device_type is always 'router' for this class</span>
+        <span class="fn">super</span>().__init__(hostname, ip_address, device_type=<span class="st">"router"</span>)
+        self.routing_protocol = routing_protocol
+        <span class="cm">        # Start with an empty routes list — populated by show_routes()</span>
+        self.routes = []
+
+    <span class="kw">def</span> <span class="fn">get_info</span>(self):
+        <span class="st">"""Override base get_info to include routing protocol and routes."""</span>
+        <span class="cm">        # Call str(self) for the base summary line, then append protocol and routes</span>
+        <span class="kw">pass</span>
+
+    <span class="kw">def</span> <span class="fn">show_routes</span>(self):
+        <span class="st">"""Return a list of routes this router knows about.
+
+        In a real tool this would query the device. Here, return a
+        simulated list of CIDR strings appropriate for the routing protocol.
+        """</span>
+        <span class="kw">pass</span>
+
+    <span class="kw">def</span> <span class="fn">add_route</span>(self, route):
+        <span class="st">"""Add a route string to this router's route list."""</span>
+        <span class="kw">pass</span></div>
+            </div>
+
+            <div class="content-section">
+                <h3>Switch Child Class Skeleton</h3>
+                <div class="code-block"><span class="kw">class</span> <span class="fn">Switch</span>(NetworkDevice):
+    <span class="st">"""A network switch. Extends NetworkDevice with VLAN and port information.
+
+    Additional Attributes:
+        port_count (int)  : number of switchports (e.g. 24 or 48)
+        vlans      (list) : list of VLAN description strings
+    """</span>
+
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, hostname, ip_address, port_count=<span class="num">24</span>):
+        <span class="st">"""Initialize a Switch — calls super().__init__ with device_type='switch'."""</span>
+        <span class="fn">super</span>().__init__(hostname, ip_address, device_type=<span class="st">"switch"</span>)
+        self.port_count = port_count
+        self.vlans = [<span class="st">"VLAN 1 (default)"</span>]  <span class="cm"># every switch starts with VLAN 1</span>
+
+    <span class="kw">def</span> <span class="fn">get_info</span>(self):
+        <span class="st">"""Override base get_info to include port count and VLAN list."""</span>
+        <span class="kw">pass</span>
+
+    <span class="kw">def</span> <span class="fn">show_vlans</span>(self):
+        <span class="st">"""Return the current list of VLAN description strings."""</span>
+        <span class="kw">pass</span>
+
+    <span class="kw">def</span> <span class="fn">add_vlan</span>(self, vlan_description):
+        <span class="st">"""Add a VLAN description string to this switch's VLAN list."""</span>
+        <span class="kw">pass</span></div>
+            </div>
+
+            <div class="content-section">
+                <h3>DeviceManager Skeleton</h3>
+                <div class="code-block"><span class="kw">class</span> <span class="fn">DeviceManager</span>:
+    <span class="st">"""Manages a collection of NetworkDevice objects.
+
+    Provides add, remove, find, and list operations over
+    the internal devices list.
+    """</span>
+
+    <span class="kw">def</span> <span class="fn">__init__</span>(self):
+        <span class="st">"""Initialize with an empty device list."""</span>
+        self.devices = []
+
+    <span class="kw">def</span> <span class="fn">add_device</span>(self, device):
+        <span class="st">"""Add a NetworkDevice (or subclass) to the devices list."""</span>
+        <span class="kw">pass</span>
+
+    <span class="kw">def</span> <span class="fn">remove_device</span>(self, hostname):
+        <span class="st">"""Remove the device with the given hostname. Print a message if not found."""</span>
+        <span class="kw">pass</span>
+
+    <span class="kw">def</span> <span class="fn">find_device</span>(self, hostname):
+        <span class="st">"""Return the device object matching hostname, or None if not found."""</span>
+        <span class="kw">pass</span>
+
+    <span class="kw">def</span> <span class="fn">list_all</span>(self):
+        <span class="st">"""Print the get_info() output for every device in the list."""</span>
+        <span class="cm">        # This is the polymorphism loop — call get_info() on each device
+        # regardless of whether it is a Router or Switch</span>
+        <span class="kw">if not</span> self.devices:
+            <span class="fn">print</span>(<span class="st">"No devices in manager."</span>)
+            <span class="kw">return</span>
+        <span class="kw">for</span> device <span class="kw">in</span> self.devices:
+            <span class="fn">print</span>(device.get_info())
+            <span class="fn">print</span>(<span class="st">"-"</span> * <span class="num">40</span>)</div>
+            </div>
+
+            <div class="content-section">
+                <h3>Turtle Topology Function Hint</h3>
+                <p>The draw_topology() function should iterate over manager.devices, draw one labeled shape per device, and space them horizontally across the screen. Use penup/goto to position each shape, then pendown to draw it.</p>
+                <div class="code-block"><span class="kw">import</span> turtle
+
+<span class="kw">def</span> <span class="fn">draw_topology</span>(manager):
+    <span class="st">"""Draw a simple network topology using turtle.
+
+    Each device is drawn as a rectangle with its hostname
+    labeled below it. Devices are spaced evenly across the screen.
+    """</span>
+    screen = turtle.Screen()
+    screen.title(<span class="st">"Network Topology"</span>)
+    screen.bgcolor(<span class="st">"#0a0e1a"</span>)  <span class="cm"># match the dark theme</span>
+
+    t = turtle.Turtle()
+    t.speed(<span class="num">0</span>)         <span class="cm"># 0 = fastest, no animation delay</span>
+    t.hideturtle()
+
+    <span class="cm">    # Starting x position for the first device</span>
+    x_start = -<span class="num">200</span>
+    x_step  =  <span class="num">150</span>   <span class="cm"># horizontal gap between devices</span>
+    y_pos   =    <span class="num">0</span>
+
+    <span class="kw">for</span> i, device <span class="kw">in</span> <span class="fn">enumerate</span>(manager.devices):
+        x = x_start + (i * x_step)
+
+        <span class="cm">        # Move to position without drawing</span>
+        t.penup()
+        t.goto(x, y_pos)
+        t.pendown()
+
+        <span class="cm">        # Choose color by device type</span>
+        <span class="kw">if</span> device.device_type == <span class="st">"router"</span>:
+            t.fillcolor(<span class="st">"#10b981"</span>)  <span class="cm"># green for routers</span>
+        <span class="kw">else</span>:
+            t.fillcolor(<span class="st">"#3b82f6"</span>)  <span class="cm"># blue for switches</span>
+
+        <span class="cm">        # Draw a 60x40 rectangle</span>
+        t.begin_fill()
+        <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(<span class="num">2</span>):
+            t.forward(<span class="num">60</span>)
+            t.left(<span class="num">90</span>)
+            t.forward(<span class="num">40</span>)
+            t.left(<span class="num">90</span>)
+        t.end_fill()
+
+        <span class="cm">        # Write the hostname label below the shape</span>
+        t.penup()
+        t.goto(x + <span class="num">30</span>, y_pos - <span class="num">20</span>)
+        t.color(<span class="st">"white"</span>)
+        t.write(device.hostname, align=<span class="st">"center"</span>, font=(<span class="st">"Arial"</span>, <span class="num">9</span>, <span class="st">"normal"</span>))
+
+    turtle.done()  <span class="cm"># keep the window open until the user closes it</span></div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Polymorphism made visible:</strong> The list_all() loop in DeviceManager calls device.get_info() on every device. Because Router.get_info() and Switch.get_info() produce different output, the same one-line method call produces type-appropriate results without any if/else type-checking. That is polymorphism. Your grader will look for this pattern.
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(3)">Mark Section Read</button>
+        </div>
+
+        <!-- Section 4: Rubric -->
+        <div class="section" id="section4">
+            <div class="section-header">
+                <div class="section-number">4</div>
+                <div class="section-title">
+                    <h2>Rubric</h2>
+                    <span class="time">100 points total</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Grading breakdown:</strong> OOP correctness makes up 45 of the 100 points. The grader will run your program, add two devices of different types, call every menu option at least once, and then inspect your source code for docstrings and design quality.
+            </div>
+
+            <div class="content-section">
+                <table class="rubric-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>What the Grader Looks For</th>
+                            <th class="pts">Points</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Class Design and __init__</td>
+                            <td>NetworkDevice, Router, Switch, DeviceManager each have __init__ with correct attribute assignments; __str__ returns a meaningful one-line summary on at least two classes</td>
+                            <td class="pts">15</td>
+                        </tr>
+                        <tr>
+                            <td>Inheritance and Overriding</td>
+                            <td>Router and Switch extend NetworkDevice using correct syntax; both call super().__init__; get_info() is overridden in both children and produces visibly different output from the base version</td>
+                            <td class="pts">15</td>
+                        </tr>
+                        <tr>
+                            <td>Methods and Functionality</td>
+                            <td>ping() returns a realistic simulated reply string; show_routes() returns a non-empty list; show_vlans() returns a non-empty list; each class has 3+ methods beyond __init__ and __str__</td>
+                            <td class="pts">15</td>
+                        </tr>
+                        <tr>
+                            <td>DeviceManager Operations</td>
+                            <td>add_device appends to list; remove_device finds and removes by hostname; find_device returns object or None; list_all iterates and calls get_info() polymorphically on all device types</td>
+                            <td class="pts">15</td>
+                        </tr>
+                        <tr>
+                            <td>Functions and Organization</td>
+                            <td>Menu operations are top-level functions (not inside a class); menu loop uses while True with a break on exit; no single function exceeds 30 lines</td>
+                            <td class="pts">10</td>
+                        </tr>
+                        <tr>
+                            <td>Turtle Visualization</td>
+                            <td>draw_topology() draws one shape per device currently in the manager; each shape is labeled with the device hostname; at least two colors distinguish device types</td>
+                            <td class="pts">10</td>
+                        </tr>
+                        <tr>
+                            <td>Docstrings and Comments</td>
+                            <td>Every class and every method has a docstring; inline comments explain non-obvious logic; no uncommented blocks longer than 5 lines</td>
+                            <td class="pts">10</td>
+                        </tr>
+                        <tr>
+                            <td>Error-Free Execution</td>
+                            <td>Program completes a full session (add, list, ping, draw, remove, exit) without any unhandled exception; attempting to remove a device that does not exist prints a message instead of crashing</td>
+                            <td class="pts">10</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Total</strong></td>
+                            <td></td>
+                            <td class="pts">100</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="info-box">
+                <strong>Inheritance vs. composition:</strong> A common mistake is to define Router and Switch as completely independent classes that happen to have the same attributes. If your child classes do not call super().__init__() and do not appear in isinstance() checks as NetworkDevice objects, you will lose the full 15 inheritance points even if the program otherwise works.
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(4)">Mark Section Read</button>
+        </div>
+
+        <!-- Section 5: Submission Checklist -->
+        <div class="section" id="section5">
+            <div class="section-header">
+                <div class="section-number">5</div>
+                <div class="section-title">
+                    <h2>Submission Checklist</h2>
+                    <span class="time">Complete before turning in</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Self-assessment:</strong> Answer each question below. All answers must be "yes" before you submit. If you cannot honestly answer yes to any item, fix the issue in your code first.
+            </div>
+
+            <div class="content-section">
+                <p>Type <strong>yes</strong> into each field after verifying the item in your code.</p>
+            </div>
+
+            <div class="question-block">
+                <label>Q1: Does your program run through a full session (add two devices, list, ping, draw, remove, exit) without any errors?</label>
+                <input type="text" id="q5_1" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_1', 'yes', 'fb5_1', false)">Check</button>
+                <div class="feedback" id="fb5_1"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q2: Do Router and Switch both extend NetworkDevice using the class ChildName(NetworkDevice): syntax?</label>
+                <input type="text" id="q5_2" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_2', 'yes', 'fb5_2', false)">Check</button>
+                <div class="feedback" id="fb5_2"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q3: Do both Router and Switch call super().__init__() inside their own __init__ method?</label>
+                <input type="text" id="q5_3" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_3', 'yes', 'fb5_3', false)">Check</button>
+                <div class="feedback" id="fb5_3"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q4: Does get_info() in Router produce different output than get_info() in Switch and the base class?</label>
+                <input type="text" id="q5_4" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_4', 'yes', 'fb5_4', false)">Check</button>
+                <div class="feedback" id="fb5_4"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q5: Does DeviceManager.list_all() call get_info() on every device in a loop without any isinstance() type-checking?</label>
+                <input type="text" id="q5_5" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_5', 'yes', 'fb5_5', false)">Check</button>
+                <div class="feedback" id="fb5_5"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q6: Does remove_device() print a message instead of crashing when the hostname is not found?</label>
+                <input type="text" id="q5_6" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_6', 'yes', 'fb5_6', false)">Check</button>
+                <div class="feedback" id="fb5_6"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q7: Does draw_topology() draw one labeled shape per device currently in the manager?</label>
+                <input type="text" id="q5_7" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_7', 'yes', 'fb5_7', false)">Check</button>
+                <div class="feedback" id="fb5_7"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q8: Does every class and every method have a docstring?</label>
+                <input type="text" id="q5_8" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_8', 'yes', 'fb5_8', false)">Check</button>
+                <div class="feedback" id="fb5_8"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q9: Are your menu operations implemented as top-level functions rather than methods inside a class?</label>
+                <input type="text" id="q5_9" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_9', 'yes', 'fb5_9', false)">Check</button>
+                <div class="feedback" id="fb5_9"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q10: Is your file named correctly per the course submission convention (for example: lastname_w3_oop_project.py)?</label>
+                <input type="text" id="q5_10" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_10', 'yes', 'fb5_10', false)">Check</button>
+                <div class="feedback" id="fb5_10"></div>
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(5)">Submit Checklist and Complete Project</button>
+        </div>
+    </div>
+
+    <script>
+        /* Unique localStorage key for this project */
+        var STORAGE_KEY = 'pfi_w3_project_oop_progress';
+        var TOTAL = 5;
+        var completedSections = [];
+
+        /* SECTION_ANSWERS: only section 5 (checklist) has validation.
+           Sections 1-4 are informational — they complete on button click. */
+        var SECTION_ANSWERS = {
+            5: [
+                { id: 'q5_1',  answer: 'yes', fuzzy: false },
+                { id: 'q5_2',  answer: 'yes', fuzzy: false },
+                { id: 'q5_3',  answer: 'yes', fuzzy: false },
+                { id: 'q5_4',  answer: 'yes', fuzzy: false },
+                { id: 'q5_5',  answer: 'yes', fuzzy: false },
+                { id: 'q5_6',  answer: 'yes', fuzzy: false },
+                { id: 'q5_7',  answer: 'yes', fuzzy: false },
+                { id: 'q5_8',  answer: 'yes', fuzzy: false },
+                { id: 'q5_9',  answer: 'yes', fuzzy: false },
+                { id: 'q5_10', answer: 'yes', fuzzy: false }
+            ]
+        };
+
+        /* Restore completed sections from localStorage on page load */
+        function loadProgress() {
+            var saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                completedSections = JSON.parse(saved);
+                completedSections.forEach(function(num) {
+                    var sec = document.getElementById('section' + num);
+                    if (sec) {
+                        sec.classList.add('completed');
+                        var btn = sec.querySelector('.completion-btn');
+                        if (btn) { btn.classList.add('completed'); btn.textContent = 'Completed'; }
+                    }
+                });
+            }
+            updateProgress();
+        }
+
+        /* Persist current completed list to localStorage */
+        function saveProgress() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(completedSections));
+        }
+
+        /* Update the progress bar and counter text */
+        function updateProgress() {
+            var count = completedSections.length;
+            var pct   = (count / TOTAL) * 100;
+            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('progressText').textContent = count + ' / ' + TOTAL + ' sections';
+        }
+
+        /* Check a single answer field and display feedback */
+        function checkAnswer(inputId, correctAnswer, feedbackId, fuzzy) {
+            var input      = document.getElementById(inputId);
+            var feedback   = document.getElementById(feedbackId);
+            var userAnswer = input.value.trim().toLowerCase();
+            var correct    = correctAnswer.toLowerCase();
+            feedback.className = 'feedback';
+
+            if (!userAnswer) {
+                feedback.className   = 'feedback incorrect';
+                feedback.textContent = 'Enter an answer first.';
+                return;
+            }
+
+            var isCorrect = fuzzy
+                ? (userAnswer.indexOf(correct) !== -1 || correct.indexOf(userAnswer) !== -1)
+                : (userAnswer === correct);
+
+            if (isCorrect) {
+                feedback.className   = 'feedback correct';
+                feedback.textContent = 'Confirmed.';
+            } else {
+                feedback.className   = 'feedback incorrect';
+                feedback.textContent = 'Answer must be "yes" — fix the issue in your code first.';
+            }
+        }
+
+        /* Mark a section complete after validating any required answers */
+        function completeSection(num) {
+            if (completedSections.indexOf(num) !== -1) return;
+
+            var questions = SECTION_ANSWERS[num];
+            if (questions) {
+                /* Validate all checklist answers before allowing completion */
+                var anyFilled  = false;
+                var allCorrect = true;
+
+                questions.forEach(function(q) {
+                    var input = document.getElementById(q.id);
+                    if (!input) return;
+                    var val = input.value.trim().toLowerCase();
+                    var exp = q.answer.toLowerCase();
+                    if (val) anyFilled = true;
+
+                    if (q.fuzzy) {
+                        if (val.indexOf(exp) === -1 && exp.indexOf(val) === -1) allCorrect = false;
+                    } else {
+                        if (val !== exp) allCorrect = false;
+                    }
+                });
+
+                if (!anyFilled) {
+                    var firstFb = document.getElementById('fb5_1');
+                    if (firstFb) {
+                        firstFb.className   = 'feedback incorrect';
+                        firstFb.textContent = 'Answer all checklist items before marking complete.';
+                    }
+                    return;
+                }
+
+                if (!allCorrect) {
+                    questions.forEach(function(q) {
+                        checkAnswer(q.id, q.answer, 'fb' + q.id.substring(1), q.fuzzy);
+                    });
+                    return;
+                }
+            }
+
+            /* Mark the section complete in DOM and storage */
+            completedSections.push(num);
+            var sec = document.getElementById('section' + num);
+            sec.classList.add('completed');
+            var btn = sec.querySelector('.completion-btn');
+            btn.classList.add('completed');
+            btn.textContent = 'Completed';
+            saveProgress();
+            updateProgress();
+
+            /* Fire ModuleProgress when all 5 sections are done */
+            if (completedSections.length === TOTAL) {
+                if (typeof ModuleProgress !== 'undefined') {
+                    ModuleProgress.complete('code', 'pfi-w3-project-oop', { returnUrl: '../index.html' });
+                }
+                setTimeout(function() {
+                    alert('Week 3 OOP Project Complete!\n\nYou designed a full class hierarchy, implemented inheritance and polymorphism, built a collection manager, and visualized your data with turtle graphics. This is the foundation of every object-oriented system you will work with in IT.');
+                }, 500);
+            }
+        }
+
+        loadProgress();
+    </script>
+
+    <script src="../../../../components/TrailHunter.js"></script>
+</body>
+</html>

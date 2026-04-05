@@ -1,0 +1,1575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dictionaries, Sets &amp; Data Processing | Python for IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container — fixed to viewport, hidden by default */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Max-width wrapper so content does not stretch on wide screens */
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Gold progress bar across the very top */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button — shown only on last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip for scenario or instructor notes */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids — 3-column and 2-column */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        /* Section label — small caps divider text */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Python code block with syntax color spans */
+        .code-block {
+            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #c9a83a; }   /* keywords: if, for, def, True, False, None, import, in, not, del */
+        .code-block .fn { color: #06b6d4; }   /* built-in functions: print, len, type, dict, set, list, zip */
+        .code-block .st { color: #3ab577; }   /* string literals */
+        .code-block .cm { color: #475569; }   /* inline comments */
+        .code-block .nb { color: #f472b6; }   /* numeric and boolean literals */
+        .code-block .er { color: #ef4444; }   /* error output lines */
+
+        /* Inline code span used inside card-desc and fact-text */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+    <script src="../../../../components/TryItNow.js"></script>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Dictionaries, Sets & Data Processing</h1>
+
+
+<!-- Gold progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:3.125%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 34 &nbsp;|&nbsp; COP1034C Obj 5 &nbsp;|&nbsp; Day 6 of 12</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Python for IT: Day 6<br>
+                <span class="accent">Dictionaries, Sets &amp; Data Processing</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Key-Value Pairs &nbsp;&bull;&nbsp; Dict Methods &nbsp;&bull;&nbsp; Sets &amp; Operations &nbsp;&bull;&nbsp; IT Scenarios &nbsp;&bull;&nbsp; Quiz 2
+            </div>
+        </div>
+        <div class="scenario-strip">
+            You are responsible for 40 network devices across three buildings. Each device has a name, an IP address, a physical location, and an operational status. You could use a list — but then which index is the IP? Which index is the location? Dictionaries solve this by letting you name your data. Today you build the tool that manages that inventory.
+        </div>
+        <div class="title-meta-row">
+            <span>34 Slides</span>
+            <span>COP1034C Obj 5</span>
+            <span>Day 6 of 12</span>
+            <span>Lambert Ch 7-8</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — WHAT IS A DICTIONARY ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 34</div>
+        <div class="slide-title">What Is a <span class="accent">Dictionary?</span></div>
+        <div class="slide-subtitle">A collection of key-value pairs — the most useful data structure in Python.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">The Real Dictionary Analogy</div>
+                <div class="card-desc">An English dictionary maps a word to its definition. A Python dictionary maps a key to a value. You look up "router" and get "a device that forwards packets between networks." Same idea: give me the key, I return the value associated with it.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Key-Value Pairs</div>
+                <div class="card-desc">Every entry has two parts: a key (the lookup term) and a value (the data). Keys must be unique and immutable — strings, integers, and tuples qualify. Values can be anything: strings, numbers, lists, even other dictionaries. Keys are case-sensitive.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Dict vs List — When to Use Each</div>
+                <div class="card-desc">Use a list when order matters and you access by position: <span class="ic">scores[0]</span>. Use a dict when you access by meaning: <span class="ic">device["ip"]</span>. Dicts are faster for lookups than lists — checking if a key exists in a 1,000-entry dict is nearly instant regardless of size.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># A list stores one thing per slot — the slot number is the only identity</span>
+device_list = [<span class="st">"core-sw-01"</span>, <span class="st">"10.0.0.1"</span>, <span class="st">"Building A"</span>, <span class="st">"online"</span>]
+<span class="fn">print</span>(device_list[<span class="nb">1</span>])  <span class="cm"># What does index 1 mean again? You have to remember.</span>
+
+<span class="cm"># A dict stores named fields — the key IS the identity</span>
+device = {
+    <span class="st">"name"</span>:     <span class="st">"core-sw-01"</span>,
+    <span class="st">"ip"</span>:       <span class="st">"10.0.0.1"</span>,
+    <span class="st">"location"</span>: <span class="st">"Building A"</span>,
+    <span class="st">"status"</span>:   <span class="st">"online"</span>
+}
+<span class="fn">print</span>(device[<span class="st">"ip"</span>])  <span class="cm"># 10.0.0.1 — no guessing required</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Python 3.7+ guarantee:</strong> Dictionaries maintain insertion order. When you print or iterate a dict, keys appear in the order you added them. In older Python versions this was not guaranteed — worth knowing if you ever read legacy code.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — CREATING DICTS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 34</div>
+        <div class="slide-title">Creating <span class="accent">Dictionaries</span></div>
+        <div class="slide-subtitle">Three syntaxes for creating dicts — each has its place.</div>
+
+        <div class="code-block"><span class="cm"># Method 1: curly brace literal — most common, most readable</span>
+router = {
+    <span class="st">"hostname"</span>: <span class="st">"rtr-bldgA-01"</span>,
+    <span class="st">"ip"</span>:       <span class="st">"10.1.1.1"</span>,
+    <span class="st">"model"</span>:    <span class="st">"Cisco ISR 4331"</span>,
+    <span class="st">"ports"</span>:    <span class="nb">4</span>
+}
+
+<span class="cm"># Method 2: dict() constructor with keyword arguments — keys become strings automatically</span>
+switch = <span class="fn">dict</span>(hostname=<span class="st">"sw-floor2"</span>, ip=<span class="st">"10.1.2.1"</span>, model=<span class="st">"Cisco C9200"</span>)
+
+<span class="cm"># Method 3: dict() from a list of (key, value) tuples — useful when building from data</span>
+pairs = [(<span class="st">"hostname"</span>, <span class="st">"ap-lobby"</span>), (<span class="st">"ip"</span>, <span class="st">"10.1.3.1"</span>), (<span class="st">"model"</span>, <span class="st">"Meraki MR46"</span>)]
+ap = <span class="fn">dict</span>(pairs)
+
+<span class="cm"># Empty dict — fill it later</span>
+inventory = {}          <span class="cm"># curly brace syntax</span>
+inventory = <span class="fn">dict</span>()     <span class="cm"># constructor syntax — both create an empty dict</span></div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Curly Brace Literal</div>
+                <div class="card-desc">Use when you know your keys and values at write-time. Most readable format. Keys are explicit strings in quotes. Standard for configuration objects, records, and lookup tables.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">dict() with Keywords</div>
+                <div class="card-desc">Use when the keys are simple identifiers (no spaces, no special characters). Saves you from typing quote marks on the keys. Cannot use keys that are Python reserved words — <span class="ic">dict(class="A")</span> fails because <span class="ic">class</span> is a keyword.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">dict() from Tuples</div>
+                <div class="card-desc">Use when you are programmatically generating key-value pairs — parsing a config file, reading CSV columns, or zipping two lists together. <span class="ic">dict(zip(keys, values))</span> is a classic one-liner pattern.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — ACCESSING VALUES ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 34</div>
+        <div class="slide-title">Accessing Values: <span class="accent">Bracket vs .get()</span></div>
+        <div class="slide-subtitle">Two ways to read a value — they behave very differently when the key does not exist.</div>
+
+        <div class="code-block"><span class="cm"># Bracket notation — direct access</span>
+device = {<span class="st">"hostname"</span>: <span class="st">"fw-core"</span>, <span class="st">"ip"</span>: <span class="st">"10.0.0.254"</span>, <span class="st">"status"</span>: <span class="st">"online"</span>}
+
+<span class="fn">print</span>(device[<span class="st">"hostname"</span>])  <span class="cm"># fw-core</span>
+<span class="fn">print</span>(device[<span class="st">"ip"</span>])         <span class="cm"># 10.0.0.254</span>
+<span class="fn">print</span>(device[<span class="st">"vendor"</span>])    <span class="cm"># KeyError: 'vendor' -- program crashes!</span>
+
+<span class="cm"># .get() — safe access with an optional default value</span>
+<span class="fn">print</span>(device.<span class="fn">get</span>(<span class="st">"vendor"</span>))              <span class="cm"># None -- no crash, returns None</span>
+<span class="fn">print</span>(device.<span class="fn">get</span>(<span class="st">"vendor"</span>, <span class="st">"Unknown"</span>))  <span class="cm"># Unknown -- your fallback value</span>
+<span class="fn">print</span>(device.<span class="fn">get</span>(<span class="st">"status"</span>, <span class="st">"Unknown"</span>))  <span class="cm"># online -- key exists, default ignored</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Bracket Notation Risk</div>
+                <div class="card-desc">If the key is not in the dictionary, Python raises a <span class="ic">KeyError</span> and your program stops. Use bracket notation only when you are certain the key exists — like accessing a key you just set on the line above. In any other case, use <span class="ic">.get()</span>.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">.get() is Always Safer</div>
+                <div class="card-desc"><span class="ic">.get(key)</span> returns <span class="ic">None</span> if the key is missing. <span class="ic">.get(key, default)</span> returns your fallback value instead. In production scripts reading external data — config files, API responses, CSV rows — missing keys are normal. Always use <span class="ic">.get()</span>.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>IT context:</strong> When parsing a syslog entry or API response, not every record has every field. A firewall alert might have a <span class="ic">"src_ip"</span> but no <span class="ic">"username"</span>. Using <span class="ic">.get("username", "N/A")</span> keeps your script running instead of crashing on the first incomplete record.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — ADDING AND UPDATING ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 34</div>
+        <div class="slide-title">Adding &amp; Updating: <span class="accent">Dict Assignment</span></div>
+        <div class="slide-subtitle">The same syntax both creates new keys and updates existing ones.</div>
+
+        <div class="code-block"><span class="cm"># Starting dict — a firewall record</span>
+fw = {<span class="st">"hostname"</span>: <span class="st">"fw-edge-01"</span>, <span class="st">"ip"</span>: <span class="st">"203.0.113.1"</span>}
+
+<span class="cm"># Adding NEW keys — Python creates them automatically</span>
+fw[<span class="st">"status"</span>]   = <span class="st">"online"</span>
+fw[<span class="st">"vendor"</span>]   = <span class="st">"Palo Alto"</span>
+fw[<span class="st">"firmware"</span>] = <span class="st">"11.1.2"</span>
+<span class="fn">print</span>(fw)
+<span class="cm"># {'hostname': 'fw-edge-01', 'ip': '203.0.113.1', 'status': 'online',</span>
+<span class="cm">#  'vendor': 'Palo Alto', 'firmware': '11.1.2'}</span>
+
+<span class="cm"># Updating an EXISTING key — same syntax, overwrites the old value</span>
+fw[<span class="st">"firmware"</span>] = <span class="st">"11.1.4"</span>   <span class="cm"># firmware was updated in production</span>
+fw[<span class="st">"status"</span>]   = <span class="st">"rebooting"</span>
+
+<span class="cm"># .update() — merge another dict in one call</span>
+fw.<span class="fn">update</span>({<span class="st">"location"</span>: <span class="st">"DMZ Rack 3"</span>, <span class="st">"status"</span>: <span class="st">"online"</span>})
+<span class="fn">print</span>(fw[<span class="st">"location"</span>])  <span class="cm"># DMZ Rack 3</span>
+<span class="fn">print</span>(fw[<span class="st">"status"</span>])    <span class="cm"># online -- overwritten by .update()</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Assignment: d[key] = value</div>
+                <div class="card-desc">If the key exists, the value is replaced. If it does not exist, the key is created. There is no separate "insert" vs "update" — they are the same operation. Python checks the key, decides what to do, and you never have to specify which action to take.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">.update({...}) for Bulk Changes</div>
+                <div class="card-desc">Pass another dict (or keyword arguments) and every key-value pair in it is applied to the target dict. Existing keys are overwritten; new keys are added. Cleaner than ten separate assignment lines when you need to apply multiple changes at once.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — REMOVING ENTRIES ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 34</div>
+        <div class="slide-title">Removing Entries: <span class="accent">del, pop, popitem, clear</span></div>
+        <div class="slide-subtitle">Four removal methods — each for a different situation.</div>
+
+        <div class="code-block"><span class="cm"># Starting inventory</span>
+inventory = {<span class="st">"rtr-01"</span>: <span class="st">"10.0.0.1"</span>, <span class="st">"sw-01"</span>: <span class="st">"10.0.0.2"</span>, <span class="st">"ap-01"</span>: <span class="st">"10.0.0.3"</span>}
+
+<span class="cm"># del -- remove a key; raises KeyError if key does not exist</span>
+<span class="kw">del</span> inventory[<span class="st">"ap-01"</span>]
+<span class="fn">print</span>(inventory)  <span class="cm"># {'rtr-01': '10.0.0.1', 'sw-01': '10.0.0.2'}</span>
+
+<span class="cm"># .pop(key) -- remove and RETURN the value; raises KeyError if missing</span>
+ip = inventory.<span class="fn">pop</span>(<span class="st">"rtr-01"</span>)
+<span class="fn">print</span>(ip)          <span class="cm"># 10.0.0.1  -- you can use the removed value</span>
+
+<span class="cm"># .pop(key, default) -- safe version; returns default if key missing</span>
+ip = inventory.<span class="fn">pop</span>(<span class="st">"rtr-99"</span>, <span class="st">"not found"</span>)
+<span class="fn">print</span>(ip)          <span class="cm"># not found -- no crash</span>
+
+<span class="cm"># .popitem() -- removes and returns the LAST inserted (key, value) pair</span>
+last = inventory.<span class="fn">popitem</span>()
+<span class="fn">print</span>(last)        <span class="cm"># ('sw-01', '10.0.0.2')</span>
+
+<span class="cm"># .clear() -- empties the entire dict; the dict object still exists</span>
+inventory.<span class="fn">clear</span>()
+<span class="fn">print</span>(inventory)  <span class="cm"># {}</span></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">del d[key]</div>
+                <div class="card-desc">Fastest syntax. No return value — you just remove it. Raises <span class="ic">KeyError</span> if the key is absent. Use when you are sure the key exists and do not need the value back.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">.pop(key, default)</div>
+                <div class="card-desc">Removes and returns the value. The optional default makes it safe when the key might not exist. Preferred over <span class="ic">del</span> in most situations because it combines the check and removal in one safe call.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">.popitem() and .clear()</div>
+                <div class="card-desc"><span class="ic">.popitem()</span> removes the most-recently-added entry — useful for stack-like processing. <span class="ic">.clear()</span> removes everything but keeps the dict object alive, which matters if other parts of your code hold a reference to it.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — DICTIONARY METHODS ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 34</div>
+        <div class="slide-title">Dictionary Methods: <span class="accent">keys(), values(), items()</span></div>
+        <div class="slide-subtitle">The three view methods — live windows into the dict's contents.</div>
+
+        <div class="code-block"><span class="cm"># Sample dict</span>
+device = {<span class="st">"hostname"</span>: <span class="st">"core-sw-01"</span>, <span class="st">"ip"</span>: <span class="st">"10.0.0.1"</span>, <span class="st">"location"</span>: <span class="st">"Building A"</span>}
+
+<span class="cm"># .keys() -- returns a view of all keys</span>
+<span class="fn">print</span>(device.<span class="fn">keys</span>())         <span class="cm"># dict_keys(['hostname', 'ip', 'location'])</span>
+<span class="fn">print</span>(<span class="fn">list</span>(device.<span class="fn">keys</span>()))   <span class="cm"># ['hostname', 'ip', 'location']</span>
+
+<span class="cm"># .values() -- returns a view of all values</span>
+<span class="fn">print</span>(device.<span class="fn">values</span>())  <span class="cm"># dict_values(['core-sw-01', '10.0.0.1', 'Building A'])</span>
+
+<span class="cm"># .items() -- returns a view of all (key, value) pairs as tuples</span>
+<span class="fn">print</span>(device.<span class="fn">items</span>())
+<span class="cm"># dict_items([('hostname', 'core-sw-01'), ('ip', '10.0.0.1'), ('location', 'Building A')])</span>
+
+<span class="cm"># Views are LIVE -- they reflect changes made after calling them</span>
+keys_view = device.<span class="fn">keys</span>()
+device[<span class="st">"status"</span>] = <span class="st">"online"</span>
+<span class="fn">print</span>(keys_view)  <span class="cm"># dict_keys(['hostname', 'ip', 'location', 'status']) -- updated!</span></div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">.keys()</div>
+                <div class="card-desc">Returns a <span class="ic">dict_keys</span> view — iterable, but not a list. Convert with <span class="ic">list(d.keys())</span> if you need indexing. Most useful for checking "what fields does this record have?" before accessing them.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">.values()</div>
+                <div class="card-desc">Returns a <span class="ic">dict_values</span> view of all values. Useful for aggregating: <span class="ic">sum(d.values())</span> on a dict of counts. Also for membership checks: <span class="ic">"online" in d.values()</span> — though checking keys is far more common in practice.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">.items()</div>
+                <div class="card-desc">Returns a <span class="ic">dict_items</span> view of <span class="ic">(key, value)</span> tuples. The most powerful of the three — nearly every dict loop you write will use <span class="ic">.items()</span>. It gives you both pieces of every entry in one step.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — ITERATING DICTS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 34</div>
+        <div class="slide-title">Iterating <span class="accent">Dictionaries</span></div>
+        <div class="slide-subtitle">Three loop patterns — know which one to reach for in each situation.</div>
+
+        <div class="code-block"><span class="cm"># Network inventory — three devices</span>
+inventory = {
+    <span class="st">"rtr-core"</span>:  <span class="st">"10.0.0.1"</span>,
+    <span class="st">"sw-floor1"</span>: <span class="st">"10.0.1.1"</span>,
+    <span class="st">"ap-lobby"</span>:  <span class="st">"10.0.2.1"</span>
+}
+
+<span class="cm"># Pattern 1: iterate keys (the default when you loop a dict)</span>
+<span class="kw">for</span> device_name <span class="kw">in</span> inventory:
+    <span class="fn">print</span>(device_name)
+<span class="cm"># rtr-core</span>
+<span class="cm"># sw-floor1</span>
+<span class="cm"># ap-lobby</span>
+
+<span class="cm"># Pattern 2: iterate values only</span>
+<span class="kw">for</span> ip_addr <span class="kw">in</span> inventory.<span class="fn">values</span>():
+    <span class="fn">print</span>(<span class="st">f"Pinging {ip_addr}..."</span>)
+
+<span class="cm"># Pattern 3: iterate key AND value together — the most useful pattern</span>
+<span class="kw">for</span> name, ip <span class="kw">in</span> inventory.<span class="fn">items</span>():
+    <span class="fn">print</span>(<span class="st">f"{name:&lt;12} -&gt; {ip}"</span>)
+<span class="cm"># rtr-core     -&gt; 10.0.0.1</span>
+<span class="cm"># sw-floor1    -&gt; 10.0.1.1</span>
+<span class="cm"># ap-lobby     -&gt; 10.0.2.1</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">for key in d</div>
+                <div class="card-desc">Iterates keys by default. Equivalent to <span class="ic">for key in d.keys()</span>. Use when you only need the keys — for example, checking each key against a required-fields list, or building a report of all device names.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">for key, val in d.items()</div>
+                <div class="card-desc">The workhorse pattern — 90% of your dict loops will look like this. Unpacks each tuple from <span class="ic">.items()</span> into two separate variables. Choose descriptive names: <span class="ic">name, ip</span> beats <span class="ic">k, v</span> every time.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — TRY IT NOW ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 34 &nbsp;|&nbsp; Try It Now</div>
+        <div class="slide-title">Try It Now: <span class="accent">Dictionary Basics</span></div>
+        <div class="slide-subtitle">Create a device dictionary and access its values.</div>
+        <div class="try-it-now"
+             data-starter="# Create a dictionary for a network switch&#10;# Keys: hostname, ip, status, port_count&#10;"
+             data-solution="switch = {&#10;    &quot;hostname&quot;: &quot;dist-sw-01&quot;,&#10;    &quot;ip&quot;: &quot;10.0.1.1&quot;,&#10;    &quot;status&quot;: &quot;online&quot;,&#10;    &quot;port_count&quot;: 48&#10;}&#10;print(f&quot;{switch['hostname']} ({switch['ip']}) - {switch['status']}&quot;)"
+             data-expected="dist-sw-01 (10.0.1.1) - online"
+             data-height="160">
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 10 — MEMBERSHIP TESTING ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 34</div>
+        <div class="slide-title">Membership Testing: <span class="accent">in and not in</span></div>
+        <div class="slide-subtitle">The in operator checks keys — not values. This surprises almost everyone the first time.</div>
+
+        <div class="code-block"><span class="cm"># Device record</span>
+device = {<span class="st">"hostname"</span>: <span class="st">"sw-core"</span>, <span class="st">"ip"</span>: <span class="st">"10.0.0.1"</span>, <span class="st">"status"</span>: <span class="st">"online"</span>}
+
+<span class="cm"># 'in' checks KEYS by default</span>
+<span class="fn">print</span>(<span class="st">"ip"</span>       <span class="kw">in</span> device)   <span class="cm"># True  -- 'ip' is a key</span>
+<span class="fn">print</span>(<span class="st">"vendor"</span>   <span class="kw">in</span> device)   <span class="cm"># False -- 'vendor' key does not exist</span>
+<span class="fn">print</span>(<span class="st">"10.0.0.1"</span> <span class="kw">in</span> device)   <span class="cm"># False -- that's a VALUE, not a key!</span>
+
+<span class="cm"># To check values, you must be explicit about it</span>
+<span class="fn">print</span>(<span class="st">"10.0.0.1"</span> <span class="kw">in</span> device.<span class="fn">values</span>())  <span class="cm"># True</span>
+<span class="fn">print</span>(<span class="st">"online"</span>   <span class="kw">in</span> device.<span class="fn">values</span>())  <span class="cm"># True</span>
+
+<span class="cm"># Practical pattern: guard before using bracket notation</span>
+<span class="kw">if</span> <span class="st">"vendor"</span> <span class="kw">in</span> device:
+    <span class="fn">print</span>(device[<span class="st">"vendor"</span>])    <span class="cm"># only runs if key exists -- safe</span>
+<span class="kw">else</span>:
+    <span class="fn">print</span>(<span class="st">"Vendor not recorded"</span>)
+
+<span class="cm"># not in -- the logical inverse</span>
+<span class="kw">if</span> <span class="st">"firmware"</span> <span class="kw">not in</span> device:
+    device[<span class="st">"firmware"</span>] = <span class="st">"unknown"</span>  <span class="cm"># add the field if it is missing</span></div>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            <div class="box-label">Classic Mistake</div>
+            <span class="ic">"10.0.0.1" in device</span> returns <strong>False</strong> even though <span class="ic">10.0.0.1</span> is stored in the dict — because <span class="ic">in</span> only searches keys. Use <span class="ic">in d.values()</span> to check values. Note that value lookups scan every entry O(n), while key lookups are O(1) hash-based.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — DICT COMPREHENSIONS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 34</div>
+        <div class="slide-title">Dictionary <span class="accent">Comprehensions</span></div>
+        <div class="slide-subtitle">Build a dict from an iterable in a single concise expression.</div>
+
+        <div class="code-block"><span class="cm"># Syntax: {key_expr: value_expr for item in iterable if condition}</span>
+
+<span class="cm"># Example 1: build a hostname-to-IP mapping from two parallel lists</span>
+hostnames = [<span class="st">"rtr-01"</span>, <span class="st">"sw-01"</span>, <span class="st">"ap-01"</span>]
+ips       = [<span class="st">"10.0.0.1"</span>, <span class="st">"10.0.1.1"</span>, <span class="st">"10.0.2.1"</span>]
+
+inventory = {host: ip <span class="kw">for</span> host, ip <span class="kw">in</span> <span class="fn">zip</span>(hostnames, ips)}
+<span class="fn">print</span>(inventory)
+<span class="cm"># {'rtr-01': '10.0.0.1', 'sw-01': '10.0.1.1', 'ap-01': '10.0.2.1'}</span>
+
+<span class="cm"># Example 2: filter a dict -- keep only online devices</span>
+all_devices = {
+    <span class="st">"rtr-01"</span>: <span class="st">"online"</span>, <span class="st">"sw-01"</span>: <span class="st">"offline"</span>,
+    <span class="st">"ap-01"</span>:  <span class="st">"online"</span>, <span class="st">"fw-01"</span>: <span class="st">"online"</span>
+}
+online = {name: status <span class="kw">for</span> name, status <span class="kw">in</span> all_devices.<span class="fn">items</span>() <span class="kw">if</span> status == <span class="st">"online"</span>}
+<span class="fn">print</span>(online)
+<span class="cm"># {'rtr-01': 'online', 'ap-01': 'online', 'fw-01': 'online'}</span>
+
+<span class="cm"># Example 3: transform values -- convert port counts to labels</span>
+port_counts = {<span class="st">"sw-48"</span>: <span class="nb">48</span>, <span class="st">"sw-24"</span>: <span class="nb">24</span>, <span class="st">"sw-8"</span>: <span class="nb">8</span>}
+labels = {name: <span class="st">f"{count}-port"</span> <span class="kw">for</span> name, count <span class="kw">in</span> port_counts.<span class="fn">items</span>()}
+<span class="fn">print</span>(labels)
+<span class="cm"># {'sw-48': '48-port', 'sw-24': '24-port', 'sw-8': '8-port'}</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Readability rule:</strong> A comprehension is the right tool when it fits on one clear line and does one simple thing. If you need nested loops, multiple conditions, or complex logic, write a regular <span class="ic">for</span> loop instead. Comprehensions that require three readings to understand are not worth the brevity.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — NESTED DICTS: CONCEPT ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 34</div>
+        <div class="slide-title">Nested Dictionaries: <span class="accent">Dicts Inside Dicts</span></div>
+        <div class="slide-subtitle">When a value needs its own set of key-value pairs, you nest a dict inside a dict.</div>
+
+        <div class="code-block"><span class="cm"># A flat dict -- all fields at the same level</span>
+device_flat = {
+    <span class="st">"hostname"</span>:          <span class="st">"core-sw-01"</span>,
+    <span class="st">"ip"</span>:                <span class="st">"10.0.0.1"</span>,
+    <span class="st">"location_building"</span>: <span class="st">"HQ"</span>,
+    <span class="st">"location_floor"</span>:    <span class="st">"2"</span>,
+    <span class="st">"location_rack"</span>:     <span class="st">"A"</span>
+}
+
+<span class="cm"># A nested dict -- location grouped as its own sub-dict</span>
+device = {
+    <span class="st">"hostname"</span>: <span class="st">"core-sw-01"</span>,
+    <span class="st">"ip"</span>:       <span class="st">"10.0.0.1"</span>,
+    <span class="st">"location"</span>: {
+        <span class="st">"building"</span>: <span class="st">"HQ"</span>,
+        <span class="st">"floor"</span>:    <span class="nb">2</span>,
+        <span class="st">"rack"</span>:     <span class="st">"A"</span>
+    }
+}
+
+<span class="cm"># Accessing nested values -- chain bracket notation</span>
+<span class="fn">print</span>(device[<span class="st">"location"</span>][<span class="st">"building"</span>])  <span class="cm"># HQ</span>
+<span class="fn">print</span>(device[<span class="st">"location"</span>][<span class="st">"floor"</span>])     <span class="cm"># 2</span>
+
+<span class="cm"># Safe access on nested dicts -- chain .get() calls</span>
+rack = device.<span class="fn">get</span>(<span class="st">"location"</span>, {}).<span class="fn">get</span>(<span class="st">"rack"</span>, <span class="st">"Unknown"</span>)
+<span class="fn">print</span>(rack)  <span class="cm"># A</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">When to Nest</div>
+                <div class="card-desc">Nest when a group of fields logically belongs together as a sub-entity. Location fields, network interface details, hardware specs — these are natural sub-dicts. Flat dicts with prefixed keys (<span class="ic">location_building</span>) are harder to iterate and extend.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Chained .get() for Safety</div>
+                <div class="card-desc"><span class="ic">d.get("location", {}).get("rack", "Unknown")</span> — even if <span class="ic">"location"</span> is missing, <span class="ic">.get()</span> returns an empty dict instead of <span class="ic">None</span>, so the second <span class="ic">.get()</span> runs without a crash. A clean pattern for safe deep access.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — NESTED DICTS: REAL EXAMPLE ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 34</div>
+        <div class="slide-title">Nested Dicts: <span class="accent">Server Inventory Example</span></div>
+        <div class="slide-subtitle">A realistic JSON-like structure you will encounter in every IT API and config system.</div>
+
+        <div class="code-block"><span class="cm"># Server inventory: outer dict maps hostname to a full record</span>
+servers = {
+    <span class="st">"web-prod-01"</span>: {
+        <span class="st">"ip"</span>:        <span class="st">"192.168.10.10"</span>,
+        <span class="st">"os"</span>:        <span class="st">"Ubuntu 22.04 LTS"</span>,
+        <span class="st">"role"</span>:      <span class="st">"web"</span>,
+        <span class="st">"status"</span>:    <span class="st">"running"</span>,
+        <span class="st">"cpu_cores"</span>: <span class="nb">4</span>
+    },
+    <span class="st">"db-prod-01"</span>: {
+        <span class="st">"ip"</span>:        <span class="st">"192.168.10.20"</span>,
+        <span class="st">"os"</span>:        <span class="st">"Ubuntu 22.04 LTS"</span>,
+        <span class="st">"role"</span>:      <span class="st">"database"</span>,
+        <span class="st">"status"</span>:    <span class="st">"running"</span>,
+        <span class="st">"cpu_cores"</span>: <span class="nb">8</span>
+    }
+}
+
+<span class="cm"># Access a specific server's field</span>
+<span class="fn">print</span>(servers[<span class="st">"web-prod-01"</span>][<span class="st">"ip"</span>])       <span class="cm"># 192.168.10.10</span>
+<span class="fn">print</span>(servers[<span class="st">"db-prod-01"</span>][<span class="st">"cpu_cores"</span>])  <span class="cm"># 8</span>
+
+<span class="cm"># Iterate all servers and print a status report</span>
+<span class="kw">for</span> hostname, info <span class="kw">in</span> servers.<span class="fn">items</span>():
+    <span class="fn">print</span>(<span class="st">f"  {hostname:&lt;16} {info['ip']:&lt;16} {info['role']:&lt;10} {info['status']}"</span>)
+<span class="cm"># web-prod-01      192.168.10.10    web        running</span>
+<span class="cm"># db-prod-01       192.168.10.20    database   running</span></div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            This is exactly the structure returned by cloud provider APIs (AWS EC2 describe-instances, Azure VMs, vSphere) and by tools like Ansible when it builds its inventory. The loop you just wrote is the same logic used to generate HTML status dashboards from live infrastructure data.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — COMMON DICT PATTERNS ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 34</div>
+        <div class="slide-title">Common Dict Patterns: <span class="accent">Count, Group, Invert</span></div>
+        <div class="slide-subtitle">Three patterns that appear in nearly every real-world Python script.</div>
+
+        <div class="code-block"><span class="cm"># Pattern 1: Count occurrences -- build a frequency map</span>
+log_events = [<span class="st">"login"</span>, <span class="st">"login"</span>, <span class="st">"logout"</span>, <span class="st">"login"</span>, <span class="st">"failed_login"</span>, <span class="st">"logout"</span>]
+counts = {}
+<span class="kw">for</span> event <span class="kw">in</span> log_events:
+    counts[event] = counts.<span class="fn">get</span>(event, <span class="nb">0</span>) + <span class="nb">1</span>
+<span class="fn">print</span>(counts)  <span class="cm"># {'login': 3, 'logout': 2, 'failed_login': 1}</span>
+
+<span class="cm"># Pattern 2: Group by attribute -- bucket devices by their building</span>
+devices = [
+    {<span class="st">"name"</span>: <span class="st">"sw-A1"</span>, <span class="st">"building"</span>: <span class="st">"A"</span>},
+    {<span class="st">"name"</span>: <span class="st">"sw-B1"</span>, <span class="st">"building"</span>: <span class="st">"B"</span>},
+    {<span class="st">"name"</span>: <span class="st">"ap-A1"</span>, <span class="st">"building"</span>: <span class="st">"A"</span>},
+]
+by_building = {}
+<span class="kw">for</span> d <span class="kw">in</span> devices:
+    bldg = d[<span class="st">"building"</span>]
+    <span class="kw">if</span> bldg <span class="kw">not in</span> by_building:
+        by_building[bldg] = []
+    by_building[bldg].<span class="fn">append</span>(d[<span class="st">"name"</span>])
+<span class="fn">print</span>(by_building)  <span class="cm"># {'A': ['sw-A1', 'ap-A1'], 'B': ['sw-B1']}</span>
+
+<span class="cm"># Pattern 3: Invert a dict -- swap keys and values</span>
+hostname_to_ip = {<span class="st">"rtr-01"</span>: <span class="st">"10.0.0.1"</span>, <span class="st">"sw-01"</span>: <span class="st">"10.0.1.1"</span>}
+ip_to_hostname = {ip: name <span class="kw">for</span> name, ip <span class="kw">in</span> hostname_to_ip.<span class="fn">items</span>()}
+<span class="fn">print</span>(ip_to_hostname)  <span class="cm"># {'10.0.0.1': 'rtr-01', '10.0.1.1': 'sw-01'}</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>The counting pattern explained:</strong> <span class="ic">counts.get(event, 0) + 1</span> — if the key already exists, <span class="ic">.get()</span> returns its current count and adds 1. If the key does not exist yet, <span class="ic">.get()</span> returns 0 (the default) and adds 1, creating the entry with value 1. One expression handles both the first occurrence and every subsequent one.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — DICT + LIST COMBINATIONS ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 34</div>
+        <div class="slide-title">Dict + List: <span class="accent">The Database Pattern</span></div>
+        <div class="slide-subtitle">Two hybrid structures that model real-world data: list of dicts and dict of lists.</div>
+
+        <div class="code-block"><span class="cm"># Structure 1: List of dicts -- rows in a table, records in a database</span>
+devices = [
+    {<span class="st">"hostname"</span>: <span class="st">"rtr-01"</span>, <span class="st">"ip"</span>: <span class="st">"10.0.0.1"</span>, <span class="st">"role"</span>: <span class="st">"router"</span>},
+    {<span class="st">"hostname"</span>: <span class="st">"sw-01"</span>,  <span class="st">"ip"</span>: <span class="st">"10.0.1.1"</span>, <span class="st">"role"</span>: <span class="st">"switch"</span>},
+    {<span class="st">"hostname"</span>: <span class="st">"ap-01"</span>,  <span class="st">"ip"</span>: <span class="st">"10.0.2.1"</span>, <span class="st">"role"</span>: <span class="st">"access_point"</span>},
+]
+
+<span class="cm"># Filter: find all routers using a list comprehension</span>
+routers = [d <span class="kw">for</span> d <span class="kw">in</span> devices <span class="kw">if</span> d[<span class="st">"role"</span>] == <span class="st">"router"</span>]
+<span class="fn">print</span>(routers)  <span class="cm"># [{'hostname': 'rtr-01', 'ip': '10.0.0.1', 'role': 'router'}]</span>
+
+<span class="cm"># Sort the list of dicts by hostname</span>
+devices.<span class="fn">sort</span>(key=<span class="kw">lambda</span> d: d[<span class="st">"hostname"</span>])
+
+<span class="cm"># Structure 2: Dict of lists -- one key maps to multiple related values</span>
+open_ports = {
+    <span class="st">"web-prod-01"</span>: [<span class="nb">22</span>, <span class="nb">80</span>, <span class="nb">443</span>],
+    <span class="st">"db-prod-01"</span>:  [<span class="nb">22</span>, <span class="nb">3306</span>],
+    <span class="st">"fw-edge-01"</span>:  [<span class="nb">22</span>, <span class="nb">80</span>, <span class="nb">443</span>, <span class="nb">8443</span>]
+}
+
+<span class="cm"># Find servers with MySQL port open</span>
+<span class="kw">for</span> server, ports <span class="kw">in</span> open_ports.<span class="fn">items</span>():
+    <span class="kw">if</span> <span class="nb">3306</span> <span class="kw">in</span> ports:
+        <span class="fn">print</span>(<span class="st">f"MySQL exposed: {server}"</span>)  <span class="cm"># MySQL exposed: db-prod-01</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">List of Dicts</div>
+                <div class="card-desc">The universal data model for records. Matches what you get from CSV files, database query results, JSON API arrays, and Ansible host inventories. Every row is a dict; every field is a key. Filter with list comprehensions, sort with <span class="ic">key=lambda</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Dict of Lists</div>
+                <div class="card-desc">Use when one entity has multiple associated values of the same type: open ports per server, users per group, alerts per device. Much cleaner than creating a separate list variable for each entity name.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — WHAT IS A SET ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 34</div>
+        <div class="slide-title">What Is a <span class="accent">Set?</span></div>
+        <div class="slide-subtitle">An unordered collection of unique elements. Duplicates are automatically removed.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Unique by Design</div>
+                <div class="card-desc">A set cannot hold duplicate values. If you try to add an element that already exists, nothing happens. This makes sets ideal for deduplication — converting a list with duplicates to a set instantly removes all repeats. No loop required.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Unordered — No Indexing</div>
+                <div class="card-desc">Sets have no concept of position. You cannot do <span class="ic">my_set[0]</span> — that raises a TypeError. You can iterate a set, check membership, and perform set operations, but you cannot access elements by index. Iteration order is not guaranteed.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">When to Use a Set vs List</div>
+                <div class="card-desc">List: when order matters, when duplicates are meaningful, when you need indexing. Set: when you only care about membership ("is X in this collection?"), when you need deduplication, when you need set math — union, intersection, difference.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Sets automatically eliminate duplicates</span>
+raw_ips    = [<span class="st">"10.0.0.1"</span>, <span class="st">"10.0.0.2"</span>, <span class="st">"10.0.0.1"</span>, <span class="st">"10.0.0.3"</span>, <span class="st">"10.0.0.2"</span>]
+unique_ips = <span class="fn">set</span>(raw_ips)
+<span class="fn">print</span>(unique_ips)       <span class="cm"># {'10.0.0.1', '10.0.0.2', '10.0.0.3'} -- order may vary</span>
+<span class="fn">print</span>(<span class="fn">len</span>(unique_ips))  <span class="cm"># 3</span>
+
+<span class="cm"># Membership testing in a set is O(1) -- extremely fast at any size</span>
+<span class="kw">if</span> <span class="st">"10.0.0.1"</span> <span class="kw">in</span> unique_ips:
+    <span class="fn">print</span>(<span class="st">"IP is in the network"</span>)  <span class="cm"># runs instantly even on a million-entry set</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — CREATING SETS ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 34</div>
+        <div class="slide-title">Creating <span class="accent">Sets</span></div>
+        <div class="slide-subtitle">The empty set has a gotcha. Know it before you hit it in production.</div>
+
+        <div class="code-block"><span class="cm"># Curly brace literal -- looks like a dict but has NO colons</span>
+allowed_ports = {<span class="nb">22</span>, <span class="nb">80</span>, <span class="nb">443</span>, <span class="nb">8443</span>}
+admin_users   = {<span class="st">"alice"</span>, <span class="st">"bob"</span>, <span class="st">"charlie"</span>}
+<span class="fn">print</span>(<span class="fn">type</span>(allowed_ports))  <span class="cm"># &lt;class 'set'&gt;</span>
+
+<span class="cm"># set() constructor -- convert any iterable to a set</span>
+raw_flags  = [<span class="st">"ERROR"</span>, <span class="st">"WARNING"</span>, <span class="st">"ERROR"</span>, <span class="st">"INFO"</span>, <span class="st">"WARNING"</span>]
+flag_types = <span class="fn">set</span>(raw_flags)
+<span class="fn">print</span>(flag_types)  <span class="cm"># {'ERROR', 'WARNING', 'INFO'} -- duplicates removed</span>
+
+<span class="cm"># IMPORTANT: {} creates an empty DICT, not an empty set!</span>
+empty_dict = {}
+<span class="fn">print</span>(<span class="fn">type</span>(empty_dict))   <span class="cm"># &lt;class 'dict'&gt;  -- this is a dict!</span>
+
+empty_set  = <span class="fn">set</span>()
+<span class="fn">print</span>(<span class="fn">type</span>(empty_set))    <span class="cm"># &lt;class 'set'&gt;   -- this is correct</span>
+
+<span class="cm"># Set elements must be immutable (hashable)</span>
+valid   = {<span class="nb">1</span>, <span class="nb">2.5</span>, <span class="st">"text"</span>, (<span class="nb">10</span>, <span class="nb">20</span>)}   <span class="cm"># ints, floats, strings, tuples -- all valid</span>
+<span class="cm"># invalid = {[1, 2], [3, 4]}             # lists are mutable -- TypeError!</span></div>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            <div class="box-label">The Empty Set Trap</div>
+            <span class="ic">{}</span> is an empty dict. Python has used curly braces for dicts since before sets had literal syntax, so that priority is locked in. To create an empty set you <strong>must</strong> use <span class="ic">set()</span>. The resulting bug is subtle — you will try to call <span class="ic">.add()</span> on what you think is a set and get an AttributeError because <span class="ic">dict</span> has no <span class="ic">.add()</span> method.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — TRY IT NOW ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 34 &nbsp;|&nbsp; Try It Now</div>
+        <div class="slide-title">Try It Now: <span class="accent">Dict Iteration</span></div>
+        <div class="slide-subtitle">Loop through a dictionary and print key-value pairs.</div>
+        <div class="try-it-now"
+             data-starter="config = {&quot;timeout&quot;: 30, &quot;retries&quot;: 3, &quot;verbose&quot;: True}&#10;&#10;# Print each setting as &quot;key = value&quot;&#10;"
+             data-solution="config = {&quot;timeout&quot;: 30, &quot;retries&quot;: 3, &quot;verbose&quot;: True}&#10;for key, val in config.items():&#10;    print(f&quot;{key} = {val}&quot;)"
+             data-expected="timeout = 30
+retries = 3
+verbose = True"
+             data-height="120">
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 19 — SET METHODS ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 34</div>
+        <div class="slide-title">Set Methods: <span class="accent">add, remove, discard, pop, clear</span></div>
+        <div class="slide-subtitle">Modifying a set — and the critical difference between remove and discard.</div>
+
+        <div class="code-block"><span class="cm"># Working set: blocked IPs on a firewall</span>
+blocked = {<span class="st">"203.0.113.10"</span>, <span class="st">"198.51.100.5"</span>, <span class="st">"192.0.2.44"</span>}
+
+<span class="cm"># .add() -- add one element; silently ignored if already exists</span>
+blocked.<span class="fn">add</span>(<span class="st">"203.0.113.99"</span>)
+blocked.<span class="fn">add</span>(<span class="st">"203.0.113.10"</span>)   <span class="cm"># already in set -- no error, no duplicate</span>
+<span class="fn">print</span>(<span class="fn">len</span>(blocked))  <span class="cm"># 4 -- only one new entry was actually added</span>
+
+<span class="cm"># .remove(element) -- raises KeyError if element is not present</span>
+blocked.<span class="fn">remove</span>(<span class="st">"198.51.100.5"</span>)   <span class="cm"># OK -- element exists</span>
+<span class="cm"># blocked.remove("1.2.3.4")         # KeyError -- not in set!</span>
+
+<span class="cm"># .discard(element) -- removes if present; NO error if absent (the safe choice)</span>
+blocked.<span class="fn">discard</span>(<span class="st">"1.2.3.4"</span>)       <span class="cm"># silently does nothing -- no crash</span>
+blocked.<span class="fn">discard</span>(<span class="st">"192.0.2.44"</span>)    <span class="cm"># element exists -- removed</span>
+
+<span class="cm"># .pop() -- removes and returns an ARBITRARY element (order not guaranteed)</span>
+removed_ip = blocked.<span class="fn">pop</span>()
+<span class="fn">print</span>(<span class="st">f"Removed: {removed_ip}"</span>)   <span class="cm"># Removed: 203.0.113.10  (or any element)</span>
+
+<span class="cm"># .clear() -- empty the entire set</span>
+blocked.<span class="fn">clear</span>()
+<span class="fn">print</span>(blocked)  <span class="cm"># set()</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>remove vs discard:</strong> Use <span class="ic">.remove()</span> when the element should always be present — a <span class="ic">KeyError</span> is the right signal if it is not. Use <span class="ic">.discard()</span> when the element might or might not be there and you do not care either way. In practice, <span class="ic">.discard()</span> is safer and appears far more often in production code.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — SET OPERATIONS ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 34</div>
+        <div class="slide-title">Set Operations: <span class="accent">Union, Intersection, Difference</span></div>
+        <div class="slide-subtitle">The math operations that make sets uniquely powerful for IT data analysis.</div>
+
+        <div class="code-block"><span class="cm"># Two sets: users in each system</span>
+ad_users  = {<span class="st">"alice"</span>, <span class="st">"bob"</span>, <span class="st">"charlie"</span>, <span class="st">"diana"</span>}
+vpn_users = {<span class="st">"bob"</span>,   <span class="st">"diana"</span>, <span class="st">"eve"</span>,     <span class="st">"frank"</span>}
+
+<span class="cm"># Union | -- all users in EITHER system, no duplicates</span>
+all_users = ad_users | vpn_users
+<span class="cm"># equivalent: ad_users.union(vpn_users)</span>
+<span class="fn">print</span>(all_users)  <span class="cm"># {'alice', 'bob', 'charlie', 'diana', 'eve', 'frank'}</span>
+
+<span class="cm"># Intersection &amp; -- users in BOTH systems</span>
+both = ad_users &amp; vpn_users
+<span class="cm"># equivalent: ad_users.intersection(vpn_users)</span>
+<span class="fn">print</span>(both)  <span class="cm"># {'bob', 'diana'}</span>
+
+<span class="cm"># Difference - -- in AD but NOT in VPN  (direction matters)</span>
+ad_only = ad_users - vpn_users
+<span class="cm"># equivalent: ad_users.difference(vpn_users)</span>
+<span class="fn">print</span>(ad_only)  <span class="cm"># {'alice', 'charlie'}</span>
+
+<span class="cm"># Symmetric difference ^ -- in one OR the other, but NOT both</span>
+exclusive = ad_users ^ vpn_users
+<span class="cm"># equivalent: ad_users.symmetric_difference(vpn_users)</span>
+<span class="fn">print</span>(exclusive)  <span class="cm"># {'alice', 'charlie', 'eve', 'frank'}</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — VENN DIAGRAM + PRACTICAL EXAMPLES ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 34</div>
+        <div class="slide-title">Set Operations: <span class="accent">Venn Diagrams &amp; IT Applications</span></div>
+        <div class="slide-subtitle">Visualizing what each operation returns and when to reach for each one.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Union A | B — Everything</div>
+                <div class="card-desc">Everything in A, everything in B, no duplicates. IT use: combine two IP blocklists from different threat feeds into one master list. Combine two user imports from two HR systems before loading into LDAP.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Intersection A &amp; B — What They Share</div>
+                <div class="card-desc">Only elements in both A and B. IT use: find accounts that exist in both Active Directory and a cloud SSO system. Find IP addresses that appear in both a vulnerability scan and your asset register. Find software installed on both systems.</div>
+            </div>
+        </div>
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Difference A - B — What A Has Alone</div>
+                <div class="card-desc">Elements in A that are not in B. Direction matters: A - B does not equal B - A. IT use: find servers in your asset register that did not show up in the last scan (offline or misconfigured?). Find AD users not yet provisioned in the ticketing system.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Symmetric Difference A ^ B — What Changed</div>
+                <div class="card-desc">Elements in A or B, but not in both. Answers "what is different between these two sets?" IT use: compare yesterday's scan to today's — the symmetric difference is every change: newly opened ports plus newly closed ports combined.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Method vs operator:</strong> <span class="ic">a | b</span> and <span class="ic">a.union(b)</span> produce identical results. The method form also accepts any iterable, not just another set. The operator form requires both operands to be sets. Use whichever is more readable in context — the operator is often cleaner in a single expression.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — WHEN TO USE SETS ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 34</div>
+        <div class="slide-title">When to Use <span class="accent">Sets</span></div>
+        <div class="slide-subtitle">Three situations where sets beat lists by a wide margin.</div>
+
+        <div class="code-block"><span class="cm"># Use case 1: Deduplication -- instant with set()</span>
+scan_results = [<span class="st">"10.0.0.1"</span>, <span class="st">"10.0.0.2"</span>, <span class="st">"10.0.0.1"</span>, <span class="st">"10.0.0.3"</span>, <span class="st">"10.0.0.2"</span>]
+unique        = <span class="fn">list</span>(<span class="fn">set</span>(scan_results))
+<span class="fn">print</span>(unique)   <span class="cm"># ['10.0.0.1', '10.0.0.2', '10.0.0.3']  (order not guaranteed)</span>
+
+<span class="cm"># Use case 2: Membership testing -- O(1) set vs O(n) list</span>
+blocked_list = [<span class="st">"192.0.2.1"</span>, <span class="st">"192.0.2.2"</span>]    <span class="cm"># scans the whole list every time</span>
+blocked_set  = {<span class="st">"192.0.2.1"</span>, <span class="st">"192.0.2.2"</span>}    <span class="cm"># instant lookup at any size</span>
+
+incoming_ip = <span class="st">"192.0.2.1"</span>
+<span class="kw">if</span> incoming_ip <span class="kw">in</span> blocked_set:   <span class="cm"># correct approach for high-frequency checks</span>
+    <span class="fn">print</span>(<span class="st">"Blocked"</span>)
+
+<span class="cm"># Use case 3: Comparing two sources to find changes</span>
+yesterday_hosts = {<span class="st">"server-01"</span>, <span class="st">"server-02"</span>, <span class="st">"server-03"</span>}
+today_hosts     = {<span class="st">"server-02"</span>, <span class="st">"server-03"</span>, <span class="st">"server-04"</span>}
+
+new_hosts     = today_hosts - yesterday_hosts     <span class="cm"># {'server-04'} -- appeared today</span>
+removed_hosts = yesterday_hosts - today_hosts     <span class="cm"># {'server-01'} -- gone today</span>
+stable_hosts  = yesterday_hosts &amp; today_hosts     <span class="cm"># {'server-02', 'server-03'}</span>
+<span class="fn">print</span>(<span class="st">f"New: {new_hosts}     Gone: {removed_hosts}     Stable: {stable_hosts}"</span>)</div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            <div class="box-label">O(1) vs O(n) -- Why It Matters in IT</div>
+            Checking <span class="ic">"192.0.2.1" in my_list</span> on a list of 1,000,000 blocked IPs may examine every single entry. Checking <span class="ic">"192.0.2.1" in my_set</span> on a set of 1,000,000 entries takes the same time as checking 10 entries. Sets use hash tables — lookup time is constant regardless of size. A firewall script checking every packet against a blocklist needs O(1).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — FROZENSET ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 34</div>
+        <div class="slide-title">Frozenset: <span class="accent">The Immutable Set</span></div>
+        <div class="slide-subtitle">A set you cannot change after creation — which unlocks new capabilities.</div>
+
+        <div class="code-block"><span class="cm"># frozenset() -- create an immutable set</span>
+readonly_ports = <span class="fn">frozenset</span>({<span class="nb">22</span>, <span class="nb">80</span>, <span class="nb">443</span>})
+<span class="fn">print</span>(readonly_ports)    <span class="cm"># frozenset({80, 443, 22})</span>
+
+<span class="cm"># Frozensets support all READ operations</span>
+<span class="fn">print</span>(<span class="nb">443</span> <span class="kw">in</span> readonly_ports)    <span class="cm"># True</span>
+<span class="fn">print</span>(<span class="nb">8080</span> <span class="kw">in</span> readonly_ports)   <span class="cm"># False</span>
+<span class="fn">print</span>(readonly_ports | {<span class="nb">8443</span>}) <span class="cm"># frozenset({80, 8443, 443, 22}) -- returns new frozenset</span>
+
+<span class="cm"># Frozensets CANNOT be modified</span>
+<span class="cm"># readonly_ports.add(8080)   # AttributeError: 'frozenset' object has no attribute 'add'</span>
+
+<span class="cm"># Key superpower: frozensets can be used as DICT KEYS</span>
+<span class="cm"># (regular sets cannot -- they are mutable and therefore not hashable)</span>
+port_profiles = {
+    <span class="fn">frozenset</span>({<span class="nb">22</span>, <span class="nb">80</span>, <span class="nb">443</span>}):   <span class="st">"web server profile"</span>,
+    <span class="fn">frozenset</span>({<span class="nb">22</span>, <span class="nb">3306</span>}):       <span class="st">"mysql database profile"</span>,
+    <span class="fn">frozenset</span>({<span class="nb">22</span>, <span class="nb">5432</span>}):       <span class="st">"postgresql database profile"</span>
+}
+scan_result = <span class="fn">frozenset</span>({<span class="nb">22</span>, <span class="nb">80</span>, <span class="nb">443</span>})
+<span class="fn">print</span>(port_profiles.<span class="fn">get</span>(scan_result, <span class="st">"Unknown profile"</span>))
+<span class="cm"># web server profile</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>When to use frozenset:</strong> When you have a collection that should never change after creation — a fixed set of required permissions, a canonical list of allowed protocols, or a port fingerprint for device classification. Immutability makes it safe to use as a dict key and as an element inside another set.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — DATA PROCESSING: CSV TO DICT ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 34</div>
+        <div class="slide-title">Data Processing: <span class="accent">CSV to Dictionary</span></div>
+        <div class="slide-subtitle">Reading structured text files and building dict structures from them.</div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            Your network team maintains a spreadsheet of devices exported as a CSV file. You need to load it into a Python dict so scripts can look up device info by hostname. This is the most common data-loading task in IT automation.
+        </div>
+
+        <div class="code-block"><span class="cm"># File: devices.csv</span>
+<span class="cm"># hostname,ip,role,building</span>
+<span class="cm"># rtr-core,10.0.0.1,router,HQ</span>
+<span class="cm"># sw-floor1,10.0.1.1,switch,HQ</span>
+<span class="cm"># ap-lobby,10.0.2.1,access_point,HQ</span>
+
+<span class="kw">def</span> <span class="fn">load_inventory</span>(filepath):
+    <span class="st">"""Read a CSV file and return a dict keyed by hostname."""</span>
+    inventory = {}
+    <span class="kw">with</span> <span class="fn">open</span>(filepath, <span class="st">"r"</span>) <span class="kw">as</span> f:
+        header = f.<span class="fn">readline</span>().<span class="fn">strip</span>().<span class="fn">split</span>(<span class="st">","</span>)   <span class="cm"># ['hostname', 'ip', 'role', 'building']</span>
+        <span class="kw">for</span> line <span class="kw">in</span> f:
+            parts = line.<span class="fn">strip</span>().<span class="fn">split</span>(<span class="st">","</span>)
+            <span class="kw">if</span> <span class="fn">len</span>(parts) == <span class="fn">len</span>(header):           <span class="cm"># guard against malformed lines</span>
+                record   = <span class="fn">dict</span>(<span class="fn">zip</span>(header, parts))  <span class="cm"># zip + dict = instant record</span>
+                hostname = record[<span class="st">"hostname"</span>]
+                inventory[hostname] = record
+    <span class="kw">return</span> inventory
+
+inventory = <span class="fn">load_inventory</span>(<span class="st">"devices.csv"</span>)
+<span class="fn">print</span>(inventory[<span class="st">"rtr-core"</span>])
+<span class="cm"># {'hostname': 'rtr-core', 'ip': '10.0.0.1', 'role': 'router', 'building': 'HQ'}</span>
+
+<span class="fn">print</span>(inventory[<span class="st">"rtr-core"</span>][<span class="st">"ip"</span>])    <span class="cm"># 10.0.0.1</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>dict(zip(header, parts))</strong> is a two-line CSV reader. <span class="ic">zip()</span> pairs each header field with its corresponding data value; <span class="ic">dict()</span> turns those pairs into a record dict. The <span class="ic">len</span> guard skips malformed lines that do not have the right number of columns — essential when reading files from external sources.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — IT SCENARIO: NETWORK INVENTORY CRUD ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 34</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Network Inventory CRUD</span></div>
+        <div class="slide-subtitle">Create, Read, Update, Delete operations on a real dict-based device inventory.</div>
+
+        <div class="code-block"><span class="cm"># Network inventory: outer key is hostname, value is the device record</span>
+inventory = {}
+
+<span class="cm"># CREATE -- add a new device with sensible defaults</span>
+<span class="kw">def</span> <span class="fn">add_device</span>(hostname, ip, role, status=<span class="st">"online"</span>):
+    inventory[hostname] = {<span class="st">"ip"</span>: ip, <span class="st">"role"</span>: role, <span class="st">"status"</span>: status}
+
+<span class="fn">add_device</span>(<span class="st">"rtr-core"</span>,  <span class="st">"10.0.0.1"</span>,   <span class="st">"router"</span>)
+<span class="fn">add_device</span>(<span class="st">"sw-floor1"</span>, <span class="st">"10.0.1.1"</span>,   <span class="st">"switch"</span>)
+<span class="fn">add_device</span>(<span class="st">"fw-edge"</span>,   <span class="st">"10.0.0.254"</span>, <span class="st">"firewall"</span>)
+
+<span class="cm"># READ -- look up a device by hostname</span>
+<span class="kw">def</span> <span class="fn">get_device</span>(hostname):
+    <span class="kw">return</span> inventory.<span class="fn">get</span>(hostname, <span class="kw">None</span>)   <span class="cm"># safe -- returns None if not found</span>
+
+info = <span class="fn">get_device</span>(<span class="st">"rtr-core"</span>)
+<span class="fn">print</span>(info)  <span class="cm"># {'ip': '10.0.0.1', 'role': 'router', 'status': 'online'}</span>
+
+<span class="cm"># UPDATE -- change one field without touching the rest</span>
+<span class="kw">def</span> <span class="fn">set_status</span>(hostname, new_status):
+    <span class="kw">if</span> hostname <span class="kw">in</span> inventory:
+        inventory[hostname][<span class="st">"status"</span>] = new_status
+
+<span class="fn">set_status</span>(<span class="st">"sw-floor1"</span>, <span class="st">"rebooting"</span>)
+
+<span class="cm"># DELETE -- remove a decommissioned device safely</span>
+<span class="kw">def</span> <span class="fn">remove_device</span>(hostname):
+    <span class="kw">return</span> inventory.<span class="fn">pop</span>(hostname, <span class="kw">None</span>)   <span class="cm"># safe even if hostname is not present</span>
+
+<span class="fn">remove_device</span>(<span class="st">"fw-edge"</span>)
+
+<span class="cm"># Print full inventory report</span>
+<span class="kw">for</span> name, rec <span class="kw">in</span> inventory.<span class="fn">items</span>():
+    <span class="fn">print</span>(<span class="st">f"  {name:&lt;14} {rec['ip']:&lt;14} {rec['role']:&lt;10} {rec['status']}"</span>)</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — IT SCENARIO: LOG ANALYZER ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 34</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Log Analyzer</span></div>
+        <div class="slide-subtitle">Count error type occurrences in a syslog file using the dict counting pattern.</div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            You have a 10,000-line syslog file. Security wants to know: how many times did each event type appear? Which source IP generated the most alerts? Manual counting is not an option. A dict-based frequency map answers both questions in one pass through the file.
+        </div>
+
+        <div class="code-block"><span class="cm"># Sample log lines (in production you would read these from a file)</span>
+log_lines = [
+    <span class="st">"2024-11-01 08:12:33 FAILED_LOGIN src=203.0.113.10 user=admin"</span>,
+    <span class="st">"2024-11-01 08:12:41 FAILED_LOGIN src=203.0.113.10 user=root"</span>,
+    <span class="st">"2024-11-01 08:13:05 PORT_SCAN    src=198.51.100.5"</span>,
+    <span class="st">"2024-11-01 08:14:20 FAILED_LOGIN src=203.0.113.10 user=admin"</span>,
+    <span class="st">"2024-11-01 08:15:01 POLICY_DENY  src=10.0.1.44"</span>,
+    <span class="st">"2024-11-01 08:15:30 PORT_SCAN    src=198.51.100.5"</span>,
+]
+
+event_counts = {}
+ip_counts    = {}
+
+<span class="kw">for</span> line <span class="kw">in</span> log_lines:
+    parts      = line.<span class="fn">split</span>()
+    event_type = parts[<span class="nb">2</span>]                        <span class="cm"># field 2: FAILED_LOGIN, PORT_SCAN, etc.</span>
+    src_field  = [p <span class="kw">for</span> p <span class="kw">in</span> parts <span class="kw">if</span> p.<span class="fn">startswith</span>(<span class="st">"src="</span>)]
+    src_ip     = src_field[<span class="nb">0</span>].<span class="fn">split</span>(<span class="st">"="</span>)[<span class="nb">1</span>] <span class="kw">if</span> src_field <span class="kw">else</span> <span class="st">"unknown"</span>
+
+    event_counts[event_type] = event_counts.<span class="fn">get</span>(event_type, <span class="nb">0</span>) + <span class="nb">1</span>
+    ip_counts[src_ip]        = ip_counts.<span class="fn">get</span>(src_ip,    <span class="nb">0</span>) + <span class="nb">1</span>
+
+<span class="kw">for</span> event, count <span class="kw">in</span> <span class="fn">sorted</span>(event_counts.<span class="fn">items</span>(), key=<span class="kw">lambda</span> x: -x[<span class="nb">1</span>]):
+    <span class="fn">print</span>(<span class="st">f"  {event:&lt;15} {count}"</span>)
+<span class="cm"># FAILED_LOGIN    3</span>
+<span class="cm"># PORT_SCAN       2</span>
+<span class="cm"># POLICY_DENY     1</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — IT SCENARIO: SETS FOR DUPLICATE IPs AND USER COMPARISON ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 34</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Duplicate Detection &amp; User Comparison</span></div>
+        <div class="slide-subtitle">Sets eliminate duplicates and compare membership across systems in a few lines.</div>
+
+        <div class="code-block"><span class="cm"># Scenario 1: Find duplicate IPs in a DHCP lease file</span>
+dhcp_leases = [
+    (<span class="st">"10.0.1.5"</span>, <span class="st">"aa:bb:cc:dd:ee:01"</span>),
+    (<span class="st">"10.0.1.6"</span>, <span class="st">"aa:bb:cc:dd:ee:02"</span>),
+    (<span class="st">"10.0.1.5"</span>, <span class="st">"aa:bb:cc:dd:ee:03"</span>),   <span class="cm"># duplicate IP -- two MACs on the same address</span>
+    (<span class="st">"10.0.1.7"</span>, <span class="st">"aa:bb:cc:dd:ee:04"</span>),
+]
+seen_ips = <span class="fn">set</span>()
+dup_ips  = <span class="fn">set</span>()
+<span class="kw">for</span> ip, mac <span class="kw">in</span> dhcp_leases:
+    <span class="kw">if</span> ip <span class="kw">in</span> seen_ips:
+        dup_ips.<span class="fn">add</span>(ip)
+    seen_ips.<span class="fn">add</span>(ip)
+<span class="fn">print</span>(<span class="st">f"Duplicate IPs: {dup_ips}"</span>)   <span class="cm"># Duplicate IPs: {'10.0.1.5'}</span>
+
+<span class="cm"># Scenario 2: Find AD accounts not yet provisioned in the ticketing system</span>
+ad_accounts     = {<span class="st">"alice"</span>, <span class="st">"bob"</span>, <span class="st">"charlie"</span>, <span class="st">"diana"</span>, <span class="st">"eve"</span>}
+ticket_accounts = {<span class="st">"alice"</span>, <span class="st">"charlie"</span>, <span class="st">"eve"</span>}
+not_provisioned = ad_accounts - ticket_accounts
+<span class="fn">print</span>(<span class="st">f"Need ticketing access: {not_provisioned}"</span>)  <span class="cm"># {'bob', 'diana'}</span>
+
+<span class="cm"># Scenario 3: Detect hosts that went offline between scans</span>
+yesterday = {<span class="st">"10.0.1.1"</span>, <span class="st">"10.0.1.2"</span>, <span class="st">"10.0.1.3"</span>, <span class="st">"10.0.1.4"</span>}
+today     = {<span class="st">"10.0.1.1"</span>, <span class="st">"10.0.1.2"</span>, <span class="st">"10.0.1.5"</span>}
+<span class="fn">print</span>(<span class="st">f"Went offline: {yesterday - today}"</span>)  <span class="cm"># {'10.0.1.3', '10.0.1.4'}</span>
+<span class="fn">print</span>(<span class="st">f"New host:     {today - yesterday}"</span>)    <span class="cm"># {'10.0.1.5'}</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — IT SCENARIO: CONFIG FILE PARSER ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 34</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Config File Parser</span></div>
+        <div class="slide-subtitle">Parse key=value configuration files into a dict for use throughout a script.</div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            Network devices, services, and applications almost always store settings in flat key=value text files. Parsing them into a Python dict makes every setting accessible by name and lets you validate required fields programmatically.
+        </div>
+
+        <div class="code-block"><span class="cm"># File: network.conf</span>
+<span class="cm"># dns_server=8.8.8.8</span>
+<span class="cm"># default_gateway=10.0.0.1</span>
+<span class="cm"># ntp_server=pool.ntp.org</span>
+<span class="cm"># snmp_community=public</span>
+<span class="cm"># log_level=warning</span>
+<span class="cm"># # lines starting with # are comments -- skip them</span>
+
+<span class="kw">def</span> <span class="fn">parse_config</span>(filepath):
+    <span class="st">"""Parse a key=value config file. Skips blank lines and # comments."""</span>
+    config = {}
+    <span class="kw">with</span> <span class="fn">open</span>(filepath, <span class="st">"r"</span>) <span class="kw">as</span> f:
+        <span class="kw">for</span> line <span class="kw">in</span> f:
+            line = line.<span class="fn">strip</span>()
+            <span class="kw">if not</span> line <span class="kw">or</span> line.<span class="fn">startswith</span>(<span class="st">"#"</span>):     <span class="cm"># skip empty lines and comments</span>
+                <span class="kw">continue</span>
+            <span class="kw">if</span> <span class="st">"="</span> <span class="kw">in</span> line:
+                key, _, value = line.<span class="fn">partition</span>(<span class="st">"="</span>)   <span class="cm"># partition handles = in values</span>
+                config[key.<span class="fn">strip</span>()] = value.<span class="fn">strip</span>()
+    <span class="kw">return</span> config
+
+cfg = <span class="fn">parse_config</span>(<span class="st">"network.conf"</span>)
+<span class="fn">print</span>(cfg[<span class="st">"dns_server"</span>])        <span class="cm"># 8.8.8.8</span>
+<span class="fn">print</span>(cfg[<span class="st">"default_gateway"</span>])   <span class="cm"># 10.0.0.1</span>
+<span class="fn">print</span>(cfg.<span class="fn">get</span>(<span class="st">"vlan_id"</span>, <span class="st">"1"</span>))  <span class="cm"># 1 -- default when key not in config file</span>
+
+<span class="cm"># Validate required settings using set difference</span>
+required = {<span class="st">"dns_server"</span>, <span class="st">"default_gateway"</span>, <span class="st">"ntp_server"</span>}
+missing  = required - <span class="fn">set</span>(cfg.<span class="fn">keys</span>())
+<span class="kw">if</span> missing:
+    <span class="fn">print</span>(<span class="st">f"ERROR: Missing required config keys: {missing}"</span>)</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>str.partition(sep)</strong> splits at the first occurrence and returns a 3-tuple: <span class="ic">(before, sep, after)</span>. Better than <span class="ic">.split("=", 1)</span> for config files because values may legitimately contain <span class="ic">=</span> signs — for example Base64-encoded strings and some Cisco configuration values.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — COLLECTIONS MODULE PREVIEW ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 34</div>
+        <div class="slide-title">The collections Module: <span class="accent">Counter &amp; defaultdict</span></div>
+        <div class="slide-subtitle">Supercharged dict subclasses that eliminate common boilerplate patterns.</div>
+
+        <div class="code-block"><span class="kw">from</span> collections <span class="kw">import</span> Counter, defaultdict
+
+<span class="cm"># Counter -- a dict subclass built specifically for counting</span>
+log_events  = [<span class="st">"login"</span>, <span class="st">"login"</span>, <span class="st">"logout"</span>, <span class="st">"login"</span>, <span class="st">"failed_login"</span>, <span class="st">"logout"</span>]
+event_count = <span class="fn">Counter</span>(log_events)
+<span class="fn">print</span>(event_count)
+<span class="cm"># Counter({'login': 3, 'logout': 2, 'failed_login': 1})</span>
+
+<span class="cm"># Counter provides .most_common(n) at no extra cost</span>
+<span class="fn">print</span>(event_count.<span class="fn">most_common</span>(<span class="nb">2</span>))  <span class="cm"># [('login', 3), ('logout', 2)]</span>
+
+<span class="cm"># defaultdict -- auto-creates a default value for any missing key</span>
+
+<span class="cm"># Grouping WITHOUT defaultdict -- requires an if-guard on every append</span>
+by_role = {}
+<span class="kw">for</span> name, role <span class="kw">in</span> [(<span class="st">"rtr-01"</span>,<span class="st">"router"</span>),(<span class="st">"sw-01"</span>,<span class="st">"switch"</span>),(<span class="st">"sw-02"</span>,<span class="st">"switch"</span>)]:
+    <span class="kw">if</span> role <span class="kw">not in</span> by_role: by_role[role] = []
+    by_role[role].<span class="fn">append</span>(name)
+
+<span class="cm"># Grouping WITH defaultdict -- clean, no guard needed</span>
+by_role = <span class="fn">defaultdict</span>(<span class="fn">list</span>)
+<span class="kw">for</span> name, role <span class="kw">in</span> [(<span class="st">"rtr-01"</span>,<span class="st">"router"</span>),(<span class="st">"sw-01"</span>,<span class="st">"switch"</span>),(<span class="st">"sw-02"</span>,<span class="st">"switch"</span>)]:
+    by_role[role].<span class="fn">append</span>(name)   <span class="cm"># first access auto-creates an empty list</span>
+<span class="fn">print</span>(<span class="fn">dict</span>(by_role))
+<span class="cm"># {'router': ['rtr-01'], 'switch': ['sw-01', 'sw-02']}</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Counter</div>
+                <div class="card-desc">A <span class="ic">dict</span> subclass where every missing key returns 0 instead of a KeyError. Pass any iterable and it counts immediately. <span class="ic">.most_common(n)</span> returns the top-n elements by count with no manual sorting required.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">defaultdict(factory)</div>
+                <div class="card-desc">Pass a callable as the factory: <span class="ic">defaultdict(list)</span>, <span class="ic">defaultdict(int)</span>, <span class="ic">defaultdict(set)</span>. The first access of a missing key calls the factory and uses the result as the default value. Eliminates guard code in every grouping and aggregation script.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — JSON PREVIEW ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 34</div>
+        <div class="slide-title">JSON Preview: <span class="accent">Dicts All the Way Down</span></div>
+        <div class="slide-subtitle">Python dicts and JSON are nearly identical — moving between them is trivial.</div>
+
+        <div class="code-block"><span class="kw">import</span> json
+
+<span class="cm"># A Python dict</span>
+device = {
+    <span class="st">"hostname"</span>: <span class="st">"rtr-core"</span>,
+    <span class="st">"ip"</span>:       <span class="st">"10.0.0.1"</span>,
+    <span class="st">"ports"</span>:    [<span class="nb">22</span>, <span class="nb">443</span>, <span class="nb">8443</span>],
+    <span class="st">"active"</span>:   <span class="kw">True</span>
+}
+
+<span class="cm"># dict -> JSON string: json.dumps()</span>
+json_string = json.<span class="fn">dumps</span>(device, indent=<span class="nb">2</span>)
+<span class="fn">print</span>(json_string)
+<span class="cm"># {</span>
+<span class="cm">#   "hostname": "rtr-core",</span>
+<span class="cm">#   "ip": "10.0.0.1",</span>
+<span class="cm">#   "ports": [22, 443, 8443],</span>
+<span class="cm">#   "active": true</span>
+<span class="cm"># }</span>
+
+<span class="cm"># JSON string -> dict: json.loads()</span>
+raw_json = <span class="st">'{"hostname": "sw-01", "ip": "10.0.1.1", "active": false}'</span>
+parsed   = json.<span class="fn">loads</span>(raw_json)
+<span class="fn">print</span>(<span class="fn">type</span>(parsed))          <span class="cm"># &lt;class 'dict'&gt;</span>
+<span class="fn">print</span>(parsed[<span class="st">"hostname"</span>])   <span class="cm"># sw-01</span>
+
+<span class="cm"># Writing a dict to a JSON file</span>
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"device.json"</span>, <span class="st">"w"</span>) <span class="kw">as</span> f:
+    json.<span class="fn">dump</span>(device, f, indent=<span class="nb">2</span>)
+
+<span class="cm"># Reading a JSON file back into a dict</span>
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"device.json"</span>, <span class="st">"r"</span>) <span class="kw">as</span> f:
+    loaded = json.<span class="fn">load</span>(f)</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Type mapping:</strong> JSON <span class="ic">true</span>/<span class="ic">false</span>/<span class="ic">null</span> become Python <span class="ic">True</span>/<span class="ic">False</span>/<span class="ic">None</span>. JSON objects become Python dicts. JSON arrays become Python lists. The mapping is near-perfect in both directions. Every REST API you will call in your career returns JSON — and now you know exactly what to do with it.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 — COMMON MISTAKES ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 34</div>
+        <div class="slide-title">Common Mistakes: <span class="accent">What Trips Everyone Up</span></div>
+        <div class="slide-subtitle">Four bugs that appear in almost every Python programmer's early dict and set work.</div>
+
+        <div class="code-block"><span class="cm"># Mistake 1: Using a mutable type as a dict key -- lists cannot be keys</span>
+<span class="cm"># config_map = {[80, 443]: "web"}   # TypeError: unhashable type: 'list'</span>
+config_map = {(<span class="nb">80</span>, <span class="nb">443</span>): <span class="st">"web"</span>}         <span class="cm"># tuples are immutable -- valid as keys</span>
+
+<span class="cm"># Mistake 2: Modifying a dict while iterating -- RuntimeError</span>
+inventory = {<span class="st">"rtr-01"</span>: <span class="st">"online"</span>, <span class="st">"sw-01"</span>: <span class="st">"offline"</span>, <span class="st">"ap-01"</span>: <span class="st">"online"</span>}
+
+<span class="cm"># WRONG: deleting during a live iteration of the dict</span>
+<span class="cm"># for name in inventory:</span>
+<span class="cm">#     if inventory[name] == "offline":</span>
+<span class="cm">#         del inventory[name]   # RuntimeError: dictionary changed size during iteration</span>
+
+<span class="cm"># CORRECT: iterate over a snapshot of the keys</span>
+<span class="kw">for</span> name <span class="kw">in</span> <span class="fn">list</span>(inventory.<span class="fn">keys</span>()):
+    <span class="kw">if</span> inventory[name] == <span class="st">"offline"</span>:
+        <span class="kw">del</span> inventory[name]   <span class="cm"># safe -- iterating the snapshot, not the live dict</span>
+
+<span class="cm"># Mistake 3: {} creates a dict, not a set -- reviewed in slide 16</span>
+empty_dict = {}         <span class="cm"># dict -- the most common mistake of new Python learners</span>
+empty_set  = <span class="fn">set</span>()    <span class="cm"># set  -- always use set() for an empty set</span>
+
+<span class="cm"># Mistake 4: Assuming dict order in Python &lt; 3.7</span>
+<span class="cm"># In Python 3.7+ dicts are insertion-ordered. Pre-3.7 code may use OrderedDict.</span>
+<span class="cm"># New code does NOT need OrderedDict -- regular dicts are ordered since 3.7.</span></div>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            <div class="box-label">RuntimeError: dictionary changed size during iteration</div>
+            The fix is always the same: <span class="ic">for key in list(d.keys())</span>. The <span class="ic">list()</span> call snapshots all current keys before the loop starts, so the loop iterates the snapshot while you freely modify the original dict. The alternative is to collect keys to delete in a separate list, then delete after the loop.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 — PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 34</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Six exercises — complete at least four before the next class session.</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><strong>Phone Book:</strong> Create a dict mapping five names to phone numbers. Add two new contacts. Update one number. Delete one contact. Print all remaining contacts using <code>.items()</code> in a formatted two-column table.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><strong>Word Frequency Counter:</strong> Take the string <code>"the quick brown fox jumps over the lazy dog the"</code>. Split it into words and count occurrences of each using a dict. Print the results sorted by count, highest first.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>Network Inventory CRUD:</strong> Extend the inventory from Slide 23. Add five devices. Print all online devices. Update one device's IP address. Remove all devices with status <code>"decommissioned"</code>. Print the final device count.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><strong>Shopping Cart:</strong> Implement a cart as a dict mapping item names to quantities. Add items, update quantities, and remove items. Use a second dict of prices to calculate a receipt with line totals and a grand total.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>Set-Based Duplicate Finder:</strong> Given a list of 10 IP addresses with deliberate duplicates, use sets to find all unique IPs and all IPs that appear more than once. Print both results clearly labeled.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text"><strong>Config Parser:</strong> Write a config file with at least 8 key=value pairs and two comment lines. Parse it using the function from Slide 26. Validate that five required keys are present using set difference. Print a warning for each missing key.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 — KEY VOCABULARY ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 34</div>
+        <div class="slide-title">Key <span class="accent">Vocabulary</span></div>
+        <div class="slide-subtitle">Terms from today that will appear on Quiz 2 and in the lab.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Dictionary (dict)</div>
+                <div class="card-desc">A mutable, ordered (3.7+) collection of key-value pairs. Keys must be unique and immutable. Accessed by key in O(1) time. Created with <span class="ic">{}</span> or <span class="ic">dict()</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Key / Value</div>
+                <div class="card-desc">A key is the lookup identifier (must be unique and immutable). A value is the data stored under that key (any type). Together they form one entry in the dict.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">KeyError</div>
+                <div class="card-desc">Raised when you access a key that does not exist using bracket notation. Prevented by using <span class="ic">.get()</span> with a default, or by checking <span class="ic">if key in d</span> first.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Set</div>
+                <div class="card-desc">A mutable, unordered collection of unique, immutable elements. No indexing. Created with <span class="ic">{1,2,3}</span> or <span class="ic">set()</span>. An empty set is always <span class="ic">set()</span> — never <span class="ic">{}</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Frozenset</div>
+                <div class="card-desc">An immutable set. Cannot be modified after creation. Can be used as a dict key or set element because it is hashable. Created with <span class="ic">frozenset()</span>.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Hash Table</div>
+                <div class="card-desc">The internal data structure behind both dicts and sets. Converts a key to an integer slot in O(1). This is why dict key lookup and set membership testing are constant-time regardless of collection size.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Mutable / Immutable</div>
+                <div class="card-desc">Mutable objects can change after creation (lists, dicts, sets). Immutable objects cannot (strings, tuples, ints, frozensets). Only immutable objects can serve as dict keys or set elements.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Dict View</div>
+                <div class="card-desc">The live objects returned by <span class="ic">.keys()</span>, <span class="ic">.values()</span>, and <span class="ic">.items()</span>. They reflect real-time changes to the dict. Convert to a list with <span class="ic">list()</span> when you need a static snapshot for safe iteration.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Counter / defaultdict</div>
+                <div class="card-desc">Dict subclasses from <span class="ic">collections</span>. Counter auto-counts; missing keys return 0. defaultdict auto-creates a default value for missing keys using a factory function you supply at construction time.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 — SUMMARY + MARK COMPLETE ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 34 &nbsp;|&nbsp; COP1034C Obj 5 &nbsp;|&nbsp; Day 6 of 12</div>
+        <div class="slide-title">Day 6 Summary: <span class="accent">Key Takeaways</span></div>
+
+        <div class="scenario-strip">
+            Your network inventory script is complete. It reads device records from a CSV, stores them in a nested dict keyed by hostname, lets you query by any field, and uses a set to flag duplicate IPs the moment they are detected. The same patterns — counting with dicts, deduplication with sets, set math for comparison — appear in log analyzers, vulnerability scanners, configuration validators, and SIEM tools. You are now building real tooling, not toy exercises.
+        </div>
+
+        <div class="section-label">8 Things to Carry Out of This Room</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">A <strong>dict</strong> maps unique keys to values. Use it whenever you access data by name rather than by position.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><code>d[key]</code> raises <strong>KeyError</strong> on missing keys. <code>d.get(key, default)</code> is always safer when the key might not exist.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">The loop pattern <code>for k, v in d.items()</code> is how you iterate dict contents. Learn it by feel — you will write it hundreds of times.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">The counting pattern <code>d[key] = d.get(key, 0) + 1</code> builds a frequency map from any iterable in a single loop. It is one of the most used patterns in all of Python.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">A <strong>set</strong> stores unique elements. <code>{}</code> is an empty <em>dict</em>. An empty set is always <code>set()</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Set operations: <strong>|</strong> union, <strong>&amp;</strong> intersection, <strong>-</strong> difference, <strong>^</strong> symmetric difference. Each solves a specific comparison or combination problem.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text">Set membership testing is <strong>O(1)</strong> — constant time regardless of size. Use a set when you check membership in a tight loop or against large collections.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Python dicts and JSON are the same structure. <code>json.loads()</code> gives you a dict; <code>json.dumps()</code> gives you a string. Every REST API you will call in your career returns JSON.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Fixed bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Python for IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 34</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    // Slide navigation state
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 34;
+
+    // Move to slide n — update progress bar, counter, button states, and complete button visibility
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        // Deactivate the current slide
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        // Activate the target slide
+        currentSlide = n;
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        // Update progress bar width as a percentage of total slides
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        // Update the slide counter label
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        // Disable Prev on slide 1, Next on last slide
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        // Show Mark Complete button only when the student reaches the last slide
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    // Keyboard navigation: left/right arrow keys move between slides
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    // Initialize to slide 1 on page load
+    goToSlide(1);
+</script>
+
+<script>
+    // Mark this module complete and return the student to the course hub
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('code', 'pfi-w2-dicts', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<!-- Accessibility: keyboard trap prevention, ARIA live region for slide announcements -->
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

@@ -1,0 +1,1538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Object-Oriented Programming &amp; Project Workshop | Python for IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container — fixed to viewport, hidden by default */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Max-width wrapper so content does not stretch on wide screens */
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Gold progress bar across the very top */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button — shown only on last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip for scenario or instructor notes */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids — 3-column and 2-column */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        /* Section label — small caps divider text */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Python code block with syntax color spans */
+        .code-block {
+            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #c9a83a; }   /* keywords: class, def, self, return, if, for, True, False, None, pass, super, import */
+        .code-block .fn { color: #06b6d4; }   /* built-in functions: print, input, type, isinstance, len, super */
+        .code-block .st { color: #3ab577; }   /* string literals */
+        .code-block .cm { color: #475569; }   /* inline comments */
+        .code-block .nb { color: #f472b6; }   /* numeric and boolean literals */
+        .code-block .er { color: #ef4444; }   /* error output lines */
+        .code-block .dc { color: #94a3b8; }   /* decorator lines like @property */
+
+        /* Inline code span used inside card-desc and fact-text */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+    <script src="../../../../components/TryItNow.js"></script>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Object-Oriented Programming & Project Workshop</h1>
+
+
+<!-- Gold progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:3.125%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 34 &nbsp;|&nbsp; COP1034C Obj 4 &nbsp;|&nbsp; Day 9 of 12</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Python for IT: Day 9<br>
+                <span class="accent">Object-Oriented Programming</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Classes &nbsp;&bull;&nbsp; Objects &nbsp;&bull;&nbsp; Inheritance &nbsp;&bull;&nbsp; Encapsulation &nbsp;&bull;&nbsp; Polymorphism &nbsp;&bull;&nbsp; Project Workshop
+            </div>
+        </div>
+        <div class="scenario-strip">
+            You already know how to write functions. A function groups related lines of code under one name so you can reuse them. Now imagine going one level further: grouping related functions AND the data they operate on into a single unit. That unit is called an object. The blueprint that describes what an object looks like and what it can do is called a class. Today you build both.
+        </div>
+        <div class="title-meta-row">
+            <span>34 Slides</span>
+            <span>COP1034C Obj 4</span>
+            <span>Day 9 of 12</span>
+            <span>Lambert Ch 7-8</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — WHY OOP ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 34</div>
+        <div class="slide-title">Why <span class="accent">OOP?</span></div>
+        <div class="slide-subtitle">Procedural code works. OOP makes large programs survivable.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Organize Complexity</div>
+                <div class="card-desc">A 50-line script is readable as plain functions. A 5,000-line IT automation tool is not. OOP lets you break a large program into self-contained units, each responsible for one thing. You find bugs faster because each unit has a clear boundary.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Model Real-World Things</div>
+                <div class="card-desc">A network device has a hostname, IP address, and status. It can be pinged and rebooted. An OOP class models those properties and behaviors directly. The code reads like the problem it solves, not like an abstract sequence of operations.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Reusability</div>
+                <div class="card-desc">Write a <span class="ic">NetworkDevice</span> class once. Use it for routers, switches, firewalls, servers. Extend it with inheritance instead of copy-pasting code. Every IT tool you admire — Nmap, Ansible, Netmiko — is built on classes.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Procedural Approach (Hard to Scale)</div>
+                <div class="card-desc">Variables like <span class="ic">device1_hostname</span>, <span class="ic">device1_ip</span>, <span class="ic">device2_hostname</span>, <span class="ic">device2_ip</span>. Separate functions for each device. Adding a 50th device means 50 pairs of variables and tracking which function belongs to which device. This breaks down quickly.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">OOP Approach (Scales Cleanly)</div>
+                <div class="card-desc">One <span class="ic">NetworkDevice</span> class. Each device is one object: <span class="ic">router1</span>, <span class="ic">switch1</span>, <span class="ic">firewall1</span>. Each object carries its own data and knows how to ping and reboot itself. Add 50 more devices with one loop. The complexity does not grow with the number of devices.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Where you have seen OOP already:</strong> Every time you called <span class="ic">my_list.append()</span> or <span class="ic">my_string.upper()</span>, you were calling a method on an object. Lists, strings, dictionaries — they are all classes built into Python. Today you build your own.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — CLASSES VS OBJECTS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 34</div>
+        <div class="slide-title">Classes vs <span class="accent">Objects</span></div>
+        <div class="slide-subtitle">The class is the blueprint. The object is the thing you actually use.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Class = Blueprint</div>
+                <div class="card-desc">A class is a description — it defines what properties an object will have and what behaviors it can perform. The class itself does not contain real data. It is the cookie cutter, not the cookie. You define a class once and create as many objects from it as you need.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Object = Instance</div>
+                <div class="card-desc">An object is a specific realization of a class. When you create an object from a class, you are "instantiating" it. Each object has its own copy of the data defined in the class. The words "object" and "instance" mean the same thing — use them interchangeably.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Cookie Cutter / Cookie</div>
+                <div class="card-desc">The class <span class="ic">Cookie</span> defines that every cookie has a flavor and a size. The objects <span class="ic">cookie1</span>, <span class="ic">cookie2</span>, <span class="ic">cookie3</span> are individual cookies — same shape, but each can have a different flavor and size stored in it.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Car Blueprint / Actual Car</div>
+                <div class="card-desc">The blueprint for a 2024 Camry defines make, model, year, color, and methods like start() and brake(). Every Camry on the road is an instance of that blueprint. Each car has its own VIN and color, but all share the same structure.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">NetworkDevice Class / router1 Object</div>
+                <div class="card-desc">The <span class="ic">NetworkDevice</span> class defines that every device has a hostname, IP, and status. The object <span class="ic">router1</span> is one specific device with <span class="ic">hostname="core-rtr-01"</span> and <span class="ic">ip="10.0.1.1"</span>. This is how we will build our IT example later today.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — DEFINING A CLASS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 34</div>
+        <div class="slide-title">Defining a Class: <span class="accent">The class Keyword</span></div>
+        <div class="slide-subtitle">The simplest possible class. Two lines of Python and a convention to remember.</div>
+
+        <div class="code-block"><span class="cm"># Syntax: class keyword + PascalCase name + colon</span>
+<span class="kw">class</span> BankAccount:
+    <span class="kw">pass</span>   <span class="cm"># pass = "nothing here yet" — valid placeholder</span>
+
+<span class="cm"># A more realistic empty class with a docstring</span>
+<span class="kw">class</span> NetworkDevice:
+    <span class="st">"""Represents a single managed network device."""</span>
+    <span class="kw">pass</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">PascalCase: The Class Naming Rule</div>
+                <div class="card-desc">Every class name uses PascalCase: capitalize the first letter of every word, no underscores, no spaces. This is not optional — it is a Python convention so universal that violating it tells every reader "something is wrong here."<br><br>
+                    <span class="ic">BankAccount</span> &nbsp; <span class="ic">NetworkDevice</span> &nbsp; <span class="ic">UserProfile</span><br>
+                    Not: <span class="ic">bank_account</span> &nbsp; <span class="ic">networkdevice</span> &nbsp; <span class="ic">userProfile</span>
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The pass Statement</div>
+                <div class="card-desc">Python requires at least one statement inside any block (class body, function body, if block). <span class="ic">pass</span> is a legal no-op — it does nothing but satisfies that requirement. Use it as a placeholder when you are building a class skeleton before filling in the content. Delete it once you add real code.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>What about the colon?</strong> The colon at the end of <span class="ic">class BankAccount:</span> is required. It opens a code block, exactly like the colon after <span class="ic">if</span>, <span class="ic">for</span>, and <span class="ic">def</span>. Everything indented below it is the class body. Missing the colon gives you a SyntaxError before Python runs a single line.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — __init__ METHOD ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 34</div>
+        <div class="slide-title">The <span class="accent">__init__</span> Method</div>
+        <div class="slide-subtitle">The constructor. It runs automatically the moment you create an object.</div>
+
+        <div class="code-block"><span class="kw">class</span> BankAccount:
+    <span class="st">"""A simple bank account that tracks a balance."""</span>
+
+    <span class="kw">def</span> __init__(self, owner, balance=<span class="nb">0.0</span>):
+        <span class="cm"># __init__ runs automatically when you call BankAccount()</span>
+        <span class="cm"># 'owner' and 'balance' are passed in by the caller</span>
+        self.owner   = owner     <span class="cm"># store owner name on this object</span>
+        self.balance = balance   <span class="cm"># store starting balance on this object</span></div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What __init__ Is</div>
+                <div class="card-desc">The name <span class="ic">__init__</span> is short for "initialize." It is a special method Python calls automatically whenever you create a new object from a class. You never call it by name — Python calls it for you. Its job is to set up the object's initial state.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The Double Underscores</div>
+                <div class="card-desc">Methods with two underscores on each side are called "dunder" methods (double-underscore). Python has a fixed set of them. <span class="ic">__init__</span> is the most important. You will learn <span class="ic">__str__</span> and <span class="ic">__repr__</span> later today. Never invent your own dunder names.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Default Parameter Values</div>
+                <div class="card-desc"><span class="ic">balance=0.0</span> sets a default. If the caller does not provide a balance, it starts at zero. Parameters with defaults must come after parameters without defaults. <span class="ic">BankAccount("Alice")</span> works. <span class="ic">BankAccount("Alice", 500.00)</span> also works.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Common mistake:</strong> Writing <span class="ic">__init</span> with only one underscore on each side. Python will not call it automatically — it just becomes a regular method with an unusual name, and your object will never be initialized. Always count the underscores: two before, two after.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — THE self PARAMETER ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 34</div>
+        <div class="slide-title">The <span class="accent">self</span> Parameter</div>
+        <div class="slide-subtitle">self is how a method refers to the object it belongs to. It must always be first.</div>
+
+        <div class="code-block"><span class="kw">class</span> BankAccount:
+    <span class="kw">def</span> __init__(self, owner, balance=<span class="nb">0.0</span>):
+        self.owner   = owner
+        self.balance = balance
+
+    <span class="kw">def</span> deposit(self, amount):
+        <span class="cm"># 'self' refers to the specific object calling this method</span>
+        self.balance += amount
+        <span class="fn">print</span>(<span class="st">f"Deposited ${amount:.2f}. New balance: ${self.balance:.2f}"</span>)
+
+<span class="cm"># When you call alice.deposit(100), Python secretly calls:</span>
+<span class="cm"># BankAccount.deposit(alice, 100)  — self IS alice</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What self Actually Is</div>
+                <div class="card-desc"><span class="ic">self</span> is a reference to the current object. When <span class="ic">alice.deposit(100)</span> runs, Python automatically passes <span class="ic">alice</span> as the first argument. Inside the method, <span class="ic">self</span> IS <span class="ic">alice</span>. When <span class="ic">bob.deposit(50)</span> runs, <span class="ic">self</span> IS <span class="ic">bob</span>. Same method, different object each time.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why self Must Be First</div>
+                <div class="card-desc">Python's method call mechanism requires the object be passed as the first argument. The name <span class="ic">self</span> is a convention, not a keyword — you could name it anything, but every Python developer uses <span class="ic">self</span>. Breaking this convention confuses every reader of your code. Always use <span class="ic">self</span>.</div>
+            </div>
+        </div>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            <div class="box-label">Most Common OOP Bug</div>
+            Forgetting <span class="ic">self</span> as the first parameter. If you define <span class="ic">def deposit(amount):</span> instead of <span class="ic">def deposit(self, amount):</span>, calling <span class="ic">alice.deposit(100)</span> raises a TypeError: "deposit() takes 1 positional argument but 2 were given." Python tried to pass <span class="ic">alice</span> and <span class="ic">100</span> but your method only declared one parameter slot.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — INSTANCE ATTRIBUTES ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 34</div>
+        <div class="slide-title">Instance <span class="accent">Attributes</span></div>
+        <div class="slide-subtitle">Data that belongs to each individual object. Set with self.name = value.</div>
+
+        <div class="code-block"><span class="kw">class</span> BankAccount:
+    <span class="kw">def</span> __init__(self, owner, balance=<span class="nb">0.0</span>):
+        self.owner     = owner      <span class="cm"># instance attribute: owner name</span>
+        self.balance   = balance    <span class="cm"># instance attribute: current balance</span>
+        self.is_frozen = <span class="kw">False</span>    <span class="cm"># instance attribute: account status</span>
+
+<span class="cm"># Each object gets its own independent copy of every attribute</span>
+alice = BankAccount(<span class="st">"Alice"</span>, <span class="nb">1000.00</span>)
+bob   = BankAccount(<span class="st">"Bob"</span>,   <span class="nb">250.00</span>)
+
+<span class="fn">print</span>(alice.owner)    <span class="cm"># Alice</span>
+<span class="fn">print</span>(bob.owner)      <span class="cm"># Bob</span>
+<span class="fn">print</span>(alice.balance)  <span class="cm"># 1000.0   -- changing bob's balance does not affect alice</span>
+<span class="fn">print</span>(bob.balance)    <span class="cm"># 250.0</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Instance vs the Class</div>
+                <div class="card-desc">Instance attributes live on the object, not on the class. <span class="ic">alice.owner</span> is stored in <span class="ic">alice</span>'s own memory space. <span class="ic">bob.owner</span> is stored in <span class="ic">bob</span>'s own memory space. Changing <span class="ic">alice.balance</span> has no effect on <span class="ic">bob.balance</span> because they are separate storage locations.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">You Can Add Attributes Anywhere</div>
+                <div class="card-desc">Python allows you to add instance attributes outside of <span class="ic">__init__</span>. Best practice is to define all attributes in <span class="ic">__init__</span>, even if their initial value is <span class="ic">None</span> or zero. This documents what an object looks like and prevents AttributeError when code tries to read an attribute that was never set.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — METHODS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 34</div>
+        <div class="slide-title">Methods: <span class="accent">Functions Inside a Class</span></div>
+        <div class="slide-subtitle">A method is a function that belongs to a class. It always takes self as its first parameter.</div>
+
+        <div class="code-block"><span class="kw">class</span> BankAccount:
+    <span class="kw">def</span> __init__(self, owner, balance=<span class="nb">0.0</span>):
+        self.owner     = owner
+        self.balance   = balance
+        self.is_frozen = <span class="kw">False</span>
+
+    <span class="kw">def</span> deposit(self, amount):
+        <span class="cm"># Method: add funds to this account</span>
+        <span class="kw">if</span> amount &gt; <span class="nb">0</span>:
+            self.balance += amount
+
+    <span class="kw">def</span> withdraw(self, amount):
+        <span class="cm"># Method: remove funds if sufficient balance exists</span>
+        <span class="kw">if</span> amount &gt; <span class="nb">0</span> <span class="kw">and</span> amount &lt;= self.balance:
+            self.balance -= amount
+
+    <span class="kw">def</span> get_balance(self):
+        <span class="cm"># Method: read-only access to the current balance</span>
+        <span class="kw">return</span> self.balance</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Methods Are Functions</div>
+                <div class="card-desc">Everything you know about functions applies to methods: parameters, return values, default arguments, local variables. The only difference is that methods are defined inside a class body and automatically receive the object as their first argument via <span class="ic">self</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Methods Read and Write Attributes</div>
+                <div class="card-desc">Methods access the object's data through <span class="ic">self</span>. <span class="ic">self.balance += amount</span> reads the current balance, adds to it, and stores the result back on the same object. This is the core loop of OOP: methods operate on the object's own data.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Guard Clauses in Methods</div>
+                <div class="card-desc">Notice <span class="ic">if amount &gt; 0</span> and <span class="ic">if amount &lt;= self.balance</span>. Methods should validate their inputs and protect the object from invalid states. A <span class="ic">withdraw()</span> that allows a negative balance is a broken bank account. Put your guards at the top of the method.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — CREATING OBJECTS ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 34</div>
+        <div class="slide-title">Creating Objects: <span class="accent">Instantiation</span></div>
+        <div class="slide-subtitle">Call the class like a function. Python calls __init__ for you. You get back an object.</div>
+
+        <div class="code-block"><span class="cm"># Calling the class creates a new object (instance)</span>
+alice = BankAccount(<span class="st">"Alice"</span>, <span class="nb">1000.00</span>)
+bob   = BankAccount(<span class="st">"Bob"</span>)       <span class="cm"># uses default balance of 0.0</span>
+
+<span class="cm"># alice and bob are two separate objects in memory</span>
+<span class="fn">print</span>(<span class="fn">type</span>(alice))   <span class="cm"># &lt;class '__main__.BankAccount'&gt;</span>
+<span class="fn">print</span>(<span class="fn">type</span>(bob))     <span class="cm"># &lt;class '__main__.BankAccount'&gt;</span>
+<span class="fn">print</span>(alice <span class="kw">is</span> bob)  <span class="cm"># False — different objects, even if same type</span>
+
+<span class="cm"># You can create as many instances as you need</span>
+accounts = [
+    BankAccount(<span class="st">"Carol"</span>, <span class="nb">500.00</span>),
+    BankAccount(<span class="st">"Dave"</span>,  <span class="nb">750.00</span>),
+    BankAccount(<span class="st">"Eve"</span>,   <span class="nb">125.00</span>),
+]
+<span class="fn">print</span>(<span class="fn">len</span>(accounts))  <span class="cm"># 3 — three separate BankAccount objects</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What Happens During Instantiation</div>
+                <div class="card-desc">When you call <span class="ic">BankAccount("Alice", 1000.00)</span>, Python: (1) allocates memory for a new object, (2) calls <span class="ic">BankAccount.__init__(new_object, "Alice", 1000.00)</span>, (3) <span class="ic">__init__</span> sets up the attributes on that object, (4) Python returns the finished object to you. You store it in <span class="ic">alice</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Objects in Lists</div>
+                <div class="card-desc">You can store objects in lists, dictionaries, and other data structures just like any other value. A list of <span class="ic">BankAccount</span> objects is common — loop through them, call methods on each, filter by attributes. This is where OOP starts to show its power over procedural code.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — DOT NOTATION ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 34</div>
+        <div class="slide-title">Dot Notation: <span class="accent">obj.attribute and obj.method()</span></div>
+        <div class="slide-subtitle">The dot is how you reach inside an object to access its data or call its behaviors.</div>
+
+        <div class="code-block">alice = BankAccount(<span class="st">"Alice"</span>, <span class="nb">1000.00</span>)
+
+<span class="cm"># Reading attributes with dot notation</span>
+<span class="fn">print</span>(alice.owner)      <span class="cm"># Alice</span>
+<span class="fn">print</span>(alice.balance)    <span class="cm"># 1000.0</span>
+<span class="fn">print</span>(alice.is_frozen)  <span class="cm"># False</span>
+
+<span class="cm"># Calling methods with dot notation</span>
+alice.deposit(<span class="nb">250.00</span>)       <span class="cm"># Deposited $250.00. New balance: $1250.00</span>
+alice.withdraw(<span class="nb">100.00</span>)      <span class="cm"># balance is now 1150.0</span>
+bal = alice.get_balance()   <span class="cm"># returns 1150.0 — store it in a variable</span>
+<span class="fn">print</span>(bal)                  <span class="cm"># 1150.0</span>
+
+<span class="cm"># You can also set attributes directly (use with care — more on this slide 16)</span>
+alice.owner = <span class="st">"Alice Johnson"</span>
+<span class="fn">print</span>(alice.owner)          <span class="cm"># Alice Johnson</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Attribute Access vs Method Call</div>
+                <div class="card-desc">No parentheses = attribute access: you are reading a stored value. <span class="ic">alice.balance</span> returns whatever number is stored there. With parentheses = method call: you are executing code. <span class="ic">alice.get_balance()</span> runs the method and returns its result. The parentheses are the trigger — do not forget them on method calls.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Chaining Is Possible</div>
+                <div class="card-desc">If a method returns another object, you can chain dot calls: <span class="ic">result = bank.get_account("Alice").get_balance()</span>. This is common in Python libraries. Keep chains short (2-3 dots maximum) or the line becomes unreadable and impossible to debug when something goes wrong.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — TRY IT NOW ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 34 &nbsp;|&nbsp; Try It Now</div>
+        <div class="slide-title">Try It Now: <span class="accent">Create a Class</span></div>
+        <div class="slide-subtitle">Define a NetworkDevice class with basic attributes.</div>
+        <div class="try-it-now"
+             data-starter="# Create a class called NetworkDevice with:&#10;# - __init__(self, hostname, ip, device_type)&#10;# - a method status_report() that prints:&#10;#   &quot;[hostname] (ip) - Type: device_type&quot;&#10;"
+             data-solution="class NetworkDevice:&#10;    def __init__(self, hostname, ip, device_type):&#10;        self.hostname = hostname&#10;        self.ip = ip&#10;        self.device_type = device_type&#10;&#10;    def status_report(self):&#10;        print(f&quot;[{self.hostname}] ({self.ip}) - Type: {self.device_type}&quot;)&#10;&#10;dev = NetworkDevice(&quot;core-rtr-01&quot;, &quot;10.0.0.1&quot;, &quot;router&quot;)&#10;dev.status_report()"
+             data-expected="[core-rtr-01] (10.0.0.1) - Type: router"
+             data-height="200">
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 12 — COMPLETE BankAccount CLASS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 34 &nbsp;|&nbsp; Complete Example</div>
+        <div class="slide-title">Complete Example: <span class="accent">BankAccount Class</span></div>
+        <div class="slide-subtitle">All pieces assembled. Every concept from slides 4-10 in one place.</div>
+
+        <div class="code-block"><span class="kw">class</span> BankAccount:
+    <span class="st">"""A bank account tracking owner, balance, and frozen status."""</span>
+
+    <span class="kw">def</span> __init__(self, owner, balance=<span class="nb">0.0</span>):
+        self.owner     = owner        <span class="cm"># instance attribute: account holder name</span>
+        self.balance   = balance      <span class="cm"># instance attribute: current balance in dollars</span>
+        self.is_frozen = <span class="kw">False</span>       <span class="cm"># instance attribute: fraud hold flag</span>
+
+    <span class="kw">def</span> deposit(self, amount):
+        <span class="cm"># Add funds — reject non-positive amounts and frozen accounts</span>
+        <span class="kw">if</span> self.is_frozen:
+            <span class="fn">print</span>(<span class="st">"Account is frozen. Deposit rejected."</span>)
+            <span class="kw">return</span>
+        <span class="kw">if</span> amount &gt; <span class="nb">0</span>:
+            self.balance += amount
+
+    <span class="kw">def</span> withdraw(self, amount):
+        <span class="cm"># Remove funds — reject if frozen, negative, or insufficient balance</span>
+        <span class="kw">if</span> self.is_frozen:
+            <span class="fn">print</span>(<span class="st">"Account is frozen. Withdrawal rejected."</span>)
+            <span class="kw">return</span>
+        <span class="kw">if</span> <span class="nb">0</span> &lt; amount &lt;= self.balance:
+            self.balance -= amount
+        <span class="kw">else</span>:
+            <span class="fn">print</span>(<span class="st">f"Insufficient funds. Balance: ${self.balance:.2f}"</span>)
+
+    <span class="kw">def</span> get_balance(self):
+        <span class="cm"># Return the current balance as a float</span>
+        <span class="kw">return</span> self.balance
+
+    <span class="kw">def</span> freeze(self):
+        <span class="cm"># Lock the account — no deposits or withdrawals allowed</span>
+        self.is_frozen = <span class="kw">True</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — BankAccount WALKTHROUGH ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 34 &nbsp;|&nbsp; Trace Through</div>
+        <div class="slide-title">Walkthrough: <span class="accent">Using BankAccount</span></div>
+        <div class="slide-subtitle">Trace through this code step by step. Follow the state of each object.</div>
+
+        <div class="code-block"><span class="cm"># Create two accounts</span>
+alice = BankAccount(<span class="st">"Alice"</span>, <span class="nb">1000.00</span>)
+bob   = BankAccount(<span class="st">"Bob"</span>)
+
+<span class="cm"># alice: owner="Alice", balance=1000.00, is_frozen=False</span>
+<span class="cm"># bob:   owner="Bob",   balance=0.0,     is_frozen=False</span>
+
+alice.deposit(<span class="nb">500.00</span>)
+<span class="cm"># alice.balance is now 1500.00</span>
+
+alice.withdraw(<span class="nb">200.00</span>)
+<span class="cm"># alice.balance is now 1300.00</span>
+
+bob.deposit(<span class="nb">50.00</span>)
+<span class="cm"># bob.balance is now 50.0</span>
+
+bob.withdraw(<span class="nb">100.00</span>)
+<span class="cm"># Insufficient funds. Balance: $50.00</span>
+<span class="cm"># bob.balance is still 50.0 — the guard clause blocked it</span>
+
+alice.freeze()
+alice.deposit(<span class="nb">100.00</span>)
+<span class="cm"># Account is frozen. Deposit rejected.</span>
+<span class="cm"># alice.balance is still 1300.00</span>
+
+<span class="fn">print</span>(alice.get_balance())  <span class="cm"># 1300.0</span>
+<span class="fn">print</span>(bob.get_balance())    <span class="cm"># 50.0</span></div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            Notice: alice and bob are completely independent. Depositing to alice has zero effect on bob. Freezing alice does not affect bob. Each object manages its own state, isolated from all other objects.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — CLASS VARIABLES ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 34</div>
+        <div class="slide-title">Class Variables vs <span class="accent">Instance Variables</span></div>
+        <div class="slide-subtitle">Shared data vs per-object data. Know the difference or produce confusing bugs.</div>
+
+        <div class="code-block"><span class="kw">class</span> BankAccount:
+    <span class="cm"># Class variable — defined at class level, SHARED by all instances</span>
+    interest_rate = <span class="nb">0.035</span>   <span class="cm"># 3.5% — same for every account</span>
+    account_count = <span class="nb">0</span>       <span class="cm"># tracks how many accounts have been created</span>
+
+    <span class="kw">def</span> __init__(self, owner, balance=<span class="nb">0.0</span>):
+        <span class="cm"># Instance variables — unique to each object</span>
+        self.owner   = owner
+        self.balance = balance
+        BankAccount.account_count += <span class="nb">1</span>   <span class="cm"># increment class variable on creation</span>
+
+    <span class="kw">def</span> apply_interest(self):
+        <span class="cm"># Uses class variable — reads from the class, not from self</span>
+        self.balance *= (<span class="nb">1</span> + BankAccount.interest_rate)
+
+<span class="cm"># Accessing class variables</span>
+<span class="fn">print</span>(BankAccount.interest_rate)  <span class="cm"># 0.035 — accessed on the class directly</span>
+alice = BankAccount(<span class="st">"Alice"</span>, <span class="nb">1000.00</span>)
+bob   = BankAccount(<span class="st">"Bob"</span>,   <span class="nb">500.00</span>)
+<span class="fn">print</span>(BankAccount.account_count)  <span class="cm"># 2</span>
+BankAccount.interest_rate = <span class="nb">0.04</span>  <span class="cm"># change it here and ALL accounts see the change</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Rule of thumb:</strong> If the data is the same for every object of the class (a policy, a counter, a configuration value), make it a class variable. If the data belongs to one specific object (a name, a balance, a status flag), make it an instance variable set in <span class="ic">__init__</span>.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — __str__ METHOD ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 34</div>
+        <div class="slide-title">The <span class="accent">__str__</span> Method</div>
+        <div class="slide-subtitle">Control how print() displays your object. Without it, you get a memory address.</div>
+
+        <div class="code-block"><span class="cm"># Without __str__ — unhelpful default output</span>
+alice = BankAccount(<span class="st">"Alice"</span>, <span class="nb">1000.00</span>)
+<span class="fn">print</span>(alice)
+<span class="cm"># &lt;__main__.BankAccount object at 0x7f3a2c8d4b50&gt;  -- useless to a human</span>
+
+<span class="cm"># With __str__ — you control exactly what prints</span>
+<span class="kw">class</span> BankAccount:
+    <span class="kw">def</span> __init__(self, owner, balance=<span class="nb">0.0</span>):
+        self.owner     = owner
+        self.balance   = balance
+        self.is_frozen = <span class="kw">False</span>
+
+    <span class="kw">def</span> __str__(self):
+        <span class="cm"># Called by print() and str() — designed for human readers</span>
+        status = <span class="st">"FROZEN"</span> <span class="kw">if</span> self.is_frozen <span class="kw">else</span> <span class="st">"Active"</span>
+        <span class="kw">return</span> <span class="st">f"BankAccount({self.owner}) | Balance: ${self.balance:.2f} | {status}"</span>
+
+alice = BankAccount(<span class="st">"Alice"</span>, <span class="nb">1000.00</span>)
+<span class="fn">print</span>(alice)
+<span class="cm"># BankAccount(Alice) | Balance: $1000.00 | Active</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">When __str__ Is Called</div>
+                <div class="card-desc"><span class="ic">print(obj)</span> calls <span class="ic">str(obj)</span> which calls <span class="ic">obj.__str__()</span>. Also triggered by f-string interpolation: <span class="ic">f"Account: {alice}"</span>. If you do not define <span class="ic">__str__</span>, Python falls back to <span class="ic">__repr__</span>. If neither is defined, you get the memory address format.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Return a String</div>
+                <div class="card-desc"><span class="ic">__str__</span> must return a string. If you return anything else — an integer, None, a list — Python raises a TypeError when <span class="ic">print()</span> tries to use it. Build your return value with an f-string, and keep it to one line for readability.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — __repr__ METHOD ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 34</div>
+        <div class="slide-title">The <span class="accent">__repr__</span> Method</div>
+        <div class="slide-subtitle">The developer-facing string. Should be unambiguous. Ideal for debugging.</div>
+
+        <div class="code-block"><span class="kw">class</span> BankAccount:
+    <span class="kw">def</span> __init__(self, owner, balance=<span class="nb">0.0</span>):
+        self.owner     = owner
+        self.balance   = balance
+        self.is_frozen = <span class="kw">False</span>
+
+    <span class="kw">def</span> __str__(self):
+        <span class="cm"># Human-friendly: for print() and end-user display</span>
+        <span class="kw">return</span> <span class="st">f"BankAccount({self.owner}) | Balance: ${self.balance:.2f}"</span>
+
+    <span class="kw">def</span> __repr__(self):
+        <span class="cm"># Developer-friendly: unambiguous, shows enough to recreate the object</span>
+        <span class="kw">return</span> <span class="st">f"BankAccount(owner={self.owner!r}, balance={self.balance!r})"</span>
+
+alice = BankAccount(<span class="st">"Alice"</span>, <span class="nb">1000.00</span>)
+<span class="fn">print</span>(alice)           <span class="cm"># BankAccount(Alice) | Balance: $1000.00     (uses __str__)</span>
+<span class="fn">print</span>(<span class="fn">repr</span>(alice))     <span class="cm"># BankAccount(owner='Alice', balance=1000.0)  (uses __repr__)</span>
+
+<span class="cm"># In a list, Python uses __repr__ automatically</span>
+accounts = [BankAccount(<span class="st">"Alice"</span>, <span class="nb">1000.00</span>), BankAccount(<span class="st">"Bob"</span>, <span class="nb">50.00</span>)]
+<span class="fn">print</span>(accounts)
+<span class="cm"># [BankAccount(owner='Alice', balance=1000.0), BankAccount(owner='Bob', balance=50.0)]</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>The rule:</strong> <span class="ic">__str__</span> is for users. <span class="ic">__repr__</span> is for developers. If you only implement one, implement <span class="ic">__repr__</span> — Python falls back to it for both. The <span class="ic">!r</span> in the f-string (<span class="ic">{self.owner!r}</span>) adds quotes around string values automatically, making the output unambiguous.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — ENCAPSULATION: PUBLIC vs PRIVATE ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 34</div>
+        <div class="slide-title">Encapsulation: <span class="accent">Public vs Private</span></div>
+        <div class="slide-subtitle">Naming conventions that signal what is safe to touch from outside the class.</div>
+
+        <div class="code-block"><span class="kw">class</span> BankAccount:
+    <span class="kw">def</span> __init__(self, owner, balance=<span class="nb">0.0</span>):
+        self.owner      = owner       <span class="cm"># public — anyone can read or write this</span>
+        self._balance   = balance     <span class="cm"># _protected — convention: "hands off unless you know what you're doing"</span>
+        self.__pin      = <span class="st">"0000"</span>    <span class="cm"># __private — name-mangled by Python, harder to access externally</span>
+
+<span class="cm"># Public: accessed freely</span>
+alice = BankAccount(<span class="st">"Alice"</span>, <span class="nb">1000.00</span>)
+<span class="fn">print</span>(alice.owner)        <span class="cm"># Alice -- fine</span>
+
+<span class="cm"># Protected: accessible but conventionally "internal"</span>
+<span class="fn">print</span>(alice._balance)     <span class="cm"># 1000.0 -- works, but you are ignoring the warning sign</span>
+
+<span class="cm"># Private: name-mangled to _BankAccount__pin</span>
+<span class="fn">print</span>(alice.__pin)        <span class="cm"># AttributeError: 'BankAccount' object has no attribute '__pin'</span>
+<span class="fn">print</span>(alice._BankAccount__pin)  <span class="cm"># "0000" -- mangled name still accessible if you insist</span></div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">No True Private in Python</div>
+                <div class="card-desc">Python does not have strict private access like Java or C++. The single and double underscore conventions are signals, not locks. A determined caller can access anything. The convention communicates intent: "this is internal — use the public interface instead."</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Single Underscore _</div>
+                <div class="card-desc">"Protected by convention." Means the attribute is internal and callers should use a public method to access it. The author is promising it may change in future versions. Widely used in Python libraries. Example: <span class="ic">self._cache</span>, <span class="ic">self._session</span>.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Double Underscore __</div>
+                <div class="card-desc">Triggers name-mangling. Python renames <span class="ic">__pin</span> to <span class="ic">_BankAccount__pin</span> internally. Prevents accidental overwriting in subclasses. Use sparingly — it is not a security mechanism, just a namespace guard to prevent naming collisions in inheritance hierarchies.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — WHY HIDE DATA ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 34</div>
+        <div class="slide-title">Encapsulation: <span class="accent">Why Hide Data?</span></div>
+        <div class="slide-subtitle">Control what can happen to your object's data. Prevent impossible states.</div>
+
+        <div class="code-block"><span class="cm"># Without encapsulation — anyone can set balance to anything</span>
+<span class="kw">class</span> BadBankAccount:
+    <span class="kw">def</span> __init__(self, owner, balance=<span class="nb">0.0</span>):
+        self.owner   = owner
+        self.balance = balance
+
+alice = BadBankAccount(<span class="st">"Alice"</span>, <span class="nb">1000.00</span>)
+alice.balance = <span class="nb">-999999</span>   <span class="cm"># valid Python, but makes no business sense</span>
+alice.balance = <span class="st">"banana"</span>  <span class="cm"># also valid Python -- now the account is broken</span>
+
+<span class="cm"># With encapsulation — balance only changes through controlled methods</span>
+<span class="kw">class</span> GoodBankAccount:
+    <span class="kw">def</span> __init__(self, owner, balance=<span class="nb">0.0</span>):
+        self.owner    = owner
+        self._balance = max(<span class="nb">0.0</span>, balance)  <span class="cm"># enforce non-negative on creation</span>
+
+    <span class="kw">def</span> deposit(self, amount):
+        <span class="kw">if</span> <span class="fn">isinstance</span>(amount, (<span class="fn">int</span>, <span class="fn">float</span>)) <span class="kw">and</span> amount &gt; <span class="nb">0</span>:
+            self._balance += amount
+
+    <span class="kw">def</span> get_balance(self):
+        <span class="kw">return</span> self._balance   <span class="cm"># read-only access — caller gets the value, not the variable</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>The principle:</strong> An object should be responsible for keeping itself in a valid state. Every path that modifies data should go through a method that validates the change. Code outside the class should never be able to put an object into a state that makes no sense. This is what "encapsulation" means in practice.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — GETTERS AND SETTERS ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 34</div>
+        <div class="slide-title">Getters &amp; Setters: <span class="accent">The @property Decorator</span></div>
+        <div class="slide-subtitle">Read and write protected attributes through controlled methods that look like attributes.</div>
+
+        <div class="code-block"><span class="kw">class</span> BankAccount:
+    <span class="kw">def</span> __init__(self, owner, balance=<span class="nb">0.0</span>):
+        self.owner    = owner
+        self._balance = max(<span class="nb">0.0</span>, balance)
+
+    <span class="dc">@property</span>
+    <span class="kw">def</span> balance(self):
+        <span class="cm"># Getter: called when you read 'obj.balance' (no parentheses)</span>
+        <span class="kw">return</span> self._balance
+
+    <span class="dc">@balance.setter</span>
+    <span class="kw">def</span> balance(self, new_amount):
+        <span class="cm"># Setter: called when you write 'obj.balance = value'</span>
+        <span class="kw">if</span> <span class="fn">isinstance</span>(new_amount, (<span class="fn">int</span>, <span class="fn">float</span>)) <span class="kw">and</span> new_amount &gt;= <span class="nb">0</span>:
+            self._balance = new_amount
+        <span class="kw">else</span>:
+            <span class="fn">print</span>(<span class="st">"Balance must be a non-negative number."</span>)
+
+alice = BankAccount(<span class="st">"Alice"</span>, <span class="nb">1000.00</span>)
+<span class="fn">print</span>(alice.balance)     <span class="cm"># 1000.0    -- calls the getter, looks like an attribute</span>
+alice.balance = <span class="nb">1500.00</span>  <span class="cm"># calls the setter, validates before storing</span>
+alice.balance = <span class="nb">-200</span>    <span class="cm"># Balance must be a non-negative number. -- setter rejects it</span></div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            <div class="box-label">Why @property Is Elegant</div>
+            Without <span class="ic">@property</span>, you would need to call <span class="ic">alice.get_balance()</span> and <span class="ic">alice.set_balance(1500)</span>. With <span class="ic">@property</span>, you write <span class="ic">alice.balance</span> and <span class="ic">alice.balance = 1500</span> — it looks like direct attribute access but runs your validation code. This is the Pythonic way. You get safety without sacrificing clean syntax.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — TRY IT NOW ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 34 &nbsp;|&nbsp; Try It Now</div>
+        <div class="slide-title">Try It Now: <span class="accent">Inheritance</span></div>
+        <div class="slide-subtitle">Create a Router class that extends NetworkDevice.</div>
+        <div class="try-it-now"
+             data-starter="class NetworkDevice:&#10;    def __init__(self, hostname, ip):&#10;        self.hostname = hostname&#10;        self.ip = ip&#10;&#10;# Create a Router class that inherits from NetworkDevice&#10;# Add a &quot;routing_protocol&quot; attribute (e.g., &quot;OSPF&quot;)&#10;# Add a method show() that prints: hostname (ip) - protocol&#10;"
+             data-solution="class NetworkDevice:&#10;    def __init__(self, hostname, ip):&#10;        self.hostname = hostname&#10;        self.ip = ip&#10;&#10;class Router(NetworkDevice):&#10;    def __init__(self, hostname, ip, routing_protocol):&#10;        super().__init__(hostname, ip)&#10;        self.routing_protocol = routing_protocol&#10;&#10;    def show(self):&#10;        print(f&quot;{self.hostname} ({self.ip}) - {self.routing_protocol}&quot;)&#10;&#10;r = Router(&quot;core-rtr-01&quot;, &quot;10.0.0.1&quot;, &quot;OSPF&quot;)&#10;r.show()"
+             data-expected="core-rtr-01 (10.0.0.1) - OSPF"
+             data-height="240">
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 21 — INHERITANCE: WHAT IT IS ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 34</div>
+        <div class="slide-title">Inheritance: <span class="accent">What It Is</span></div>
+        <div class="slide-subtitle">A child class automatically receives everything the parent class has. Then it adds its own stuff.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">The Core Idea</div>
+                <div class="card-desc">Inheritance is a relationship: "A is a type of B." A <span class="ic">Dog</span> is an <span class="ic">Animal</span>. A <span class="ic">Router</span> is a <span class="ic">NetworkDevice</span>. The child class (Dog, Router) automatically gets all the attributes and methods of the parent class (Animal, NetworkDevice) without rewriting them. Then it adds what makes it unique.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why This Matters</div>
+                <div class="card-desc">Without inheritance, a <span class="ic">Router</span> class and a <span class="ic">Switch</span> class would duplicate all their shared code: hostname, IP, status, ping(), reboot(). With inheritance, that shared code lives in <span class="ic">NetworkDevice</span> once. Routers and switches only define what makes them different. Fix a bug in one place, fixed everywhere.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Parent (Base) Class</div>
+                <div class="card-desc">The class being inherited from. Also called "base class" or "superclass." Defines the common interface and shared behavior. Examples: <span class="ic">NetworkDevice</span>, <span class="ic">Animal</span>, <span class="ic">User</span>.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Child (Derived) Class</div>
+                <div class="card-desc">The class that inherits. Also called "derived class" or "subclass." Automatically has everything the parent has. Adds its own attributes and methods on top. Examples: <span class="ic">Router</span>, <span class="ic">Dog</span>, <span class="ic">Admin</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">The "is-a" Test</div>
+                <div class="card-desc">Before using inheritance, ask: "Is a X a type of Y?" A Router IS a NetworkDevice. Use inheritance. A Router HAS-A routing table. That is composition — a different pattern. Only use inheritance for genuine "is-a" relationships or your code will become confusing.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — INHERITANCE SYNTAX ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 34</div>
+        <div class="slide-title">Inheritance: <span class="accent">Syntax and super()</span></div>
+        <div class="slide-subtitle">class Child(Parent): — put the parent name in parentheses. super() calls the parent's method.</div>
+
+        <div class="code-block"><span class="cm"># Parent class — shared foundation</span>
+<span class="kw">class</span> NetworkDevice:
+    <span class="st">"""Base class for all managed network devices."""</span>
+
+    <span class="kw">def</span> __init__(self, hostname, ip_address, status=<span class="st">"online"</span>):
+        self.hostname   = hostname       <span class="cm"># device's DNS name</span>
+        self.ip_address = ip_address     <span class="cm"># management IP</span>
+        self.status     = status         <span class="cm"># online / offline / maintenance</span>
+
+    <span class="kw">def</span> ping(self):
+        <span class="kw">return</span> <span class="st">f"Pinging {self.hostname} ({self.ip_address})..."</span>
+
+    <span class="kw">def</span> reboot(self):
+        self.status = <span class="st">"rebooting"</span>
+        <span class="kw">return</span> <span class="st">f"{self.hostname} is rebooting."</span>
+
+<span class="cm"># Child class — inherits everything above, then adds its own attributes</span>
+<span class="kw">class</span> Router(NetworkDevice):
+    <span class="st">"""A router extends NetworkDevice with routing-specific attributes."""</span>
+
+    <span class="kw">def</span> __init__(self, hostname, ip_address, routing_protocol):
+        <span class="cm"># super().__init__() calls the parent's __init__ — avoids repeating those lines</span>
+        <span class="fn">super</span>().__init__(hostname, ip_address)
+        self.routing_protocol = routing_protocol   <span class="cm"># Router-specific: OSPF, BGP, EIGRP</span>
+
+    <span class="kw">def</span> show_routes(self):
+        <span class="cm"># Router-specific method — NetworkDevice does not have this</span>
+        <span class="kw">return</span> <span class="st">f"{self.hostname} running {self.routing_protocol} routing table"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — INHERITANCE EXAMPLE ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 34</div>
+        <div class="slide-title">Inheritance: <span class="accent">Router, Switch, Firewall</span></div>
+        <div class="slide-subtitle">Three child classes, one parent. Each inherits ping() and reboot(), adds its own specialization.</div>
+
+        <div class="code-block"><span class="kw">class</span> Switch(NetworkDevice):
+    <span class="kw">def</span> __init__(self, hostname, ip_address, port_count):
+        <span class="fn">super</span>().__init__(hostname, ip_address)
+        self.port_count = port_count   <span class="cm"># Switch-specific: 24, 48, etc.</span>
+
+    <span class="kw">def</span> show_mac_table(self):
+        <span class="kw">return</span> <span class="st">f"{self.hostname}: {self.port_count} ports — MAC table display"</span>
+
+<span class="kw">class</span> Firewall(NetworkDevice):
+    <span class="kw">def</span> __init__(self, hostname, ip_address, policy_set):
+        <span class="fn">super</span>().__init__(hostname, ip_address)
+        self.policy_set = policy_set   <span class="cm"># Firewall-specific: ruleset name</span>
+
+    <span class="kw">def</span> block_ip(self, target_ip):
+        <span class="kw">return</span> <span class="st">f"{self.hostname}: Blocking {target_ip} via policy '{self.policy_set}'"</span>
+
+<span class="cm"># Create one of each — they all share hostname, ip_address, status, ping(), reboot()</span>
+rtr1 = Router(<span class="st">"core-rtr-01"</span>,  <span class="st">"10.0.1.1"</span>,  <span class="st">"OSPF"</span>)
+sw1  = Switch(<span class="st">"access-sw-01"</span>, <span class="st">"10.0.2.1"</span>,  <span class="nb">48</span>)
+fw1  = Firewall(<span class="st">"edge-fw-01"</span>,  <span class="st">"10.0.0.1"</span>,  <span class="st">"PCI-DMZ"</span>)
+
+<span class="fn">print</span>(rtr1.ping())          <span class="cm"># Pinging core-rtr-01 (10.0.1.1)...     -- inherited</span>
+<span class="fn">print</span>(sw1.show_mac_table()) <span class="cm"># access-sw-01: 48 ports — MAC table display</span>
+<span class="fn">print</span>(fw1.block_ip(<span class="st">"192.168.1.50"</span>))
+<span class="cm"># edge-fw-01: Blocking 192.168.1.50 via policy 'PCI-DMZ'</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — METHOD OVERRIDING ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 34</div>
+        <div class="slide-title">Method <span class="accent">Overriding</span></div>
+        <div class="slide-subtitle">A child class can replace a parent method with its own version. Same name, different behavior.</div>
+
+        <div class="code-block"><span class="kw">class</span> NetworkDevice:
+    <span class="kw">def</span> __init__(self, hostname, ip_address, status=<span class="st">"online"</span>):
+        self.hostname   = hostname
+        self.ip_address = ip_address
+        self.status     = status
+
+    <span class="kw">def</span> reboot(self):
+        <span class="cm"># Default reboot: 30 seconds</span>
+        self.status = <span class="st">"rebooting"</span>
+        <span class="kw">return</span> <span class="st">f"{self.hostname}: standard reboot (30s)"</span>
+
+<span class="kw">class</span> Firewall(NetworkDevice):
+    <span class="kw">def</span> __init__(self, hostname, ip_address, policy_set):
+        <span class="fn">super</span>().__init__(hostname, ip_address)
+        self.policy_set = policy_set
+
+    <span class="kw">def</span> reboot(self):
+        <span class="cm"># Override: firewalls require a maintenance window and policy reload</span>
+        self.status = <span class="st">"rebooting"</span>
+        <span class="kw">return</span> <span class="st">f"{self.hostname}: FIREWALL reboot — requires maintenance window + policy reload"</span>
+
+rtr1 = NetworkDevice(<span class="st">"core-rtr-01"</span>, <span class="st">"10.0.1.1"</span>)
+fw1  = Firewall(<span class="st">"edge-fw-01"</span>, <span class="st">"10.0.0.1"</span>, <span class="st">"PCI-DMZ"</span>)
+
+<span class="fn">print</span>(rtr1.reboot())   <span class="cm"># core-rtr-01: standard reboot (30s)</span>
+<span class="fn">print</span>(fw1.reboot())    <span class="cm"># edge-fw-01: FIREWALL reboot — requires maintenance window + policy reload</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Python's lookup order:</strong> When you call <span class="ic">fw1.reboot()</span>, Python checks the child class first (Firewall). If it finds <span class="ic">reboot</span> there, it uses it and stops. If not, it walks up to the parent (NetworkDevice). This lookup chain is called the Method Resolution Order (MRO). You can inspect it with <span class="ic">Firewall.__mro__</span>.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — POLYMORPHISM ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 34</div>
+        <div class="slide-title"><span class="accent">Polymorphism</span></div>
+        <div class="slide-subtitle">Same method name. Different classes. Different behavior. One loop handles them all.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What Polymorphism Means</div>
+                <div class="card-desc">"Polymorphism" means "many forms." When different classes implement a method with the same name, you can call that method on any of them without knowing which class you are dealing with. Python figures out which implementation to run based on the actual type of the object at runtime.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why This Is Powerful</div>
+                <div class="card-desc">You can write code that works on any object that has a <span class="ic">reboot()</span> method — without caring whether it is a Router, Switch, or Firewall. Add a new device type next year, put it in the same list, and the loop still works with zero changes. Your code adapts to new types automatically.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># A list of mixed device types — all share the reboot() method</span>
+devices = [
+    Router(<span class="st">"core-rtr-01"</span>,  <span class="st">"10.0.1.1"</span>,  <span class="st">"OSPF"</span>),
+    Switch(<span class="st">"access-sw-01"</span>, <span class="st">"10.0.2.1"</span>,  <span class="nb">48</span>),
+    Firewall(<span class="st">"edge-fw-01"</span>,  <span class="st">"10.0.0.1"</span>,  <span class="st">"PCI-DMZ"</span>),
+]
+
+<span class="cm"># Loop calls reboot() on each — Python calls the right version for each type</span>
+<span class="kw">for</span> device <span class="kw">in</span> devices:
+    <span class="fn">print</span>(device.reboot())
+
+<span class="cm"># core-rtr-01: standard reboot (30s)</span>
+<span class="cm"># access-sw-01: standard reboot (30s)</span>
+<span class="cm"># edge-fw-01: FIREWALL reboot — requires maintenance window + policy reload</span></div>
+
+        <div class="box box-green" style="font-size:0.83rem;">
+            <strong>Notice:</strong> The loop does not use <span class="ic">if isinstance(device, Firewall)</span>. It just calls <span class="ic">device.reboot()</span>. The correct method runs automatically. This is polymorphism in action — and it is the reason well-designed OOP code stays clean as systems grow.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — POLYMORPHISM EXAMPLE: SHAPES ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 34</div>
+        <div class="slide-title">Polymorphism: <span class="accent">area() with Shapes</span></div>
+        <div class="slide-subtitle">A geometry example showing how one interface works across completely different implementations.</div>
+
+        <div class="code-block"><span class="kw">import</span> math
+
+<span class="kw">class</span> Shape:
+    <span class="st">"""Abstract base for all shapes — subclasses must implement area()."""</span>
+    <span class="kw">def</span> area(self):
+        <span class="kw">raise</span> NotImplementedError(<span class="st">"Subclasses must implement area()"</span>)
+
+<span class="kw">class</span> Circle(Shape):
+    <span class="kw">def</span> __init__(self, radius):
+        self.radius = radius
+    <span class="kw">def</span> area(self):
+        <span class="kw">return</span> math.pi * self.radius ** <span class="nb">2</span>   <span class="cm"># pi * r^2</span>
+
+<span class="kw">class</span> Rectangle(Shape):
+    <span class="kw">def</span> __init__(self, width, height):
+        self.width  = width
+        self.height = height
+    <span class="kw">def</span> area(self):
+        <span class="kw">return</span> self.width * self.height
+
+<span class="kw">class</span> Triangle(Shape):
+    <span class="kw">def</span> __init__(self, base, height):
+        self.base   = base
+        self.height = height
+    <span class="kw">def</span> area(self):
+        <span class="kw">return</span> <span class="nb">0.5</span> * self.base * self.height
+
+shapes = [Circle(<span class="nb">5</span>), Rectangle(<span class="nb">4</span>, <span class="nb">6</span>), Triangle(<span class="nb">3</span>, <span class="nb">8</span>)]
+<span class="kw">for</span> s <span class="kw">in</span> shapes:
+    <span class="fn">print</span>(<span class="st">f"{s.__class__.__name__}: area = {s.area():.2f}"</span>)
+<span class="cm"># Circle: area = 78.54</span>
+<span class="cm"># Rectangle: area = 24.00</span>
+<span class="cm"># Triangle: area = 12.00</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — isinstance() AND type() ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 34</div>
+        <div class="slide-title"><span class="accent">isinstance()</span> and type()</div>
+        <div class="slide-subtitle">When you need to inspect what class an object belongs to — and when to avoid it.</div>
+
+        <div class="code-block"><span class="cm"># type() — returns the exact class, no inheritance awareness</span>
+rtr1 = Router(<span class="st">"core-rtr-01"</span>, <span class="st">"10.0.1.1"</span>, <span class="st">"OSPF"</span>)
+<span class="fn">print</span>(<span class="fn">type</span>(rtr1))                   <span class="cm"># &lt;class '__main__.Router'&gt;</span>
+<span class="fn">print</span>(<span class="fn">type</span>(rtr1) == Router)         <span class="cm"># True</span>
+<span class="fn">print</span>(<span class="fn">type</span>(rtr1) == NetworkDevice)  <span class="cm"># False  — type() is strict, ignores inheritance</span>
+
+<span class="cm"># isinstance() — checks type AND all parent classes</span>
+<span class="fn">print</span>(<span class="fn">isinstance</span>(rtr1, Router))        <span class="cm"># True  — it IS a Router</span>
+<span class="fn">print</span>(<span class="fn">isinstance</span>(rtr1, NetworkDevice)) <span class="cm"># True  — it IS ALSO a NetworkDevice</span>
+<span class="fn">print</span>(<span class="fn">isinstance</span>(rtr1, Firewall))      <span class="cm"># False — a Router is not a Firewall</span>
+
+<span class="cm"># Practical use: validate input type in a function</span>
+<span class="kw">def</span> send_config(device, config_text):
+    <span class="kw">if</span> <span class="kw">not</span> <span class="fn">isinstance</span>(device, NetworkDevice):
+        <span class="kw">raise</span> TypeError(<span class="st">f"Expected a NetworkDevice, got {type(device).__name__}"</span>)
+    <span class="fn">print</span>(<span class="st">f"Pushing config to {device.hostname}..."</span>)</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Prefer isinstance() Over type()</div>
+                <div class="card-desc"><span class="ic">isinstance()</span> respects inheritance. If a function accepts any <span class="ic">NetworkDevice</span>, use <span class="ic">isinstance(x, NetworkDevice)</span> to check. This future-proofs your code — a <span class="ic">Router</span> you define next month will pass the check without modifying the function. <span class="ic">type()</span> would require you to update the check.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Using isinstance() to Branch Logic</div>
+                <div class="card-desc">If you find yourself writing <span class="ic">if isinstance(x, Firewall): ...</span> followed by <span class="ic">elif isinstance(x, Router): ...</span>, stop. This is a sign you should use method overriding instead. Polymorphism eliminates these chains — each class handles its own behavior. Type-branching is usually a design smell.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — IT SCENARIO: NetworkDevice ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 34 &nbsp;|&nbsp; IT Scenario</div>
+        <div class="slide-title">IT Scenario: <span class="accent">NetworkDevice Class</span></div>
+        <div class="slide-subtitle">Build a complete foundation class for network inventory management.</div>
+
+        <div class="code-block"><span class="kw">class</span> NetworkDevice:
+    <span class="st">"""
+    Foundation class for all managed network devices.
+    Provides shared identity, status tracking, and basic operations.
+    """</span>
+
+    <span class="kw">def</span> __init__(self, hostname, ip_address, vendor, status=<span class="st">"online"</span>):
+        self.hostname   = hostname      <span class="cm"># FQDN or short name: "core-rtr-01"</span>
+        self.ip_address = ip_address    <span class="cm"># management IP: "10.0.1.1"</span>
+        self.vendor     = vendor        <span class="cm"># hardware vendor: "Cisco", "Juniper", "Palo Alto"</span>
+        self.status     = status        <span class="cm"># "online" | "offline" | "maintenance"</span>
+
+    <span class="kw">def</span> ping(self):
+        <span class="kw">if</span> self.status == <span class="st">"online"</span>:
+            <span class="kw">return</span> <span class="st">f"[OK] {self.hostname} ({self.ip_address}) is reachable"</span>
+        <span class="kw">return</span> <span class="st">f"[FAIL] {self.hostname} is {self.status}"</span>
+
+    <span class="kw">def</span> reboot(self):
+        self.status = <span class="st">"maintenance"</span>
+        <span class="kw">return</span> <span class="st">f"[INFO] {self.hostname}: reboot initiated"</span>
+
+    <span class="kw">def</span> set_offline(self):
+        self.status = <span class="st">"offline"</span>
+
+    <span class="kw">def</span> __str__(self):
+        <span class="kw">return</span> <span class="st">f"[{self.vendor}] {self.hostname} | {self.ip_address} | {self.status.upper()}"</span>
+
+<span class="cm"># Test the base class</span>
+dev = NetworkDevice(<span class="st">"test-sw-01"</span>, <span class="st">"192.168.1.10"</span>, <span class="st">"Cisco"</span>)
+<span class="fn">print</span>(dev)           <span class="cm"># [Cisco] test-sw-01 | 192.168.1.10 | ONLINE</span>
+<span class="fn">print</span>(dev.ping())    <span class="cm"># [OK] test-sw-01 (192.168.1.10) is reachable</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — IT SCENARIO: ROUTER, SWITCH, FIREWALL SUBCLASSES ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 34 &nbsp;|&nbsp; IT Scenario</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Router, Switch, Firewall</span></div>
+        <div class="slide-subtitle">Three specialized subclasses built on the NetworkDevice foundation.</div>
+
+        <div class="code-block"><span class="kw">class</span> Router(NetworkDevice):
+    <span class="kw">def</span> __init__(self, hostname, ip_address, vendor, routing_protocol):
+        <span class="fn">super</span>().__init__(hostname, ip_address, vendor)
+        self.routing_protocol = routing_protocol   <span class="cm"># "OSPF", "BGP", "EIGRP", "Static"</span>
+    <span class="kw">def</span> show_routes(self):
+        <span class="kw">return</span> <span class="st">f"{self.hostname}: routing via {self.routing_protocol}"</span>
+
+<span class="kw">class</span> Switch(NetworkDevice):
+    <span class="kw">def</span> __init__(self, hostname, ip_address, vendor, port_count, vlans=<span class="kw">None</span>):
+        <span class="fn">super</span>().__init__(hostname, ip_address, vendor)
+        self.port_count = port_count
+        self.vlans      = vlans <span class="kw">if</span> vlans <span class="kw">is not None</span> <span class="kw">else</span> [<span class="nb">1</span>]   <span class="cm"># default to VLAN 1</span>
+    <span class="kw">def</span> add_vlan(self, vlan_id):
+        <span class="kw">if</span> vlan_id <span class="kw">not in</span> self.vlans:
+            self.vlans.append(vlan_id)
+            <span class="kw">return</span> <span class="st">f"{self.hostname}: VLAN {vlan_id} added"</span>
+
+<span class="kw">class</span> Firewall(NetworkDevice):
+    <span class="kw">def</span> __init__(self, hostname, ip_address, vendor, policy_set):
+        <span class="fn">super</span>().__init__(hostname, ip_address, vendor)
+        self.policy_set  = policy_set
+        self.blocked_ips = []   <span class="cm"># starts empty — populated via block_ip()</span>
+    <span class="kw">def</span> block_ip(self, target_ip):
+        <span class="kw">if</span> target_ip <span class="kw">not in</span> self.blocked_ips:
+            self.blocked_ips.append(target_ip)
+            <span class="kw">return</span> <span class="st">f"{self.hostname}: {target_ip} BLOCKED under {self.policy_set}"</span>
+    <span class="kw">def</span> reboot(self):
+        <span class="cm"># Override: firewall reboot clears dynamic block list</span>
+        self.blocked_ips.clear()
+        self.status = <span class="st">"maintenance"</span>
+        <span class="kw">return</span> <span class="st">f"[WARN] {self.hostname}: firewall reboot — dynamic blocks cleared"</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — IT SCENARIO: USER MANAGEMENT ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 34 &nbsp;|&nbsp; IT Scenario</div>
+        <div class="slide-title">IT Scenario: <span class="accent">User Management System</span></div>
+        <div class="slide-subtitle">User, Admin, Guest — a three-class hierarchy for an IT helpdesk access system.</div>
+
+        <div class="code-block"><span class="kw">class</span> User:
+    <span class="st">"""Standard user account — read access only."""</span>
+    <span class="kw">def</span> __init__(self, username, email, department):
+        self.username   = username
+        self.email      = email
+        self.department = department
+        self.is_active  = <span class="kw">True</span>
+    <span class="kw">def</span> get_permissions(self):
+        <span class="kw">return</span> [<span class="st">"read"</span>]
+    <span class="kw">def</span> __str__(self):
+        <span class="kw">return</span> <span class="st">f"User({self.username}) | {self.department}"</span>
+
+<span class="kw">class</span> Admin(User):
+    <span class="st">"""IT admin — inherits User, adds write and delete permissions."""</span>
+    <span class="kw">def</span> __init__(self, username, email, department, admin_level):
+        <span class="fn">super</span>().__init__(username, email, department)
+        self.admin_level = admin_level   <span class="cm"># 1 = helpdesk, 2 = sysadmin, 3 = root</span>
+    <span class="kw">def</span> get_permissions(self):
+        <span class="cm"># Override: admins have more permissions than standard users</span>
+        base = <span class="fn">super</span>().get_permissions()   <span class="cm"># ["read"] from parent</span>
+        <span class="kw">return</span> base + [<span class="st">"write"</span>, <span class="st">"delete"</span>, <span class="st">"admin"</span>]
+
+<span class="kw">class</span> Guest(User):
+    <span class="st">"""Temporary guest account — time-limited, restricted permissions."""</span>
+    <span class="kw">def</span> __init__(self, username, email, expiry_date):
+        <span class="fn">super</span>().__init__(username, email, department=<span class="st">"Guest"</span>)
+        self.expiry_date = expiry_date
+    <span class="kw">def</span> get_permissions(self):
+        <span class="kw">return</span> [<span class="st">"read_limited"</span>]   <span class="cm"># more restricted than standard User</span>
+
+<span class="cm"># Polymorphism: same method, three different results</span>
+accounts = [User(<span class="st">"jsmith"</span>, <span class="st">"j@company.com"</span>, <span class="st">"Accounting"</span>),
+            Admin(<span class="st">"itadmin"</span>, <span class="st">"it@company.com"</span>, <span class="st">"IT"</span>, <span class="nb">2</span>),
+            Guest(<span class="st">"vendor1"</span>, <span class="st">"v@partner.com"</span>, <span class="st">"2024-12-31"</span>)]
+<span class="kw">for</span> acct <span class="kw">in</span> accounts:
+    <span class="fn">print</span>(<span class="st">f"{acct.username}: {acct.get_permissions()}"</span>)</div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 — COMMON MISTAKES ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 34</div>
+        <div class="slide-title">Common <span class="accent">OOP Mistakes</span></div>
+        <div class="slide-subtitle">The errors that trip up new OOP programmers. All of them. Every time.</div>
+
+        <div class="code-block"><span class="cm"># Mistake 1: Forgetting self in a method definition</span>
+<span class="kw">class</span> Bad:
+    <span class="kw">def</span> show_name(name):   <span class="cm"># WRONG — missing self</span>
+        <span class="fn">print</span>(name)
+<span class="cm"># obj.show_name() raises: TypeError: show_name() takes 1 argument but 2 were given</span>
+<span class="cm"># Fix: def show_name(self): then print(self.name)</span>
+
+<span class="cm"># Mistake 2: Typo in __init__ — one underscore each side</span>
+<span class="kw">class</span> AlsoBad:
+    <span class="kw">def</span> _init_(self, value):   <span class="cm"># WRONG — not called automatically</span>
+        self.value = value
+<span class="cm"># obj.value raises AttributeError — _init_ was never called</span>
+<span class="cm"># Fix: def __init__(self, value):   -- two underscores each side</span>
+
+<span class="cm"># Mistake 3: Mutable default argument (lists/dicts) in __init__</span>
+<span class="kw">class</span> Switch:
+    <span class="kw">def</span> __init__(self, hostname, vlans=[]):   <span class="cm"># WRONG — all instances share ONE list</span>
+        self.vlans = vlans
+
+sw1 = Switch(<span class="st">"sw-01"</span>)
+sw2 = Switch(<span class="st">"sw-02"</span>)
+sw1.vlans.append(<span class="nb">10</span>)
+<span class="fn">print</span>(sw2.vlans)   <span class="cm"># [10] -- sw2 is polluted by sw1's action!</span>
+
+<span class="cm"># Fix: use None as default, create fresh list inside __init__</span>
+<span class="kw">class</span> SwitchFixed:
+    <span class="kw">def</span> __init__(self, hostname, vlans=<span class="kw">None</span>):
+        self.vlans = vlans <span class="kw">if</span> vlans <span class="kw">is not None</span> <span class="kw">else</span> []   <span class="cm"># fresh list per instance</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 — GRAPHICS PROJECT GUIDANCE ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 34 &nbsp;|&nbsp; Project Workshop</div>
+        <div class="slide-title">Graphics Mini-Project: <span class="accent">Workshop Time</span></div>
+        <div class="slide-subtitle">Second half of today's class. Your first OOP project applies what you just learned.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Project Requirements</div>
+                <div class="card-desc">
+                    Build a graphics application using the <span class="ic">turtle</span> module that uses at least one class.<br><br>
+                    Your class must have:<br>
+                    -- An <span class="ic">__init__</span> method that sets up position, color, and size attributes<br>
+                    -- At least two methods that draw or move shapes<br>
+                    -- A <span class="ic">__str__</span> method returning a description of the object<br><br>
+                    Create at least 3 instances from your class with different colors or sizes.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Example Projects</div>
+                <div class="card-desc">
+                    <strong>StarField</strong> — a Star class with draw() and twinkle(). Create 20 stars with random positions and sizes.<br><br>
+                    <strong>PolygonArt</strong> — a Polygon class with draw() that takes a side count. Create triangle, square, pentagon, hexagon.<br><br>
+                    <strong>TrafficLight</strong> — a Light class with red(), yellow(), green() methods that draw colored circles at set positions.
+                </div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Turtle Quick-Start</div>
+                <div class="card-desc"><span class="ic">import turtle</span><br><span class="ic">t = turtle.Turtle()</span><br><span class="ic">t.pencolor("gold")</span><br><span class="ic">t.fillcolor("gold")</span><br><span class="ic">t.begin_fill()</span><br><span class="ic">t.circle(50)</span><br><span class="ic">t.end_fill()</span><br><span class="ic">turtle.done()</span></div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Grading Rubric Preview</div>
+                <div class="card-desc">
+                    Class definition with __init__: 30 pts<br>
+                    At least 2 working methods: 25 pts<br>
+                    __str__ implemented: 10 pts<br>
+                    3+ instances created: 20 pts<br>
+                    Code comments throughout: 15 pts<br>
+                    Total: 100 pts
+                </div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Common Project Pitfalls</div>
+                <div class="card-desc">
+                    Calling <span class="ic">turtle.done()</span> inside the class (it belongs at the very end of the script).<br><br>
+                    Using global variables instead of instance attributes — everything the object needs should be on <span class="ic">self</span>.<br><br>
+                    No comments — every method body needs at least one comment explaining intent.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 — VOCABULARY ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 34</div>
+        <div class="slide-title">Key <span class="accent">Vocabulary</span></div>
+        <div class="slide-subtitle">Eight terms. Know what each one means and when to use it.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Class</div>
+                <div class="card-desc">The blueprint or template that defines the structure and behavior of objects. Defined with the <span class="ic">class</span> keyword, named in PascalCase. Example: <span class="ic">BankAccount</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Object / Instance</div>
+                <div class="card-desc">A specific realization of a class. Created by calling the class like a function. <span class="ic">alice = BankAccount("Alice", 1000)</span> creates one object (instance) of the class.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Attribute</div>
+                <div class="card-desc">A variable that lives on an object. Set in <span class="ic">__init__</span> with <span class="ic">self.attribute = value</span>. Each instance has its own copy. Accessed via dot notation: <span class="ic">alice.balance</span>.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Method</div>
+                <div class="card-desc">A function defined inside a class. Always receives <span class="ic">self</span> as its first parameter. Called via dot notation: <span class="ic">alice.deposit(100)</span>. Methods can read and write the object's attributes through <span class="ic">self</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Constructor</div>
+                <div class="card-desc">The <span class="ic">__init__</span> method. Called automatically by Python when an object is created. Its job is to initialize the object's attributes to their starting values. You define it — Python calls it.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Inheritance</div>
+                <div class="card-desc">When a child class automatically receives all attributes and methods from a parent class. Defined with <span class="ic">class Child(Parent):</span>. The child can add new methods or override existing ones without affecting the parent.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Polymorphism</div>
+                <div class="card-desc">Multiple classes that implement a method with the same name, each with their own behavior. Code that calls the method does not need to know which class it is dealing with. Python picks the right version at runtime.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Encapsulation</div>
+                <div class="card-desc">Bundling data and the methods that operate on it into a single class. Using naming conventions (<span class="ic">_</span> and <span class="ic">__</span>) to signal what is internal. Objects control their own state through methods rather than allowing direct external modification.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 — SUMMARY ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 34 &nbsp;|&nbsp; COP1034C Obj 4 &nbsp;|&nbsp; Day 9 of 12</div>
+        <div class="slide-title">Object-Oriented Programming -- <span class="accent">Key Takeaways</span></div>
+
+        <div class="scenario-strip">
+            You built a BankAccount class from a blank file. You added deposit and withdrawal with guard clauses, a frozen state, and a clean __str__. You built NetworkDevice and derived Router, Switch, and Firewall — each inheriting the shared interface and adding what makes them different. You called reboot() on a mixed list and watched polymorphism route each call to the right method. That is OOP.
+        </div>
+
+        <div class="section-label">8 Things to Carry Out of Today</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">A <strong>class</strong> is a blueprint (PascalCase). An <strong>object</strong> is an instance of that blueprint. Create one with <code>obj = ClassName(args)</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><code>__init__(self, ...)</code> is the constructor — runs automatically on object creation. <code>self</code> is always the first parameter of every method.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><strong>Instance attributes</strong> (<code>self.name = value</code>) belong to each object individually. <strong>Class variables</strong> are shared across all instances.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><code>__str__</code> controls what <code>print(obj)</code> shows. <code>__repr__</code> is the developer-facing version. Always implement at least <code>__repr__</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><strong>Encapsulation</strong>: use <code>_</code> for protected, <code>__</code> for name-mangled private. Use <code>@property</code> for controlled attribute access with validation.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text"><strong>Inheritance</strong>: <code>class Child(Parent):</code>. Call <code>super().__init__(...)</code> to initialize parent attributes. Child adds or overrides from there.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text"><strong>Polymorphism</strong>: multiple classes, same method name, different behavior. One loop calls the right version for each type automatically — no <code>isinstance()</code> chains needed.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Mutable default arguments in <code>__init__</code> are a trap. Never use <code>def __init__(self, items=[])</code>. Use <code>items=None</code> then assign a fresh list inside the method body.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Python for IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 34</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* ── Slide navigation state ── */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 34;
+
+    function goToSlide(n) {
+        /* Boundary check */
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Deactivate the currently visible slide */
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        /* Activate the target slide */
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update the gold progress bar at the top */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        /* Update the counter label in the nav bar */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Disable Prev on slide 1, Next on last slide */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show Mark Complete button only on the final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard arrow key navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize to slide 1 on page load */
+    goToSlide(1);
+</script>
+
+<script>
+    /* ── Module completion via ModuleProgress component ── */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('code', 'pfi-w3-oop', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<!-- Accessibility enhancements: focus management and ARIA live regions -->
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

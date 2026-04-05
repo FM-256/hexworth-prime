@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course Introduction | Python for IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Gold progress bar */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Typography */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Scenario strip */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
+        }
+
+        /* Cards */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .card-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .card { border-radius: 8px; padding: 14px 16px; }
+        .card-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; opacity: 0.75; }
+        .card-desc { font-size: 0.85rem; line-height: 1.55; }
+        .c-gold { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.25); color: #fef3c7; }
+        .c-cyan { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.25); color: #cffafe; }
+        .c-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.25); color: #d1fae5; }
+        .c-red  { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); color: #fee2e2; }
+
+        /* Title slide hero */
+        .title-hero { text-align: center; padding: 20px 0; }
+        .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .big-title .accent { color: #c9a83a; }
+        .title-meta-row { display: flex; justify-content: center; gap: 24px; font-size: 0.78rem; color: #64748b; margin-top: 8px; }
+
+        /* Weekly roadmap table */
+        .roadmap { width: 100%; border-collapse: collapse; }
+        .roadmap th { text-align: left; padding: 8px 12px; font-size: 0.78rem; color: #c9a83a; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 2px solid rgba(201, 168, 58, 0.3); }
+        .roadmap td { padding: 10px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.85rem; color: #94a3b8; }
+        .roadmap td:first-child { color: #c9a83a; font-weight: 700; white-space: nowrap; }
+        .roadmap tr:hover { background: rgba(201, 168, 58, 0.04); }
+
+        /* Objective list */
+        .obj-list { list-style: none; counter-reset: obj; }
+        .obj-list li { display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.88rem; color: #94a3b8; }
+        .obj-list li:last-child { border-bottom: none; }
+        .obj-num { color: #c9a83a; font-weight: 700; min-width: 28px; }
+
+        /* Inline code */
+        .ic { background: rgba(201, 168, 58, 0.12); color: #c9a83a; padding: 1px 5px; border-radius: 3px; font-family: 'SF Mono', monospace; font-size: 0.88em; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .card-grid-4 { grid-template-columns: 1fr 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Course Introduction</h1>
+
+
+<div id="progress-bar" style="width:0%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 8 &nbsp;|&nbsp; COP1034C &nbsp;|&nbsp; Course Introduction</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Python for IT<br>
+                <span class="accent">COP1034C</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Programming for Technology Professionals
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Four weeks. Twelve class sessions. One programming language. By the end of this course, you will have built a real IT management tool from scratch, committed it to GitHub, and added a professional project to your portfolio. No prior programming experience required.
+        </div>
+        <div class="title-meta-row">
+            <span>8 Slides</span>
+            <span>MTTh 9:00 AM &ndash; 1:00 PM</span>
+            <span>4 Weeks Intensive</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — WHY PYTHON ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 8</div>
+        <div class="slide-title">Why <span class="accent">Python?</span></div>
+        <div class="slide-subtitle">The language IT professionals actually use every day.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Automation</div>
+                <div class="card-desc">Automate repetitive IT tasks: check 50 servers, parse 10,000 log lines, generate reports. What takes an hour by hand takes 10 seconds with Python.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Cybersecurity</div>
+                <div class="card-desc">Kali Linux ships Python by default. Tools like Nmap, Scapy, Volatility, and BloodHound are Python-based. OSCP, CEH, and Security+ all touch Python.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Career Impact</div>
+                <div class="card-desc">Python is the #1 language on the TIOBE index. System administrators, network engineers, SOC analysts, and DevOps engineers all use it. It is on every IT job description.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">The Bottom Line</div>
+            Python is not optional for IT professionals. It is the tool that separates someone who clicks buttons from someone who builds solutions.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — COURSE OBJECTIVES ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 8</div>
+        <div class="slide-title">Course <span class="accent">Objectives</span></div>
+        <div class="slide-subtitle">What you will be able to do when this course is over.</div>
+
+        <ol class="obj-list">
+            <li><span class="obj-num">1</span> Declare and manipulate built-in data types (int, float, str, bool)</li>
+            <li><span class="obj-num">2</span> Apply control flow structures &mdash; conditionals and loops</li>
+            <li><span class="obj-num">3</span> Process strings and work with text files (log parsing, CSV, config)</li>
+            <li><span class="obj-num">4</span> Build and traverse lists, tuples, and dictionaries</li>
+            <li><span class="obj-num">5</span> Define and call functions; manage scope and modules</li>
+            <li><span class="obj-num">6</span> Create graphics programs using the Turtle library</li>
+            <li><span class="obj-num">7</span> Develop desktop GUI applications with Tkinter</li>
+            <li><span class="obj-num">8</span> Write network programs using Python sockets</li>
+            <li><span class="obj-num">9</span> Analyze and implement fundamental sorting and search algorithms</li>
+        </ol>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — THE PROGRESSIVE APP ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 8</div>
+        <div class="slide-title">The Project: <span class="accent">IT Dashboard</span></div>
+        <div class="slide-subtitle">You build ONE application across all 4 weeks. Every class adds a real feature.</div>
+
+        <table class="roadmap">
+            <thead>
+                <tr>
+                    <th>Week</th>
+                    <th>App State</th>
+                    <th>Features You Add</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Week 1</td>
+                    <td>CLI tool</td>
+                    <td>Welcome message, menu system, input validation, system info display</td>
+                </tr>
+                <tr>
+                    <td>Week 2</td>
+                    <td>Data-driven CLI</td>
+                    <td>Log file parser, CSV processor, config reader, report generator</td>
+                </tr>
+                <tr>
+                    <td>Week 3</td>
+                    <td>OOP architecture</td>
+                    <td>Device classes, Manager class, inheritance, network topology visualizer</td>
+                </tr>
+                <tr>
+                    <td>Week 4</td>
+                    <td>Desktop GUI app</td>
+                    <td>Tkinter interface, error handling, search/sort, polished README</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="box box-green">
+            <div class="box-label">By Day 12</div>
+            A fully functional desktop IT dashboard you built line by line, committed to GitHub, and can demo in interviews. No throwaway code &mdash; everything you write stays in the project.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — WEEKLY SCHEDULE ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 8</div>
+        <div class="slide-title">Weekly <span class="accent">Rhythm</span></div>
+        <div class="slide-subtitle">Every week follows the same pattern: Learn, Build, Prove.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Monday &mdash; Learn</div>
+                <div class="card-desc">New concepts introduced via lecture and live coding. Interactive "Try It Now" exercises let you practice immediately. Set up your dev environment on Day 1.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Tuesday &mdash; Build</div>
+                <div class="card-desc">More concepts, deeper practice. Coding sandbox challenges test your understanding. Apply everything to your IT Dashboard project.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Thursday &mdash; Prove</div>
+                <div class="card-desc">Final topic for the week, coding sandbox, and a quiz. Project checkpoint validates your app has the required features. Commit and push to GitHub.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2" style="margin-top: 4px;">
+            <div class="card c-red">
+                <div class="card-label">Grading</div>
+                <div class="card-desc">3 quizzes (15 questions each) + 1 final exam (30 questions). Weekly project checkpoints with sandbox validation. Attendance and participation matter.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Every Class Ends With</div>
+                <div class="card-desc"><span class="ic">git add .</span> &rarr; <span class="ic">git commit -m "..."</span> &rarr; <span class="ic">git push</span>. Your GitHub history IS your portfolio. 12+ commits by the end of the course.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — PROFESSIONAL TOOLS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 8</div>
+        <div class="slide-title">Professional <span class="accent">Tools</span></div>
+        <div class="slide-subtitle">You will use the same tools that working developers use. No training wheels.</div>
+
+        <div class="card-grid-4">
+            <div class="card c-gold">
+                <div class="card-label">VS Code</div>
+                <div class="card-desc">Professional IDE with Python extension, IntelliSense, debugger, and integrated terminal.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Terminal</div>
+                <div class="card-desc">Run scripts, navigate folders, manage packages. Every command you need, from Day 1.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Git + GitHub</div>
+                <div class="card-desc">Version control from Day 1. Commit every class. Your GitHub repo is your portfolio.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Virtual Environments</div>
+                <div class="card-desc">Isolate project dependencies with <span class="ic">python -m venv</span>. Professional Python practice.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Why This Matters</div>
+            Employers do not care that you can write a for loop. They care that you can set up a project, manage dependencies, use version control, and work in a professional IDE. This course teaches all of that from Day 1.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — THE SANDBOX ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 8</div>
+        <div class="slide-title">The Coding <span class="accent">Sandbox</span></div>
+        <div class="slide-subtitle">Write Python in your browser. Get instant feedback. Earn XP.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">How It Works</div>
+                <div class="card-desc">Each week has 10 coding challenges. Type your code in the editor, click <strong>Run</strong> to test, click <strong>Submit</strong> to grade. Automated tests tell you exactly what passed and what did not.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">XP System</div>
+                <div class="card-desc">Every challenge has a base XP value (Easy: 10, Medium: 20, Hard: 30). Bonuses for first-try passes and speed. Hint usage costs 5 XP per hint. Your total XP tracks across all labs.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Hints + Error Help</div>
+                <div class="card-desc">Stuck? Click <strong>Hint</strong> for progressive help. When your code crashes, the sandbox translates Python errors into plain English. The <strong>Variable Inspector</strong> shows your data in real time.</div>
+            </div>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-red">
+                <div class="card-label">Try It Now Blocks</div>
+                <div class="card-desc">During lectures, interactive code blocks appear between slides. Complete each exercise before moving to the next slide. This keeps you engaged and practicing.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Start with the Tour</div>
+                <div class="card-desc">Before your first sandbox lab, run the <strong>Sandbox Tour</strong> (6 steps). It walks you through every feature: editor, Run, Submit, hints, errors, and the variable inspector.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — LET'S BEGIN ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 8</div>
+        <div class="slide-title">Let's <span class="accent">Begin</span></div>
+        <div class="slide-subtitle">Everything you need is on the course hub. Here is your Day 1 checklist.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Right Now</div>
+                <div class="card-desc">
+                    1. Open the <strong>Starter Kit</strong> page and follow the Quick Start<br>
+                    2. Install Python 3.12+ and VS Code<br>
+                    3. Create your <span class="ic">it-dashboard/</span> folder<br>
+                    4. Set up a virtual environment<br>
+                    5. Initialize Git and create your GitHub repo
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">After Setup</div>
+                <div class="card-desc">
+                    1. Run the <strong>Sandbox Tour</strong> (6 steps, ~10 min)<br>
+                    2. Start the <strong>Day 1 presentation</strong> (Data Types)<br>
+                    3. Complete "Try It Now" exercises as you go<br>
+                    4. End of class: <span class="ic">git commit</span> and <span class="ic">git push</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="scenario-strip">
+            You are not here to memorize syntax. You are here to build something real, with professional tools, following professional workflows. Every line of code you write from this point forward lives in your GitHub portfolio. Make it count.
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Python for IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 8</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* ── Slide navigation ── */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 8;
+
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    goToSlide(1);
+</script>
+
+<script>
+    /* ── Module completion ── */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('code', 'pfi-course-intro', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<!-- Accessibility -->
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Final Project | Python for IT</title>
+    <style>
+        :root {
+            --code-primary: #10b981;
+            --code-secondary: #059669;
+            --code-dark: #064e3b;
+            --code-glow: rgba(16, 185, 129, 0.3);
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #0f1623;
+            --bg-tertiary: #161f30;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; line-height: 1.6; }
+        .lab-container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+        .back-link { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--code-primary); text-decoration: none; margin-bottom: 1rem; transition: all 0.3s ease; }
+        .back-link:hover { color: #34d399; transform: translateX(-5px); }
+        .lab-header { text-align: center; margin-bottom: 2rem; padding: 2rem; background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary)); border-radius: 16px; border: 1px solid var(--code-primary); box-shadow: 0 0 30px var(--code-glow); }
+        .lab-header h1 { font-size: 2.2rem; margin-bottom: 0.5rem; background: linear-gradient(135deg, var(--code-primary), #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 1rem; margin-bottom: 1rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-secondary); }
+        .progress-section { background: var(--bg-secondary); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid rgba(16, 185, 129, 0.2); }
+        .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .progress-bar { height: 12px; background: var(--bg-tertiary); border-radius: 6px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--code-primary), var(--success)); border-radius: 6px; transition: width 0.5s ease; }
+        .section { background: var(--bg-secondary); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; border: 1px solid rgba(16, 185, 129, 0.2); transition: all 0.3s ease; }
+        .section:hover { border-color: var(--code-primary); box-shadow: 0 0 20px var(--code-glow); }
+        .section.completed { border-color: var(--success); background: linear-gradient(135deg, var(--bg-secondary), rgba(34, 197, 94, 0.08)); }
+        .section-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+        .section-number { width: 50px; height: 50px; background: linear-gradient(135deg, var(--code-primary), var(--code-secondary)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; color: #fff; }
+        .section-title h2 { font-size: 1.3rem; }
+        .section-title .time { color: var(--text-secondary); font-size: 0.85rem; }
+        .objective { background: var(--bg-tertiary); padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid var(--code-primary); }
+        .objective strong { color: var(--code-primary); }
+        .code-block { background: #0d1117; border-radius: 8px; padding: 1rem 1.25rem; font-family: 'Courier New', monospace; font-size: 0.85rem; overflow-x: auto; margin: 1rem 0; border-left: 3px solid var(--code-primary); white-space: pre; line-height: 1.7; }
+        .code-block .kw  { color: #ff7b72; }
+        .code-block .fn  { color: #d2a8ff; }
+        .code-block .st  { color: #a5d6ff; }
+        .code-block .cm  { color: #6e7681; }
+        .code-block .num { color: #79c0ff; }
+        .code-block .out { color: var(--code-primary); }
+        .question-block { background: var(--bg-tertiary); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 10px; padding: 1.5rem; margin-bottom: 1rem; }
+        .question-block label { display: block; color: var(--code-primary); font-weight: 600; margin-bottom: 0.5rem; }
+        .question-block input { width: 100%; padding: 10px 14px; background: rgba(0,0,0,0.3); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 0.9rem; font-family: 'Courier New', monospace; }
+        .question-block input:focus { outline: none; border-color: var(--code-primary); box-shadow: 0 0 10px var(--code-glow); }
+        .check-btn { padding: 10px 24px; background: linear-gradient(135deg, var(--code-primary), var(--code-secondary)); color: white; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.3s; margin-top: 0.5rem; }
+        .check-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px var(--code-glow); }
+        .feedback { padding: 10px 16px; border-radius: 8px; margin-top: 10px; font-size: 0.9rem; display: none; }
+        .feedback.correct   { display: block; background: rgba(34,197,94,0.15); border: 1px solid var(--success); color: var(--success); }
+        .feedback.incorrect { display: block; background: rgba(239,68,68,0.15); border: 1px solid var(--danger); color: var(--danger); }
+        .tip-box  { background: rgba(245,158,11,0.08); border: 1px solid var(--warning); border-radius: 8px; padding: 1rem; margin: 1rem 0; font-size: 0.9rem; }
+        .tip-box strong  { color: var(--warning); }
+        .info-box { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3); border-radius: 8px; padding: 1rem; margin: 1rem 0; font-size: 0.9rem; }
+        .info-box strong { color: var(--code-primary); }
+        .content-section { margin-bottom: 1.5rem; }
+        .content-section h3 { color: var(--code-primary); margin-bottom: 0.75rem; font-size: 1rem; }
+        .content-section p { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .requirement-list { list-style: none; }
+        .requirement-list li { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem; color: var(--text-secondary); }
+        .requirement-list li:last-child { border-bottom: none; }
+        .req-num { color: var(--code-primary); font-weight: bold; min-width: 24px; }
+        .rubric-table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.85rem; }
+        .rubric-table th, .rubric-table td { padding: 0.75rem 1rem; text-align: left; border: 1px solid rgba(16,185,129,0.2); }
+        .rubric-table th { background: var(--code-dark); color: var(--code-primary); }
+        .rubric-table tr:nth-child(even) { background: var(--bg-tertiary); }
+        .completion-btn { width: 100%; padding: 1rem 2rem; background: linear-gradient(135deg, var(--code-primary), var(--code-secondary)); color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; margin-top: 1.5rem; }
+        .completion-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px var(--code-glow); }
+        .completion-btn.completed { background: var(--success); cursor: default; transform: none; }
+        @media (max-width: 768px) { .lab-container { padding: 1rem; } .lab-header h1 { font-size: 1.8rem; } }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <a href="../index.html" class="back-link">&larr; Python for IT Hub</a>
+
+        <header class="lab-header">
+            <h1>Final Project</h1>
+            <p class="subtitle">Build a complete Python IT tool from scratch — demonstrating variables, logic, loops, functions, error handling, and documentation</p>
+            <div class="lab-meta">
+                <span class="meta-item">Open-ended</span>
+                <span class="meta-item">Advanced</span>
+                <span class="meta-item">3 Sections</span>
+            </div>
+        </header>
+
+        <div class="progress-section">
+            <div class="progress-header">
+                <span>Lab Progress</span>
+                <span id="progressText">0 / 3 sections</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Section 1: Requirements Review -->
+        <div class="section" id="section1">
+            <div class="section-header">
+                <div class="section-number">1</div>
+                <div class="section-title">
+                    <h2>Requirements Review</h2>
+                    <span class="time">20 minutes</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Project Brief:</strong> You will build an IT utility tool of your choice. Options are listed below. Your program must meet all technical requirements. Read them carefully before writing a single line of code.
+            </div>
+
+            <div class="content-section">
+                <h3>Approved Project Ideas (choose one)</h3>
+                <ul class="requirement-list">
+                    <li><span class="req-num">A.</span> Network scanner — scans a range of ports on a host and reports which are open, using socket with try/except</li>
+                    <li><span class="req-num">B.</span> Log analyzer — reads a log file, counts occurrences of each IP or error type, flags suspicious entries, saves a report</li>
+                    <li><span class="req-num">C.</span> Password strength checker — evaluates a password against length, complexity, and common-password rules; accepts multiple words from a file</li>
+                    <li><span class="req-num">D.</span> Subnet calculator GUI — tkinter interface that accepts a CIDR notation input and displays network address, broadcast, usable range, and host count</li>
+                    <li><span class="req-num">E.</span> Contact/device manager — stores device records in a list of dicts, allows add/search/delete via a menu loop, saves to and loads from a JSON file</li>
+                </ul>
+            </div>
+
+            <div class="content-section">
+                <h3>Technical Requirements (all projects)</h3>
+                <ul class="requirement-list">
+                    <li><span class="req-num">1.</span> Written in Python 3.x — no external libraries beyond the standard library</li>
+                    <li><span class="req-num">2.</span> Uses at least three functions with def, each with a docstring</li>
+                    <li><span class="req-num">3.</span> At least one loop (for or while) with a meaningful purpose</li>
+                    <li><span class="req-num">4.</span> At least one conditional (if/elif/else) making a real decision</li>
+                    <li><span class="req-num">5.</span> At least one try/except block handling a realistic error</li>
+                    <li><span class="req-num">6.</span> Docstring or header comment at the top of the file describing the program</li>
+                    <li><span class="req-num">7.</span> Inline comments on non-obvious lines explaining what the code does</li>
+                    <li><span class="req-num">8.</span> Input validation on any user-supplied data before using it</li>
+                </ul>
+            </div>
+
+            <div class="content-section">
+                <h3>Grading Rubric</h3>
+                <table class="rubric-table">
+                    <tr><th>Category</th><th>Points</th><th>Criteria</th></tr>
+                    <tr><td>Functionality</td><td>40</td><td>Program runs without errors and produces correct output for normal inputs</td></tr>
+                    <tr><td>Code Structure</td><td>25</td><td>Functions used appropriately; no repeated logic; clear variable names</td></tr>
+                    <tr><td>Error Handling</td><td>15</td><td>try/except present; invalid input does not crash the program</td></tr>
+                    <tr><td>Documentation</td><td>20</td><td>File header present; all functions have docstrings; key lines commented</td></tr>
+                </table>
+            </div>
+
+            <div class="question-block">
+                <label>Q1: Which project option (A–E) are you building? (Type the letter)</label>
+                <input type="text" id="q1_1" placeholder="A, B, C, D, or E">
+                <button class="check-btn" onclick="checkAnswerChoice('q1_1', 'fb1_1')">Check</button>
+                <div class="feedback" id="fb1_1"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q2: How many functions with <code>def</code> must your project include? (Minimum)</label>
+                <input type="text" id="q1_2" placeholder="Number">
+                <button class="check-btn" onclick="checkAnswer('q1_2', '3', 'fb1_2', false)">Check</button>
+                <div class="feedback" id="fb1_2"></div>
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(1)">Mark Section Complete</button>
+        </div>
+
+        <!-- Section 2: Self-Assessment -->
+        <div class="section" id="section2">
+            <div class="section-header">
+                <div class="section-number">2</div>
+                <div class="section-title">
+                    <h2>Self-Assessment</h2>
+                    <span class="time">Open-ended (after coding)</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Complete this section after you have written your program.</strong> Read your own code carefully and verify each requirement before submitting. This is not optional — it is part of professional software development practice.
+            </div>
+
+            <div class="content-section">
+                <h3>Code Review Checklist</h3>
+                <p>Run your program with normal inputs, boundary inputs (e.g., empty string, port 0, port 65535), and invalid inputs (e.g., letters where a number is expected). Document what happens in each case.</p>
+            </div>
+
+            <div class="content-section">
+                <h3>Starter Structure to Verify Against</h3>
+                <div class="code-block"><span class="cm"># Final Project — [Your project name here]
+# Description: [One paragraph describing what the program does, its inputs, and outputs]
+# Author: [Your name]
+# Date: [Completion date]</span>
+
+<span class="cm"># Standard library imports only</span>
+<span class="kw">import</span> socket       <span class="cm"># example for project A</span>
+<span class="kw">import</span> json         <span class="cm"># example for project E</span>
+
+<span class="cm"># ---- Function definitions ----</span>
+
+<span class="kw">def</span> <span class="fn">validate_input</span>(user_input):
+    <span class="cm">    """Validate and sanitize user-supplied input.
+
+    Returns cleaned value or raises ValueError with a descriptive message.
+    """</span>
+    <span class="kw">pass</span>   <span class="cm"># replace with your validation logic</span>
+
+
+<span class="kw">def</span> <span class="fn">core_function</span>():
+    <span class="cm">    """[Describe what this function does, its parameters, and return value.]"""</span>
+    <span class="kw">pass</span>
+
+
+<span class="kw">def</span> <span class="fn">display_results</span>(results):
+    <span class="cm">    """Format and print the results in a readable way."""</span>
+    <span class="kw">pass</span>
+
+
+<span class="cm"># ---- Main program entry point ----</span>
+<span class="kw">if</span> __name__ == <span class="st">"__main__"</span>:
+    <span class="cm">    # All code that runs when this file is executed directly goes here</span>
+    <span class="kw">pass</span></div>
+            </div>
+
+            <div class="tip-box">
+                <strong>if __name__ == "__main__":</strong> This pattern ensures that the code inside it only runs when the script is executed directly (not when it is imported as a module by another file). This is a professional Python convention. Put all your "driver" code — the part that starts the program running — inside this block.
+            </div>
+
+            <div class="question-block">
+                <label>Q1: Does your program use at least three functions defined with <code>def</code>? (yes or no)</label>
+                <input type="text" id="q2_1" placeholder="yes or no">
+                <button class="check-btn" onclick="checkAnswer('q2_1', 'yes', 'fb2_1', false)">Check</button>
+                <div class="feedback" id="fb2_1"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q2: Does your program handle at least one error with try/except? (yes or no)</label>
+                <input type="text" id="q2_2" placeholder="yes or no">
+                <button class="check-btn" onclick="checkAnswer('q2_2', 'yes', 'fb2_2', false)">Check</button>
+                <div class="feedback" id="fb2_2"></div>
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(2)">Mark Section Complete</button>
+        </div>
+
+        <!-- Section 3: Submission -->
+        <div class="section" id="section3">
+            <div class="section-header">
+                <div class="section-number">3</div>
+                <div class="section-title">
+                    <h2>Submission</h2>
+                    <span class="time">15 minutes</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Final steps before submitting your project file.</strong> Complete each task below, then submit the single .py file to your instructor via the course LMS.
+            </div>
+
+            <div class="content-section">
+                <h3>Pre-Submission Checklist</h3>
+                <ul class="requirement-list">
+                    <li><span class="req-num">1.</span> Run the complete program one final time with fresh test data — no errors on startup</li>
+                    <li><span class="req-num">2.</span> Verify the file header comment (description, author, date) is at the top of the file</li>
+                    <li><span class="req-num">3.</span> Verify all three functions have docstrings immediately below their def line</li>
+                    <li><span class="req-num">4.</span> Count your inline comments — there should be at least one per non-trivial line or block</li>
+                    <li><span class="req-num">5.</span> Test one invalid input path (e.g., type letters where a number is expected) — confirm it does not crash</li>
+                    <li><span class="req-num">6.</span> Save the file with a meaningful name: <code>lastname_firstname_final.py</code></li>
+                    <li><span class="req-num">7.</span> Upload to the course LMS assignment</li>
+                </ul>
+            </div>
+
+            <div class="info-box">
+                <strong>File naming matters:</strong> Instructors grade dozens of files named <code>final.py</code> or <code>project.py</code>. Name yours <code>lastname_firstname_final.py</code> so it is immediately identifiable. This is the same convention used in professional code review systems.
+            </div>
+
+            <div class="content-section">
+                <h3>What Comes Next</h3>
+                <p>The skills you have built in COP1034C — variables and types, conditionals, loops, functions, file I/O, data structures, OOP, GUI programming, networking, and error handling — are the foundation for every Python course and IT automation task that follows. The next step is COP2360C (Intermediate Python) where these concepts are extended to web APIs, databases, and systems automation.</p>
+            </div>
+
+            <div class="question-block">
+                <label>Q1: Does your project file include a header comment with your name, project description, and date? (yes or no)</label>
+                <input type="text" id="q3_1" placeholder="yes or no">
+                <button class="check-btn" onclick="checkAnswer('q3_1', 'yes', 'fb3_1', false)">Check</button>
+                <div class="feedback" id="fb3_1"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q2: What naming format should your submitted file use? (Describe the format)</label>
+                <input type="text" id="q3_2" placeholder="Naming format">
+                <button class="check-btn" onclick="checkAnswer('q3_2', 'lastname', 'fb3_2', true)">Check</button>
+                <div class="feedback" id="fb3_2"></div>
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(3)">Mark Course Complete</button>
+        </div>
+    </div>
+
+    <script>
+        /* Unique localStorage key for this lab */
+        var STORAGE_KEY = 'pfi_w4_final_project_progress';
+        var TOTAL = 3;
+        var completedSections = [];
+
+        var SECTION_ANSWERS = {
+            1: [
+                /* q1_1 uses checkAnswerChoice — special handler, not in SECTION_ANSWERS validation */
+                { id: 'q1_2', answer: '3', fuzzy: false }
+            ],
+            2: [
+                { id: 'q2_1', answer: 'yes', fuzzy: false },
+                { id: 'q2_2', answer: 'yes', fuzzy: false }
+            ],
+            3: [
+                { id: 'q3_1', answer: 'yes',      fuzzy: false },
+                { id: 'q3_2', answer: 'lastname',  fuzzy: true  }
+            ]
+        };
+
+        function loadProgress() {
+            var saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                completedSections = JSON.parse(saved);
+                completedSections.forEach(function(num) {
+                    var sec = document.getElementById('section' + num);
+                    if (sec) {
+                        sec.classList.add('completed');
+                        var btn = sec.querySelector('.completion-btn');
+                        if (btn) { btn.classList.add('completed'); btn.textContent = 'Completed'; }
+                    }
+                });
+            }
+            updateProgress();
+        }
+
+        function saveProgress() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(completedSections));
+        }
+
+        function updateProgress() {
+            var count = completedSections.length;
+            var pct   = (count / TOTAL) * 100;
+            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('progressText').textContent = count + ' / ' + TOTAL + ' sections';
+        }
+
+        /* Special handler for the project choice question — accepts A through E */
+        function checkAnswerChoice(inputId, feedbackId) {
+            var input      = document.getElementById(inputId);
+            var feedback   = document.getElementById(feedbackId);
+            var val        = input.value.trim().toLowerCase();
+            feedback.className = 'feedback';
+
+            if (!val) {
+                feedback.className   = 'feedback incorrect';
+                feedback.textContent = 'Enter an answer first.';
+                return;
+            }
+
+            /* Accept any single letter a through e */
+            if (val.length === 1 && val >= 'a' && val <= 'e') {
+                feedback.className   = 'feedback correct';
+                feedback.textContent = 'Correct! Project ' + val.toUpperCase() + ' confirmed.';
+                /* Store the choice for completeSection validation */
+                input.dataset.valid = 'true';
+            } else {
+                feedback.className   = 'feedback incorrect';
+                feedback.textContent = 'Enter a single letter: A, B, C, D, or E.';
+                input.dataset.valid  = 'false';
+            }
+        }
+
+        function checkAnswer(inputId, correctAnswer, feedbackId, fuzzy) {
+            var input      = document.getElementById(inputId);
+            var feedback   = document.getElementById(feedbackId);
+            var userAnswer = input.value.trim().toLowerCase();
+            var correct    = correctAnswer.toLowerCase();
+            feedback.className = 'feedback';
+
+            if (!userAnswer) {
+                feedback.className   = 'feedback incorrect';
+                feedback.textContent = 'Enter an answer first.';
+                return;
+            }
+
+            var isCorrect = fuzzy
+                ? (userAnswer.indexOf(correct) !== -1 || correct.indexOf(userAnswer) !== -1)
+                : (userAnswer === correct);
+
+            if (isCorrect) {
+                feedback.className   = 'feedback correct';
+                feedback.textContent = 'Correct!';
+            } else {
+                feedback.className   = 'feedback incorrect';
+                feedback.textContent = 'Not quite. Expected: ' + correctAnswer;
+            }
+        }
+
+        function completeSection(num) {
+            if (completedSections.indexOf(num) !== -1) return;
+
+            /* Section 1 has a special first question — check its data-valid attribute */
+            if (num === 1) {
+                var choiceInput = document.getElementById('q1_1');
+                if (!choiceInput || choiceInput.dataset.valid !== 'true') {
+                    checkAnswerChoice('q1_1', 'fb1_1');
+                    return;
+                }
+                /* Also validate q1_2 */
+                var q2input = document.getElementById('q1_2');
+                if (!q2input || q2input.value.trim() !== '3') {
+                    checkAnswer('q1_2', '3', 'fb1_2', false);
+                    return;
+                }
+            } else {
+                var questions = SECTION_ANSWERS[num];
+                if (questions) {
+                    var anyFilled  = false;
+                    var allCorrect = true;
+
+                    questions.forEach(function(q) {
+                        var input = document.getElementById(q.id);
+                        if (!input) return;
+                        var val = input.value.trim().toLowerCase();
+                        var exp = q.answer.toLowerCase();
+                        if (val) anyFilled = true;
+
+                        if (q.fuzzy) {
+                            if (val.indexOf(exp) === -1 && exp.indexOf(val) === -1) allCorrect = false;
+                        } else {
+                            if (val !== exp) allCorrect = false;
+                        }
+                    });
+
+                    if (!anyFilled) {
+                        var sec = document.getElementById('section' + num);
+                        var fb  = sec.querySelector('.feedback');
+                        if (fb) { fb.className = 'feedback incorrect'; fb.textContent = 'Answer all questions before marking this section complete.'; }
+                        return;
+                    }
+
+                    if (!allCorrect) {
+                        questions.forEach(function(q) {
+                            checkAnswer(q.id, q.answer, 'fb' + q.id.substring(1), q.fuzzy);
+                        });
+                        return;
+                    }
+                }
+            }
+
+            completedSections.push(num);
+            var sec = document.getElementById('section' + num);
+            sec.classList.add('completed');
+            var btn = sec.querySelector('.completion-btn');
+            btn.classList.add('completed');
+            btn.textContent = 'Completed';
+            saveProgress();
+            updateProgress();
+
+            if (completedSections.length === TOTAL) {
+                if (typeof ModuleProgress !== 'undefined') {
+                    ModuleProgress.complete('code', 'pfi-w4-final-project', { returnUrl: '../index.html' });
+                }
+                setTimeout(function() {
+                    alert('Course Complete!\n\nCongratulations on finishing Python for IT (COP1034C). You have written programs using every core Python concept: data types, conditionals, loops, functions, strings and files, data structures, OOP, graphics, GUI programming, networking, and error handling.\n\nYour final project demonstrates that you can build a real, useful IT tool from scratch.');
+                }, 500);
+            }
+        }
+
+        loadProgress();
+    </script>
+
+    <script src="../../../../components/TrailHunter.js"></script>
+</body>
+</html>

@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 2 Project: Server Log Analyzer | Python for IT</title>
+    <style>
+        :root {
+            --code-primary: #10b981;
+            --code-secondary: #059669;
+            --code-dark: #064e3b;
+            --code-glow: rgba(16, 185, 129, 0.3);
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #0f1623;
+            --bg-tertiary: #161f30;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; line-height: 1.6; }
+        .lab-container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+        .back-link { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--code-primary); text-decoration: none; margin-bottom: 1rem; transition: all 0.3s ease; }
+        .back-link:hover { color: #34d399; transform: translateX(-5px); }
+        .lab-header { text-align: center; margin-bottom: 2rem; padding: 2rem; background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary)); border-radius: 16px; border: 1px solid var(--code-primary); box-shadow: 0 0 30px var(--code-glow); }
+        .lab-header h1 { font-size: 2.2rem; margin-bottom: 0.5rem; background: linear-gradient(135deg, var(--code-primary), #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 1rem; margin-bottom: 1rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-secondary); }
+        .progress-section { background: var(--bg-secondary); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid rgba(16, 185, 129, 0.2); }
+        .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .progress-bar { height: 12px; background: var(--bg-tertiary); border-radius: 6px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--code-primary), var(--success)); border-radius: 6px; transition: width 0.5s ease; }
+        .section { background: var(--bg-secondary); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; border: 1px solid rgba(16, 185, 129, 0.2); transition: all 0.3s ease; }
+        .section:hover { border-color: var(--code-primary); box-shadow: 0 0 20px var(--code-glow); }
+        .section.completed { border-color: var(--success); background: linear-gradient(135deg, var(--bg-secondary), rgba(34, 197, 94, 0.08)); }
+        .section-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+        .section-number { width: 50px; height: 50px; background: linear-gradient(135deg, var(--code-primary), var(--code-secondary)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; color: #fff; }
+        .section-title h2 { font-size: 1.3rem; }
+        .section-title .time { color: var(--text-secondary); font-size: 0.85rem; }
+        .objective { background: var(--bg-tertiary); padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid var(--code-primary); }
+        .objective strong { color: var(--code-primary); }
+        .code-block { background: #0d1117; border-radius: 8px; padding: 1rem 1.25rem; font-family: 'Courier New', monospace; font-size: 0.85rem; overflow-x: auto; margin: 1rem 0; border-left: 3px solid var(--code-primary); white-space: pre; line-height: 1.7; }
+        .code-block .kw  { color: #ff7b72; }
+        .code-block .fn  { color: #d2a8ff; }
+        .code-block .st  { color: #a5d6ff; }
+        .code-block .cm  { color: #6e7681; }
+        .code-block .num { color: #79c0ff; }
+        .code-block .out { color: var(--code-primary); }
+        .question-block { background: var(--bg-tertiary); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 10px; padding: 1.5rem; margin-bottom: 1rem; }
+        .question-block label { display: block; color: var(--code-primary); font-weight: 600; margin-bottom: 0.5rem; }
+        .question-block input { width: 100%; padding: 10px 14px; background: rgba(0,0,0,0.3); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 0.9rem; font-family: 'Courier New', monospace; }
+        .question-block input:focus { outline: none; border-color: var(--code-primary); box-shadow: 0 0 10px var(--code-glow); }
+        .check-btn { padding: 10px 24px; background: linear-gradient(135deg, var(--code-primary), var(--code-secondary)); color: white; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.3s; margin-top: 0.5rem; }
+        .check-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px var(--code-glow); }
+        .feedback { padding: 10px 16px; border-radius: 8px; margin-top: 10px; font-size: 0.9rem; display: none; }
+        .feedback.correct   { display: block; background: rgba(34,197,94,0.15); border: 1px solid var(--success); color: var(--success); }
+        .feedback.incorrect { display: block; background: rgba(239,68,68,0.15); border: 1px solid var(--danger); color: var(--danger); }
+        .tip-box  { background: rgba(245,158,11,0.08); border: 1px solid var(--warning); border-radius: 8px; padding: 1rem; margin: 1rem 0; font-size: 0.9rem; }
+        .tip-box strong  { color: var(--warning); }
+        .info-box { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3); border-radius: 8px; padding: 1rem; margin: 1rem 0; font-size: 0.9rem; }
+        .info-box strong { color: var(--code-primary); }
+        .content-section { margin-bottom: 1.5rem; }
+        .content-section h3 { color: var(--code-primary); margin-bottom: 0.75rem; font-size: 1rem; }
+        .content-section p { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .requirement-list { list-style: none; }
+        .requirement-list li { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem; color: var(--text-secondary); }
+        .requirement-list li:last-child { border-bottom: none; }
+        .req-num { color: var(--code-primary); font-weight: bold; min-width: 24px; }
+        .rubric-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin: 1rem 0; }
+        .rubric-table th { background: var(--bg-tertiary); color: var(--code-primary); padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid rgba(16,185,129,0.3); }
+        .rubric-table td { padding: 0.65rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); color: var(--text-secondary); }
+        .rubric-table tr:last-child td { border-bottom: none; color: var(--text-primary); font-weight: 600; }
+        .rubric-table .pts { color: var(--code-primary); font-weight: 600; text-align: right; }
+        .completion-btn { width: 100%; padding: 1rem 2rem; background: linear-gradient(135deg, var(--code-primary), var(--code-secondary)); color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; margin-top: 1.5rem; }
+        .completion-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px var(--code-glow); }
+        .completion-btn.completed { background: var(--success); cursor: default; transform: none; }
+        @media (max-width: 768px) { .lab-container { padding: 1rem; } .lab-header h1 { font-size: 1.8rem; } }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <a href="../index.html" class="back-link">&larr; Python for IT Hub</a>
+
+        <header class="lab-header">
+            <h1>Week 2 Project: Server Log Analyzer</h1>
+            <p class="subtitle">Parse a server log file, extract severity metrics, identify error patterns, and write a formatted summary report to disk</p>
+            <div class="lab-meta">
+                <span class="meta-item">90 minutes</span>
+                <span class="meta-item">Graded Project</span>
+                <span class="meta-item">5 Sections</span>
+            </div>
+        </header>
+
+        <div class="progress-section">
+            <div class="progress-header">
+                <span>Project Progress</span>
+                <span id="progressText">0 / 5 sections</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Section 1: Project Overview -->
+        <div class="section" id="section1">
+            <div class="section-header">
+                <div class="section-number">1</div>
+                <div class="section-title">
+                    <h2>Project Overview</h2>
+                    <span class="time">Read carefully before coding</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>What You Are Building:</strong> A Python program that reads a structured server log file, parses each line to extract timestamp, severity level, and message, then produces a severity count summary, identifies unique errors, calculates an error rate, and writes a formatted report to an output file.
+            </div>
+
+            <div class="content-section">
+                <h3>Why This Matters</h3>
+                <p>Log analysis is one of the most common IT scripting tasks. Sysadmins, security analysts, and DevOps engineers all write scripts to parse logs. The real-world tools you will eventually use (Splunk, ELK Stack, Graylog) are sophisticated versions of exactly what you are building here. Understanding how to read, split, and aggregate log data with raw Python gives you insight into how those platforms work internally.</p>
+                <p>This project exercises the complete Week 2 skill set: file I/O, string methods, slicing, dictionaries, sets, lists, list comprehensions, and output formatting — all applied to a realistic IT problem.</p>
+            </div>
+
+            <div class="content-section">
+                <h3>Learning Objectives</h3>
+                <ul class="requirement-list">
+                    <li><span class="req-num">1.</span> Read structured text files using the with open() context manager</li>
+                    <li><span class="req-num">2.</span> Apply string methods (split, strip, upper) to parse fixed-format log lines</li>
+                    <li><span class="req-num">3.</span> Use string slicing to extract substrings by position</li>
+                    <li><span class="req-num">4.</span> Aggregate data with dictionaries and track unique values with sets</li>
+                    <li><span class="req-num">5.</span> Write a formatted summary to an output file and handle missing files gracefully</li>
+                </ul>
+            </div>
+
+            <div class="content-section">
+                <h3>Sample Log File Format</h3>
+                <p>Create a plain text file called <strong>server.log</strong> in the same directory as your Python script. Copy this content exactly, including the spacing between the timestamp, severity, and message fields.</p>
+                <div class="code-block"><span class="out">2026-04-01 09:15:23 INFO Server started successfully
+2026-04-01 09:16:45 WARNING Disk usage at 78%
+2026-04-01 09:17:02 ERROR Connection refused to database
+2026-04-01 09:18:30 INFO User login: admin
+2026-04-01 09:19:15 ERROR Connection refused to database
+2026-04-01 09:20:01 WARNING Memory usage at 85%
+2026-04-01 09:21:44 INFO Backup job completed
+2026-04-01 09:22:09 ERROR NIC timeout on eth0
+2026-04-01 09:23:30 INFO Scheduled task: disk_check
+2026-04-01 09:24:55 WARNING CPU usage at 91%</span></div>
+            </div>
+
+            <div class="content-section">
+                <h3>Expected Output File</h3>
+                <p>Your program should write a file called <strong>log_summary.txt</strong>. The output should look like the example below. Exact spacing and alignment are part of the Output Formatting rubric category.</p>
+                <div class="code-block"><span class="out">====================================
+     SERVER LOG ANALYSIS REPORT
+====================================
+Log File    : server.log
+Lines Read  : 10
+------------------------------------
+SEVERITY COUNTS
+  INFO      :  4
+  WARNING   :  3
+  ERROR     :  3
+------------------------------------
+ERROR RATE  : 30.00%
+------------------------------------
+UNIQUE ERRORS (2 total)
+  - Connection refused to database
+  - NIC timeout on eth0
+====================================</span></div>
+            </div>
+
+            <div class="info-box">
+                <strong>Line format:</strong> Each log line follows the pattern: DATE TIME SEVERITY MESSAGE. The date is 10 characters, the time is 8 characters, and the severity is always INFO, WARNING, or ERROR. Everything after the severity is the message. This consistent structure is what makes string splitting reliable.
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(1)">Mark Section Read</button>
+        </div>
+
+        <!-- Section 2: Requirements -->
+        <div class="section" id="section2">
+            <div class="section-header">
+                <div class="section-number">2</div>
+                <div class="section-title">
+                    <h2>Requirements</h2>
+                    <span class="time">Your program must satisfy all 10 items</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Grading is based on these requirements.</strong> Each requirement maps to a rubric category. Read each one before writing any code. Requirements 1 and 7 both involve file I/O — one for reading, one for writing.
+            </div>
+
+            <div class="content-section">
+                <ul class="requirement-list">
+                    <li><span class="req-num">1.</span> Reads the log file using <code>with open('server.log', 'r') as f</code> — do not use f.read() on the whole file; iterate line by line</li>
+                    <li><span class="req-num">2.</span> Uses string methods — specifically split() to break each line into parts, strip() to remove trailing whitespace and newlines, and upper() or lower() at least once</li>
+                    <li><span class="req-num">3.</span> Uses string slicing to extract the date component from each line (characters 0 through 10) rather than always relying on split()</li>
+                    <li><span class="req-num">4.</span> Stores the count of each severity level (INFO, WARNING, ERROR) in a dictionary — keys are severity strings, values are integer counts</li>
+                    <li><span class="req-num">5.</span> Uses a set to track unique error messages — only ERROR-level messages go in the set; duplicates are automatically eliminated</li>
+                    <li><span class="req-num">6.</span> Stores each parsed log entry (as a tuple or dict) in a list — this list must contain all entries, not just errors</li>
+                    <li><span class="req-num">7.</span> Writes the summary report to <strong>log_summary.txt</strong> using <code>with open('log_summary.txt', 'w') as f</code></li>
+                    <li><span class="req-num">8.</span> Uses f-strings with a field-width format spec (for example, <code>{count:&gt;4}</code>) so that the numeric columns in the output are right-aligned</li>
+                    <li><span class="req-num">9.</span> Handles FileNotFoundError: if server.log does not exist, print a clear error message and exit cleanly — do not let the program crash with an unhandled exception</li>
+                    <li><span class="req-num">10.</span> Includes at least one list comprehension — for example, building a list of only the ERROR-severity entries from the full entries list</li>
+                </ul>
+            </div>
+
+            <div class="tip-box">
+                <strong>Test with a missing file:</strong> Temporarily rename server.log and run your program. If it crashes with a traceback instead of your friendly message, Requirement 9 is not met. Rename the file back and fix the handler before submitting.
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(2)">Mark Section Read</button>
+        </div>
+
+        <!-- Section 3: Starter Guide -->
+        <div class="section" id="section3">
+            <div class="section-header">
+                <div class="section-number">3</div>
+                <div class="section-title">
+                    <h2>Starter Guide</h2>
+                    <span class="time">Hints and pseudocode — not the solution</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Use these hints to plan your approach.</strong> The snippets below demonstrate individual techniques. Your job is to combine them into a single coherent program.
+            </div>
+
+            <div class="content-section">
+                <h3>Reading and Parsing a Log Line</h3>
+                <p>Each log line has four parts separated by spaces. The split() method with no argument splits on any whitespace and handles consecutive spaces cleanly. Use maxsplit=3 so the message field is kept intact even if it contains spaces.</p>
+                <div class="code-block"><span class="cm"># Sample line from server.log</span>
+line = <span class="st">"2026-04-01 09:17:02 ERROR Connection refused to database\n"</span>
+
+<span class="cm"># strip() removes the trailing newline before splitting</span>
+parts = line.strip().split(maxsplit=<span class="num">3</span>)
+
+<span class="cm"># parts[0] = "2026-04-01"  (date)
+# parts[1] = "09:17:02"    (time)
+# parts[2] = "ERROR"       (severity)
+# parts[3] = "Connection refused to database"  (message)</span>
+
+date_field = parts[<span class="num">0</span>]      <span class="cm"># or use slicing: line[:10]</span>
+severity   = parts[<span class="num">2</span>].upper()
+message    = parts[<span class="num">3</span>]</div>
+            </div>
+
+            <div class="content-section">
+                <h3>Suggested Data Structure Setup</h3>
+                <p>Initialize these before the loop that reads the file. Adding to a dictionary key that does not exist will raise a KeyError — use the get() method with a default of 0 to handle this safely.</p>
+                <div class="code-block"><span class="cm"># Severity counter dictionary — keys added dynamically</span>
+severity_counts = {}
+
+<span class="cm"># Set for unique ERROR messages — add() ignores duplicates</span>
+unique_errors = <span class="fn">set</span>()
+
+<span class="cm"># List of all parsed entries as dicts</span>
+log_entries = []
+
+<span class="cm"># --- Inside the file-reading loop ---
+# Increment the count for this severity level</span>
+severity_counts[severity] = severity_counts.<span class="fn">get</span>(severity, <span class="num">0</span>) + <span class="num">1</span>
+
+<span class="cm"># Add to the unique errors set only if this is an ERROR line</span>
+<span class="kw">if</span> severity == <span class="st">"ERROR"</span>:
+    unique_errors.<span class="fn">add</span>(message)
+
+<span class="cm"># Append the parsed entry to the list</span>
+log_entries.<span class="fn">append</span>({<span class="st">'date'</span>: date_field, <span class="st">'severity'</span>: severity, <span class="st">'message'</span>: message})</div>
+            </div>
+
+            <div class="content-section">
+                <h3>Error Rate Calculation</h3>
+                <p>Calculate the error rate after the loop finishes. Guard against division by zero in case the file is empty.</p>
+                <div class="code-block"><span class="cm"># Total lines equals the length of the entries list</span>
+total_lines = <span class="fn">len</span>(log_entries)
+
+<span class="cm"># Avoid ZeroDivisionError if the file is empty</span>
+<span class="kw">if</span> total_lines > <span class="num">0</span>:
+    error_count = severity_counts.<span class="fn">get</span>(<span class="st">"ERROR"</span>, <span class="num">0</span>)
+    error_rate  = (error_count / total_lines) * <span class="num">100</span>
+<span class="kw">else</span>:
+    error_rate = <span class="num">0.0</span></div>
+            </div>
+
+            <div class="content-section">
+                <h3>FileNotFoundError Handler</h3>
+                <p>Wrap the file open call in a try/except block. This is the correct Python pattern for handling files that may not exist.</p>
+                <div class="code-block"><span class="kw">try</span>:
+    <span class="kw">with</span> <span class="fn">open</span>(<span class="st">'server.log'</span>, <span class="st">'r'</span>) <span class="kw">as</span> f:
+        <span class="kw">for</span> line <span class="kw">in</span> f:
+            <span class="cm">            # parse and process each line here</span>
+            <span class="kw">pass</span>
+<span class="kw">except</span> FileNotFoundError:
+    <span class="fn">print</span>(<span class="st">"Error: server.log not found. Place the log file in the same directory as this script."</span>)
+    <span class="cm">    # Exit the program cleanly after printing the message</span>
+    exit(<span class="num">1</span>)</div>
+            </div>
+
+            <div class="content-section">
+                <h3>List Comprehension Hint</h3>
+                <p>After building log_entries, use a list comprehension to filter for a specific severity. This satisfies Requirement 10 and gives you a clean way to count or display a subset.</p>
+                <div class="code-block"><span class="cm"># Build a list of only the ERROR entries using a comprehension</span>
+error_entries = [
+    entry <span class="kw">for</span> entry <span class="kw">in</span> log_entries
+    <span class="kw">if</span> entry[<span class="st">'severity'</span>] == <span class="st">"ERROR"</span>
+]
+
+<span class="cm"># error_entries is now a list of dicts, one per ERROR line</span>
+<span class="fn">print</span>(<span class="kw">f</span><span class="st">"Total errors found: {len(error_entries)}"</span>)</div>
+            </div>
+
+            <div class="content-section">
+                <h3>Writing the Output File</h3>
+                <p>Use the same with open() pattern for writing. Every print() call inside the report section should also write to the file — use the file= parameter so you do not have to duplicate every line.</p>
+                <div class="code-block"><span class="cm"># Write the report to log_summary.txt</span>
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">'log_summary.txt'</span>, <span class="st">'w'</span>) <span class="kw">as</span> out:
+    <span class="cm">    # Write a separator line to the file</span>
+    <span class="fn">print</span>(<span class="st">"="</span> * <span class="num">36</span>, file=out)
+    <span class="fn">print</span>(<span class="kw">f</span><span class="st">"{'SERVER LOG ANALYSIS REPORT':^36}"</span>, file=out)
+    <span class="fn">print</span>(<span class="st">"="</span> * <span class="num">36</span>, file=out)
+
+    <span class="cm">    # Right-align the count value in a 4-character field</span>
+    <span class="kw">for</span> level <span class="kw">in</span> [<span class="st">"INFO"</span>, <span class="st">"WARNING"</span>, <span class="st">"ERROR"</span>]:
+        count = severity_counts.<span class="fn">get</span>(level, <span class="num">0</span>)
+        <span class="fn">print</span>(<span class="kw">f</span><span class="st">"  {level:<9}: {count:>4}"</span>, file=out)</div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Centering text in an f-string:</strong> The ^ character centers a string within the field width. For example, <code>f"{'TITLE':^36}"</code> centers the word TITLE in a 36-character field. Use this to match the report header format shown in the expected output.
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(3)">Mark Section Read</button>
+        </div>
+
+        <!-- Section 4: Rubric -->
+        <div class="section" id="section4">
+            <div class="section-header">
+                <div class="section-number">4</div>
+                <div class="section-title">
+                    <h2>Rubric</h2>
+                    <span class="time">100 points total</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Grading breakdown:</strong> Each category maps to specific requirements. Partial credit is awarded when the feature is present but incomplete or contains logical errors.
+            </div>
+
+            <div class="content-section">
+                <table class="rubric-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>What the Grader Looks For</th>
+                            <th class="pts">Points</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>File I/O — Read and Write</td>
+                            <td>server.log read line-by-line with with open(); log_summary.txt written with with open(); neither file operation crashes under normal conditions</td>
+                            <td class="pts">15</td>
+                        </tr>
+                        <tr>
+                            <td>String Processing</td>
+                            <td>split(maxsplit=3) used to parse each line; strip() removes whitespace; upper() or lower() applied to severity; string slicing used at least once</td>
+                            <td class="pts">15</td>
+                        </tr>
+                        <tr>
+                            <td>Dictionary Usage</td>
+                            <td>severity_counts dictionary accumulates counts correctly; get() used to avoid KeyError; all three severity levels represented in output</td>
+                            <td class="pts">15</td>
+                        </tr>
+                        <tr>
+                            <td>List Operations</td>
+                            <td>log_entries list stores all parsed entries; at least one list comprehension filters a subset of entries; list length used to calculate totals</td>
+                            <td class="pts">15</td>
+                        </tr>
+                        <tr>
+                            <td>Set Usage</td>
+                            <td>unique_errors set collects ERROR-severity messages; duplicates correctly eliminated; set iterated to display unique error list in output</td>
+                            <td class="pts">10</td>
+                        </tr>
+                        <tr>
+                            <td>Output Formatting</td>
+                            <td>f-strings with field-width specs produce aligned columns; error rate displayed to two decimal places; report matches expected format (header, separator lines, sections)</td>
+                            <td class="pts">10</td>
+                        </tr>
+                        <tr>
+                            <td>Error Handling</td>
+                            <td>FileNotFoundError caught and prints a descriptive message; program exits cleanly rather than crashing; no unhandled exceptions during normal execution</td>
+                            <td class="pts">10</td>
+                        </tr>
+                        <tr>
+                            <td>Code Quality and Comments</td>
+                            <td>Each major block (read, parse, calculate, write) commented; variable names descriptive; no unexplained logic</td>
+                            <td class="pts">10</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Total</strong></td>
+                            <td></td>
+                            <td class="pts">100</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="info-box">
+                <strong>Common deductions:</strong> Using f.read() and then split('\n') instead of iterating the file loses 5 of the 15 file I/O points. A dictionary that is never populated (empty at the end of the program) earns 0 dictionary points even if the variable was declared.
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(4)">Mark Section Read</button>
+        </div>
+
+        <!-- Section 5: Submission Checklist -->
+        <div class="section" id="section5">
+            <div class="section-header">
+                <div class="section-number">5</div>
+                <div class="section-title">
+                    <h2>Submission Checklist</h2>
+                    <span class="time">Complete before turning in</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Self-assessment:</strong> Answer each question below. All answers must be "yes" before you submit. If you cannot honestly answer yes to any item, fix the issue in your code first.
+            </div>
+
+            <div class="content-section">
+                <p>Type <strong>yes</strong> into each field after verifying the item in your code.</p>
+            </div>
+
+            <div class="question-block">
+                <label>Q1: Does your program run from start to finish without any errors when server.log is present?</label>
+                <input type="text" id="q5_1" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_1', 'yes', 'fb5_1', false)">Check</button>
+                <div class="feedback" id="fb5_1"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q2: Does your program print a clear message (instead of crashing) when server.log does not exist?</label>
+                <input type="text" id="q5_2" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_2', 'yes', 'fb5_2', false)">Check</button>
+                <div class="feedback" id="fb5_2"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q3: Does your program read the log file line by line using with open() and a for loop (not f.read())?</label>
+                <input type="text" id="q5_3" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_3', 'yes', 'fb5_3', false)">Check</button>
+                <div class="feedback" id="fb5_3"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q4: Does your severity_counts dictionary correctly count INFO, WARNING, and ERROR lines from the sample log?</label>
+                <input type="text" id="q5_4" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_4', 'yes', 'fb5_4', false)">Check</button>
+                <div class="feedback" id="fb5_4"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q5: Does your unique_errors set contain exactly the distinct ERROR messages (no duplicates)?</label>
+                <input type="text" id="q5_5" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_5', 'yes', 'fb5_5', false)">Check</button>
+                <div class="feedback" id="fb5_5"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q6: Does your program include at least one list comprehension?</label>
+                <input type="text" id="q5_6" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_6', 'yes', 'fb5_6', false)">Check</button>
+                <div class="feedback" id="fb5_6"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q7: Does log_summary.txt get created in the same directory after the program runs?</label>
+                <input type="text" id="q5_7" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_7', 'yes', 'fb5_7', false)">Check</button>
+                <div class="feedback" id="fb5_7"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q8: Is the error rate in your output file formatted to exactly two decimal places?</label>
+                <input type="text" id="q5_8" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_8', 'yes', 'fb5_8', false)">Check</button>
+                <div class="feedback" id="fb5_8"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q9: Does your code use string slicing (not just split) at least once to extract a field from a log line?</label>
+                <input type="text" id="q5_9" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_9', 'yes', 'fb5_9', false)">Check</button>
+                <div class="feedback" id="fb5_9"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q10: Are you submitting both your Python script and the server.log sample file?</label>
+                <input type="text" id="q5_10" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_10', 'yes', 'fb5_10', false)">Check</button>
+                <div class="feedback" id="fb5_10"></div>
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(5)">Submit Checklist and Complete Project</button>
+        </div>
+    </div>
+
+    <script>
+        /* Unique localStorage key for this project */
+        var STORAGE_KEY = 'pfi_w2_project_progress';
+        var TOTAL = 5;
+        var completedSections = [];
+
+        /* SECTION_ANSWERS: only section 5 (checklist) has validation.
+           Sections 1-4 are informational — they complete on button click. */
+        var SECTION_ANSWERS = {
+            5: [
+                { id: 'q5_1',  answer: 'yes', fuzzy: false },
+                { id: 'q5_2',  answer: 'yes', fuzzy: false },
+                { id: 'q5_3',  answer: 'yes', fuzzy: false },
+                { id: 'q5_4',  answer: 'yes', fuzzy: false },
+                { id: 'q5_5',  answer: 'yes', fuzzy: false },
+                { id: 'q5_6',  answer: 'yes', fuzzy: false },
+                { id: 'q5_7',  answer: 'yes', fuzzy: false },
+                { id: 'q5_8',  answer: 'yes', fuzzy: false },
+                { id: 'q5_9',  answer: 'yes', fuzzy: false },
+                { id: 'q5_10', answer: 'yes', fuzzy: false }
+            ]
+        };
+
+        /* Restore completed sections from localStorage on page load */
+        function loadProgress() {
+            var saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                completedSections = JSON.parse(saved);
+                completedSections.forEach(function(num) {
+                    var sec = document.getElementById('section' + num);
+                    if (sec) {
+                        sec.classList.add('completed');
+                        var btn = sec.querySelector('.completion-btn');
+                        if (btn) { btn.classList.add('completed'); btn.textContent = 'Completed'; }
+                    }
+                });
+            }
+            updateProgress();
+        }
+
+        /* Persist current completed list to localStorage */
+        function saveProgress() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(completedSections));
+        }
+
+        /* Update the progress bar and counter text */
+        function updateProgress() {
+            var count = completedSections.length;
+            var pct   = (count / TOTAL) * 100;
+            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('progressText').textContent = count + ' / ' + TOTAL + ' sections';
+        }
+
+        /* Check a single answer field and display feedback */
+        function checkAnswer(inputId, correctAnswer, feedbackId, fuzzy) {
+            var input      = document.getElementById(inputId);
+            var feedback   = document.getElementById(feedbackId);
+            var userAnswer = input.value.trim().toLowerCase();
+            var correct    = correctAnswer.toLowerCase();
+            feedback.className = 'feedback';
+
+            if (!userAnswer) {
+                feedback.className   = 'feedback incorrect';
+                feedback.textContent = 'Enter an answer first.';
+                return;
+            }
+
+            var isCorrect = fuzzy
+                ? (userAnswer.indexOf(correct) !== -1 || correct.indexOf(userAnswer) !== -1)
+                : (userAnswer === correct);
+
+            if (isCorrect) {
+                feedback.className   = 'feedback correct';
+                feedback.textContent = 'Confirmed.';
+            } else {
+                feedback.className   = 'feedback incorrect';
+                feedback.textContent = 'Answer must be "yes" — fix the issue in your code first.';
+            }
+        }
+
+        /* Mark a section complete after validating any required answers */
+        function completeSection(num) {
+            if (completedSections.indexOf(num) !== -1) return;
+
+            var questions = SECTION_ANSWERS[num];
+            if (questions) {
+                /* Validate all checklist answers before allowing completion */
+                var anyFilled  = false;
+                var allCorrect = true;
+
+                questions.forEach(function(q) {
+                    var input = document.getElementById(q.id);
+                    if (!input) return;
+                    var val = input.value.trim().toLowerCase();
+                    var exp = q.answer.toLowerCase();
+                    if (val) anyFilled = true;
+
+                    if (q.fuzzy) {
+                        if (val.indexOf(exp) === -1 && exp.indexOf(val) === -1) allCorrect = false;
+                    } else {
+                        if (val !== exp) allCorrect = false;
+                    }
+                });
+
+                if (!anyFilled) {
+                    var firstFb = document.getElementById('fb5_1');
+                    if (firstFb) {
+                        firstFb.className   = 'feedback incorrect';
+                        firstFb.textContent = 'Answer all checklist items before marking complete.';
+                    }
+                    return;
+                }
+
+                if (!allCorrect) {
+                    questions.forEach(function(q) {
+                        checkAnswer(q.id, q.answer, 'fb' + q.id.substring(1), q.fuzzy);
+                    });
+                    return;
+                }
+            }
+
+            /* Mark the section complete in DOM and storage */
+            completedSections.push(num);
+            var sec = document.getElementById('section' + num);
+            sec.classList.add('completed');
+            var btn = sec.querySelector('.completion-btn');
+            btn.classList.add('completed');
+            btn.textContent = 'Completed';
+            saveProgress();
+            updateProgress();
+
+            /* Fire ModuleProgress when all 5 sections are done */
+            if (completedSections.length === TOTAL) {
+                if (typeof ModuleProgress !== 'undefined') {
+                    ModuleProgress.complete('code', 'pfi-w2-project', { returnUrl: '../index.html' });
+                }
+                setTimeout(function() {
+                    alert('Week 2 Project Complete!\n\nYou built a working server log analyzer using file I/O, string parsing, dictionaries, sets, lists, and list comprehensions. Log analysis is a skill you will use throughout your IT career.');
+                }, 500);
+            }
+        }
+
+        loadProgress();
+    </script>
+
+    <script src="../../../../components/TrailHunter.js"></script>
+</body>
+</html>

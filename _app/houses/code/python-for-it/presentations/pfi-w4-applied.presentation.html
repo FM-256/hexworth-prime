@@ -1,0 +1,2051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: require sorted house membership before content is visible -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress tracking and achievement unlocks -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error Handling, Networking &amp; Algorithms | Python for IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Viewport-locked deck -- only the .active slide is displayed */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Max-width wrapper so content does not stretch on wide screens */
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Gold progress bar across the very top */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button -- shown only on the last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta     { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title    { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip for scenario or instructor notes */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids -- 3-column and 2-column */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        /* Section title slide -- large centered block with section badge */
+        .section-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+        .section-badge {
+            display: inline-block; font-size: 0.72rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.12em;
+            padding: 4px 14px; border-radius: 20px; border: 1px solid #c9a83a;
+            color: #c9a83a; background: rgba(201, 168, 58, 0.08);
+        }
+        .section-hero .big-title { font-size: 2.6rem; font-weight: 800; color: #f1f5f9; line-height: 1.15; }
+        .section-hero .big-title .accent { color: #c9a83a; }
+        .section-hero .section-desc { font-size: 1rem; color: #94a3b8; max-width: 640px; line-height: 1.6; }
+
+        /* Section label -- small caps divider text */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts list */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Python code block with syntax-color spans */
+        .code-block {
+            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #c9a83a; }   /* keywords: if, for, def, True, False, None, import, try, except, raise, class, pass, with, as, while, return, and, or, not, in, is, elif, else, finally */
+        .code-block .fn { color: #06b6d4; }   /* built-in functions and method calls */
+        .code-block .st { color: #3ab577; }   /* string literals */
+        .code-block .cm { color: #475569; }   /* inline comments */
+        .code-block .nb { color: #f472b6; }   /* numeric and boolean literals */
+        .code-block .er { color: #ef4444; }   /* error output lines */
+        .code-block .out{ color: #94a3b8; }   /* normal program output */
+
+        /* Inline code span used inside card-desc and fact-text */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Two-column layout for code + explanation side by side */
+        .split-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+        .split-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; align-items: start; }
+
+        /* Big-O comparison table */
+        .bigo-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .bigo-table th {
+            background: rgba(201, 168, 58, 0.12); color: #c9a83a;
+            padding: 7px 12px; text-align: left; font-weight: 700;
+            border-bottom: 1px solid rgba(201, 168, 58, 0.3);
+        }
+        .bigo-table td { padding: 6px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); color: #cbd5e1; }
+        .bigo-table tr:hover td { background: rgba(255,255,255,0.03); }
+        .bigo-table .cell-good   { color: #3ab577; font-weight: 700; }
+        .bigo-table .cell-ok     { color: #c9a83a; font-weight: 700; }
+        .bigo-table .cell-bad    { color: #ef4444; font-weight: 700; }
+
+        /* Visual step-through blocks for algorithm walkthroughs */
+        .step-list { display: flex; flex-direction: column; gap: 5px; }
+        .step-row {
+            display: flex; gap: 10px; align-items: center;
+            background: rgba(255,255,255,0.03); border-radius: 6px;
+            padding: 6px 12px; font-size: 0.82rem; font-family: 'Courier New', monospace;
+        }
+        .step-row .step-label {
+            font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; color: #475569; min-width: 52px; flex-shrink: 0;
+        }
+        .step-row .step-arr { color: #e2e8f0; flex: 1; }
+        .step-row .step-note { font-size: 0.75rem; color: #64748b; font-family: 'Segoe UI', sans-serif; }
+        .step-row.hl-gold  { border-left: 3px solid #c9a83a; background: rgba(201,168,58,0.06); }
+        .step-row.hl-green { border-left: 3px solid #3ab577; background: rgba(58,181,119,0.06); }
+        .step-row.hl-red   { border-left: 3px solid #ef4444; background: rgba(239,68,68,0.06); }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } .section-hero .big-title { font-size: 2rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .split-2 { grid-template-columns: 1fr; } .split-3 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+    <script src="../../../../components/TryItNow.js"></script>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Error Handling, Networking & Algorithms</h1>
+
+
+<!-- Gold progress bar -- width updated by goToSlide() -->
+<div id="progress-bar" style="width:2.78%"></div>
+
+
+<!-- ==================== SLIDE 1 -- TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 38 &nbsp;|&nbsp; COP1034C &nbsp;|&nbsp; Week 4 Tuesday -- Day 11 of 12</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Python for IT: Day 11<br>
+                <span class="accent">Error Handling, Networking &amp; Algorithms</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Section A: Exceptions &nbsp;&bull;&nbsp; Section B: Sockets &amp; HTTP &nbsp;&bull;&nbsp; Section C: Search, Sort &amp; Complexity
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Your script runs perfectly on your laptop. You deploy it to the production server at 11 PM. At 2 AM you get paged: the script crashed with an unhandled FileNotFoundError, took down the reporting pipeline, and nobody knows what happened because there is no log. Error handling would have caught that. Networking libraries would have sent an alert. Knowing the right algorithm would have made the whole thing ten times faster. Today covers all three.
+        </div>
+        <div class="title-meta-row">
+            <span>38 Slides</span>
+            <span>COP1034C</span>
+            <span>Day 11 of 12 -- Last Lecture</span>
+            <span>Three Sections -- Four Hours</span>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 2 -- WHAT ARE EXCEPTIONS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 38 &nbsp;|&nbsp; Section A: Error Handling</div>
+        <div class="slide-title">What Are <span class="accent">Exceptions?</span></div>
+        <div class="slide-subtitle">Errors that occur while your program is running -- not while Python is reading it.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Syntax Error vs Runtime Error</div>
+                <div class="card-desc">
+                    A <strong>syntax error</strong> is caught before your program runs. Python cannot parse the file. Fix it, then run again.<br><br>
+                    A <strong>runtime error</strong> (exception) happens during execution. Your code is valid Python -- it just encountered something it could not handle: a missing file, bad input, a division by zero.
+                </div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">What Happens When an Exception Is Raised</div>
+                <div class="card-desc">
+                    Python stops executing the current function. It walks back up the call stack looking for exception handling code. If it finds none, it prints a traceback and terminates the program. Without error handling, one bad value crashes everything.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># No error handling -- one bad line kills the script</span>
+filename = <span class="st">"/etc/shadow"</span>
+f = <span class="fn">open</span>(filename)           <span class="cm"># Raises PermissionError -- program dies here</span>
+data = f.<span class="fn">read</span>()              <span class="cm"># Never reached</span>
+<span class="fn">print</span>(data)                 <span class="cm"># Never reached</span>
+
+<span class="er">Traceback (most recent call last):
+  File "process.py", line 3, in &lt;module&gt;
+    f = open(filename)
+PermissionError: [Errno 13] Permission denied: '/etc/shadow'</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Core idea:</strong> An exception is Python saying "I encountered a situation I do not know how to handle. If you have instructions for this case, give them to me with try/except. Otherwise I give up."
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 3 -- COMMON EXCEPTIONS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 38 &nbsp;|&nbsp; Section A: Error Handling</div>
+        <div class="slide-title">The Six Exceptions <span class="accent">You Will See Every Day</span></div>
+        <div class="slide-subtitle">Know what triggers each one so you can anticipate and handle them.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">ValueError</div>
+                <div class="card-desc">Right type, wrong value. <span class="ic">int("abc")</span> -- the string exists but cannot be converted to an integer. Common when processing user input or file data.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">TypeError</div>
+                <div class="card-desc">Wrong type entirely. <span class="ic">"port: " + 8080</span> -- you cannot add a string and an integer. Python refuses to guess what you meant.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">FileNotFoundError</div>
+                <div class="card-desc">The file path does not exist at the time of the open() call. Paths that work on your machine often do not exist on the server.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">IndexError</div>
+                <div class="card-desc">You tried to access a list index that does not exist. <span class="ic">items[10]</span> when the list only has 3 elements. Common with off-by-one logic.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">KeyError</div>
+                <div class="card-desc">You tried to access a dictionary key that does not exist. <span class="ic">config["timeout"]</span> when "timeout" was never set. Use <span class="ic">.get()</span> to avoid this.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">ZeroDivisionError</div>
+                <div class="card-desc">Division by zero. <span class="ic">100 / 0</span>. Happens when the denominator comes from data you did not validate -- a count that turned out to be zero.</div>
+            </div>
+        </div>
+
+        <div class="code-block" style="font-size:0.79rem;"><span class="cm"># Each line triggers a different exception -- run them one at a time</span>
+<span class="fn">int</span>(<span class="st">"abc"</span>)            <span class="er"># ValueError: invalid literal for int() with base 10: 'abc'</span>
+<span class="st">"port: "</span> + <span class="nb">8080</span>       <span class="er"># TypeError: can only concatenate str (not "int") to str</span>
+<span class="fn">open</span>(<span class="st">"/no/such/file"</span>)  <span class="er"># FileNotFoundError: [Errno 2] No such file or directory</span>
+[][<span class="nb">0</span>]                  <span class="er"># IndexError: list index out of range</span>
+{}[<span class="st">"key"</span>]             <span class="er"># KeyError: 'key'</span>
+<span class="nb">1</span> / <span class="nb">0</span>                  <span class="er"># ZeroDivisionError: division by zero</span></div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 4 -- TRY / EXCEPT BASIC ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 38 &nbsp;|&nbsp; Section A: Error Handling</div>
+        <div class="slide-title">try / except: <span class="accent">Basic Syntax</span></div>
+        <div class="slide-subtitle">Wrap the risky code. Tell Python what to do if it fails.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Structure</div>
+                <div class="card-desc">
+                    The <span class="ic">try</span> block contains code that might raise an exception.<br>
+                    The <span class="ic">except</span> block runs only if an exception is raised.<br>
+                    If no exception occurs, the except block is skipped entirely.<br>
+                    Execution continues after the try/except regardless.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">What Changes</div>
+                <div class="card-desc">
+                    Without try/except: one error = program dead, no output, no log, no recovery.<br>
+                    With try/except: error is caught, you decide what happens next -- log it, retry, return a default value, or show the user a friendly message.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Asking a user for a port number -- input always comes in as a string</span>
+raw = <span class="fn">input</span>(<span class="st">"Enter port number: "</span>)   <span class="cm"># user types "abc" by mistake</span>
+
+<span class="kw">try</span>:
+    port = <span class="fn">int</span>(raw)                 <span class="cm"># This raises ValueError if raw is not numeric</span>
+    <span class="fn">print</span>(<span class="st">f"Connecting to port </span>{port}<span class="st">..."</span>)
+<span class="kw">except</span> ValueError:
+    <span class="fn">print</span>(<span class="st">f"'{raw}' is not a valid port number. Please enter an integer."</span>)
+
+<span class="cm"># Program continues here whether or not the exception fired</span>
+<span class="fn">print</span>(<span class="st">"Done."</span>)</div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            This is the difference between a script that crashes with a cryptic traceback and one that prints a helpful message. The behavior changes by adding four lines. That is the value of error handling.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 5 -- SPECIFIC VS BARE EXCEPT ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 38 &nbsp;|&nbsp; Section A: Error Handling</div>
+        <div class="slide-title">Specific Exceptions vs <span class="accent">Bare Except</span></div>
+        <div class="slide-subtitle">Always name the exception type. Bare except is a code smell that hides real bugs.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Specific except (Correct)</div>
+                <div class="card-desc">
+                    <span class="ic">except ValueError:</span> only catches ValueError.<br>
+                    If a different exception fires, it propagates -- you see it and can fix it.<br>
+                    Your intent is explicit: "I expect this specific failure mode here."
+                </div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Bare except (Dangerous)</div>
+                <div class="card-desc">
+                    <span class="ic">except:</span> catches every exception, including KeyboardInterrupt, SystemExit, and MemoryError.<br>
+                    If a new bug appears inside the try block, you will never see it.<br>
+                    The program appears to work while silently swallowing errors.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># BAD: bare except hides all bugs inside the try block</span>
+<span class="kw">try</span>:
+    result = complicated_calculation()
+    write_to_database(result)
+<span class="kw">except</span>:                          <span class="cm"># catches EVERYTHING -- bugs included</span>
+    <span class="fn">print</span>(<span class="st">"Something went wrong"</span>)   <span class="cm"># you will never know what</span>
+
+<span class="cm"># GOOD: name exactly what you expect to go wrong</span>
+<span class="kw">try</span>:
+    result = complicated_calculation()
+    write_to_database(result)
+<span class="kw">except</span> ZeroDivisionError:
+    <span class="fn">print</span>(<span class="st">"Cannot divide by zero in calculation."</span>)
+<span class="kw">except</span> ConnectionError:
+    <span class="fn">print</span>(<span class="st">"Database unreachable. Result not saved."</span>)</div>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            <strong>Rule:</strong> If you cannot name which exception you expect, you do not understand the code well enough to handle its errors. Go understand it first.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 6 -- MULTIPLE EXCEPT BLOCKS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 38 &nbsp;|&nbsp; Section A: Error Handling</div>
+        <div class="slide-title">Multiple <span class="accent">except Blocks</span></div>
+        <div class="slide-subtitle">Different failures deserve different responses. Stack except blocks for fine-grained control.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">How Python Evaluates Them</div>
+                <div class="card-desc">Python checks each except clause in order from top to bottom. The first matching exception type wins. Only one except block runs per exception. Order matters -- put more specific types above broader ones.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Grouping with Tuple</div>
+                <div class="card-desc">If two exceptions should produce the same response, group them: <span class="ic">except (TypeError, ValueError):</span>. This avoids duplicate code while still being explicit about which exceptions you handle.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Exception Hierarchy</div>
+                <div class="card-desc">All exceptions inherit from BaseException. Most inherit from Exception. This means <span class="ic">except Exception:</span> is a broad (but named) catch-all for non-system errors -- acceptable in a top-level error logger, not in normal code.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Reading a config file -- three different ways it can fail</span>
+<span class="kw">def</span> <span class="fn">load_config</span>(path):
+    <span class="kw">try</span>:
+        <span class="kw">with</span> <span class="fn">open</span>(path) <span class="kw">as</span> f:
+            data = f.<span class="fn">read</span>()
+        timeout = <span class="fn">int</span>(data.<span class="fn">split</span>(<span class="st">"timeout="</span>)[<span class="nb">1</span>].<span class="fn">split</span>()[<span class="nb">0</span>])
+        <span class="kw">return</span> timeout
+    <span class="kw">except</span> FileNotFoundError:
+        <span class="fn">print</span>(<span class="st">f"Config not found: {path}. Using default timeout."</span>)
+        <span class="kw">return</span> <span class="nb">30</span>
+    <span class="kw">except</span> (ValueError, IndexError):
+        <span class="fn">print</span>(<span class="st">"Config file is malformed. Using default timeout."</span>)
+        <span class="kw">return</span> <span class="nb">30</span>
+    <span class="kw">except</span> PermissionError:
+        <span class="fn">print</span>(<span class="st">"Permission denied reading config. Running as root required."</span>)
+        <span class="kw">raise</span>   <span class="cm"># re-raise -- this is a real problem, caller must know</span></div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 7 -- TRY / EXCEPT / ELSE ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 38 &nbsp;|&nbsp; Section A: Error Handling</div>
+        <div class="slide-title">try / except / <span class="accent">else</span></div>
+        <div class="slide-subtitle">The else block runs only when no exception occurred. It keeps success logic separate from error logic.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Why Use else?</div>
+                <div class="card-desc">
+                    Anything inside the <span class="ic">try</span> block might raise an exception. If you put success-path code there too, an unexpected exception from it could be caught by the wrong handler.<br><br>
+                    The <span class="ic">else</span> block only runs if the <span class="ic">try</span> block completed without raising. This makes intent explicit: "this is what I do when everything went right."
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">When It Matters</div>
+                <div class="card-desc">
+                    If the success path is long or calls several functions, putting it in <span class="ic">else</span> ensures that exceptions raised there are not silently caught by the except clauses meant for the initial risky operation.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Parsing a CSV row -- the else block runs only if open() and read() succeed</span>
+<span class="kw">def</span> <span class="fn">parse_log_entry</span>(filepath):
+    <span class="kw">try</span>:
+        f = <span class="fn">open</span>(filepath)         <span class="cm"># risky: file might not exist</span>
+    <span class="kw">except</span> FileNotFoundError:
+        <span class="fn">print</span>(<span class="st">f"Log not found: {filepath}"</span>)
+        <span class="kw">return</span> <span class="kw">None</span>
+    <span class="kw">else</span>:
+        <span class="cm"># Only reaches here if open() succeeded</span>
+        data = f.<span class="fn">read</span>()
+        f.<span class="fn">close</span>()
+        lines = data.<span class="fn">strip</span>().<span class="fn">splitlines</span>()
+        <span class="fn">print</span>(<span class="st">f"Parsed {len(lines)} log entries."</span>)
+        <span class="kw">return</span> lines</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Pattern summary:</strong> try = the risky operation. except = the failure path. else = the success path. finally (next slide) = always runs.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 8 -- TRY / EXCEPT / FINALLY ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 38 &nbsp;|&nbsp; Section A: Error Handling</div>
+        <div class="slide-title">try / except / <span class="accent">finally</span></div>
+        <div class="slide-subtitle">finally always runs -- success or failure. Use it for cleanup: closing files, releasing locks, disconnecting.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Guaranteed Execution</div>
+                <div class="card-desc">
+                    The <span class="ic">finally</span> block executes even if the except block re-raises, even if a return statement is hit inside try, and even if a new exception fires inside except. It is the cleanup guarantee.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Common finally Uses</div>
+                <div class="card-desc">
+                    Closing an open file handle.<br>
+                    Releasing a database connection back to the pool.<br>
+                    Removing a temporary file.<br>
+                    Releasing a threading lock.<br>
+                    Logging that the operation ended, regardless of outcome.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Database connection -- must close the connection no matter what happens</span>
+<span class="kw">import</span> sqlite3
+
+connection = <span class="kw">None</span>
+<span class="kw">try</span>:
+    connection = sqlite3.<span class="fn">connect</span>(<span class="st">"hosts.db"</span>)
+    cursor = connection.<span class="fn">cursor</span>()
+    cursor.<span class="fn">execute</span>(<span class="st">"SELECT hostname FROM assets WHERE status='active'"</span>)
+    rows = cursor.<span class="fn">fetchall</span>()
+    <span class="fn">print</span>(<span class="st">f"Found {len(rows)} active hosts."</span>)
+<span class="kw">except</span> sqlite3.OperationalError <span class="kw">as</span> e:
+    <span class="fn">print</span>(<span class="st">f"Database error: {e}"</span>)
+<span class="kw">finally</span>:
+    <span class="cm"># This runs whether the query succeeded, raised an exception, or re-raised</span>
+    <span class="kw">if</span> connection:
+        connection.<span class="fn">close</span>()
+        <span class="fn">print</span>(<span class="st">"Connection closed."</span>)</div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            Without finally, a query exception leaves the connection open. On a busy server that means connection pool exhaustion -- the database refuses new connections for every user on the platform. One missing finally, hundreds of users affected.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — TRY IT NOW ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 38 &nbsp;|&nbsp; Try It Now</div>
+        <div class="slide-title">Try It Now: <span class="accent">Try/Except</span></div>
+        <div class="slide-subtitle">Handle an error gracefully.</div>
+        <div class="try-it-now"
+             data-starter="# This code crashes. Wrap it in try/except to handle the error.&#10;value = &quot;not_a_number&quot;&#10;result = int(value)&#10;print(f&quot;Result: {result}&quot;)"
+             data-solution="value = &quot;not_a_number&quot;&#10;try:&#10;    result = int(value)&#10;    print(f&quot;Result: {result}&quot;)&#10;except ValueError:&#10;    print(f&quot;Error: '{value}' is not a valid number&quot;)"
+             data-expected="Error: 'not_a_number' is not a valid number"
+             data-height="140">
+        </div>
+    </div>
+</section>
+
+
+
+<!-- ==================== SLIDE 10 -- RAISING EXCEPTIONS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 38 &nbsp;|&nbsp; Section A: Error Handling</div>
+        <div class="slide-title">Raising Exceptions: <span class="accent">raise</span></div>
+        <div class="slide-subtitle">You can signal a problem from your own code using raise -- the same mechanism Python uses.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">When to raise</div>
+                <div class="card-desc">
+                    When your code detects an invalid state that Python itself would not catch.<br>
+                    A port number of -1. A username with a forward slash. A configuration value that is technically an integer but logically wrong.<br>
+                    Python cannot know these rules -- you encode them in <span class="ic">raise</span> statements.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Syntax</div>
+                <div class="card-desc">
+                    <span class="ic">raise ExceptionType("message")</span><br>
+                    <span class="ic">raise ValueError("port must be 1-65535")</span><br><br>
+                    Use a built-in exception type that best describes the problem. ValueError for bad values, TypeError for wrong types, RuntimeError for unexpected states.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Validate input before using it -- reject invalid data at the boundary</span>
+<span class="kw">def</span> <span class="fn">connect_to_host</span>(ip, port):
+    <span class="kw">if</span> <span class="kw">not</span> (<span class="nb">1</span> &lt;= port &lt;= <span class="nb">65535</span>):
+        <span class="kw">raise</span> ValueError(<span class="st">f"Port {port} is out of valid range (1-65535)."</span>)
+    <span class="kw">if</span> <span class="kw">not</span> <span class="fn">isinstance</span>(ip, str) <span class="kw">or</span> <span class="kw">not</span> ip:
+        <span class="kw">raise</span> TypeError(<span class="st">"IP address must be a non-empty string."</span>)
+    <span class="fn">print</span>(<span class="st">f"Connecting to {ip}:{port}"</span>)
+
+<span class="cm"># The caller handles the exception they caused</span>
+<span class="kw">try</span>:
+    <span class="fn">connect_to_host</span>(<span class="st">"192.168.1.10"</span>, <span class="nb">-1</span>)
+<span class="kw">except</span> ValueError <span class="kw">as</span> e:
+    <span class="fn">print</span>(<span class="st">f"Bad argument: {e}"</span>)
+    <span class="cm"># Output: Bad argument: Port -1 is out of valid range (1-65535).</span></div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 11 -- CUSTOM EXCEPTIONS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 38 &nbsp;|&nbsp; Section A: Error Handling</div>
+        <div class="slide-title">Custom Exceptions: <span class="accent">Domain-Specific Errors</span></div>
+        <div class="slide-subtitle">Create your own exception types for errors that are specific to your application's domain.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Why Custom Exceptions</div>
+                <div class="card-desc">
+                    Built-in exceptions are generic. A ValueError does not tell you whether it came from a bad port, a bad IP, or a bad VLAN ID.<br><br>
+                    Custom exceptions carry meaning. When you see <span class="ic">InvalidPortError</span> in a traceback, you immediately know exactly what failed without reading the message string.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">How to Create One</div>
+                <div class="card-desc">
+                    Subclass Exception (or a more specific built-in).<br>
+                    Add an <span class="ic">__init__</span> to carry extra context if needed.<br>
+                    Keep the class name short and descriptive: <span class="ic">AuthenticationError</span>, <span class="ic">ConfigParseError</span>, <span class="ic">HostUnreachableError</span>.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Custom exception hierarchy for a network scanner application</span>
+<span class="kw">class</span> <span class="fn">ScannerError</span>(Exception):
+    <span class="st">"""Base exception for all scanner errors."""</span>
+    <span class="kw">pass</span>
+
+<span class="kw">class</span> <span class="fn">InvalidTargetError</span>(ScannerError):
+    <span class="st">"""Raised when the target IP or hostname is invalid."""</span>
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="kw">self</span>, target):
+        <span class="kw">super</span>().<span class="fn">__init__</span>(<span class="st">f"'{target}' is not a valid scan target."</span>)
+        <span class="kw">self</span>.target = target
+
+<span class="kw">class</span> <span class="fn">ScanTimeoutError</span>(ScannerError):
+    <span class="st">"""Raised when a scan takes longer than allowed."""</span>
+    <span class="kw">pass</span>
+
+<span class="cm"># Using the custom exceptions</span>
+<span class="kw">try</span>:
+    <span class="kw">raise</span> <span class="fn">InvalidTargetError</span>(<span class="st">"999.999.0.1"</span>)
+<span class="kw">except</span> InvalidTargetError <span class="kw">as</span> e:
+    <span class="fn">print</span>(<span class="st">f"Scan aborted: {e}"</span>)   <span class="cm"># Scan aborted: '999.999.0.1' is not a valid scan target.</span></div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 12 -- BEST PRACTICES ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 38 &nbsp;|&nbsp; Section A: Error Handling</div>
+        <div class="slide-title">Error Handling <span class="accent">Best Practices</span></div>
+        <div class="slide-subtitle">Rules that experienced engineers follow. Learn them now before bad habits stick.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Catch Specific Exceptions</div>
+                <div class="card-desc">Name the exception type in every except clause. Never use bare <span class="ic">except:</span>. If you must use a broad catch, use <span class="ic">except Exception as e:</span> and log the full exception.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Never Silence Errors</div>
+                <div class="card-desc"><span class="ic">except ValueError: pass</span> is almost always wrong. If something failed and you do nothing, you are hiding a bug. At minimum, log the error so someone can investigate later.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Use finally for Cleanup</div>
+                <div class="card-desc">Files, sockets, database connections, and locks must be released regardless of outcome. Put the release code in finally. Or better: use the <span class="ic">with</span> statement, which handles this automatically.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Log with Context</div>
+                <div class="card-desc">When you catch an exception, log the exception object plus context: which file, which host, which user input caused it. A log entry with no context is nearly useless at 3 AM.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Fail Fast at Boundaries</div>
+                <div class="card-desc">Validate inputs at the point they enter your system -- function parameters, user input, file data, API responses. Reject bad data immediately with a clear error rather than letting it propagate deep into logic.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Re-raise When Appropriate</div>
+                <div class="card-desc">If you catch an exception to log it but cannot recover from it, re-raise with <span class="ic">raise</span> (no argument). This preserves the original traceback so the caller can also handle it.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 13 -- IT SCENARIO: ROBUST FILE PROCESSOR ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 38 &nbsp;|&nbsp; Section A: Error Handling</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Robust File Processor</span></div>
+        <div class="slide-subtitle">Production-quality error handling on a script that processes server log files.</div>
+
+        <div class="code-block" style="font-size:0.78rem;"><span class="kw">import</span> os
+
+<span class="kw">def</span> <span class="fn">process_log_file</span>(filepath):
+    <span class="st">"""Read a server log, count ERROR lines, return the count.
+    Handles: missing file, permission denied, and unreadable (binary) content."""</span>
+    <span class="kw">try</span>:
+        <span class="kw">with</span> <span class="fn">open</span>(filepath, <span class="st">"r"</span>, encoding=<span class="st">"utf-8"</span>) <span class="kw">as</span> f:
+            lines = f.<span class="fn">readlines</span>()
+        error_count = <span class="fn">sum</span>(<span class="nb">1</span> <span class="kw">for</span> line <span class="kw">in</span> lines <span class="kw">if</span> <span class="st">"ERROR"</span> <span class="kw">in</span> line)
+        <span class="kw">return</span> error_count
+    <span class="kw">except</span> FileNotFoundError:
+        <span class="fn">print</span>(<span class="st">f"[WARN] Log not found: {filepath}"</span>)
+        <span class="kw">return</span> <span class="nb">0</span>
+    <span class="kw">except</span> PermissionError:
+        <span class="fn">print</span>(<span class="st">f"[ERROR] Permission denied: {filepath}. Running as root?"</span>)
+        <span class="kw">return</span> <span class="nb">0</span>
+    <span class="kw">except</span> UnicodeDecodeError:
+        <span class="fn">print</span>(<span class="st">f"[WARN] {filepath} contains non-text data. Skipping."</span>)
+        <span class="kw">return</span> <span class="nb">0</span>
+
+<span class="cm"># Process multiple log files without crashing on any single failure</span>
+log_files = [<span class="st">"/var/log/app/app.log"</span>, <span class="st">"/var/log/app/error.log"</span>, <span class="st">"/var/log/app/access.log"</span>]
+<span class="kw">for</span> path <span class="kw">in</span> log_files:
+    count = <span class="fn">process_log_file</span>(path)
+    <span class="fn">print</span>(<span class="st">f"{os.path.basename(path)}: {count} ERROR lines"</span>)</div>
+
+        <div class="box box-green" style="font-size:0.83rem;">
+            The <span class="ic">with</span> statement handles the finally for you -- it closes the file when the block exits, whether by return, exception, or normal completion. Prefer <span class="ic">with open()</span> over manual close().
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 14 -- SECTION B TITLE: NETWORKING ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="section-hero">
+            <div class="section-badge">Section B &nbsp;|&nbsp; Slides 13-24</div>
+            <div class="big-title">
+                Network Programming<br>
+                <span class="accent">with Python</span>
+            </div>
+            <div class="section-desc">
+                Python gives you two layers of network access. The socket module lets you work at the raw TCP/UDP level -- you control every byte. The requests library sits on top of HTTP and lets you talk to APIs in three lines of code. You need to know both.
+            </div>
+        </div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Topics Covered</div>
+                <div class="card-desc">TCP vs UDP sockets. Creating clients and servers. Threading for concurrent connections. HTTP with requests. Working with JSON APIs. Port scanner and API client scenarios.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why This Matters for IT</div>
+                <div class="card-desc">Network automation, health checks, service monitoring, API integrations, custom scanners -- all built on these exact primitives. Every major IT scripting task involves the network.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">What You Need</div>
+                <div class="card-desc">socket (standard library). threading (standard library). requests (pip install requests). Python 3.12. Two terminal windows for client/server demos.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 15 -- WHAT IS SOCKET PROGRAMMING ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 38 &nbsp;|&nbsp; Section B: Networking</div>
+        <div class="slide-title">Socket Programming: <span class="accent">Low-Level Network Communication</span></div>
+        <div class="slide-subtitle">A socket is an endpoint for two-way communication. Everything on the network -- HTTP, SSH, DNS -- runs over sockets.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">TCP (SOCK_STREAM)</div>
+                <div class="card-desc">
+                    Connection-oriented. Establishes a three-way handshake before data flows.<br>
+                    Guarantees delivery and ordering. If a packet is lost, TCP retransmits it.<br>
+                    Use for: HTTP, SSH, FTP, SMTP -- any protocol where data integrity matters.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">UDP (SOCK_DGRAM)</div>
+                <div class="card-desc">
+                    Connectionless. Send packets and hope they arrive -- no handshake, no guarantee.<br>
+                    Lower overhead, lower latency. Packets may arrive out of order or not at all.<br>
+                    Use for: DNS lookups, VoIP, video streaming, game state updates.
+                </div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Address Family: AF_INET</div>
+                <div class="card-desc">IPv4 addressing. Takes a tuple: <span class="ic">(ip_string, port_integer)</span>. Use <span class="ic">AF_INET6</span> for IPv6. Nearly all IT scripting uses <span class="ic">AF_INET</span>.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Loopback for Testing</div>
+                <div class="card-desc">Use <span class="ic">127.0.0.1</span> or <span class="ic">"localhost"</span> to test client and server on the same machine. Open two terminals. No firewall, no network required.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Ports Above 1024</div>
+                <div class="card-desc">Ports 0-1023 are privileged (require root). Use ports 1024-65535 for development. Common dev choices: 5000, 8080, 9000, 12345.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 16 -- THE SOCKET MODULE ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 38 &nbsp;|&nbsp; Section B: Networking</div>
+        <div class="slide-title">The socket Module: <span class="accent">Creating a TCP Socket</span></div>
+        <div class="slide-subtitle">socket.socket() is the constructor. AF_INET + SOCK_STREAM = TCP over IPv4.</div>
+
+        <div class="split-2">
+            <div>
+                <div class="code-block"><span class="kw">import</span> socket
+
+<span class="cm"># Create a TCP socket over IPv4</span>
+s = socket.<span class="fn">socket</span>(
+    socket.AF_INET,       <span class="cm"># IPv4</span>
+    socket.SOCK_STREAM    <span class="cm"># TCP</span>
+)
+
+<span class="cm"># Set socket options before connect/bind</span>
+<span class="cm"># SO_REUSEADDR: lets server reuse port</span>
+<span class="cm"># immediately after restart (avoids</span>
+<span class="cm"># "Address already in use" errors)</span>
+s.<span class="fn">setsockopt</span>(
+    socket.SOL_SOCKET,
+    socket.SO_REUSEADDR,
+    <span class="nb">1</span>
+)
+
+<span class="cm"># Set a timeout (seconds) so operations</span>
+<span class="cm"># do not block forever</span>
+s.<span class="fn">settimeout</span>(<span class="nb">5.0</span>)
+
+<span class="cm"># Always close when done</span>
+s.<span class="fn">close</span>()</div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-gold">
+                    <div class="card-label">socket.socket() Parameters</div>
+                    <div class="card-desc"><span class="ic">AF_INET</span> = IPv4 address family.<br><span class="ic">SOCK_STREAM</span> = TCP (stream).<br><span class="ic">SOCK_DGRAM</span> = UDP (datagram).<br>For raw packets: <span class="ic">SOCK_RAW</span> (root required).</div>
+                </div>
+                <div class="card c-cyan">
+                    <div class="card-label">SO_REUSEADDR</div>
+                    <div class="card-desc">Without this option, restarting a server within ~60 seconds of the last run gives "Address already in use." Set this on every server socket before bind().</div>
+                </div>
+                <div class="card c-green">
+                    <div class="card-label">Timeouts</div>
+                    <div class="card-desc">Without a timeout, recv() and connect() block forever if the remote host is unreachable. Always set a timeout on sockets used in IT scripts.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 17 -- TCP CLIENT ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 38 &nbsp;|&nbsp; Section B: Networking</div>
+        <div class="slide-title">TCP Client: <span class="accent">connect, send, receive, close</span></div>
+        <div class="slide-subtitle">A complete echo client -- sends a message, reads the server's reply.</div>
+
+        <div class="code-block"><span class="kw">import</span> socket
+
+<span class="kw">def</span> <span class="fn">tcp_echo_client</span>(host, port, message):
+    <span class="st">"""Connect to a TCP server, send a message, print the reply."""</span>
+    s = socket.<span class="fn">socket</span>(socket.AF_INET, socket.SOCK_STREAM)
+    s.<span class="fn">settimeout</span>(<span class="nb">5.0</span>)    <span class="cm"># give server 5 seconds to respond</span>
+
+    <span class="kw">try</span>:
+        s.<span class="fn">connect</span>((host, port))            <span class="cm"># three-way handshake happens here</span>
+
+        encoded = message.<span class="fn">encode</span>(<span class="st">"utf-8"</span>)  <span class="cm"># sockets send bytes, not strings</span>
+        s.<span class="fn">sendall</span>(encoded)                 <span class="cm"># sendall retries until all bytes sent</span>
+
+        reply = s.<span class="fn">recv</span>(<span class="nb">4096</span>)              <span class="cm"># read up to 4096 bytes from server</span>
+        <span class="fn">print</span>(<span class="st">f"Server replied: {reply.decode('utf-8')}"</span>)
+
+    <span class="kw">except</span> ConnectionRefusedError:
+        <span class="fn">print</span>(<span class="st">f"Connection refused -- is the server running on {host}:{port}?"</span>)
+    <span class="kw">except</span> socket.timeout:
+        <span class="fn">print</span>(<span class="st">f"Timed out waiting for reply from {host}:{port}."</span>)
+    <span class="kw">finally</span>:
+        s.<span class="fn">close</span>()                          <span class="cm"># always close the socket</span>
+
+<span class="cm"># Run: python client.py</span>
+<span class="fn">tcp_echo_client</span>(<span class="st">"127.0.0.1"</span>, <span class="nb">9000</span>, <span class="st">"Hello from client"</span>)</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Encoding rule:</strong> Sockets transmit bytes. Always call <span class="ic">.encode("utf-8")</span> before sending a string, and <span class="ic">.decode("utf-8")</span> after receiving bytes. This is mandatory, not optional.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 18 -- TCP SERVER ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 38 &nbsp;|&nbsp; Section B: Networking</div>
+        <div class="slide-title">TCP Server: <span class="accent">bind, listen, accept</span></div>
+        <div class="slide-subtitle">Three calls create a listening server. accept() blocks until a client connects.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">bind((host, port))</div>
+                <div class="card-desc">Attaches the socket to a specific IP and port. Use <span class="ic">"0.0.0.0"</span> to listen on all network interfaces. Use <span class="ic">"127.0.0.1"</span> to listen only on loopback (local machine only).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">listen(backlog)</div>
+                <div class="card-desc">Tells the OS to start accepting incoming connection requests. The backlog is how many connections can wait in the queue before the OS starts refusing new ones. Common values: 5 to 128.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">accept()</div>
+                <div class="card-desc">Blocks until a client connects. Returns a new socket object representing the connection to that specific client, plus the client's (ip, port) address. The original server socket keeps listening.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">import</span> socket
+
+<span class="kw">def</span> <span class="fn">tcp_echo_server</span>(port):
+    <span class="st">"""Accept one client, echo back everything it sends, then close."""</span>
+    server = socket.<span class="fn">socket</span>(socket.AF_INET, socket.SOCK_STREAM)
+    server.<span class="fn">setsockopt</span>(socket.SOL_SOCKET, socket.SO_REUSEADDR, <span class="nb">1</span>)
+    server.<span class="fn">bind</span>((<span class="st">"0.0.0.0"</span>, port))     <span class="cm"># listen on all interfaces</span>
+    server.<span class="fn">listen</span>(<span class="nb">5</span>)
+    <span class="fn">print</span>(<span class="st">f"Echo server listening on port {port} ..."</span>)
+
+    client_socket, client_addr = server.<span class="fn">accept</span>()   <span class="cm"># blocks here until client connects</span>
+    <span class="fn">print</span>(<span class="st">f"Connection from {client_addr}"</span>)
+
+    data = client_socket.<span class="fn">recv</span>(<span class="nb">4096</span>)
+    client_socket.<span class="fn">sendall</span>(data)          <span class="cm"># echo the bytes straight back</span>
+    client_socket.<span class="fn">close</span>()
+    server.<span class="fn">close</span>()
+
+<span class="fn">tcp_echo_server</span>(<span class="nb">9000</span>)</div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 19 -- SERVER WITH ERROR HANDLING ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 38 &nbsp;|&nbsp; Section B: Networking</div>
+        <div class="slide-title">Server That Handles <span class="accent">One Client -- Full Walkthrough</span></div>
+        <div class="slide-subtitle">The complete loop: accept, read until client disconnects, respond, close.</div>
+
+        <div class="code-block" style="font-size:0.78rem;"><span class="kw">import</span> socket
+
+<span class="kw">def</span> <span class="fn">handle_client</span>(conn, addr):
+    <span class="st">"""Read all data from the client until it closes the connection."""</span>
+    <span class="fn">print</span>(<span class="st">f"[+] Connected: {addr}"</span>)
+    <span class="kw">try</span>:
+        <span class="kw">while</span> <span class="kw">True</span>:
+            data = conn.<span class="fn">recv</span>(<span class="nb">1024</span>)
+            <span class="kw">if</span> <span class="kw">not</span> data:
+                <span class="kw">break</span>                 <span class="cm"># recv returns b'' when client closes connection</span>
+            msg = data.<span class="fn">decode</span>(<span class="st">"utf-8"</span>).<span class="fn">strip</span>()
+            <span class="fn">print</span>(<span class="st">f"  Received: {msg}"</span>)
+            response = <span class="st">f"ACK: {msg}"</span>.<span class="fn">encode</span>(<span class="st">"utf-8"</span>)
+            conn.<span class="fn">sendall</span>(response)
+    <span class="kw">except</span> ConnectionResetError:
+        <span class="fn">print</span>(<span class="st">f"[-] Client {addr} disconnected abruptly."</span>)
+    <span class="kw">finally</span>:
+        conn.<span class="fn">close</span>()
+        <span class="fn">print</span>(<span class="st">f"[-] Connection closed: {addr}"</span>)
+
+<span class="kw">def</span> <span class="fn">run_server</span>(port):
+    server = socket.<span class="fn">socket</span>(socket.AF_INET, socket.SOCK_STREAM)
+    server.<span class="fn">setsockopt</span>(socket.SOL_SOCKET, socket.SO_REUSEADDR, <span class="nb">1</span>)
+    server.<span class="fn">bind</span>((<span class="st">"0.0.0.0"</span>, port))
+    server.<span class="fn">listen</span>(<span class="nb">5</span>)
+    <span class="fn">print</span>(<span class="st">f"Server on :{port} -- waiting for connections ..."</span>)
+    conn, addr = server.<span class="fn">accept</span>()
+    <span class="fn">handle_client</span>(conn, addr)
+    server.<span class="fn">close</span>()
+
+<span class="fn">run_server</span>(<span class="nb">9000</span>)</div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            <span class="ic">recv()</span> returns <span class="ic">b''</span> (empty bytes) when the remote side closes the connection cleanly. Always check for this so your loop exits rather than spinning on empty data forever.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 20 -- THREADING ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 38 &nbsp;|&nbsp; Section B: Networking</div>
+        <div class="slide-title">Threading: <span class="accent">Run Code in Parallel</span></div>
+        <div class="slide-subtitle">import threading lets you handle multiple clients simultaneously -- each in its own thread.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">The Problem Without Threading</div>
+                <div class="card-desc">
+                    A single-threaded server calls accept() and then handle_client(). While it is handling Client A, Client B's connection sits waiting in the queue.<br><br>
+                    If handle_client() takes 30 seconds, Client B waits 30 seconds before the server even notices it. This is unacceptable for anything beyond a toy demo.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Thread Basics</div>
+                <div class="card-desc">
+                    <span class="ic">threading.Thread(target=fn, args=(...))</span> creates a thread.<br>
+                    <span class="ic">.start()</span> launches it. The main program continues immediately.<br>
+                    <span class="ic">daemon=True</span> means the thread dies when the main program exits -- use this for server handler threads.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">import</span> threading
+<span class="kw">import</span> time
+
+<span class="kw">def</span> <span class="fn">slow_task</span>(name, seconds):
+    <span class="st">"""Simulate a slow operation like a network call."""</span>
+    <span class="fn">print</span>(<span class="st">f"[{name}] Starting -- will take {seconds}s ..."</span>)
+    time.<span class="fn">sleep</span>(seconds)
+    <span class="fn">print</span>(<span class="st">f"[{name}] Done."</span>)
+
+<span class="cm"># Without threading: runs sequentially -- total time = 3 + 2 + 1 = 6 seconds</span>
+<span class="cm"># With threading:    runs in parallel  -- total time ≈ 3 seconds (the longest task)</span>
+
+t1 = threading.<span class="fn">Thread</span>(target=<span class="fn">slow_task</span>, args=(<span class="st">"Worker-A"</span>, <span class="nb">3</span>))
+t2 = threading.<span class="fn">Thread</span>(target=<span class="fn">slow_task</span>, args=(<span class="st">"Worker-B"</span>, <span class="nb">2</span>))
+t3 = threading.<span class="fn">Thread</span>(target=<span class="fn">slow_task</span>, args=(<span class="st">"Worker-C"</span>, <span class="nb">1</span>))
+
+t1.<span class="fn">start</span>()   <span class="cm"># launch all three immediately</span>
+t2.<span class="fn">start</span>()
+t3.<span class="fn">start</span>()
+
+t1.<span class="fn">join</span>()    <span class="cm"># wait for all to finish before proceeding</span>
+t2.<span class="fn">join</span>()
+t3.<span class="fn">join</span>()
+<span class="fn">print</span>(<span class="st">"All workers complete."</span>)</div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 21 -- THREADED SERVER ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 38 &nbsp;|&nbsp; Section B: Networking</div>
+        <div class="slide-title">Threaded Server: <span class="accent">Handle Multiple Clients</span></div>
+        <div class="slide-subtitle">Spawn a new thread for every accepted connection. The main loop never blocks on a client.</div>
+
+        <div class="code-block" style="font-size:0.78rem;"><span class="kw">import</span> socket
+<span class="kw">import</span> threading
+
+<span class="kw">def</span> <span class="fn">handle_client</span>(conn, addr):
+    <span class="st">"""Runs in its own thread -- one per connected client."""</span>
+    <span class="fn">print</span>(<span class="st">f"[+] Thread started for {addr}"</span>)
+    <span class="kw">try</span>:
+        <span class="kw">while</span> <span class="kw">True</span>:
+            data = conn.<span class="fn">recv</span>(<span class="nb">1024</span>)
+            <span class="kw">if</span> <span class="kw">not</span> data:
+                <span class="kw">break</span>
+            conn.<span class="fn">sendall</span>(data)    <span class="cm"># echo back</span>
+    <span class="kw">except</span> ConnectionResetError:
+        <span class="fn">print</span>(<span class="st">f"[-] {addr} disconnected."</span>)
+    <span class="kw">finally</span>:
+        conn.<span class="fn">close</span>()
+
+<span class="kw">def</span> <span class="fn">run_threaded_server</span>(port):
+    server = socket.<span class="fn">socket</span>(socket.AF_INET, socket.SOCK_STREAM)
+    server.<span class="fn">setsockopt</span>(socket.SOL_SOCKET, socket.SO_REUSEADDR, <span class="nb">1</span>)
+    server.<span class="fn">bind</span>((<span class="st">"0.0.0.0"</span>, port))
+    server.<span class="fn">listen</span>(<span class="nb">10</span>)
+    <span class="fn">print</span>(<span class="st">f"[*] Threaded echo server on :{port}"</span>)
+
+    <span class="kw">while</span> <span class="kw">True</span>:                               <span class="cm"># accept loop -- runs forever</span>
+        conn, addr = server.<span class="fn">accept</span>()         <span class="cm"># blocks until new client connects</span>
+        t = threading.<span class="fn">Thread</span>(
+            target=<span class="fn">handle_client</span>,
+            args=(conn, addr),
+            daemon=<span class="kw">True</span>                       <span class="cm"># dies with main program</span>
+        )
+        t.<span class="fn">start</span>()                             <span class="cm"># main loop immediately returns to accept()</span>
+
+<span class="fn">run_threaded_server</span>(<span class="nb">9000</span>)</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            This is the pattern used by real servers. The main loop does nothing but accept() and spawn. All the work happens in threads. Each client gets its own thread and never waits for another.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — TRY IT NOW ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 38 &nbsp;|&nbsp; Try It Now</div>
+        <div class="slide-title">Try It Now: <span class="accent">Binary Search</span></div>
+        <div class="slide-subtitle">Implement a simple linear search on a sorted list.</div>
+        <div class="try-it-now"
+             data-starter="servers = [&quot;app-01&quot;, &quot;cache-01&quot;, &quot;db-01&quot;, &quot;lb-01&quot;, &quot;web-01&quot;]&#10;target = &quot;db-01&quot;&#10;&#10;# Search the list and print the index where target is found&#10;# Print &quot;Not found&quot; if it is not in the list&#10;"
+             data-solution="servers = [&quot;app-01&quot;, &quot;cache-01&quot;, &quot;db-01&quot;, &quot;lb-01&quot;, &quot;web-01&quot;]&#10;target = &quot;db-01&quot;&#10;found = False&#10;for i, name in enumerate(servers):&#10;    if name == target:&#10;        print(f&quot;Found {target} at index {i}&quot;)&#10;        found = True&#10;        break&#10;if not found:&#10;    print(&quot;Not found&quot;)"
+             data-expected="Found db-01 at index 2"
+             data-height="160">
+        </div>
+    </div>
+</section>
+
+
+
+<!-- ==================== SLIDE 23 -- REQUESTS LIBRARY ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 38 &nbsp;|&nbsp; Section B: Networking</div>
+        <div class="slide-title">The requests Library: <span class="accent">HTTP the Easy Way</span></div>
+        <div class="slide-subtitle">pip install requests -- then HTTP GET and POST in one line each.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Why requests Over urllib</div>
+                <div class="card-desc">
+                    Python's built-in <span class="ic">urllib</span> handles HTTP but requires boilerplate for encoding, headers, and error handling. requests does all of that with a clean, consistent API.<br><br>
+                    Used by security researchers, DevOps engineers, and data scientists worldwide. One of the most-downloaded Python packages of all time.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Key Methods</div>
+                <div class="card-desc">
+                    <span class="ic">requests.get(url)</span> -- HTTP GET<br>
+                    <span class="ic">requests.post(url, json={})</span> -- HTTP POST with JSON body<br>
+                    <span class="ic">requests.put(url, json={})</span> -- HTTP PUT<br>
+                    <span class="ic">requests.delete(url)</span> -- HTTP DELETE<br>
+                    All return a Response object with status_code, text, and json().
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">import</span> requests
+
+<span class="cm"># GET request -- fetch a web page or API endpoint</span>
+response = requests.<span class="fn">get</span>(<span class="st">"https://httpbin.org/get"</span>, timeout=<span class="nb">10</span>)
+
+<span class="fn">print</span>(response.status_code)       <span class="cm"># 200</span>
+<span class="fn">print</span>(response.headers[<span class="st">"Content-Type"</span>])  <span class="cm"># application/json</span>
+<span class="fn">print</span>(response.<span class="fn">json</span>()[<span class="st">"origin"</span>])  <span class="cm"># your public IP address</span>
+
+<span class="cm"># POST request -- send JSON data to an API</span>
+payload = {<span class="st">"hostname"</span>: <span class="st">"web-01"</span>, <span class="st">"status"</span>: <span class="st">"online"</span>, <span class="st">"cpu"</span>: <span class="nb">42</span>}
+r = requests.<span class="fn">post</span>(<span class="st">"https://httpbin.org/post"</span>, json=payload, timeout=<span class="nb">10</span>)
+<span class="fn">print</span>(r.status_code)              <span class="cm"># 200</span>
+data = r.<span class="fn">json</span>()
+<span class="fn">print</span>(data[<span class="st">"json"</span>])               <span class="cm"># {'hostname': 'web-01', 'status': 'online', 'cpu': 42}</span></div>
+
+        <div class="box box-green" style="font-size:0.83rem;">
+            Always set a <span class="ic">timeout</span> parameter. Without it, <span class="ic">requests.get()</span> can hang indefinitely if the server is slow or unreachable. Use 5-30 seconds depending on the expected response time.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 24 -- WORKING WITH APIS ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 38 &nbsp;|&nbsp; Section B: Networking</div>
+        <div class="slide-title">Working with APIs: <span class="accent">JSON Responses</span></div>
+        <div class="slide-subtitle">Most IT APIs return JSON. response.json() parses it into a Python dictionary in one call.</div>
+
+        <div class="code-block" style="font-size:0.78rem;"><span class="kw">import</span> requests
+
+<span class="kw">def</span> <span class="fn">get_public_ip_info</span>():
+    <span class="st">"""Query ip-api.com for geolocation data about the caller's IP address."""</span>
+    url = <span class="st">"http://ip-api.com/json/"</span>
+    <span class="kw">try</span>:
+        response = requests.<span class="fn">get</span>(url, timeout=<span class="nb">8</span>)
+        response.<span class="fn">raise_for_status</span>()      <span class="cm"># raises HTTPError for 4xx and 5xx codes</span>
+
+        data = response.<span class="fn">json</span>()           <span class="cm"># parse JSON body into a dict</span>
+
+        <span class="kw">if</span> data[<span class="st">"status"</span>] != <span class="st">"success"</span>:
+            <span class="fn">print</span>(<span class="st">f"API returned failure: {data.get('message', 'unknown')}"</span>)
+            <span class="kw">return</span>
+
+        <span class="fn">print</span>(<span class="st">f"IP:       {data['query']}"</span>)
+        <span class="fn">print</span>(<span class="st">f"Country:  {data['country']}"</span>)
+        <span class="fn">print</span>(<span class="st">f"Region:   {data['regionName']}"</span>)
+        <span class="fn">print</span>(<span class="st">f"City:     {data['city']}"</span>)
+        <span class="fn">print</span>(<span class="st">f"ISP:      {data['isp']}"</span>)
+        <span class="fn">print</span>(<span class="st">f"Timezone: {data['timezone']}"</span>)
+
+    <span class="kw">except</span> requests.exceptions.ConnectionError:
+        <span class="fn">print</span>(<span class="st">"Network unreachable."</span>)
+    <span class="kw">except</span> requests.exceptions.Timeout:
+        <span class="fn">print</span>(<span class="st">"Request timed out after 8 seconds."</span>)
+    <span class="kw">except</span> requests.exceptions.HTTPError <span class="kw">as</span> e:
+        <span class="fn">print</span>(<span class="st">f"HTTP error: {e}"</span>)
+
+<span class="fn">get_public_ip_info</span>()</div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <span class="ic">raise_for_status()</span> is a one-line check for HTTP errors. Without it, a 403 or 500 response looks like success from Python's perspective because no exception is raised unless you check.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 25 -- IT SCENARIO: PORT SCANNER ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 38 &nbsp;|&nbsp; Section B: Networking</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Port Scanner</span></div>
+        <div class="slide-subtitle">Try to connect to each port in a range. If the connection succeeds, the port is open.</div>
+
+        <div class="code-block" style="font-size:0.78rem;"><span class="kw">import</span> socket
+<span class="kw">import</span> threading
+<span class="kw">from</span> datetime <span class="kw">import</span> datetime
+
+<span class="cm"># Thread-safe list to collect open ports without race conditions</span>
+open_ports = []
+lock = threading.<span class="fn">Lock</span>()
+
+<span class="kw">def</span> <span class="fn">scan_port</span>(host, port):
+    <span class="st">"""Try to connect to host:port. Record port if connection succeeds."""</span>
+    s = socket.<span class="fn">socket</span>(socket.AF_INET, socket.SOCK_STREAM)
+    s.<span class="fn">settimeout</span>(<span class="nb">0.5</span>)         <span class="cm"># fast timeout -- we do not wait long per port</span>
+    <span class="kw">try</span>:
+        s.<span class="fn">connect</span>((host, port))
+        <span class="kw">with</span> lock:
+            open_ports.<span class="fn">append</span>(port)
+    <span class="kw">except</span> (ConnectionRefusedError, socket.timeout, OSError):
+        <span class="kw">pass</span>                      <span class="cm"># port closed or filtered -- expected, not an error</span>
+    <span class="kw">finally</span>:
+        s.<span class="fn">close</span>()
+
+<span class="kw">def</span> <span class="fn">scan_host</span>(host, start_port, end_port):
+    <span class="fn">print</span>(<span class="st">f"Scanning {host} ports {start_port}-{end_port} ..."</span>)
+    start_time = datetime.<span class="fn">now</span>()
+
+    threads = []
+    <span class="kw">for</span> port <span class="kw">in</span> <span class="fn">range</span>(start_port, end_port + <span class="nb">1</span>):
+        t = threading.<span class="fn">Thread</span>(target=<span class="fn">scan_port</span>, args=(host, port), daemon=<span class="kw">True</span>)
+        threads.<span class="fn">append</span>(t)
+        t.<span class="fn">start</span>()
+    <span class="kw">for</span> t <span class="kw">in</span> threads:
+        t.<span class="fn">join</span>()                  <span class="cm"># wait for all threads to finish</span>
+
+    elapsed = (datetime.<span class="fn">now</span>() - start_time).total_seconds()
+    <span class="fn">print</span>(<span class="st">f"Open ports: {sorted(open_ports)}"</span>)
+    <span class="fn">print</span>(<span class="st">f"Scan completed in {elapsed:.2f} seconds."</span>)
+
+<span class="fn">scan_host</span>(<span class="st">"127.0.0.1"</span>, <span class="nb">1</span>, <span class="nb">1024</span>)</div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 26 -- IT SCENARIO: API CLIENT ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 38 &nbsp;|&nbsp; Section B: Networking</div>
+        <div class="slide-title">IT Scenario: <span class="accent">API Client -- Fetch and Display Data</span></div>
+        <div class="slide-subtitle">Query a public REST API, parse the JSON response, display formatted results.</div>
+
+        <div class="code-block" style="font-size:0.78rem;"><span class="kw">import</span> requests
+
+<span class="kw">def</span> <span class="fn">get_github_user</span>(username):
+    <span class="st">"""Fetch a GitHub user's public profile and display key fields."""</span>
+    url = <span class="st">f"https://api.github.com/users/{username}"</span>
+    headers = {<span class="st">"Accept"</span>: <span class="st">"application/vnd.github+json"</span>}
+
+    <span class="kw">try</span>:
+        r = requests.<span class="fn">get</span>(url, headers=headers, timeout=<span class="nb">10</span>)
+        r.<span class="fn">raise_for_status</span>()
+        profile = r.<span class="fn">json</span>()
+
+        <span class="fn">print</span>(<span class="st">f"{'='*40}"</span>)
+        <span class="fn">print</span>(<span class="st">f"  User:       {profile['login']}"</span>)
+        <span class="fn">print</span>(<span class="st">f"  Name:       {profile.get('name', 'N/A')}"</span>)
+        <span class="fn">print</span>(<span class="st">f"  Bio:        {profile.get('bio', 'N/A')}"</span>)
+        <span class="fn">print</span>(<span class="st">f"  Repos:      {profile['public_repos']}"</span>)
+        <span class="fn">print</span>(<span class="st">f"  Followers:  {profile['followers']}"</span>)
+        <span class="fn">print</span>(<span class="st">f"  Following:  {profile['following']}"</span>)
+        <span class="fn">print</span>(<span class="st">f"  Joined:     {profile['created_at'][:10]}"</span>)
+        <span class="fn">print</span>(<span class="st">f"{'='*40}"</span>)
+
+    <span class="kw">except</span> requests.exceptions.HTTPError <span class="kw">as</span> e:
+        <span class="kw">if</span> r.status_code == <span class="nb">404</span>:
+            <span class="fn">print</span>(<span class="st">f"User '{username}' not found on GitHub."</span>)
+        <span class="kw">else</span>:
+            <span class="fn">print</span>(<span class="st">f"HTTP {r.status_code}: {e}"</span>)
+    <span class="kw">except</span> requests.exceptions.ConnectionError:
+        <span class="fn">print</span>(<span class="st">"Could not reach api.github.com -- check network."</span>)
+
+<span class="fn">get_github_user</span>(<span class="st">"torvalds"</span>)</div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            Change the username to any GitHub handle. Run it against a list of users with a loop. Add a CSV export. This is the pattern behind every IT integration script that pulls data from a vendor API.
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 27 -- SECTION C TITLE: ALGORITHMS ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="section-hero">
+            <div class="section-badge">Section C &nbsp;|&nbsp; Slides 25-34</div>
+            <div class="big-title">
+                Searching, Sorting<br>
+                <span class="accent">&amp; Complexity</span>
+            </div>
+            <div class="section-desc">
+                Choosing the wrong algorithm can turn a two-second script into a two-hour one. This section covers how to measure performance before you write a line of code, and how to pick the right tool -- whether that is a linear scan, a binary search, or Python's built-in sort.
+            </div>
+        </div>
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Topics Covered</div>
+                <div class="card-desc">Big-O notation. Linear search. Binary search and bisect. Bubble sort. Selection sort. Python's Timsort. When to use each in real IT work.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why IT Pros Need This</div>
+                <div class="card-desc">Processing asset inventories, log files, and network scan results requires searching and sorting. Performance matters at scale: O(n) vs O(log n) makes no difference on 10 rows. It makes a visible difference on 10 million rows.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Interview Reality</div>
+                <div class="card-desc">Technical interviews at any serious company include algorithm questions. You do not need to memorize implementations, but you must understand Big-O, be able to explain trade-offs, and know when built-in tools suffice.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 28 -- WHY ALGORITHMS MATTER ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 38 &nbsp;|&nbsp; Section C: Algorithms</div>
+        <div class="slide-title">Why Algorithms Matter: <span class="accent">The Performance Gap</span></div>
+        <div class="slide-subtitle">The choice of algorithm can make a script take 0.01 seconds or 3 hours on the same data.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Concrete Example</div>
+                <div class="card-desc">
+                    You have a list of 1,000,000 IP addresses. You need to check whether a given IP is in the list.<br><br>
+                    <strong>Linear search:</strong> check each element in order. Average 500,000 comparisons per lookup.<br>
+                    <strong>Binary search:</strong> requires a sorted list, but finds the answer in at most 20 comparisons.<br><br>
+                    At 10,000 lookups per second: linear takes ~50 seconds. Binary takes ~2 milliseconds.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Scale Changes Everything</div>
+                <div class="card-desc">
+                    On 100 items, no algorithm choice matters -- all are fast.<br>
+                    On 100,000 items, the difference between O(n) and O(n log n) is measurable.<br>
+                    On 100,000,000 items, the difference between O(n) and O(log n) is the difference between running overnight and running before you finish your coffee.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="kw">import</span> time
+
+<span class="cm"># Build a list of 1 million integers</span>
+data = <span class="fn">list</span>(<span class="fn">range</span>(<span class="nb">1_000_000</span>))
+target = <span class="nb">999_999</span>     <span class="cm"># worst-case -- it is the last element</span>
+
+start = time.<span class="fn">perf_counter</span>()
+found = target <span class="kw">in</span> data                  <span class="cm"># Python's 'in' is linear for a list</span>
+linear_ms = (time.<span class="fn">perf_counter</span>() - start) * <span class="nb">1000</span>
+
+start = time.<span class="fn">perf_counter</span>()
+<span class="kw">import</span> bisect
+idx = bisect.<span class="fn">bisect_left</span>(data, target)   <span class="cm"># binary search -- list must be sorted</span>
+found_b = data[idx] == target
+binary_ms = (time.<span class="fn">perf_counter</span>() - start) * <span class="nb">1000</span>
+
+<span class="fn">print</span>(<span class="st">f"Linear: {linear_ms:.3f} ms  |  Binary: {binary_ms:.4f} ms"</span>)</div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 29 -- BIG-O NOTATION ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 38 &nbsp;|&nbsp; Section C: Algorithms</div>
+        <div class="slide-title">Big-O Notation: <span class="accent">Measuring Performance</span></div>
+        <div class="slide-subtitle">Big-O describes how an algorithm's time (or space) grows as the input size n grows.</div>
+
+        <div class="split-2">
+            <table class="bigo-table">
+                <thead>
+                    <tr>
+                        <th>Notation</th>
+                        <th>Name</th>
+                        <th>n=1000 ops (approx)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code style="color:#3ab577;">O(1)</code></td>
+                        <td>Constant</td>
+                        <td class="cell-good">1</td>
+                    </tr>
+                    <tr>
+                        <td><code style="color:#3ab577;">O(log n)</code></td>
+                        <td>Logarithmic</td>
+                        <td class="cell-good">~10</td>
+                    </tr>
+                    <tr>
+                        <td><code style="color:#c9a83a;">O(n)</code></td>
+                        <td>Linear</td>
+                        <td class="cell-ok">1,000</td>
+                    </tr>
+                    <tr>
+                        <td><code style="color:#c9a83a;">O(n log n)</code></td>
+                        <td>Linearithmic</td>
+                        <td class="cell-ok">~10,000</td>
+                    </tr>
+                    <tr>
+                        <td><code style="color:#ef4444;">O(n&sup2;)</code></td>
+                        <td>Quadratic</td>
+                        <td class="cell-bad">1,000,000</td>
+                    </tr>
+                    <tr>
+                        <td><code style="color:#ef4444;">O(2^n)</code></td>
+                        <td>Exponential</td>
+                        <td class="cell-bad">~10^301</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div class="card c-green">
+                    <div class="card-label">O(1) -- Constant</div>
+                    <div class="card-desc">Same time regardless of input size. Dictionary lookup by key: <span class="ic">d["host"]</span>. List access by index: <span class="ic">items[5]</span>. Python's len().</div>
+                </div>
+                <div class="card c-gold">
+                    <div class="card-label">O(log n) -- Logarithmic</div>
+                    <div class="card-desc">Binary search. Each step halves the remaining search space. Doubling the input adds just one more step.</div>
+                </div>
+                <div class="card c-cyan">
+                    <div class="card-label">O(n) -- Linear</div>
+                    <div class="card-desc">One pass through the list. Linear search, iterating with a for loop, reading every line of a file. Doubles when input doubles.</div>
+                </div>
+                <div class="card c-red">
+                    <div class="card-label">O(n&sup2;) -- Quadratic</div>
+                    <div class="card-desc">A nested loop where each element is compared to every other element. Bubble sort, selection sort. Fine for small n, painful for large n.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 30 -- LINEAR SEARCH ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 38 &nbsp;|&nbsp; Section C: Algorithms</div>
+        <div class="slide-title">Linear Search: <span class="accent">O(n)</span></div>
+        <div class="slide-subtitle">Check each element in order until you find the target or exhaust the list.</div>
+
+        <div class="split-2">
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">Step-by-Step -- searching for 42</div>
+                <div class="step-list">
+                    <div class="step-row">
+                        <span class="step-label">Start</span>
+                        <span class="step-arr">[15, 8, 42, 3, 99, 7]</span>
+                        <span class="step-note">target = 42</span>
+                    </div>
+                    <div class="step-row hl-gold">
+                        <span class="step-label">Index 0</span>
+                        <span class="step-arr">[<strong>15</strong>, 8, 42, 3, 99, 7]</span>
+                        <span class="step-note">15 != 42. Continue.</span>
+                    </div>
+                    <div class="step-row hl-gold">
+                        <span class="step-label">Index 1</span>
+                        <span class="step-arr">[15, <strong>8</strong>, 42, 3, 99, 7]</span>
+                        <span class="step-note">8 != 42. Continue.</span>
+                    </div>
+                    <div class="step-row hl-green">
+                        <span class="step-label">Index 2</span>
+                        <span class="step-arr">[15, 8, <strong>42</strong>, 3, 99, 7]</span>
+                        <span class="step-note">42 == 42. Found at index 2.</span>
+                    </div>
+                </div>
+                <div class="box box-gold" style="font-size:0.82rem; margin-top:10px;">
+                    <strong>Best case:</strong> O(1) -- target is first element.<br>
+                    <strong>Worst case:</strong> O(n) -- target is last or not present.<br>
+                    <strong>Average:</strong> O(n/2), simplified to O(n).
+                </div>
+            </div>
+            <div class="code-block"><span class="kw">def</span> <span class="fn">linear_search</span>(items, target):
+    <span class="st">"""Return the index of target in items,
+    or -1 if not found."""</span>
+    <span class="kw">for</span> i, value <span class="kw">in</span> <span class="fn">enumerate</span>(items):
+        <span class="kw">if</span> value == target:
+            <span class="kw">return</span> i   <span class="cm"># found it</span>
+    <span class="kw">return</span> -<span class="nb">1</span>         <span class="cm"># not in list</span>
+
+hosts = [<span class="st">"db-01"</span>, <span class="st">"web-01"</span>,
+         <span class="st">"cache-01"</span>, <span class="st">"auth-02"</span>]
+
+idx = <span class="fn">linear_search</span>(hosts, <span class="st">"cache-01"</span>)
+<span class="fn">print</span>(<span class="st">f"Found at index: {idx}"</span>)
+<span class="cm"># Found at index: 2</span>
+
+idx = <span class="fn">linear_search</span>(hosts, <span class="st">"vpn-01"</span>)
+<span class="fn">print</span>(<span class="st">f"Found at index: {idx}"</span>)
+<span class="cm"># Found at index: -1</span>
+
+<span class="cm"># Python's built-in 'in' is O(n) on lists</span>
+<span class="kw">if</span> <span class="st">"web-01"</span> <span class="kw">in</span> hosts:
+    <span class="fn">print</span>(<span class="st">"web-01 is online"</span>)</div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 31 -- BINARY SEARCH CONCEPT ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 38 &nbsp;|&nbsp; Section C: Algorithms</div>
+        <div class="slide-title">Binary Search: <span class="accent">O(log n)</span></div>
+        <div class="slide-subtitle">Requires a sorted list. Cuts the search space in half with every comparison.</div>
+
+        <div class="split-2">
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">Step-by-Step -- sorted list, searching for 37</div>
+                <div class="step-list">
+                    <div class="step-row">
+                        <span class="step-label">Array</span>
+                        <span class="step-arr">[3, 9, 15, 21, 37, 48, 62, 74]</span>
+                        <span class="step-note">low=0, high=7</span>
+                    </div>
+                    <div class="step-row hl-gold">
+                        <span class="step-label">Pass 1</span>
+                        <span class="step-arr">mid=3, value=21. 37 &gt; 21 → right half</span>
+                        <span class="step-note">low=4, high=7</span>
+                    </div>
+                    <div class="step-row hl-gold">
+                        <span class="step-label">Pass 2</span>
+                        <span class="step-arr">mid=5, value=48. 37 &lt; 48 → left half</span>
+                        <span class="step-note">low=4, high=4</span>
+                    </div>
+                    <div class="step-row hl-green">
+                        <span class="step-label">Pass 3</span>
+                        <span class="step-arr">mid=4, value=37. Match! Return 4.</span>
+                        <span class="step-note">3 comparisons for 8 elements</span>
+                    </div>
+                </div>
+                <div class="box box-cyan" style="font-size:0.82rem; margin-top:10px;">
+                    <strong>Key insight:</strong> log<sub>2</sub>(8) = 3. An 8-element list needs at most 3 comparisons. A 1,000,000-element list needs at most 20 comparisons.
+                </div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Why the List Must Be Sorted</div>
+                <div class="card-desc">
+                    Binary search works by deciding which half of the remaining list can be discarded.<br><br>
+                    This only makes sense if the list is ordered: if the middle element is smaller than the target, everything to the left is also smaller. In an unsorted list, this assumption breaks completely.<br><br>
+                    Trade-off: sorting costs O(n log n) once. Then every search is O(log n). If you search the same data many times, this is almost always worth it.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 32 -- BINARY SEARCH IMPLEMENTATION ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 38 &nbsp;|&nbsp; Section C: Algorithms</div>
+        <div class="slide-title">Binary Search in Python <span class="accent">+ bisect</span></div>
+        <div class="slide-subtitle">Write it from scratch to understand it. Use bisect in production code.</div>
+
+        <div class="split-2">
+            <div class="code-block"><span class="cm"># Manual implementation -- understand the logic</span>
+<span class="kw">def</span> <span class="fn">binary_search</span>(items, target):
+    <span class="st">"""Return index of target in sorted list items,
+    or -1 if not found. Requires sorted input."""</span>
+    low  = <span class="nb">0</span>
+    high = <span class="fn">len</span>(items) - <span class="nb">1</span>
+
+    <span class="kw">while</span> low &lt;= high:
+        mid = (low + high) // <span class="nb">2</span>
+        <span class="kw">if</span> items[mid] == target:
+            <span class="kw">return</span> mid           <span class="cm"># exact match</span>
+        <span class="kw">elif</span> items[mid] &lt; target:
+            low = mid + <span class="nb">1</span>        <span class="cm"># target is in right half</span>
+        <span class="kw">else</span>:
+            high = mid - <span class="nb">1</span>       <span class="cm"># target is in left half</span>
+
+    <span class="kw">return</span> -<span class="nb">1</span>                    <span class="cm"># not found</span>
+
+ports = [<span class="nb">21</span>, <span class="nb">22</span>, <span class="nb">80</span>, <span class="nb">443</span>, <span class="nb">3306</span>, <span class="nb">5432</span>, <span class="nb">8080</span>, <span class="nb">9000</span>]
+<span class="fn">print</span>(<span class="fn">binary_search</span>(ports, <span class="nb">443</span>))   <span class="cm"># 3</span>
+<span class="fn">print</span>(<span class="fn">binary_search</span>(ports, <span class="nb">8888</span>))  <span class="cm"># -1</span></div>
+
+            <div class="code-block"><span class="cm"># bisect module -- standard library, use in production</span>
+<span class="kw">import</span> bisect
+
+ports = [<span class="nb">21</span>, <span class="nb">22</span>, <span class="nb">80</span>, <span class="nb">443</span>, <span class="nb">3306</span>, <span class="nb">5432</span>, <span class="nb">8080</span>, <span class="nb">9000</span>]
+
+<span class="cm"># bisect_left: find insertion point (same as lower bound)</span>
+idx = bisect.<span class="fn">bisect_left</span>(ports, <span class="nb">443</span>)
+<span class="kw">if</span> idx &lt; <span class="fn">len</span>(ports) <span class="kw">and</span> ports[idx] == <span class="nb">443</span>:
+    <span class="fn">print</span>(<span class="st">f"Port 443 found at index {idx}"</span>)  <span class="cm"># 3</span>
+
+<span class="cm"># insort: insert a value and keep the list sorted</span>
+bisect.<span class="fn">insort</span>(ports, <span class="nb">8443</span>)
+<span class="fn">print</span>(ports)
+<span class="cm"># [21, 22, 80, 443, 3306, 5432, 8080, 8443, 9000]</span>
+
+<span class="cm"># Membership test via set (O(1)) -- fastest for repeated lookups</span>
+port_set = {<span class="nb">21</span>, <span class="nb">22</span>, <span class="nb">80</span>, <span class="nb">443</span>, <span class="nb">3306</span>, <span class="nb">5432</span>, <span class="nb">8080</span>}
+<span class="fn">print</span>(<span class="nb">443</span> <span class="kw">in</span> port_set)   <span class="cm"># True -- O(1) hash lookup</span></div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 33 -- BUBBLE SORT ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 38 &nbsp;|&nbsp; Section C: Algorithms</div>
+        <div class="slide-title">Bubble Sort: <span class="accent">O(n&sup2;)</span></div>
+        <div class="slide-subtitle">Compare adjacent pairs, swap if out of order, repeat. The largest value "bubbles" to the end each pass.</div>
+
+        <div class="split-2">
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">Sorting [64, 34, 25, 12, 22] -- first pass only</div>
+                <div class="step-list">
+                    <div class="step-row">
+                        <span class="step-label">Start</span>
+                        <span class="step-arr">[64, 34, 25, 12, 22]</span>
+                    </div>
+                    <div class="step-row hl-gold">
+                        <span class="step-label">64 vs 34</span>
+                        <span class="step-arr">[<strong>34, 64</strong>, 25, 12, 22]</span>
+                        <span class="step-note">64 &gt; 34 -- swap</span>
+                    </div>
+                    <div class="step-row hl-gold">
+                        <span class="step-label">64 vs 25</span>
+                        <span class="step-arr">[34, <strong>25, 64</strong>, 12, 22]</span>
+                        <span class="step-note">64 &gt; 25 -- swap</span>
+                    </div>
+                    <div class="step-row hl-gold">
+                        <span class="step-label">64 vs 12</span>
+                        <span class="step-arr">[34, 25, <strong>12, 64</strong>, 22]</span>
+                        <span class="step-note">64 &gt; 12 -- swap</span>
+                    </div>
+                    <div class="step-row hl-green">
+                        <span class="step-label">64 vs 22</span>
+                        <span class="step-arr">[34, 25, 12, <strong>22, 64</strong>]</span>
+                        <span class="step-note">64 settled. Repeat for remaining 4.</span>
+                    </div>
+                </div>
+            </div>
+            <div class="code-block"><span class="kw">def</span> <span class="fn">bubble_sort</span>(items):
+    <span class="st">"""Sort a list in-place using bubble sort.
+    O(n^2) time. Fine for small lists only."""</span>
+    n = <span class="fn">len</span>(items)
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(n):
+        swapped = <span class="kw">False</span>
+        <span class="kw">for</span> j <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">0</span>, n - i - <span class="nb">1</span>):
+            <span class="kw">if</span> items[j] &gt; items[j + <span class="nb">1</span>]:
+                <span class="cm"># swap adjacent elements</span>
+                items[j], items[j+<span class="nb">1</span>] = items[j+<span class="nb">1</span>], items[j]
+                swapped = <span class="kw">True</span>
+        <span class="kw">if</span> <span class="kw">not</span> swapped:
+            <span class="kw">break</span>   <span class="cm"># already sorted -- early exit</span>
+
+data = [<span class="nb">64</span>, <span class="nb">34</span>, <span class="nb">25</span>, <span class="nb">12</span>, <span class="nb">22</span>]
+<span class="fn">bubble_sort</span>(data)
+<span class="fn">print</span>(data)
+<span class="cm"># [12, 22, 25, 34, 64]</span></div>
+        </div>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            Bubble sort is O(n&sup2;). On 10,000 elements it makes up to 100,000,000 comparisons. Do not use it in production. Understand it to understand swapping, then move on to Python's sort().
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 34 -- SELECTION SORT ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 38 &nbsp;|&nbsp; Section C: Algorithms</div>
+        <div class="slide-title">Selection Sort: <span class="accent">O(n&sup2;)</span></div>
+        <div class="slide-subtitle">Find the minimum of the unsorted portion, swap it to the front. One swap per pass -- fewer swaps than bubble sort.</div>
+
+        <div class="split-2">
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">Sorting [64, 25, 12, 22, 11]</div>
+                <div class="step-list">
+                    <div class="step-row hl-gold">
+                        <span class="step-label">Pass 1</span>
+                        <span class="step-arr">Min of all = 11 (index 4). Swap with index 0.</span>
+                    </div>
+                    <div class="step-row">
+                        <span class="step-label"></span>
+                        <span class="step-arr">[<strong>11</strong>, 25, 12, 22, 64] -- 11 sorted</span>
+                    </div>
+                    <div class="step-row hl-gold">
+                        <span class="step-label">Pass 2</span>
+                        <span class="step-arr">Min of [25,12,22,64] = 12. Swap to index 1.</span>
+                    </div>
+                    <div class="step-row">
+                        <span class="step-label"></span>
+                        <span class="step-arr">[11, <strong>12</strong>, 25, 22, 64] -- 12 sorted</span>
+                    </div>
+                    <div class="step-row hl-green">
+                        <span class="step-label">Result</span>
+                        <span class="step-arr">[11, 12, 22, 25, 64] -- fully sorted</span>
+                        <span class="step-note">n-1 passes, n-1 swaps total</span>
+                    </div>
+                </div>
+            </div>
+            <div class="code-block"><span class="kw">def</span> <span class="fn">selection_sort</span>(items):
+    <span class="st">"""Sort a list in-place using selection sort.
+    O(n^2) comparisons, O(n) swaps.
+    Fewer swaps than bubble sort."""</span>
+    n = <span class="fn">len</span>(items)
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(n):
+        <span class="cm"># Find the minimum in the unsorted portion</span>
+        min_idx = i
+        <span class="kw">for</span> j <span class="kw">in</span> <span class="fn">range</span>(i + <span class="nb">1</span>, n):
+            <span class="kw">if</span> items[j] &lt; items[min_idx]:
+                min_idx = j
+        <span class="cm"># Swap minimum to the front of unsorted portion</span>
+        items[i], items[min_idx] = items[min_idx], items[i]
+
+data = [<span class="nb">64</span>, <span class="nb">25</span>, <span class="nb">12</span>, <span class="nb">22</span>, <span class="nb">11</span>]
+<span class="fn">selection_sort</span>(data)
+<span class="fn">print</span>(data)   <span class="cm"># [11, 12, 22, 25, 64]</span>
+
+<span class="cm"># Bubble vs Selection -- same Big-O, different swap counts</span>
+<span class="cm"># Bubble:    up to n*(n-1)/2 swaps per run</span>
+<span class="cm"># Selection: exactly n-1 swaps per run</span>
+<span class="cm"># Neither is acceptable on large data sets.</span></div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 35 -- PYTHON BUILT-IN SORT ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 38 &nbsp;|&nbsp; Section C: Algorithms</div>
+        <div class="slide-title">Python's Built-In Sort: <span class="accent">Timsort O(n log n)</span></div>
+        <div class="slide-subtitle">The right tool for real work. Timsort is adaptive, stable, and used everywhere from Python to Android.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">list.sort() vs sorted()</div>
+                <div class="card-desc">
+                    <span class="ic">list.sort()</span> modifies the list in-place and returns None.<br>
+                    <span class="ic">sorted(iterable)</span> returns a new sorted list without modifying the original.<br><br>
+                    Use <span class="ic">sorted()</span> when you need to keep the original order. Use <span class="ic">.sort()</span> when you want to sort in-place and save memory.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">key Parameter</div>
+                <div class="card-desc">
+                    Both accept a <span class="ic">key=</span> function that transforms each element for comparison purposes. The sort uses the transformed value but keeps the original object.<br><br>
+                    <span class="ic">key=len</span> -- sort strings by length.<br>
+                    <span class="ic">key=str.lower</span> -- case-insensitive sort.<br>
+                    <span class="ic">key=lambda x: x["cpu"]</span> -- sort dicts by a field.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Ascending and descending sorts</span>
+ports = [<span class="nb">8080</span>, <span class="nb">22</span>, <span class="nb">443</span>, <span class="nb">80</span>, <span class="nb">3306</span>, <span class="nb">21</span>]
+ports.<span class="fn">sort</span>()                            <span class="cm"># in-place ascending</span>
+<span class="fn">print</span>(ports)                             <span class="cm"># [21, 22, 80, 443, 3306, 8080]</span>
+
+sorted_desc = <span class="fn">sorted</span>(ports, reverse=<span class="kw">True</span>) <span class="cm"># new list, descending</span>
+<span class="fn">print</span>(sorted_desc)                       <span class="cm"># [8080, 3306, 443, 80, 22, 21]</span>
+
+<span class="cm"># Sort server records by CPU usage -- real IT scenario</span>
+servers = [
+    {<span class="st">"host"</span>: <span class="st">"web-01"</span>,   <span class="st">"cpu"</span>: <span class="nb">72</span>},
+    {<span class="st">"host"</span>: <span class="st">"db-01"</span>,    <span class="st">"cpu"</span>: <span class="nb">91</span>},
+    {<span class="st">"host"</span>: <span class="st">"cache-01"</span>, <span class="st">"cpu"</span>: <span class="nb">15</span>},
+    {<span class="st">"host"</span>: <span class="st">"auth-01"</span>,  <span class="st">"cpu"</span>: <span class="nb">44</span>},
+]
+servers.<span class="fn">sort</span>(key=<span class="kw">lambda</span> s: s[<span class="st">"cpu"</span>], reverse=<span class="kw">True</span>)  <span class="cm"># highest CPU first</span>
+<span class="kw">for</span> s <span class="kw">in</span> servers:
+    <span class="fn">print</span>(<span class="st">f"{s['host']:12} {s['cpu']}%"</span>)
+<span class="cm"># db-01        91%</span>
+<span class="cm"># web-01       72%</span>
+<span class="cm"># auth-01      44%</span>
+<span class="cm"># cache-01     15%</span></div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 36 -- WHEN TO USE WHAT ==================== -->
+<section class="slide" id="slide-36">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 36 of 38 &nbsp;|&nbsp; Section C: Algorithms</div>
+        <div class="slide-title">When to Use <span class="accent">Which Algorithm</span></div>
+        <div class="slide-subtitle">Practical decision rules. The goal is always to use the best tool for the job.</div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Real Work: Use Python Built-ins</div>
+                <div class="card-desc">
+                    <span class="ic">list.sort()</span> and <span class="ic">sorted()</span> use Timsort. It is O(n log n) worst case, O(n) best case on nearly-sorted data. It is faster than anything you will write by hand.<br><br>
+                    Membership tests on large collections: use a <span class="ic">set</span> or <span class="ic">dict</span> (O(1) hash lookup). Never search a list repeatedly if you can convert it to a set first.
+                </div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Interviews: Know the Trade-offs</div>
+                <div class="card-desc">
+                    Be able to explain why binary search requires sorted data.<br>
+                    Know the Big-O for each algorithm.<br>
+                    Be able to write a linear search and binary search from scratch in under 5 minutes.<br>
+                    Know that bubble and selection sort are O(n&sup2;) and why that matters at scale.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">When You Actually Use Binary Search</div>
+                <div class="card-desc">
+                    When data is already sorted and you need O(log n) membership tests without the overhead of a hash table.<br>
+                    Finding insertion points (bisect.insort).<br>
+                    Range queries: "find all values between 100 and 200" in a sorted list.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Decision summary: which tool for which job</span>
+<span class="cm"># Searching unsorted data, one-time:    linear search or 'in' operator -- O(n)</span>
+<span class="cm"># Searching same data repeatedly:       convert to set first -- O(1) per lookup</span>
+<span class="cm"># Searching sorted data, one-time:      binary search / bisect -- O(log n)</span>
+<span class="cm"># Sorting any collection in production: list.sort() / sorted() -- O(n log n)</span>
+<span class="cm"># Sorting for interview / understanding: bubble or selection -- O(n^2)</span>
+
+hosts = [<span class="st">"db-01"</span>, <span class="st">"web-01"</span>, <span class="st">"cache-01"</span>, <span class="st">"auth-02"</span>] * <span class="nb">10000</span>  <span class="cm"># 40,000 entries</span>
+host_set = <span class="fn">set</span>(hosts)                       <span class="cm"># O(n) once to build the set</span>
+<span class="kw">if</span> <span class="st">"web-01"</span> <span class="kw">in</span> host_set:                     <span class="cm"># O(1) every lookup thereafter</span>
+    <span class="fn">print</span>(<span class="st">"web-01 is in the inventory"</span>)</div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 37 -- FINAL EXAM PREVIEW ==================== -->
+<section class="slide" id="slide-37">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 37 of 38 &nbsp;|&nbsp; Wrap-Up</div>
+        <div class="slide-title">Final Exam <span class="accent">Preview</span></div>
+        <div class="slide-subtitle">One more class day -- lab and review. Then the final. Here is exactly what to expect.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Format</div>
+                <div class="card-desc">
+                    Written + coding section.<br>
+                    Multiple choice, short answer, and code tracing questions.<br>
+                    One coding problem: write a script from a specification.<br>
+                    Open reference sheet (one side, handwritten).
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Coverage by Week</div>
+                <div class="card-desc">
+                    <strong>Week 1:</strong> data types, variables, operators, loops, conditionals.<br>
+                    <strong>Week 2:</strong> strings, lists, dictionaries, tuples.<br>
+                    <strong>Week 3:</strong> functions, scope, file I/O, modules.<br>
+                    <strong>Week 4:</strong> error handling, networking basics, algorithm concepts.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">How to Study</div>
+                <div class="card-desc">
+                    Run every code example from your notes -- not just read it.<br>
+                    Write a try/except that handles FileNotFoundError and ValueError.<br>
+                    Trace a binary search by hand on paper.<br>
+                    Write a function, call it, read its output.
+                </div>
+            </div>
+        </div>
+
+        <div class="section-label" style="margin-top:4px;">Key Topics Guaranteed to Appear</div>
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Reading a file with <code>with open()</code>, handling FileNotFoundError and PermissionError.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Difference between <code>try/except/else</code> and <code>try/except/finally</code> -- when each block runs.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text">Big-O for linear search <code>O(n)</code>, binary search <code>O(log n)</code>, and Python's built-in sort <code>O(n log n)</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">What <code>socket.socket(AF_INET, SOCK_STREAM)</code> creates and why sockets send bytes, not strings.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Using <code>requests.get()</code>, checking <code>status_code</code>, parsing <code>response.json()</code>, and why <code>raise_for_status()</code> matters.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 38 -- SUMMARY + MARK COMPLETE ==================== -->
+<section class="slide" id="slide-38">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 38 of 38 &nbsp;|&nbsp; COP1034C &nbsp;|&nbsp; Day 11 of 12</div>
+        <div class="slide-title">Day 11 <span class="accent">Summary</span></div>
+        <div class="slide-subtitle">Three sections. Everything connects to building reliable, network-capable, performant IT scripts.</div>
+
+        <div class="section-label">Section A -- Error Handling</div>
+        <div class="summary-facts" style="margin-bottom:10px;">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">Exceptions are runtime errors. <code>try/except</code> catches them. Always name the specific exception type -- never use bare <code>except:</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><code>else</code> runs only when no exception occurred. <code>finally</code> always runs. Use <code>finally</code> (or <code>with</code>) for cleanup: files, sockets, connections.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><code>raise ExceptionType("msg")</code> signals errors from your own code. Subclass <code>Exception</code> to create domain-specific custom exceptions.</span>
+            </div>
+        </div>
+
+        <div class="section-label">Section B -- Networking</div>
+        <div class="summary-facts" style="margin-bottom:10px;">
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><code>socket.socket(AF_INET, SOCK_STREAM)</code> creates a TCP socket. Sockets send and receive bytes. Always <code>.encode()</code> before send and <code>.decode()</code> after recv.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><code>threading.Thread(target=fn, args=(...)).start()</code> handles concurrent clients. <code>requests.get(url)</code> and <code>response.json()</code> power API integration.</span>
+            </div>
+        </div>
+
+        <div class="section-label">Section C -- Algorithms</div>
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Linear search is O(n). Binary search is O(log n) on sorted data. Python's <code>list.sort()</code> uses Timsort: O(n log n). For repeated membership tests, use a <code>set</code>: O(1).</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:10px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== NAVIGATION BAR ==================== -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Python for IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 38</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+
+<script>
+    // currentSlide tracks which slide is displayed (1-indexed)
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 38;
+
+    // goToSlide: hide current slide, show target slide, update all UI state
+    function goToSlide(n) {
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        // Remove active class from current slide
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        // Add active class to new slide
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        // Update gold progress bar width
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES * 100) + '%';
+
+        // Update slide counter text
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        // Enable/disable Previous and Next buttons at boundaries
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        // Show Mark Complete button only on the last slide
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    // Keyboard navigation: left/right arrow keys change slides
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    // Initialize to slide 1 on page load
+    goToSlide(1);
+</script>
+
+<script>
+    // completeModule: record completion via ModuleProgress and return to course hub
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('code', 'pfi-w4-applied', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<!-- PresentationA11y: keyboard accessibility and screen reader support -->
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

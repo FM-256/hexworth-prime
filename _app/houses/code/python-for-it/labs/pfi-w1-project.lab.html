@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 1 Project: IT System Report Generator | Python for IT</title>
+    <style>
+        :root {
+            --code-primary: #10b981;
+            --code-secondary: #059669;
+            --code-dark: #064e3b;
+            --code-glow: rgba(16, 185, 129, 0.3);
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #0f1623;
+            --bg-tertiary: #161f30;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; line-height: 1.6; }
+        .lab-container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+        .back-link { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--code-primary); text-decoration: none; margin-bottom: 1rem; transition: all 0.3s ease; }
+        .back-link:hover { color: #34d399; transform: translateX(-5px); }
+        .lab-header { text-align: center; margin-bottom: 2rem; padding: 2rem; background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary)); border-radius: 16px; border: 1px solid var(--code-primary); box-shadow: 0 0 30px var(--code-glow); }
+        .lab-header h1 { font-size: 2.2rem; margin-bottom: 0.5rem; background: linear-gradient(135deg, var(--code-primary), #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 1rem; margin-bottom: 1rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-secondary); }
+        .progress-section { background: var(--bg-secondary); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid rgba(16, 185, 129, 0.2); }
+        .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .progress-bar { height: 12px; background: var(--bg-tertiary); border-radius: 6px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--code-primary), var(--success)); border-radius: 6px; transition: width 0.5s ease; }
+        .section { background: var(--bg-secondary); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; border: 1px solid rgba(16, 185, 129, 0.2); transition: all 0.3s ease; }
+        .section:hover { border-color: var(--code-primary); box-shadow: 0 0 20px var(--code-glow); }
+        .section.completed { border-color: var(--success); background: linear-gradient(135deg, var(--bg-secondary), rgba(34, 197, 94, 0.08)); }
+        .section-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+        .section-number { width: 50px; height: 50px; background: linear-gradient(135deg, var(--code-primary), var(--code-secondary)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; color: #fff; }
+        .section-title h2 { font-size: 1.3rem; }
+        .section-title .time { color: var(--text-secondary); font-size: 0.85rem; }
+        .objective { background: var(--bg-tertiary); padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid var(--code-primary); }
+        .objective strong { color: var(--code-primary); }
+        .code-block { background: #0d1117; border-radius: 8px; padding: 1rem 1.25rem; font-family: 'Courier New', monospace; font-size: 0.85rem; overflow-x: auto; margin: 1rem 0; border-left: 3px solid var(--code-primary); white-space: pre; line-height: 1.7; }
+        .code-block .kw  { color: #ff7b72; }
+        .code-block .fn  { color: #d2a8ff; }
+        .code-block .st  { color: #a5d6ff; }
+        .code-block .cm  { color: #6e7681; }
+        .code-block .num { color: #79c0ff; }
+        .code-block .out { color: var(--code-primary); }
+        .question-block { background: var(--bg-tertiary); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 10px; padding: 1.5rem; margin-bottom: 1rem; }
+        .question-block label { display: block; color: var(--code-primary); font-weight: 600; margin-bottom: 0.5rem; }
+        .question-block input { width: 100%; padding: 10px 14px; background: rgba(0,0,0,0.3); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 0.9rem; font-family: 'Courier New', monospace; }
+        .question-block input:focus { outline: none; border-color: var(--code-primary); box-shadow: 0 0 10px var(--code-glow); }
+        .check-btn { padding: 10px 24px; background: linear-gradient(135deg, var(--code-primary), var(--code-secondary)); color: white; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.3s; margin-top: 0.5rem; }
+        .check-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px var(--code-glow); }
+        .feedback { padding: 10px 16px; border-radius: 8px; margin-top: 10px; font-size: 0.9rem; display: none; }
+        .feedback.correct   { display: block; background: rgba(34,197,94,0.15); border: 1px solid var(--success); color: var(--success); }
+        .feedback.incorrect { display: block; background: rgba(239,68,68,0.15); border: 1px solid var(--danger); color: var(--danger); }
+        .tip-box  { background: rgba(245,158,11,0.08); border: 1px solid var(--warning); border-radius: 8px; padding: 1rem; margin: 1rem 0; font-size: 0.9rem; }
+        .tip-box strong  { color: var(--warning); }
+        .info-box { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3); border-radius: 8px; padding: 1rem; margin: 1rem 0; font-size: 0.9rem; }
+        .info-box strong { color: var(--code-primary); }
+        .content-section { margin-bottom: 1.5rem; }
+        .content-section h3 { color: var(--code-primary); margin-bottom: 0.75rem; font-size: 1rem; }
+        .content-section p { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .requirement-list { list-style: none; }
+        .requirement-list li { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem; color: var(--text-secondary); }
+        .requirement-list li:last-child { border-bottom: none; }
+        .req-num { color: var(--code-primary); font-weight: bold; min-width: 24px; }
+        .rubric-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin: 1rem 0; }
+        .rubric-table th { background: var(--bg-tertiary); color: var(--code-primary); padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid rgba(16,185,129,0.3); }
+        .rubric-table td { padding: 0.65rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); color: var(--text-secondary); }
+        .rubric-table tr:last-child td { border-bottom: none; color: var(--text-primary); font-weight: 600; }
+        .rubric-table .pts { color: var(--code-primary); font-weight: 600; text-align: right; }
+        .completion-btn { width: 100%; padding: 1rem 2rem; background: linear-gradient(135deg, var(--code-primary), var(--code-secondary)); color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; margin-top: 1.5rem; }
+        .completion-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px var(--code-glow); }
+        .completion-btn.completed { background: var(--success); cursor: default; transform: none; }
+        @media (max-width: 768px) { .lab-container { padding: 1rem; } .lab-header h1 { font-size: 1.8rem; } }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <a href="../index.html" class="back-link">&larr; Python for IT Hub</a>
+
+        <header class="lab-header">
+            <h1>Week 1 Project: IT System Report Generator</h1>
+            <p class="subtitle">Build a command-line tool that collects server information, evaluates disk usage, and produces a formatted IT status report</p>
+            <div class="lab-meta">
+                <span class="meta-item">90 minutes</span>
+                <span class="meta-item">Graded Project</span>
+                <span class="meta-item">5 Sections</span>
+            </div>
+        </header>
+
+        <div class="progress-section">
+            <div class="progress-header">
+                <span>Project Progress</span>
+                <span id="progressText">0 / 5 sections</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Section 1: Project Overview -->
+        <div class="section" id="section1">
+            <div class="section-header">
+                <div class="section-number">1</div>
+                <div class="section-title">
+                    <h2>Project Overview</h2>
+                    <span class="time">Read carefully before coding</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>What You Are Building:</strong> A Python script that acts as a simple IT monitoring tool. It collects server details from the user, evaluates disk usage against thresholds, and prints a formatted status report — all through a repeating menu.
+            </div>
+
+            <div class="content-section">
+                <h3>Why This Matters</h3>
+                <p>IT professionals write scripts like this every day. Monitoring tools, helpdesk utilities, and automation scripts all follow the same pattern: collect data, evaluate conditions, and present results in a readable format. By Week 1 you already have every skill needed to build a real-world version of this tool.</p>
+                <p>This project exercises the complete Week 1 skill set in one cohesive program: variables, data types, user input, type casting, conditionals, loops, and f-strings all working together.</p>
+            </div>
+
+            <div class="content-section">
+                <h3>Learning Objectives</h3>
+                <ul class="requirement-list">
+                    <li><span class="req-num">1.</span> Declare and use variables with appropriate data types for a real-world IT scenario</li>
+                    <li><span class="req-num">2.</span> Accept and validate user input using input() with type casting</li>
+                    <li><span class="req-num">3.</span> Apply if/elif/else logic to classify a calculated metric</li>
+                    <li><span class="req-num">4.</span> Control program flow with while and for loops</li>
+                    <li><span class="req-num">5.</span> Produce readable, aligned output using f-strings</li>
+                </ul>
+            </div>
+
+            <div class="content-section">
+                <h3>Program Behavior</h3>
+                <p>Your finished program must present a menu with three options. Option 1 prompts the user for server details. Option 2 displays the formatted report. Option 3 exits the program. The menu repeats until the user chooses to exit.</p>
+                <p>Sample output when Option 2 is selected after entering data:</p>
+                <div class="code-block"><span class="out">====================================
+        IT SYSTEM STATUS REPORT
+====================================
+Server Name : WEB-PROD-01
+IP Address  : 192.168.1.100
+Department  : Infrastructure
+------------------------------------
+Total Disk  : 500 GB
+Used Disk   : 430 GB
+Free Disk   : 70 GB
+Usage       : 86.00%
+Status      : WARNING - Disk usage is elevated
+====================================</span></div>
+            </div>
+
+            <div class="info-box">
+                <strong>Scope note:</strong> You cannot access real OS disk data in Week 1 — that comes later with the os and psutil modules. For this project, disk values are entered by the user and stored in variables. The logic and formatting are what matter.
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(1)">Mark Section Read</button>
+        </div>
+
+        <!-- Section 2: Requirements -->
+        <div class="section" id="section2">
+            <div class="section-header">
+                <div class="section-number">2</div>
+                <div class="section-title">
+                    <h2>Requirements</h2>
+                    <span class="time">Your program must satisfy all 10 items</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Grading is based on these requirements.</strong> Each one maps directly to a rubric category. If a requirement is missing, points are deducted from the corresponding category. Read each requirement carefully before you start coding.
+            </div>
+
+            <div class="content-section">
+                <ul class="requirement-list">
+                    <li><span class="req-num">1.</span> Uses at least 5 variables with descriptive snake_case names (for example: server_name, ip_address, department, total_disk_gb, used_disk_gb)</li>
+                    <li><span class="req-num">2.</span> Uses all four basic data types: int, float, str, and bool (for example: a bool flag like report_ready)</li>
+                    <li><span class="req-num">3.</span> Takes user input with input() and casts numeric inputs to int or float before doing arithmetic</li>
+                    <li><span class="req-num">4.</span> Uses f-strings for all output formatting — no concatenation with + or format() method</li>
+                    <li><span class="req-num">5.</span> Has an if/elif/else chain that classifies disk usage: CRITICAL if above 90%, WARNING if above 75%, and OK otherwise</li>
+                    <li><span class="req-num">6.</span> Uses a while loop to run the main menu — the program keeps running until the user chooses to exit</li>
+                    <li><span class="req-num">7.</span> Uses a for loop somewhere in the program (for example: iterate through a list of system check labels and print each one)</li>
+                    <li><span class="req-num">8.</span> Includes comments explaining each major section of the program (menu, input block, calculation, report, etc.)</li>
+                    <li><span class="req-num">9.</span> Handles at least one edge case — for example, if the user enters a negative disk value or used_disk exceeds total_disk, print an error message instead of crashing</li>
+                    <li><span class="req-num">10.</span> Runs without errors from start to finish when tested with valid input</li>
+                </ul>
+            </div>
+
+            <div class="tip-box">
+                <strong>Start with Requirement 10:</strong> Before submitting, run your program all the way through using both valid and invalid input. Many students lose the 15 error-free execution points simply because they never tested the edge case branch.
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(2)">Mark Section Read</button>
+        </div>
+
+        <!-- Section 3: Starter Guide -->
+        <div class="section" id="section3">
+            <div class="section-header">
+                <div class="section-number">3</div>
+                <div class="section-title">
+                    <h2>Starter Guide</h2>
+                    <span class="time">Hints and pseudocode — not the solution</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Use these hints to plan your approach.</strong> The code below is intentionally incomplete. It shows structure and technique, not the finished program. Your job is to fill in the logic.
+            </div>
+
+            <div class="content-section">
+                <h3>Suggested Variable Setup</h3>
+                <p>Declare these at the top of your file before the menu loop. Initialize them to sensible defaults so the report section does not crash if the user views the report before entering data.</p>
+                <div class="code-block"><span class="cm"># --- Variable declarations ---
+# String variables for server identity</span>
+server_name  = <span class="st">"Not entered"</span>
+ip_address   = <span class="st">"Not entered"</span>
+department   = <span class="st">"Not entered"</span>
+
+<span class="cm"># Numeric variables for disk metrics (integers in GB)</span>
+total_disk_gb = <span class="num">0</span>
+used_disk_gb  = <span class="num">0</span>
+
+<span class="cm"># Float: calculated percentage (set after user enters disk values)</span>
+usage_pct    = <span class="num">0.0</span>
+
+<span class="cm"># Boolean flag: True once the user has entered data</span>
+report_ready = <span class="kw">False</span></div>
+            </div>
+
+            <div class="content-section">
+                <h3>Menu Loop Structure (Pseudocode)</h3>
+                <p>Your while loop should look roughly like this. Replace the comments with real code.</p>
+                <div class="code-block"><span class="cm"># --- Main menu loop ---</span>
+<span class="kw">while</span> <span class="kw">True</span>:
+    <span class="cm">    # Print the three menu options</span>
+    <span class="fn">print</span>(<span class="st">"\n--- IT Report Generator ---"</span>)
+    <span class="fn">print</span>(<span class="st">"1) Enter server info"</span>)
+    <span class="fn">print</span>(<span class="st">"2) View report"</span>)
+    <span class="fn">print</span>(<span class="st">"3) Exit"</span>)
+
+    choice = <span class="fn">input</span>(<span class="st">"Select an option: "</span>)
+
+    <span class="kw">if</span> choice == <span class="st">"1"</span>:
+        <span class="cm">        # Prompt for server_name, ip_address, department
+        # Prompt for total_disk_gb and used_disk_gb — cast to int
+        # Validate: check for negative values or used > total
+        # Calculate usage_pct as a float
+        # Set report_ready = True</span>
+        <span class="kw">pass</span>
+
+    <span class="kw">elif</span> choice == <span class="st">"2"</span>:
+        <span class="kw">if not</span> report_ready:
+            <span class="fn">print</span>(<span class="st">"No data entered yet. Choose option 1 first."</span>)
+        <span class="kw">else</span>:
+            <span class="cm">            # Print the formatted report using f-strings</span>
+            <span class="kw">pass</span>
+
+    <span class="kw">elif</span> choice == <span class="st">"3"</span>:
+        <span class="fn">print</span>(<span class="st">"Goodbye."</span>)
+        <span class="kw">break</span>
+
+    <span class="kw">else</span>:
+        <span class="fn">print</span>(<span class="st">"Invalid choice. Enter 1, 2, or 3."</span>)</div>
+            </div>
+
+            <div class="content-section">
+                <h3>Disk Status Classification (Pseudocode)</h3>
+                <p>After calculating usage_pct, use this chain to set a status string. Then include the status string in your report f-string.</p>
+                <div class="code-block"><span class="cm"># Classify disk usage after calculating usage_pct</span>
+<span class="kw">if</span> usage_pct > <span class="num">90</span>:
+    disk_status = <span class="st">"CRITICAL - Immediate action required"</span>
+<span class="kw">elif</span> usage_pct > <span class="num">75</span>:
+    disk_status = <span class="st">"WARNING - Disk usage is elevated"</span>
+<span class="kw">else</span>:
+    disk_status = <span class="st">"OK - Disk usage is normal"</span></div>
+            </div>
+
+            <div class="content-section">
+                <h3>F-String Formatting Hint</h3>
+                <p>Use a format spec inside the f-string to control alignment and decimal places. The colon introduces the format spec, the less-than sign left-aligns, the number is the field width, and .2f fixes two decimal places on a float.</p>
+                <div class="code-block"><span class="cm"># Field-width alignment: left-align a label in a 12-char field</span>
+<span class="fn">print</span>(<span class="kw">f</span><span class="st">"{'Server Name':<12}: {server_name}"</span>)
+<span class="fn">print</span>(<span class="kw">f</span><span class="st">"{'IP Address':<12}: {ip_address}"</span>)
+
+<span class="cm"># Fixed decimal places on a float</span>
+<span class="fn">print</span>(<span class="kw">f</span><span class="st">"Usage       : {usage_pct:.2f}%"</span>)</div>
+            </div>
+
+            <div class="content-section">
+                <h3>For Loop Hint — System Checks List</h3>
+                <p>One clean way to satisfy Requirement 7 is to define a list of check labels and print each one in the report. This is also realistic: real monitoring scripts iterate over a list of checks.</p>
+                <div class="code-block"><span class="cm"># A simple list of system check labels to iterate over</span>
+checks = [<span class="st">"Ping response"</span>, <span class="st">"DNS resolution"</span>, <span class="st">"Firewall rule active"</span>]
+
+<span class="fn">print</span>(<span class="st">"System Checks:"</span>)
+<span class="kw">for</span> check <span class="kw">in</span> checks:
+    <span class="fn">print</span>(<span class="kw">f</span><span class="st">"  - {check}: PASS"</span>)   <span class="cm"># simulated result</span></div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Edge case suggestion:</strong> Before calculating usage_pct, check whether total_disk_gb is greater than zero and whether used_disk_gb is less than or equal to total_disk_gb. If either condition fails, print an error message, reset report_ready to False, and use continue to return to the top of the while loop.
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(3)">Mark Section Read</button>
+        </div>
+
+        <!-- Section 4: Rubric -->
+        <div class="section" id="section4">
+            <div class="section-header">
+                <div class="section-number">4</div>
+                <div class="section-title">
+                    <h2>Rubric</h2>
+                    <span class="time">100 points total</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Grading breakdown:</strong> Each category below maps to specific requirements. Partial credit is awarded when the feature is present but incomplete or contains errors.
+            </div>
+
+            <div class="content-section">
+                <table class="rubric-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>What the Grader Looks For</th>
+                            <th class="pts">Points</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Variables and Data Types</td>
+                            <td>At least 5 snake_case variables; all four data types (int, float, str, bool) used and labeled with comments</td>
+                            <td class="pts">15</td>
+                        </tr>
+                        <tr>
+                            <td>User Input and Type Casting</td>
+                            <td>input() used for at least 5 fields; numeric inputs cast with int() or float() before arithmetic; program does not crash on entry</td>
+                            <td class="pts">10</td>
+                        </tr>
+                        <tr>
+                            <td>Conditionals</td>
+                            <td>if/elif/else chain correctly classifies usage at the 90% and 75% thresholds; disk_status string set accordingly; invalid menu choices handled</td>
+                            <td class="pts">15</td>
+                        </tr>
+                        <tr>
+                            <td>Loops</td>
+                            <td>while loop drives the menu and repeats until user exits; for loop iterates over a list; neither loop is empty or non-functional</td>
+                            <td class="pts">15</td>
+                        </tr>
+                        <tr>
+                            <td>Output Formatting</td>
+                            <td>All output uses f-strings; report is aligned and readable; usage_pct shown to exactly two decimal places; disk status included in report</td>
+                            <td class="pts">15</td>
+                        </tr>
+                        <tr>
+                            <td>Code Organization and Comments</td>
+                            <td>Each major block has a comment explaining its purpose; variable names are descriptive; no unexplained magic numbers</td>
+                            <td class="pts">15</td>
+                        </tr>
+                        <tr>
+                            <td>Error-Free Execution</td>
+                            <td>Program runs with valid input without any exception; at least one edge case (negative values or used greater than total) handled gracefully</td>
+                            <td class="pts">15</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Total</strong></td>
+                            <td></td>
+                            <td class="pts">100</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="info-box">
+                <strong>Partial credit:</strong> A category earns partial credit if the feature is present but broken. For example, a while loop that only runs once due to an unconditional break would earn roughly half the loop points. A for loop that is present but never executes (empty list) earns no credit.
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(4)">Mark Section Read</button>
+        </div>
+
+        <!-- Section 5: Submission Checklist -->
+        <div class="section" id="section5">
+            <div class="section-header">
+                <div class="section-number">5</div>
+                <div class="section-title">
+                    <h2>Submission Checklist</h2>
+                    <span class="time">Complete before turning in</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Self-assessment:</strong> Answer each question below. All answers must be "yes" before you submit. If you cannot honestly answer yes to any item, fix the issue first.
+            </div>
+
+            <div class="content-section">
+                <p>Type <strong>yes</strong> into each field after verifying the item in your code.</p>
+            </div>
+
+            <div class="question-block">
+                <label>Q1: Does your program run from start to finish without any errors when given valid input?</label>
+                <input type="text" id="q5_1" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_1', 'yes', 'fb5_1', false)">Check</button>
+                <div class="feedback" id="fb5_1"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q2: Does your program use at least 5 descriptive snake_case variable names?</label>
+                <input type="text" id="q5_2" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_2', 'yes', 'fb5_2', false)">Check</button>
+                <div class="feedback" id="fb5_2"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q3: Does your program use all four data types — int, float, str, and bool?</label>
+                <input type="text" id="q5_3" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_3', 'yes', 'fb5_3', false)">Check</button>
+                <div class="feedback" id="fb5_3"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q4: Does your if/elif/else chain correctly classify disk usage at both the 90% and 75% thresholds?</label>
+                <input type="text" id="q5_4" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_4', 'yes', 'fb5_4', false)">Check</button>
+                <div class="feedback" id="fb5_4"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q5: Does your while loop keep the menu running until the user chooses to exit?</label>
+                <input type="text" id="q5_5" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_5', 'yes', 'fb5_5', false)">Check</button>
+                <div class="feedback" id="fb5_5"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q6: Does your program use a for loop that iterates over a list?</label>
+                <input type="text" id="q5_6" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_6', 'yes', 'fb5_6', false)">Check</button>
+                <div class="feedback" id="fb5_6"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q7: Does your report output use f-strings with field-width alignment and a two-decimal float format?</label>
+                <input type="text" id="q5_7" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_7', 'yes', 'fb5_7', false)">Check</button>
+                <div class="feedback" id="fb5_7"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q8: Does your code include comments explaining each major section?</label>
+                <input type="text" id="q5_8" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_8', 'yes', 'fb5_8', false)">Check</button>
+                <div class="feedback" id="fb5_8"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q9: Does your program handle at least one edge case (such as a negative disk value or used greater than total) without crashing?</label>
+                <input type="text" id="q5_9" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_9', 'yes', 'fb5_9', false)">Check</button>
+                <div class="feedback" id="fb5_9"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q10: Is your file named correctly per the course submission convention (for example: lastname_w1_project.py)?</label>
+                <input type="text" id="q5_10" placeholder="yes / no">
+                <button class="check-btn" onclick="checkAnswer('q5_10', 'yes', 'fb5_10', false)">Check</button>
+                <div class="feedback" id="fb5_10"></div>
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(5)">Submit Checklist and Complete Project</button>
+        </div>
+    </div>
+
+    <script>
+        /* Unique localStorage key for this project */
+        var STORAGE_KEY = 'pfi_w1_project_progress';
+        var TOTAL = 5;
+        var completedSections = [];
+
+        /* SECTION_ANSWERS: only section 5 (checklist) has validation.
+           Sections 1-4 are informational — they complete on button click. */
+        var SECTION_ANSWERS = {
+            5: [
+                { id: 'q5_1',  answer: 'yes', fuzzy: false },
+                { id: 'q5_2',  answer: 'yes', fuzzy: false },
+                { id: 'q5_3',  answer: 'yes', fuzzy: false },
+                { id: 'q5_4',  answer: 'yes', fuzzy: false },
+                { id: 'q5_5',  answer: 'yes', fuzzy: false },
+                { id: 'q5_6',  answer: 'yes', fuzzy: false },
+                { id: 'q5_7',  answer: 'yes', fuzzy: false },
+                { id: 'q5_8',  answer: 'yes', fuzzy: false },
+                { id: 'q5_9',  answer: 'yes', fuzzy: false },
+                { id: 'q5_10', answer: 'yes', fuzzy: false }
+            ]
+        };
+
+        /* Restore completed sections from localStorage on page load */
+        function loadProgress() {
+            var saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                completedSections = JSON.parse(saved);
+                completedSections.forEach(function(num) {
+                    var sec = document.getElementById('section' + num);
+                    if (sec) {
+                        sec.classList.add('completed');
+                        var btn = sec.querySelector('.completion-btn');
+                        if (btn) { btn.classList.add('completed'); btn.textContent = 'Completed'; }
+                    }
+                });
+            }
+            updateProgress();
+        }
+
+        /* Persist current completed list to localStorage */
+        function saveProgress() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(completedSections));
+        }
+
+        /* Update the progress bar and counter text */
+        function updateProgress() {
+            var count = completedSections.length;
+            var pct   = (count / TOTAL) * 100;
+            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('progressText').textContent = count + ' / ' + TOTAL + ' sections';
+        }
+
+        /* Check a single answer field and display feedback */
+        function checkAnswer(inputId, correctAnswer, feedbackId, fuzzy) {
+            var input      = document.getElementById(inputId);
+            var feedback   = document.getElementById(feedbackId);
+            var userAnswer = input.value.trim().toLowerCase();
+            var correct    = correctAnswer.toLowerCase();
+            feedback.className = 'feedback';
+
+            if (!userAnswer) {
+                feedback.className   = 'feedback incorrect';
+                feedback.textContent = 'Enter an answer first.';
+                return;
+            }
+
+            var isCorrect = fuzzy
+                ? (userAnswer.indexOf(correct) !== -1 || correct.indexOf(userAnswer) !== -1)
+                : (userAnswer === correct);
+
+            if (isCorrect) {
+                feedback.className   = 'feedback correct';
+                feedback.textContent = 'Confirmed.';
+            } else {
+                feedback.className   = 'feedback incorrect';
+                feedback.textContent = 'Answer must be "yes" — fix the issue in your code first.';
+            }
+        }
+
+        /* Mark a section complete after validating any required answers */
+        function completeSection(num) {
+            if (completedSections.indexOf(num) !== -1) return;
+
+            var questions = SECTION_ANSWERS[num];
+            if (questions) {
+                /* Validate all checklist answers before allowing completion */
+                var anyFilled  = false;
+                var allCorrect = true;
+
+                questions.forEach(function(q) {
+                    var input = document.getElementById(q.id);
+                    if (!input) return;
+                    var val = input.value.trim().toLowerCase();
+                    var exp = q.answer.toLowerCase();
+                    if (val) anyFilled = true;
+
+                    if (q.fuzzy) {
+                        if (val.indexOf(exp) === -1 && exp.indexOf(val) === -1) allCorrect = false;
+                    } else {
+                        if (val !== exp) allCorrect = false;
+                    }
+                });
+
+                if (!anyFilled) {
+                    /* Find the first feedback element in the section and show the prompt */
+                    var firstFb = document.getElementById('fb5_1');
+                    if (firstFb) {
+                        firstFb.className   = 'feedback incorrect';
+                        firstFb.textContent = 'Answer all checklist items before marking complete.';
+                    }
+                    return;
+                }
+
+                if (!allCorrect) {
+                    /* Trigger individual feedback on each wrong answer */
+                    questions.forEach(function(q) {
+                        checkAnswer(q.id, q.answer, 'fb' + q.id.substring(1), q.fuzzy);
+                    });
+                    return;
+                }
+            }
+
+            /* Mark the section complete in DOM and storage */
+            completedSections.push(num);
+            var sec = document.getElementById('section' + num);
+            sec.classList.add('completed');
+            var btn = sec.querySelector('.completion-btn');
+            btn.classList.add('completed');
+            btn.textContent = 'Completed';
+            saveProgress();
+            updateProgress();
+
+            /* Fire ModuleProgress when all 5 sections are done */
+            if (completedSections.length === TOTAL) {
+                if (typeof ModuleProgress !== 'undefined') {
+                    ModuleProgress.complete('code', 'pfi-w1-project', { returnUrl: '../index.html' });
+                }
+                setTimeout(function() {
+                    alert('Week 1 Project Complete!\n\nYou built a working IT System Report Generator using variables, data types, input, conditionals, loops, and f-strings. These are the fundamental tools every Python developer uses every day.');
+                }, 500);
+            }
+        }
+
+        loadProgress();
+    </script>
+
+    <script src="../../../../components/TrailHunter.js"></script>
+</body>
+</html>

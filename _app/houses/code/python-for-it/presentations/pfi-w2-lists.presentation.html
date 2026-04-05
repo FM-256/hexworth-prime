@@ -1,0 +1,1631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lists &amp; Tuples | Python for IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container — fixed to viewport, hidden by default */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Max-width wrapper so content does not stretch on wide screens */
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Gold progress bar across the very top */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button — shown only on the last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta     { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title    { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip for scenarios and instructor notes */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box        { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan   { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green  { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red    { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold   { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label  { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids — 3-column and 2-column */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        /* Section label — small caps divider text */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Python code block with syntax color spans */
+        .code-block {
+            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #c9a83a; }   /* keywords: if, for, in, def, True, False, None, import */
+        .code-block .fn { color: #06b6d4; }   /* built-in functions: print, len, range, sorted, enumerate */
+        .code-block .st { color: #3ab577; }   /* string literals */
+        .code-block .cm { color: #475569; }   /* inline comments */
+        .code-block .nb { color: #f472b6; }   /* numeric and boolean literals */
+        .code-block .er { color: #ef4444; }   /* error output lines */
+
+        /* Inline code span used inside card-desc, fact-text, and scenario-strip */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+    <script src="../../../../components/TryItNow.js"></script>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Lists & Tuples</h1>
+
+
+<!-- Gold progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:2.94%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 36 &nbsp;|&nbsp; COP1034C Obj 4 &nbsp;|&nbsp; Day 5 of 12</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Python for IT: Day 5<br>
+                <span class="accent">Lists &amp; Tuples</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Ordered Collections &nbsp;&bull;&nbsp; List Methods &nbsp;&bull;&nbsp; Comprehensions &nbsp;&bull;&nbsp; Tuples &nbsp;&bull;&nbsp; Real-World IT Data
+            </div>
+        </div>
+        <div class="scenario-strip">
+            You are responsible for a fleet of 200 servers. Each server has a name: web01, web02, db01, db02, cache01, and so on. You could create 200 separate variables. Or you could put all 200 names in a list and work with them in seconds. Lists are the tool that makes the difference between writing 200 lines of code and writing 5.
+        </div>
+        <div class="title-meta-row">
+            <span>36 Slides</span>
+            <span>COP1034C Obj 4</span>
+            <span>Day 5 of 12</span>
+            <span>Lambert Ch 7</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — WHAT IS A LIST ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 36</div>
+        <div class="slide-title">What Is <span class="accent">a List?</span></div>
+        <div class="slide-subtitle">Your first real data structure. One variable that holds many values.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Ordered</div>
+                <div class="card-desc">Items in a list have a fixed sequence. The first item you put in stays first unless you move it. When you loop through a list, you always get items in the same order. This predictability is essential when the order of data matters — like steps in a process or rows in a log file.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Mutable</div>
+                <div class="card-desc">You can change a list after you create it. Add items, remove items, replace items — the list itself is modified in place. This is different from strings, which are immutable. A list is a living data structure, not a frozen snapshot.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Mixed Types Allowed</div>
+                <div class="card-desc">A list can contain any combination of types: strings, integers, floats, booleans, even other lists. In practice, lists in IT scripts usually hold one type of thing (all server names, all port numbers) — but Python does not enforce this.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># A list of server names — all strings</span>
+servers = [<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"db01"</span>, <span class="st">"db02"</span>, <span class="st">"cache01"</span>]
+
+<span class="cm"># A list of port numbers — all integers</span>
+open_ports = [<span class="nb">22</span>, <span class="nb">80</span>, <span class="nb">443</span>, <span class="nb">8080</span>, <span class="nb">3306</span>]
+
+<span class="cm"># A list of mixed types — allowed but uncommon in real scripts</span>
+mixed = [<span class="st">"web01"</span>, <span class="nb">80</span>, <span class="kw">True</span>, <span class="nb">3.14</span>]
+
+<span class="cm"># Print the whole list at once</span>
+<span class="fn">print</span>(servers)      <span class="cm"># ['web01', 'web02', 'db01', 'db02', 'cache01']</span>
+<span class="fn">print</span>(<span class="fn">type</span>(servers)) <span class="cm"># &lt;class 'list'&gt;</span>
+<span class="fn">print</span>(<span class="fn">len</span>(servers))  <span class="cm"># 5</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Mental model:</strong> If a variable is a labeled box holding one value, a list is a labeled shelf holding many values. The shelf keeps the items in order, and each slot on the shelf has a position number starting at 0.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — CREATING LISTS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 36</div>
+        <div class="slide-title">Creating Lists: <span class="accent">Four Ways</span></div>
+        <div class="slide-subtitle">Literal syntax, list(), list(range()), and list from a string.</div>
+
+        <div class="code-block"><span class="cm"># Method 1: Square bracket literal — the most common way</span>
+servers   = [<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"db01"</span>]
+ports     = [<span class="nb">22</span>, <span class="nb">80</span>, <span class="nb">443</span>]
+flags     = [<span class="kw">True</span>, <span class="kw">False</span>, <span class="kw">True</span>]
+empty     = []                      <span class="cm"># valid empty list — add items later</span>
+
+<span class="cm"># Method 2: list() constructor — converts another sequence to a list</span>
+chars = <span class="fn">list</span>(<span class="st">"hello"</span>)              <span class="cm"># ['h', 'e', 'l', 'l', 'o']</span>
+
+<span class="cm"># Method 3: list(range()) — generate a numeric sequence as a list</span>
+nums     = <span class="fn">list</span>(<span class="fn">range</span>(<span class="nb">5</span>))           <span class="cm"># [0, 1, 2, 3, 4]</span>
+even     = <span class="fn">list</span>(<span class="fn">range</span>(<span class="nb">0</span>, <span class="nb">20</span>, <span class="nb">2</span>))    <span class="cm"># [0, 2, 4, 6, 8, 10, 12, 14, 16, 18]</span>
+ids      = <span class="fn">list</span>(<span class="fn">range</span>(<span class="nb">1</span>, <span class="nb">201</span>))      <span class="cm"># server IDs 1 through 200</span>
+
+<span class="cm"># Method 4: Build server name list with f-string in a comprehension (preview)</span>
+names = [<span class="st">f"web{i:02d}"</span> <span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">1</span>, <span class="nb">6</span>)]
+<span class="fn">print</span>(names)   <span class="cm"># ['web01', 'web02', 'web03', 'web04', 'web05']</span></div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">[] Literal</div>
+                <div class="card-desc">Use when you know the items at write time. The most readable form. Preferred for any list you are hard-coding: known server names, specific port numbers, static configuration values.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">list(range())</div>
+                <div class="card-desc">Use when you need a sequence of numbers. <span class="ic">range(start, stop, step)</span> generates numbers efficiently — <span class="ic">list()</span> converts it to an actual list. Commonly used for loop counters and generating IDs.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">list(string)</div>
+                <div class="card-desc"><span class="ic">list("hello")</span> splits a string into individual characters. Useful when you need to process text character by character — validating password character classes, counting letter frequencies.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — ACCESSING ELEMENTS ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 36</div>
+        <div class="slide-title">Accessing Elements: <span class="accent">Indexing</span></div>
+        <div class="slide-subtitle">Every item has a position number. Counting starts at 0, not 1.</div>
+
+        <div class="code-block"><span class="cm"># 0-based indexing — positions start at zero</span>
+servers = [<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"db01"</span>, <span class="st">"db02"</span>, <span class="st">"cache01"</span>]
+<span class="cm">#            0        1        2       3        4</span>
+
+<span class="fn">print</span>(servers[<span class="nb">0</span>])    <span class="cm"># web01  — first item</span>
+<span class="fn">print</span>(servers[<span class="nb">2</span>])    <span class="cm"># db01   — third item</span>
+<span class="fn">print</span>(servers[<span class="nb">4</span>])    <span class="cm"># cache01 — last item (index = len - 1)</span>
+
+<span class="cm"># Negative indexing — count backward from the end</span>
+<span class="fn">print</span>(servers[-<span class="nb">1</span>])   <span class="cm"># cache01 — last item</span>
+<span class="fn">print</span>(servers[-<span class="nb">2</span>])   <span class="cm"># db02    — second to last</span>
+<span class="fn">print</span>(servers[-<span class="nb">5</span>])   <span class="cm"># web01   — same as index 0</span>
+
+<span class="cm"># Out of range — this crashes</span>
+<span class="cm"># print(servers[10])  # IndexError: list index out of range</span>
+
+<span class="cm"># Safe way to get the last item without knowing the length</span>
+last = servers[-<span class="nb">1</span>]               <span class="cm"># always the last element</span>
+also_last = servers[<span class="fn">len</span>(servers) - <span class="nb">1</span>]   <span class="cm"># same result, more verbose</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Why 0-Based?</div>
+                <div class="card-desc">Most programming languages (C, Java, JavaScript, Python) start indexes at 0. This comes from how memory addresses work — the first item is at offset 0 from the start of the list. It becomes natural quickly. Rule: if a list has N items, valid indexes are 0 through N-1.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Negative Indexing</div>
+                <div class="card-desc">Python's negative index counts backward from the end. Index -1 is always the last item regardless of list length. This is useful when you have a growing list and always need the most recently added item — such as the last log entry parsed from a file.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — SLICING ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 36</div>
+        <div class="slide-title">Slicing Lists: <span class="accent">[start:stop:step]</span></div>
+        <div class="slide-subtitle">Extract a sub-list from any position. Same syntax as string slicing.</div>
+
+        <div class="code-block"><span class="cm"># Slicing syntax: list[start:stop:step]</span>
+<span class="cm"># start — index where the slice begins (included)</span>
+<span class="cm"># stop  — index where the slice ends   (NOT included)</span>
+<span class="cm"># step  — how many positions to advance (default: 1)</span>
+
+servers = [<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"web03"</span>, <span class="st">"db01"</span>, <span class="st">"db02"</span>, <span class="st">"cache01"</span>]
+
+<span class="fn">print</span>(servers[<span class="nb">0</span>:<span class="nb">3</span>])   <span class="cm"># ['web01', 'web02', 'web03'] — indexes 0, 1, 2</span>
+<span class="fn">print</span>(servers[<span class="nb">3</span>:])    <span class="cm"># ['db01', 'db02', 'cache01'] — index 3 to end</span>
+<span class="fn">print</span>(servers[:<span class="nb">3</span>])    <span class="cm"># ['web01', 'web02', 'web03'] — start to index 3</span>
+<span class="fn">print</span>(servers[:])     <span class="cm"># full copy of the list (all items)</span>
+<span class="fn">print</span>(servers[::<span class="nb">2</span>])   <span class="cm"># ['web01', 'web03', 'db02'] — every other item</span>
+<span class="fn">print</span>(servers[::-<span class="nb">1</span>])  <span class="cm"># reversed: ['cache01', 'db02', 'db01', ...] </span>
+
+<span class="cm"># IT scenario: get the first 3 servers from a prioritized list</span>
+priority = [<span class="st">"db01"</span>, <span class="st">"db02"</span>, <span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"cache01"</span>]
+critical = priority[:<span class="nb">3</span>]
+<span class="fn">print</span>(critical)   <span class="cm"># ['db01', 'db02', 'web01']</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Slicing Creates a New List</div>
+                <div class="card-desc">A slice does not modify the original list. It creates a brand-new list containing copies of the selected items. You can assign the result to a variable, pass it to a function, or use it directly. The original list is untouched.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Common Slice Patterns</div>
+                <div class="card-desc">
+                    <span class="ic">list[:n]</span> — first n items<br>
+                    <span class="ic">list[-n:]</span> — last n items<br>
+                    <span class="ic">list[a:b]</span> — items from a up to (not including) b<br>
+                    <span class="ic">list[::-1]</span> — reversed copy of the list
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — MODIFYING ELEMENTS ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 36</div>
+        <div class="slide-title">Modifying Elements: <span class="accent">Lists Are Mutable</span></div>
+        <div class="slide-subtitle">Unlike strings, you CAN change a list item in place by assigning to an index.</div>
+
+        <div class="code-block"><span class="cm"># Assign a new value to any index position</span>
+servers = [<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"db01"</span>]
+
+servers[<span class="nb">1</span>] = <span class="st">"web02-new"</span>         <span class="cm"># replace the item at index 1</span>
+<span class="fn">print</span>(servers)   <span class="cm"># ['web01', 'web02-new', 'db01']</span>
+
+servers[-<span class="nb">1</span>] = <span class="st">"db01-primary"</span>      <span class="cm"># use negative index to modify</span>
+<span class="fn">print</span>(servers)   <span class="cm"># ['web01', 'web02-new', 'db01-primary']</span>
+
+<span class="cm"># Replace a slice with new values</span>
+ports = [<span class="nb">22</span>, <span class="nb">80</span>, <span class="nb">443</span>, <span class="nb">8080</span>]
+ports[<span class="nb">1</span>:<span class="nb">3</span>] = [<span class="nb">8000</span>, <span class="nb">8443</span>]           <span class="cm"># replace indexes 1 and 2</span>
+<span class="fn">print</span>(ports)     <span class="cm"># [22, 8000, 8443, 8080]</span>
+
+<span class="cm"># Contrast: this fails for strings because strings ARE immutable</span>
+hostname = <span class="st">"web01"</span>
+<span class="cm"># hostname[0] = "X"   # TypeError: 'str' object does not support item assignment</span>
+<span class="cm"># Lists do not have this restriction</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Why Mutability Matters</div>
+                <div class="card-desc">When you decommission a server, you update its entry in the list. When a port changes, you update the ports list. Mutable data structures reflect real-world changes. You do not need to throw away the entire list and build a new one — just change the part that changed.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">String vs List</div>
+                <div class="card-desc">Strings and lists are both sequences. Both support indexing and slicing. The key difference: strings are immutable (you cannot change a character in place), lists are mutable (you can change any item in place). This distinction is fundamental in Python.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — APPEND ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 36 &nbsp;|&nbsp; List Methods</div>
+        <div class="slide-title">List Method: <span class="accent">append()</span></div>
+        <div class="slide-subtitle">Add one item to the end of the list. The simplest way to grow a list.</div>
+
+        <div class="code-block"><span class="cm"># append(item) — adds item to the END of the list</span>
+servers = [<span class="st">"web01"</span>, <span class="st">"web02"</span>]
+
+servers.append(<span class="st">"db01"</span>)
+<span class="fn">print</span>(servers)   <span class="cm"># ['web01', 'web02', 'db01']</span>
+
+servers.append(<span class="st">"db02"</span>)
+<span class="fn">print</span>(servers)   <span class="cm"># ['web01', 'web02', 'db01', 'db02']</span>
+
+<span class="cm"># IT scenario: build a list of online servers by appending each one found</span>
+online = []
+scan_results = [(<span class="st">"web01"</span>, <span class="kw">True</span>), (<span class="st">"web02"</span>, <span class="kw">False</span>), (<span class="st">"db01"</span>, <span class="kw">True</span>)]
+<span class="kw">for</span> name, is_up <span class="kw">in</span> scan_results:
+    <span class="kw">if</span> is_up:
+        online.append(name)
+<span class="fn">print</span>(online)   <span class="cm"># ['web01', 'db01']</span>
+
+<span class="cm"># append() modifies the list in place — it returns None, not the new list</span>
+result = servers.append(<span class="st">"cache01"</span>)
+<span class="fn">print</span>(result)    <span class="cm"># None — common beginner mistake: assigning the return value</span>
+<span class="fn">print</span>(servers)   <span class="cm"># ['web01', 'web02', 'db01', 'db02', 'cache01']</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Critical pattern — start empty, append in a loop:</strong> Begin with <span class="ic">results = []</span>, loop through your data, and call <span class="ic">results.append(item)</span> for each item that meets your criteria. This pattern appears in nearly every real Python script that processes data.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — INSERT ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 36 &nbsp;|&nbsp; List Methods</div>
+        <div class="slide-title">List Method: <span class="accent">insert(i, item)</span></div>
+        <div class="slide-subtitle">Add an item at a specific position. Everything after it shifts right.</div>
+
+        <div class="code-block"><span class="cm"># insert(index, item) — places item at the given index position</span>
+servers = [<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"cache01"</span>]
+
+<span class="cm"># Insert "db01" at index 2 (between web02 and cache01)</span>
+servers.insert(<span class="nb">2</span>, <span class="st">"db01"</span>)
+<span class="fn">print</span>(servers)   <span class="cm"># ['web01', 'web02', 'db01', 'cache01']</span>
+
+<span class="cm"># Insert at index 0 — adds to the front</span>
+servers.insert(<span class="nb">0</span>, <span class="st">"gateway01"</span>)
+<span class="fn">print</span>(servers)   <span class="cm"># ['gateway01', 'web01', 'web02', 'db01', 'cache01']</span>
+
+<span class="cm"># Insert beyond the end — same as append()</span>
+servers.insert(<span class="nb">999</span>, <span class="st">"backup01"</span>)
+<span class="fn">print</span>(servers[-<span class="nb">1</span>])   <span class="cm"># backup01</span>
+
+<span class="cm"># IT scenario: insert a high-priority host at the front of a check queue</span>
+check_queue = [<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"db01"</span>]
+check_queue.insert(<span class="nb">0</span>, <span class="st">"db01-primary"</span>)   <span class="cm"># check the primary DB first</span>
+<span class="fn">print</span>(check_queue)   <span class="cm"># ['db01-primary', 'web01', 'web02', 'db01']</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">When to Use insert() vs append()</div>
+                <div class="card-desc">Use <span class="ic">append()</span> when position does not matter — you just need to add to the collection. Use <span class="ic">insert()</span> when order matters — you need the new item at a specific position. Inserting at the front (<span class="ic">insert(0, ...)</span>) is a common pattern for priority queues.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">insert() Shifts Items</div>
+                <div class="card-desc">When you insert at index 2, everything currently at index 2 and beyond moves one position to the right. The list grows by one. No items are overwritten. This is different from assignment (<span class="ic">list[2] = value</span>), which replaces the existing item at that index.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — EXTEND VS APPEND ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 36 &nbsp;|&nbsp; List Methods</div>
+        <div class="slide-title">extend() vs append(): <span class="accent">Adding Multiple Items</span></div>
+        <div class="slide-subtitle">These look similar. They behave very differently. Know the difference cold.</div>
+
+        <div class="code-block"><span class="cm"># append() adds the argument as a SINGLE item — even if it is a list</span>
+a = [<span class="st">"web01"</span>, <span class="st">"web02"</span>]
+a.append([<span class="st">"db01"</span>, <span class="st">"db02"</span>])
+<span class="fn">print</span>(a)       <span class="cm"># ['web01', 'web02', ['db01', 'db02']] — nested list!</span>
+<span class="fn">print</span>(<span class="fn">len</span>(a))  <span class="cm"># 3 — the inner list counts as one item</span>
+
+<span class="cm"># extend() unpacks an iterable and adds each item individually</span>
+b = [<span class="st">"web01"</span>, <span class="st">"web02"</span>]
+b.extend([<span class="st">"db01"</span>, <span class="st">"db02"</span>])
+<span class="fn">print</span>(b)       <span class="cm"># ['web01', 'web02', 'db01', 'db02'] — flat list</span>
+<span class="fn">print</span>(<span class="fn">len</span>(b))  <span class="cm"># 4 — four individual items</span>
+
+<span class="cm"># extend() also works with any iterable: tuple, range, string</span>
+c = [<span class="nb">1</span>, <span class="nb">2</span>, <span class="nb">3</span>]
+c.extend(<span class="fn">range</span>(<span class="nb">4</span>, <span class="nb">7</span>))
+<span class="fn">print</span>(c)       <span class="cm"># [1, 2, 3, 4, 5, 6]</span>
+
+<span class="cm"># The += operator on a list is equivalent to extend()</span>
+servers  = [<span class="st">"web01"</span>]
+servers += [<span class="st">"web02"</span>, <span class="st">"web03"</span>]
+<span class="fn">print</span>(servers)   <span class="cm"># ['web01', 'web02', 'web03']</span></div>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            <div class="box-label">The Most Common List Confusion</div>
+            You have a list of new servers to add. You call <span class="ic">servers.append(new_servers)</span>. Now your list has a list inside it. Every loop over <span class="ic">servers</span> breaks. The fix: use <span class="ic">servers.extend(new_servers)</span>. When in doubt: <strong>append adds one thing, extend adds many things individually.</strong>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — REMOVE ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 36 &nbsp;|&nbsp; List Methods</div>
+        <div class="slide-title">List Method: <span class="accent">remove(value)</span></div>
+        <div class="slide-subtitle">Delete an item by value. Python finds and removes the first occurrence.</div>
+
+        <div class="code-block"><span class="cm"># remove(value) — finds the first item equal to value and removes it</span>
+servers = [<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"db01"</span>, <span class="st">"web01"</span>]
+
+servers.remove(<span class="st">"db01"</span>)
+<span class="fn">print</span>(servers)   <span class="cm"># ['web01', 'web02', 'web01']</span>
+
+<span class="cm"># Only the FIRST occurrence is removed when duplicates exist</span>
+servers.remove(<span class="st">"web01"</span>)
+<span class="fn">print</span>(servers)   <span class="cm"># ['web02', 'web01'] — the second 'web01' stays</span>
+
+<span class="cm"># If the value does not exist, remove() raises ValueError</span>
+<span class="cm"># servers.remove("cache01")   # ValueError: list.remove(x): x not in list</span>
+
+<span class="cm"># Safe pattern: check before removing</span>
+target = <span class="st">"cache01"</span>
+<span class="kw">if</span> target <span class="kw">in</span> servers:
+    servers.remove(target)
+<span class="kw">else</span>:
+    <span class="fn">print</span>(<span class="st">f"{target} not in list — nothing removed"</span>)
+<span class="cm"># cache01 not in list — nothing removed</span></div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Use remove() When You Know the Value</div>
+                <div class="card-desc">If you know the name of the server to decommission but not its position, <span class="ic">remove()</span> is the right tool. It searches the list for the matching value and deletes it. You do not need to know its index.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">First Occurrence Only</div>
+                <div class="card-desc">If the same value appears multiple times, <span class="ic">remove()</span> only deletes the first one. To remove all occurrences, use a list comprehension: <span class="ic">[x for x in servers if x != "web01"]</span> — covered in Slide 19.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Always Check First</div>
+                <div class="card-desc">In production scripts, always check <span class="ic">if value in list</span> before calling <span class="ic">remove()</span>. A ValueError from trying to remove something that is not there will crash your entire script mid-run unless you handle it.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — TRY IT NOW ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 36 &nbsp;|&nbsp; Try It Now</div>
+        <div class="slide-title">Try It Now: <span class="accent">List Operations</span></div>
+        <div class="slide-subtitle">Create a list and manipulate it.</div>
+        <div class="try-it-now"
+             data-starter="servers = [&quot;web-01&quot;, &quot;web-02&quot;, &quot;db-01&quot;]&#10;&#10;# Add &quot;cache-01&quot; to the list&#10;# Remove &quot;web-02&quot;&#10;# Print the final list&#10;"
+             data-solution="servers = [&quot;web-01&quot;, &quot;web-02&quot;, &quot;db-01&quot;]&#10;servers.append(&quot;cache-01&quot;)&#10;servers.remove(&quot;web-02&quot;)&#10;print(servers)"
+             data-expected="['web-01', 'db-01', 'cache-01']"
+             data-height="120">
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 12 — POP ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 36 &nbsp;|&nbsp; List Methods</div>
+        <div class="slide-title">List Method: <span class="accent">pop(i)</span></div>
+        <div class="slide-subtitle">Remove and return an item by index. The only list method that returns what it removed.</div>
+
+        <div class="code-block"><span class="cm"># pop() — removes and RETURNS the last item (no argument)</span>
+queue = [<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"db01"</span>]
+
+last = queue.pop()
+<span class="fn">print</span>(last)    <span class="cm"># db01</span>
+<span class="fn">print</span>(queue)   <span class="cm"># ['web01', 'web02']</span>
+
+<span class="cm"># pop(i) — removes and returns the item at index i</span>
+servers = [<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"db01"</span>, <span class="st">"cache01"</span>]
+
+removed = servers.pop(<span class="nb">1</span>)     <span class="cm"># remove item at index 1</span>
+<span class="fn">print</span>(removed)    <span class="cm"># web02</span>
+<span class="fn">print</span>(servers)    <span class="cm"># ['web01', 'db01', 'cache01']</span>
+
+<span class="cm"># IT scenario: process a work queue — pop from the front to get next task</span>
+tasks = [<span class="st">"check-web01"</span>, <span class="st">"check-web02"</span>, <span class="st">"check-db01"</span>]
+<span class="kw">while</span> tasks:
+    current = tasks.pop(<span class="nb">0</span>)        <span class="cm"># take from the front (FIFO queue)</span>
+    <span class="fn">print</span>(<span class="st">f"Processing: {current}"</span>)
+<span class="cm"># Processing: check-web01</span>
+<span class="cm"># Processing: check-web02</span>
+<span class="cm"># Processing: check-db01</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>remove() vs pop():</strong> Use <span class="ic">remove(value)</span> when you know the value but not the position. Use <span class="ic">pop(index)</span> when you know the position or want to process and consume items one by one. <span class="ic">pop()</span> is the only removal method that hands the item back to you.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — DEL AND CLEAR ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 36 &nbsp;|&nbsp; List Methods</div>
+        <div class="slide-title">Removing Items: <span class="accent">del and clear()</span></div>
+        <div class="slide-subtitle">Two more ways to delete items. Each has a specific use case.</div>
+
+        <div class="code-block"><span class="cm"># del statement — removes by index or slice, returns nothing</span>
+servers = [<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"db01"</span>, <span class="st">"db02"</span>, <span class="st">"cache01"</span>]
+
+<span class="kw">del</span> servers[<span class="nb">2</span>]              <span class="cm"># remove the item at index 2</span>
+<span class="fn">print</span>(servers)   <span class="cm"># ['web01', 'web02', 'db02', 'cache01']</span>
+
+<span class="kw">del</span> servers[<span class="nb">1</span>:<span class="nb">3</span>]            <span class="cm"># remove indexes 1 and 2 (a slice)</span>
+<span class="fn">print</span>(servers)   <span class="cm"># ['web01', 'cache01']</span>
+
+<span class="kw">del</span> servers                 <span class="cm"># del without index deletes the variable entirely</span>
+<span class="cm"># print(servers)           # NameError: name 'servers' is not defined</span>
+
+<span class="cm"># clear() — removes ALL items, the list itself stays (empty)</span>
+alerts = [<span class="st">"CPU high"</span>, <span class="st">"Disk full"</span>, <span class="st">"Network timeout"</span>]
+alerts.clear()
+<span class="fn">print</span>(alerts)   <span class="cm"># []</span>
+<span class="fn">print</span>(<span class="fn">type</span>(alerts))   <span class="cm"># &lt;class 'list'&gt; — still a list, just empty</span></div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">del by Index</div>
+                <div class="card-desc">Use <span class="ic">del list[i]</span> when you know the index and do not need the value back. Faster to write than <span class="ic">pop(i)</span> if you have no use for the returned value. Also handles slice deletion, which <span class="ic">pop()</span> cannot.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">clear()</div>
+                <div class="card-desc">Empties the list but preserves the variable. Use when you want to reset a list between iterations of a larger loop — for example, clearing a batch of results before collecting the next batch. Different from <span class="ic">servers = []</span> which creates a new empty list.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">del the Variable</div>
+                <div class="card-desc"><span class="ic">del servers</span> (no index) destroys the variable binding entirely. Referencing it afterward raises NameError. Rarely needed in practice — mainly used in scripts that need to free memory on large data sets, or to signal to future readers that a variable is intentionally abandoned.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — SORT AND SORTED ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 36 &nbsp;|&nbsp; List Methods</div>
+        <div class="slide-title">sort() vs sorted(): <span class="accent">In-Place vs New List</span></div>
+        <div class="slide-subtitle">Two sorting tools. One modifies the original. One leaves it alone.</div>
+
+        <div class="code-block"><span class="cm"># sort() — modifies the list IN PLACE, returns None</span>
+servers = [<span class="st">"web02"</span>, <span class="st">"cache01"</span>, <span class="st">"web01"</span>, <span class="st">"db01"</span>]
+servers.sort()
+<span class="fn">print</span>(servers)   <span class="cm"># ['cache01', 'db01', 'web01', 'web02'] — alphabetical</span>
+
+<span class="cm"># sort(reverse=True) — descending order</span>
+nums = [<span class="nb">443</span>, <span class="nb">22</span>, <span class="nb">8080</span>, <span class="nb">80</span>, <span class="nb">3306</span>]
+nums.sort(reverse=<span class="kw">True</span>)
+<span class="fn">print</span>(nums)      <span class="cm"># [8080, 3306, 443, 80, 22]</span>
+
+<span class="cm"># sorted() — returns a NEW sorted list, original is UNCHANGED</span>
+hostnames = [<span class="st">"web02"</span>, <span class="st">"cache01"</span>, <span class="st">"web01"</span>, <span class="st">"db01"</span>]
+ordered   = <span class="fn">sorted</span>(hostnames)
+<span class="fn">print</span>(hostnames)   <span class="cm"># ['web02', 'cache01', 'web01', 'db01'] — UNCHANGED</span>
+<span class="fn">print</span>(ordered)    <span class="cm"># ['cache01', 'db01', 'web01', 'web02']</span>
+
+<span class="cm"># sort by string length using key= parameter</span>
+words = [<span class="st">"db"</span>, <span class="st">"webserver"</span>, <span class="st">"cache"</span>, <span class="st">"lb"</span>]
+words.sort(key=<span class="fn">len</span>)
+<span class="fn">print</span>(words)   <span class="cm"># ['db', 'lb', 'cache', 'webserver']</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">sort() — Modify in Place</div>
+                <div class="card-desc">Use when you want the list itself sorted permanently. The original order is gone. Returns <span class="ic">None</span> — do not assign it: <span class="ic">ordered = servers.sort()</span> stores None, not the sorted list.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">sorted() — Keep Original</div>
+                <div class="card-desc">Use when you need a sorted view but must preserve the original order. Safe to pass to functions. Works on any iterable (tuples, strings, dictionaries), not just lists. Always assign the result: <span class="ic">ordered = sorted(servers)</span>.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — REVERSE AND COPY ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 36 &nbsp;|&nbsp; List Methods</div>
+        <div class="slide-title">List Methods: <span class="accent">reverse() and copy()</span></div>
+        <div class="slide-subtitle">Flip the order. Clone the list. Both are tools you will reach for regularly.</div>
+
+        <div class="code-block"><span class="cm"># reverse() — reverses the list in place, returns None</span>
+steps = [<span class="st">"backup"</span>, <span class="st">"stop-services"</span>, <span class="st">"apply-patch"</span>, <span class="st">"start-services"</span>]
+steps.reverse()
+<span class="fn">print</span>(steps)
+<span class="cm"># ['start-services', 'apply-patch', 'stop-services', 'backup']</span>
+
+<span class="cm"># To get a reversed copy without modifying original:</span>
+<span class="cm"># Option 1: reversed() built-in returns an iterator, cast to list</span>
+original   = [<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"db01"</span>]
+rev_copy   = <span class="fn">list</span>(<span class="fn">reversed</span>(original))
+<span class="fn">print</span>(original)   <span class="cm"># ['web01', 'web02', 'db01'] — unchanged</span>
+<span class="fn">print</span>(rev_copy)   <span class="cm"># ['db01', 'web02', 'web01']</span>
+
+<span class="cm"># Option 2: slice with step -1</span>
+rev_slice = original[::-<span class="nb">1</span>]
+<span class="fn">print</span>(rev_slice)   <span class="cm"># ['db01', 'web02', 'web01']</span>
+
+<span class="cm"># copy() — returns a SHALLOW copy of the list</span>
+primary = [<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"db01"</span>]
+backup  = primary.copy()
+
+backup.append(<span class="st">"cache01"</span>)
+<span class="fn">print</span>(primary)   <span class="cm"># ['web01', 'web02', 'db01']   — not affected</span>
+<span class="fn">print</span>(backup)    <span class="cm"># ['web01', 'web02', 'db01', 'cache01']</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Why copy() matters:</strong> In Python, <span class="ic">b = a</span> for a list does NOT create a copy — both variables point to the same list. Changes to <span class="ic">b</span> change <span class="ic">a</span>. Use <span class="ic">b = a.copy()</span> to get an independent copy. This is the shallow copy trap — covered in depth on Slide 31.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — BUILT-IN FUNCTIONS ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 36</div>
+        <div class="slide-title">Built-In Functions: <span class="accent">len, min, max, sum</span></div>
+        <div class="slide-subtitle">Python's global functions that work on any list of compatible values.</div>
+
+        <div class="code-block"><span class="cm"># len() — number of items in the list</span>
+servers = [<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"db01"</span>, <span class="st">"cache01"</span>]
+<span class="fn">print</span>(<span class="fn">len</span>(servers))   <span class="cm"># 4</span>
+
+<span class="cm"># min() and max() — smallest and largest item</span>
+response_times = [<span class="nb">12</span>, <span class="nb">45</span>, <span class="nb">8</span>, <span class="nb">67</span>, <span class="nb">23</span>, <span class="nb">5</span>]
+<span class="fn">print</span>(<span class="fn">min</span>(response_times))   <span class="cm"># 5</span>
+<span class="fn">print</span>(<span class="fn">max</span>(response_times))   <span class="cm"># 67</span>
+<span class="fn">print</span>(<span class="fn">min</span>(servers))          <span class="cm"># 'cache01' — alphabetically first</span>
+<span class="fn">print</span>(<span class="fn">max</span>(servers))          <span class="cm"># 'web02'   — alphabetically last</span>
+
+<span class="cm"># sum() — total of all numeric items</span>
+scores = [<span class="nb">88</span>, <span class="nb">92</span>, <span class="nb">75</span>, <span class="nb">95</span>, <span class="nb">83</span>]
+<span class="fn">print</span>(<span class="fn">sum</span>(scores))              <span class="cm"># 433</span>
+average = <span class="fn">sum</span>(scores) / <span class="fn">len</span>(scores)
+<span class="fn">print</span>(<span class="st">f"Average: {average:.1f}"</span>) <span class="cm"># Average: 86.6</span>
+
+<span class="cm"># IT scenario: summarize network scan response times</span>
+times_ms = [<span class="nb">12</span>, <span class="nb">45</span>, <span class="nb">8</span>, <span class="nb">67</span>, <span class="nb">23</span>]
+<span class="fn">print</span>(<span class="st">f"Fastest: {</span><span class="fn">min</span><span class="st">(times_ms)} ms"</span>)     <span class="cm"># Fastest: 8 ms</span>
+<span class="fn">print</span>(<span class="st">f"Slowest: {</span><span class="fn">max</span><span class="st">(times_ms)} ms"</span>)     <span class="cm"># Slowest: 67 ms</span>
+<span class="fn">print</span>(<span class="st">f"Average: {</span><span class="fn">sum</span><span class="st">(times_ms)/<span class="fn">len</span>(times_ms):.1f} ms"</span>)  <span class="cm"># Average: 31.0 ms</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>These four functions work on any sequence:</strong> lists, tuples, strings (len only), even generator expressions. <span class="ic">len()</span> is the single most-called function in most Python scripts. You will use it constantly.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — IN OPERATOR ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 36</div>
+        <div class="slide-title">Membership Testing: <span class="accent">the in Operator</span></div>
+        <div class="slide-subtitle">Ask "is this value in my list?" — one of the most useful operators in Python.</div>
+
+        <div class="code-block"><span class="cm"># in returns True if the value exists anywhere in the list</span>
+servers    = [<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"db01"</span>, <span class="st">"cache01"</span>]
+open_ports = [<span class="nb">22</span>, <span class="nb">80</span>, <span class="nb">443</span>, <span class="nb">8080</span>]
+
+<span class="fn">print</span>(<span class="st">"web01"</span>  <span class="kw">in</span> servers)     <span class="cm"># True</span>
+<span class="fn">print</span>(<span class="st">"web99"</span>  <span class="kw">in</span> servers)     <span class="cm"># False</span>
+<span class="fn">print</span>(<span class="nb">443</span>      <span class="kw">in</span> open_ports)  <span class="cm"># True</span>
+<span class="fn">print</span>(<span class="nb">3306</span>     <span class="kw">in</span> open_ports)  <span class="cm"># False — MySQL port not open</span>
+
+<span class="cm"># not in — the logical opposite</span>
+<span class="fn">print</span>(<span class="st">"db99"</span> <span class="kw">not in</span> servers)   <span class="cm"># True</span>
+
+<span class="cm"># IT scenario: check whether a suspicious port is open on a host</span>
+suspicious_ports = [<span class="nb">4444</span>, <span class="nb">1337</span>, <span class="nb">31337</span>, <span class="nb">9001</span>]
+detected_ports   = [<span class="nb">22</span>, <span class="nb">80</span>, <span class="nb">443</span>, <span class="nb">4444</span>]
+
+<span class="kw">for</span> port <span class="kw">in</span> suspicious_ports:
+    <span class="kw">if</span> port <span class="kw">in</span> detected_ports:
+        <span class="fn">print</span>(<span class="st">f"ALERT: Suspicious port {port} is open"</span>)
+<span class="cm"># ALERT: Suspicious port 4444 is open</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">in vs index() vs count()</div>
+                <div class="card-desc"><span class="ic">in</span> — "does this exist?" Returns True/False. Fastest to read. Use before <span class="ic">remove()</span> as a safety check.<br><span class="ic">index(v)</span> — "where is it?" Returns the index of the first match. Raises ValueError if not found.<br><span class="ic">count(v)</span> — "how many times?" Returns number of occurrences.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">in Works on All Sequences</div>
+                <div class="card-desc">The <span class="ic">in</span> operator works on lists, tuples, strings, dictionaries, and sets. For strings, it checks for substrings. For lists, it checks for exact item equality. Same keyword, consistent behavior — this is a Python design principle.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — LIST ITERATION ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 36</div>
+        <div class="slide-title">Iterating Lists: <span class="accent">for and enumerate()</span></div>
+        <div class="slide-subtitle">Loop through every item. Get both the index and the value with enumerate().</div>
+
+        <div class="code-block"><span class="cm"># Basic for loop — process each item in order</span>
+servers = [<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"db01"</span>, <span class="st">"cache01"</span>]
+
+<span class="kw">for</span> server <span class="kw">in</span> servers:
+    <span class="fn">print</span>(<span class="st">f"Checking: {server}"</span>)
+<span class="cm"># Checking: web01</span>
+<span class="cm"># Checking: web02</span>
+<span class="cm"># Checking: db01</span>
+<span class="cm"># Checking: cache01</span>
+
+<span class="cm"># enumerate() — gives you both the index AND the value at each step</span>
+<span class="kw">for</span> i, server <span class="kw">in</span> <span class="fn">enumerate</span>(servers):
+    <span class="fn">print</span>(<span class="st">f"[{i}] {server}"</span>)
+<span class="cm"># [0] web01</span>
+<span class="cm"># [1] web02</span>
+<span class="cm"># [2] db01</span>
+<span class="cm"># [3] cache01</span>
+
+<span class="cm"># enumerate(start=1) — start numbering from 1 instead of 0</span>
+<span class="kw">for</span> num, server <span class="kw">in</span> <span class="fn">enumerate</span>(servers, start=<span class="nb">1</span>):
+    <span class="fn">print</span>(<span class="st">f"Server {num} of {</span><span class="fn">len</span><span class="st">(servers)}: {server}"</span>)
+<span class="cm"># Server 1 of 4: web01</span>
+<span class="cm"># Server 2 of 4: web02 ...</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">for item in list</div>
+                <div class="card-desc">The standard pattern. Gets each value one by one. Use this when you only need the value, not the position. Clean, readable, Pythonic. The loop variable name (<span class="ic">server</span>, <span class="ic">item</span>, <span class="ic">port</span>) should describe what is in the list.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">enumerate(list)</div>
+                <div class="card-desc">Use when you need both the position (index) and the value — generating numbered reports, modifying items at known positions while looping, or tracking progress through a task list. More Pythonic than <span class="ic">for i in range(len(list)):</span>.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 19 — ZIP ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 36</div>
+        <div class="slide-title">zip(): <span class="accent">Iterating Two Lists in Parallel</span></div>
+        <div class="slide-subtitle">Pair items from two lists together, one pair per loop iteration.</div>
+
+        <div class="code-block"><span class="cm"># zip(list_a, list_b) — pairs items from both lists by position</span>
+servers   = [<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"db01"</span>]
+ip_addrs  = [<span class="st">"192.0.2.10"</span>, <span class="st">"192.0.2.11"</span>, <span class="st">"192.0.2.20"</span>]
+
+<span class="kw">for</span> server, ip <span class="kw">in</span> <span class="fn">zip</span>(servers, ip_addrs):
+    <span class="fn">print</span>(<span class="st">f"{server} &rarr; {ip}"</span>)
+<span class="cm"># web01 -&gt; 192.0.2.10</span>
+<span class="cm"># web02 -&gt; 192.0.2.11</span>
+<span class="cm"># db01  -&gt; 192.0.2.20</span>
+
+<span class="cm"># zip stops at the shorter list when lengths differ</span>
+names  = [<span class="st">"Alice"</span>, <span class="st">"Bob"</span>, <span class="st">"Carol"</span>, <span class="st">"Dave"</span>]
+scores = [<span class="nb">88</span>, <span class="nb">92</span>, <span class="nb">75</span>]          <span class="cm"># only 3 items</span>
+<span class="kw">for</span> name, score <span class="kw">in</span> <span class="fn">zip</span>(names, scores):
+    <span class="fn">print</span>(<span class="st">f"{name}: {score}"</span>)
+<span class="cm"># Alice: 88 / Bob: 92 / Carol: 75 — Dave is skipped, no error</span>
+
+<span class="cm"># Convert two lists into a dictionary using dict(zip())</span>
+host_map = <span class="fn">dict</span>(<span class="fn">zip</span>(servers, ip_addrs))
+<span class="fn">print</span>(host_map)
+<span class="cm"># {'web01': '192.0.2.10', 'web02': '192.0.2.11', 'db01': '192.0.2.20'}</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Real-world use:</strong> You read a list of hostnames from one file and a list of IP addresses from another. <span class="ic">zip()</span> pairs them without writing a manual index counter. The <span class="ic">dict(zip())</span> pattern is one of the fastest ways to build a hostname-to-IP lookup table.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — TRY IT NOW ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 36 &nbsp;|&nbsp; Try It Now</div>
+        <div class="slide-title">Try It Now: <span class="accent">List Comprehension</span></div>
+        <div class="slide-subtitle">Build a new list from an existing one in one line.</div>
+        <div class="try-it-now"
+             data-starter="temps_f = [98.6, 100.4, 97.7, 102.1, 99.5]&#10;&#10;# Create a list of temps converted to Celsius: (F - 32) * 5/9&#10;# Round to 1 decimal place&#10;# Print the Celsius list&#10;"
+             data-solution="temps_f = [98.6, 100.4, 97.7, 102.1, 99.5]&#10;temps_c = [round((t - 32) * 5/9, 1) for t in temps_f]&#10;print(temps_c)"
+             data-expected="[37.0, 38.0, 36.5, 38.9, 37.5]"
+             data-height="140">
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 21 — LIST COMPREHENSIONS BASICS ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 36</div>
+        <div class="slide-title">List Comprehensions: <span class="accent">The Core Syntax</span></div>
+        <div class="slide-subtitle">Build a new list from an iterable in one readable line. A distinctly Pythonic pattern.</div>
+
+        <div class="code-block"><span class="cm"># Standard for loop to build a list</span>
+numbers = [<span class="nb">1</span>, <span class="nb">2</span>, <span class="nb">3</span>, <span class="nb">4</span>, <span class="nb">5</span>]
+squares = []
+<span class="kw">for</span> n <span class="kw">in</span> numbers:
+    squares.append(n ** <span class="nb">2</span>)
+<span class="fn">print</span>(squares)   <span class="cm"># [1, 4, 9, 16, 25]</span>
+
+<span class="cm"># The same logic as a list comprehension: [expression for item in iterable]</span>
+squares = [n ** <span class="nb">2</span> <span class="kw">for</span> n <span class="kw">in</span> numbers]
+<span class="fn">print</span>(squares)   <span class="cm"># [1, 4, 9, 16, 25] — identical result, one line</span>
+
+<span class="cm"># Build a list of uppercase server names</span>
+servers   = [<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"db01"</span>]
+upper     = [s.upper() <span class="kw">for</span> s <span class="kw">in</span> servers]
+<span class="fn">print</span>(upper)   <span class="cm"># ['WEB01', 'WEB02', 'DB01']</span>
+
+<span class="cm"># Build a list of lengths</span>
+lengths = [<span class="fn">len</span>(s) <span class="kw">for</span> s <span class="kw">in</span> servers]
+<span class="fn">print</span>(lengths)   <span class="cm"># [5, 5, 4]</span>
+
+<span class="cm"># Generate 10 server names: web01 through web10</span>
+hostnames = [<span class="st">f"web{i:02d}"</span> <span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">1</span>, <span class="nb">11</span>)]
+<span class="fn">print</span>(hostnames)
+<span class="cm"># ['web01', 'web02', 'web03', 'web04', 'web05', 'web06', 'web07', 'web08', 'web09', 'web10']</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Reading a comprehension:</strong> <span class="ic">[n ** 2 for n in numbers]</span> — "give me n-squared, for each n in numbers." Read left to right: what you want first, then where to get it. When you are comfortable with this, you write less code and read Python faster.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — LIST COMPREHENSIONS WITH CONDITION ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 36</div>
+        <div class="slide-title">Comprehensions with Conditions: <span class="accent">Filtering</span></div>
+        <div class="slide-subtitle">Add an if clause to include only items that meet a condition.</div>
+
+        <div class="code-block"><span class="cm"># Syntax: [expression for item in iterable if condition]</span>
+
+<span class="cm"># Filter: keep only even numbers</span>
+nums  = [<span class="nb">1</span>, <span class="nb">2</span>, <span class="nb">3</span>, <span class="nb">4</span>, <span class="nb">5</span>, <span class="nb">6</span>, <span class="nb">7</span>, <span class="nb">8</span>]
+evens = [n <span class="kw">for</span> n <span class="kw">in</span> nums <span class="kw">if</span> n % <span class="nb">2</span> == <span class="nb">0</span>]
+<span class="fn">print</span>(evens)   <span class="cm"># [2, 4, 6, 8]</span>
+
+<span class="cm"># Filter: keep only web servers from a mixed list</span>
+servers  = [<span class="st">"web01"</span>, <span class="st">"db01"</span>, <span class="st">"web02"</span>, <span class="st">"cache01"</span>, <span class="st">"web03"</span>]
+web_only = [s <span class="kw">for</span> s <span class="kw">in</span> servers <span class="kw">if</span> s.startswith(<span class="st">"web"</span>)]
+<span class="fn">print</span>(web_only)   <span class="cm"># ['web01', 'web02', 'web03']</span>
+
+<span class="cm"># Filter AND transform: uppercase only web servers</span>
+web_upper = [s.upper() <span class="kw">for</span> s <span class="kw">in</span> servers <span class="kw">if</span> s.startswith(<span class="st">"web"</span>)]
+<span class="fn">print</span>(web_upper)   <span class="cm"># ['WEB01', 'WEB02', 'WEB03']</span>
+
+<span class="cm"># IT scenario: filter response times above a threshold</span>
+times_ms = [<span class="nb">12</span>, <span class="nb">345</span>, <span class="nb">8</span>, <span class="nb">501</span>, <span class="nb">23</span>, <span class="nb">678</span>, <span class="nb">15</span>]
+slow      = [t <span class="kw">for</span> t <span class="kw">in</span> times_ms <span class="kw">if</span> t > <span class="nb">300</span>]
+<span class="fn">print</span>(slow)    <span class="cm"># [345, 501, 678]</span>
+<span class="fn">print</span>(<span class="st">f"{</span><span class="fn">len</span><span class="st">(slow)} slow responses out of {</span><span class="fn">len</span><span class="st">(times_ms)} total"</span>)
+<span class="cm"># 3 slow responses out of 7 total</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>The if clause filters BEFORE the expression runs.</strong> Only items that pass the condition are processed and included in the result. This means you can safely filter and transform in one pass without a nested if block inside a for loop.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — COMPREHENSION PRACTICAL EXAMPLES ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 36 &nbsp;|&nbsp; Real-World Context</div>
+        <div class="slide-title">Comprehensions: <span class="accent">Three Practical Patterns</span></div>
+        <div class="slide-subtitle">Filter, transform, and extract — the three jobs you will use comprehensions for most.</div>
+
+        <div class="code-block"><span class="cm"># Pattern 1: FILTER — select items that meet a condition</span>
+log_lines = [
+    <span class="st">"INFO: web01 responded 200"</span>,
+    <span class="st">"ERROR: db01 connection refused"</span>,
+    <span class="st">"INFO: cache01 responded 200"</span>,
+    <span class="st">"ERROR: web02 timeout after 30s"</span>,
+]
+errors = [line <span class="kw">for</span> line <span class="kw">in</span> log_lines <span class="kw">if</span> line.startswith(<span class="st">"ERROR"</span>)]
+<span class="fn">print</span>(errors)
+<span class="cm"># ['ERROR: db01 connection refused', 'ERROR: web02 timeout after 30s']</span>
+
+<span class="cm"># Pattern 2: TRANSFORM — apply an operation to every item</span>
+raw_names = [<span class="st">"  web01  "</span>, <span class="st">"  db01  "</span>, <span class="st">"  cache01  "</span>]
+clean     = [name.strip() <span class="kw">for</span> name <span class="kw">in</span> raw_names]
+<span class="fn">print</span>(clean)   <span class="cm"># ['web01', 'db01', 'cache01']</span>
+
+<span class="cm"># Pattern 3: EXTRACT — pull a specific field from a list of records</span>
+scan_results = [
+    {<span class="st">"host"</span>: <span class="st">"web01"</span>, <span class="st">"port"</span>: <span class="nb">80</span>,  <span class="st">"status"</span>: <span class="st">"open"</span>},
+    {<span class="st">"host"</span>: <span class="st">"db01"</span>,  <span class="st">"port"</span>: <span class="nb">3306</span>, <span class="st">"status"</span>: <span class="st">"open"</span>},
+    {<span class="st">"host"</span>: <span class="st">"web02"</span>, <span class="st">"port"</span>: <span class="nb">80</span>,  <span class="st">"status"</span>: <span class="st">"filtered"</span>},
+]
+open_hosts = [r[<span class="st">"host"</span>] <span class="kw">for</span> r <span class="kw">in</span> scan_results <span class="kw">if</span> r[<span class="st">"status"</span>] == <span class="st">"open"</span>]
+<span class="fn">print</span>(open_hosts)   <span class="cm"># ['web01', 'db01']</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — NESTED LISTS ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 36</div>
+        <div class="slide-title">Nested Lists: <span class="accent">2D Arrays</span></div>
+        <div class="slide-subtitle">A list whose items are themselves lists. Rows and columns. Grids and matrices.</div>
+
+        <div class="code-block"><span class="cm"># A 2D list (list of lists) — think of it as rows and columns</span>
+network_grid = [
+    [<span class="st">"web01"</span>,   <span class="st">"192.0.2.10"</span>, <span class="nb">80</span>],    <span class="cm"># row 0: name, ip, port</span>
+    [<span class="st">"db01"</span>,    <span class="st">"192.0.2.20"</span>, <span class="nb">3306</span>],  <span class="cm"># row 1</span>
+    [<span class="st">"cache01"</span>, <span class="st">"192.0.2.30"</span>, <span class="nb">6379</span>],  <span class="cm"># row 2</span>
+]
+
+<span class="cm"># Access with [row][column]</span>
+<span class="fn">print</span>(network_grid[<span class="nb">0</span>])        <span class="cm"># ['web01', '192.0.2.10', 80]</span>
+<span class="fn">print</span>(network_grid[<span class="nb">0</span>][<span class="nb">0</span>])     <span class="cm"># web01</span>
+<span class="fn">print</span>(network_grid[<span class="nb">1</span>][<span class="nb">1</span>])     <span class="cm"># 192.0.2.20</span>
+<span class="fn">print</span>(network_grid[<span class="nb">2</span>][<span class="nb">2</span>])     <span class="cm"># 6379</span>
+
+<span class="cm"># Modify a specific cell</span>
+network_grid[<span class="nb">0</span>][<span class="nb">2</span>] = <span class="nb">8080</span>      <span class="cm"># change web01's port</span>
+<span class="fn">print</span>(network_grid[<span class="nb">0</span>])        <span class="cm"># ['web01', '192.0.2.10', 8080]</span>
+
+<span class="cm"># len() on a nested list</span>
+<span class="fn">print</span>(<span class="fn">len</span>(network_grid))       <span class="cm"># 3 — number of rows</span>
+<span class="fn">print</span>(<span class="fn">len</span>(network_grid[<span class="nb">0</span>]))    <span class="cm"># 3 — number of columns in row 0</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">[row][col] Access</div>
+                <div class="card-desc">The first index selects the inner list (row). The second index selects the item within that inner list (column). Reading <span class="ic">grid[2][1]</span>: "row 2, column 1." Write this out mentally as a grid if you get confused — draw the table on paper.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Real-World Uses</div>
+                <div class="card-desc">Network topology tables. Grade books (students x assignments). Configuration matrices (servers x settings). CSV data parsed from a file. Any tabular data that has rows and columns naturally maps to a 2D list.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — NESTED LISTS ITERATION ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 36</div>
+        <div class="slide-title">Nested Lists: <span class="accent">Iterating with Nested Loops</span></div>
+        <div class="slide-subtitle">An outer loop walks through rows. An inner loop walks through items in each row.</div>
+
+        <div class="code-block"><span class="cm"># Iterate all rows and all columns with nested for loops</span>
+network_grid = [
+    [<span class="st">"web01"</span>,   <span class="st">"192.0.2.10"</span>, <span class="nb">80</span>],
+    [<span class="st">"db01"</span>,    <span class="st">"192.0.2.20"</span>, <span class="nb">3306</span>],
+    [<span class="st">"cache01"</span>, <span class="st">"192.0.2.30"</span>, <span class="nb">6379</span>],
+]
+
+<span class="cm"># Print each row as a formatted summary line</span>
+<span class="kw">for</span> row <span class="kw">in</span> network_grid:
+    name, ip, port = row            <span class="cm"># unpack each row into variables</span>
+    <span class="fn">print</span>(<span class="st">f"{name:10s} {ip:15s} :{port}"</span>)
+<span class="cm"># web01      192.0.2.10      :80</span>
+<span class="cm"># db01       192.0.2.20      :3306</span>
+<span class="cm"># cache01    192.0.2.30      :6379</span>
+
+<span class="cm"># Flatten a nested list — turn a 2D list into a 1D list</span>
+matrix = [[<span class="nb">1</span>, <span class="nb">2</span>, <span class="nb">3</span>], [<span class="nb">4</span>, <span class="nb">5</span>, <span class="nb">6</span>], [<span class="nb">7</span>, <span class="nb">8</span>, <span class="nb">9</span>]]
+flat   = [item <span class="kw">for</span> row <span class="kw">in</span> matrix <span class="kw">for</span> item <span class="kw">in</span> row]
+<span class="fn">print</span>(flat)   <span class="cm"># [1, 2, 3, 4, 5, 6, 7, 8, 9]</span>
+
+<span class="cm"># Sum every number in the matrix</span>
+total = <span class="fn">sum</span>(item <span class="kw">for</span> row <span class="kw">in</span> matrix <span class="kw">for</span> item <span class="kw">in</span> row)
+<span class="fn">print</span>(total)  <span class="cm"># 45</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Unpacking rows:</strong> When each inner list has a fixed number of columns, use tuple unpacking in the for loop: <span class="ic">for name, ip, port in grid:</span>. This is far more readable than <span class="ic">row[0]</span>, <span class="ic">row[1]</span>, <span class="ic">row[2]</span> everywhere, and it makes your intent explicit.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — WHAT IS A TUPLE ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 36</div>
+        <div class="slide-title">Tuples: <span class="accent">Ordered and Immutable</span></div>
+        <div class="slide-subtitle">A tuple is like a list that cannot be changed after creation. By design, not accident.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Ordered</div>
+                <div class="card-desc">Items in a tuple maintain their position. Index 0 is always the first item. You can access, slice, and iterate a tuple exactly like a list. The order you define at creation is permanent.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Immutable</div>
+                <div class="card-desc">You cannot add, remove, or change items after the tuple is created. Attempting <span class="ic">t[0] = "new"</span> raises TypeError. This is not a limitation — it is the feature. Immutability is a guarantee that the data will not change unexpectedly.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Supports Indexing and Slicing</div>
+                <div class="card-desc">Everything you learned about accessing list items by index and slice works identically on tuples. <span class="ic">t[0]</span>, <span class="ic">t[-1]</span>, <span class="ic">t[1:3]</span>, <span class="ic">in</span>, <span class="ic">len()</span>, <span class="ic">min()</span>, <span class="ic">max()</span>, <span class="ic">sum()</span> — all work. The only thing tuples cannot do is be modified.</div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Tuple of a server's fixed identity: (name, ip, role)</span>
+server = (<span class="st">"db01"</span>, <span class="st">"192.0.2.20"</span>, <span class="st">"primary"</span>)
+
+<span class="fn">print</span>(server[<span class="nb">0</span>])    <span class="cm"># db01</span>
+<span class="fn">print</span>(server[-<span class="nb">1</span>])   <span class="cm"># primary</span>
+<span class="fn">print</span>(<span class="fn">len</span>(server))  <span class="cm"># 3</span>
+
+<span class="cm"># Tuples cannot be modified — this raises TypeError</span>
+<span class="cm"># server[0] = "db02"   # TypeError: 'tuple' object does not support item assignment</span>
+
+<span class="cm"># Tuples are iterable — for loops work the same way</span>
+<span class="kw">for</span> field <span class="kw">in</span> server:
+    <span class="fn">print</span>(field)
+<span class="cm"># db01 / 192.0.2.20 / primary</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — CREATING TUPLES ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 36</div>
+        <div class="slide-title">Creating Tuples: <span class="accent">Syntax and the Single-Item Trap</span></div>
+        <div class="slide-subtitle">Parentheses alone do not make a tuple. The comma does.</div>
+
+        <div class="code-block"><span class="cm"># Standard tuple — parentheses with comma-separated values</span>
+server_info = (<span class="st">"web01"</span>, <span class="st">"192.0.2.10"</span>, <span class="nb">80</span>)
+coords      = (<span class="nb">40.7128</span>, -<span class="nb">74.0060</span>)      <span class="cm"># latitude, longitude</span>
+rgb         = (<span class="nb">255</span>, <span class="nb">128</span>, <span class="nb">0</span>)             <span class="cm"># color values</span>
+
+<span class="cm"># tuple() constructor — converts any iterable to a tuple</span>
+from_list   = <span class="fn">tuple</span>([<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"db01"</span>])
+from_range  = <span class="fn">tuple</span>(<span class="fn">range</span>(<span class="nb">5</span>))           <span class="cm"># (0, 1, 2, 3, 4)</span>
+from_string = <span class="fn">tuple</span>(<span class="st">"hi"</span>)               <span class="cm"># ('h', 'i')</span>
+
+<span class="cm"># CRITICAL: single-item tuple requires a trailing comma</span>
+not_a_tuple = (<span class="st">"web01"</span>)    <span class="cm"># this is just a string in parentheses</span>
+is_a_tuple  = (<span class="st">"web01"</span>,)   <span class="cm"># the comma makes it a tuple</span>
+
+<span class="fn">print</span>(<span class="fn">type</span>(not_a_tuple))   <span class="cm"># &lt;class 'str'&gt;</span>
+<span class="fn">print</span>(<span class="fn">type</span>(is_a_tuple))    <span class="cm"># &lt;class 'tuple'&gt;</span>
+
+<span class="cm"># Parentheses are optional — the comma is what creates a tuple</span>
+implicit = <span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"db01"</span>
+<span class="fn">print</span>(<span class="fn">type</span>(implicit))      <span class="cm"># &lt;class 'tuple'&gt;</span></div>
+
+        <div class="box box-red" style="font-size:0.83rem;">
+            <div class="box-label">The Single-Item Tuple Trap</div>
+            <span class="ic">x = ("web01")</span> stores the string <span class="ic">"web01"</span>, not a one-element tuple. Python reads the parentheses as grouping, not tuple syntax. To create a single-element tuple, you must write <span class="ic">x = ("web01",)</span> — the trailing comma is not optional. This bites everyone at least once.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — TUPLE PACKING AND UNPACKING ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 36</div>
+        <div class="slide-title">Tuple Packing &amp; <span class="accent">Unpacking</span></div>
+        <div class="slide-subtitle">Pack multiple values into a tuple. Unpack them into separate variables in one line.</div>
+
+        <div class="code-block"><span class="cm"># Packing — assign multiple values to one tuple variable</span>
+server = (<span class="st">"web01"</span>, <span class="st">"192.0.2.10"</span>, <span class="nb">80</span>)
+
+<span class="cm"># Unpacking — assign tuple items to individual variables</span>
+name, ip, port = server
+<span class="fn">print</span>(name)   <span class="cm"># web01</span>
+<span class="fn">print</span>(ip)     <span class="cm"># 192.0.2.10</span>
+<span class="fn">print</span>(port)   <span class="cm"># 80</span>
+
+<span class="cm"># The number of variables MUST match the number of items</span>
+<span class="cm"># a, b = (1, 2, 3)   # ValueError: too many values to unpack</span>
+
+<span class="cm"># Swap two variables — the classic tuple trick, no temp variable needed</span>
+a = <span class="st">"primary"</span>
+b = <span class="st">"standby"</span>
+a, b = b, a             <span class="cm"># Python packs (b, a) into a tuple, then unpacks</span>
+<span class="fn">print</span>(a, b)   <span class="cm"># standby primary</span>
+
+<span class="cm"># Functions often return multiple values as a tuple</span>
+<span class="kw">def</span> <span class="fn">get_server_info</span>(server_id):
+    <span class="kw">return</span> <span class="st">f"web{server_id:02d}"</span>, <span class="st">f"192.0.2.{server_id + 9}"</span>, <span class="nb">80</span>
+
+hostname, address, svc_port = <span class="fn">get_server_info</span>(<span class="nb">1</span>)
+<span class="fn">print</span>(hostname, address, svc_port)   <span class="cm"># web01 192.0.2.10 80</span></div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Tuple unpacking is everywhere in Python.</strong> When you write <span class="ic">for i, server in enumerate(servers):</span> — that is tuple unpacking. When you write <span class="ic">for name, ip in zip(names, ips):</span> — that is tuple unpacking. Understanding packing and unpacking unlocks a large part of Pythonic code.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — TUPLE VS LIST ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 36</div>
+        <div class="slide-title">Tuple vs List: <span class="accent">When to Use Which</span></div>
+        <div class="slide-subtitle">Both store ordered sequences. The choice signals your intent to every reader of your code.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Use a List When...</div>
+                <div class="card-desc">
+                    The collection will grow or shrink over time.<br>
+                    You will add, remove, or replace items.<br>
+                    Items are homogeneous (all the same type).<br>
+                    Example: a growing list of alerts, a queue of servers to check, a batch of log lines collected during a scan.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Use a Tuple When...</div>
+                <div class="card-desc">
+                    The data is fixed and should not change.<br>
+                    You are grouping related fields of different types.<br>
+                    You need to use it as a dictionary key (lists cannot be keys).<br>
+                    A function returns multiple values — use a tuple for the return.
+                </div>
+            </div>
+        </div>
+
+        <div class="code-block"><span class="cm"># Tuple: fixed server record — should not change during execution</span>
+server_record = (<span class="st">"db01"</span>, <span class="st">"192.0.2.20"</span>, <span class="nb">3306</span>, <span class="st">"primary"</span>)
+
+<span class="cm"># List: active alerts — grows and shrinks as incidents open/close</span>
+active_alerts = [<span class="st">"CPU high on web01"</span>, <span class="st">"Disk 90% on db01"</span>]
+active_alerts.append(<span class="st">"Network timeout on cache01"</span>)
+
+<span class="cm"># Tuples as dictionary keys (lists cannot do this)</span>
+location = {(<span class="st">"rack-1"</span>, <span class="nb">3</span>): <span class="st">"web01"</span>, (<span class="st">"rack-2"</span>, <span class="nb">1</span>): <span class="st">"db01"</span>}
+<span class="fn">print</span>(location[(<span class="st">"rack-1"</span>, <span class="nb">3</span>)])   <span class="cm"># web01</span>
+
+<span class="cm"># Tuples are slightly more memory-efficient and faster to iterate</span>
+<span class="cm"># For large read-only datasets, prefer tuples over lists</span></div>
+
+        <div class="scenario-strip" style="font-size:0.82rem;">
+            Rule of thumb: if you are collecting, growing, filtering, or sorting — use a list. If you are storing a record, grouping fixed fields, or returning multiple values from a function — use a tuple.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — IT SCENARIO: SERVER INVENTORY ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 36 &nbsp;|&nbsp; Real-World IT Context</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Server Inventory Management</span></div>
+        <div class="slide-subtitle">A list of server names. Add, remove, search, report. Every method from today's slides.</div>
+
+        <div class="scenario-strip">
+            Your data center has an inventory of active servers. Throughout the day, servers are provisioned (added) and decommissioned (removed). You need to search for servers by name, list them in alphabetical order, and generate a summary report.
+        </div>
+
+        <div class="code-block"><span class="cm"># server_inventory.py — manage a fleet of servers</span>
+inventory = [<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"db01"</span>, <span class="st">"cache01"</span>, <span class="st">"lb01"</span>]
+
+<span class="cm"># Add a new server that was just provisioned</span>
+inventory.append(<span class="st">"db02"</span>)
+
+<span class="cm"># Decommission a server — check first to avoid ValueError</span>
+target = <span class="st">"cache01"</span>
+<span class="kw">if</span> target <span class="kw">in</span> inventory:
+    inventory.remove(target)
+    <span class="fn">print</span>(<span class="st">f"Removed: {target}"</span>)   <span class="cm"># Removed: cache01</span>
+
+<span class="cm"># Find all database servers</span>
+db_servers = [s <span class="kw">for</span> s <span class="kw">in</span> inventory <span class="kw">if</span> s.startswith(<span class="st">"db"</span>)]
+<span class="fn">print</span>(<span class="st">f"DB servers: {db_servers}"</span>)   <span class="cm"># DB servers: ['db01', 'db02']</span>
+
+<span class="cm"># Print alphabetical inventory report</span>
+<span class="fn">print</span>(<span class="st">f"\nInventory ({</span><span class="fn">len</span><span class="st">(inventory)} servers):"</span>)
+<span class="kw">for</span> i, server <span class="kw">in</span> <span class="fn">enumerate</span>(<span class="fn">sorted</span>(inventory), start=<span class="nb">1</span>):
+    <span class="fn">print</span>(<span class="st">f"  {i:2d}. {server}"</span>)
+<span class="cm">#   1. db01  /  2. db02  /  3. lb01  /  4. web01  /  5. web02</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 — IT SCENARIO: NETWORK SCAN ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 36 &nbsp;|&nbsp; Real-World IT Context</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Network Scan Results</span></div>
+        <div class="slide-subtitle">Parse scan output into a list of tuples. Sort by response time. Flag slow hosts.</div>
+
+        <div class="scenario-strip">
+            You run a network sweep using a ping scanner. The tool returns a list of tuples: (hostname, ip, response_time_ms). You need to sort the results by response time, identify slow hosts, and produce a clean report.
+        </div>
+
+        <div class="code-block"><span class="cm"># Each scan result is a tuple: (hostname, ip, response_ms)</span>
+scan_data = [
+    (<span class="st">"web01"</span>,   <span class="st">"192.0.2.10"</span>, <span class="nb">12</span>),
+    (<span class="st">"db01"</span>,    <span class="st">"192.0.2.20"</span>, <span class="nb">345</span>),
+    (<span class="st">"cache01"</span>, <span class="st">"192.0.2.30"</span>, <span class="nb">8</span>),
+    (<span class="st">"web02"</span>,   <span class="st">"192.0.2.11"</span>, <span class="nb">501</span>),
+    (<span class="st">"lb01"</span>,    <span class="st">"192.0.2.1"</span>,  <span class="nb">5</span>),
+]
+
+<span class="cm"># Sort by response time — key function extracts index 2 from each tuple</span>
+sorted_results = <span class="fn">sorted</span>(scan_data, key=<span class="kw">lambda</span> r: r[<span class="nb">2</span>])
+
+<span class="cm"># Extract all response times as a flat list for stats</span>
+times = [r[<span class="nb">2</span>] <span class="kw">for</span> r <span class="kw">in</span> scan_data]
+<span class="fn">print</span>(<span class="st">f"Min: {</span><span class="fn">min</span><span class="st">(times)}ms  Max: {</span><span class="fn">max</span><span class="st">(times)}ms  Avg: {</span><span class="fn">sum</span><span class="st">(times)/</span><span class="fn">len</span><span class="st">(times):.1f}ms"</span>)
+<span class="cm"># Min: 5ms  Max: 501ms  Avg: 174.2ms</span>
+
+<span class="cm"># Flag hosts with response time above 300ms</span>
+slow_threshold = <span class="nb">300</span>
+<span class="kw">for</span> host, ip, ms <span class="kw">in</span> sorted_results:
+    status = <span class="st">"SLOW"</span> <span class="kw">if</span> ms > slow_threshold <span class="kw">else</span> <span class="st">"OK"</span>
+    <span class="fn">print</span>(<span class="st">f"[{status:4s}] {host:10s} {ip:15s} {ms} ms"</span>)
+<span class="cm"># [OK  ] lb01       192.0.2.1      5 ms</span>
+<span class="cm"># [OK  ] cache01    192.0.2.30     8 ms</span>
+<span class="cm"># [OK  ] web01      192.0.2.10     12 ms</span>
+<span class="cm"># [SLOW] db01       192.0.2.20     345 ms</span>
+<span class="cm"># [SLOW] web02      192.0.2.11     501 ms</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 — IT SCENARIO: GRADE TRACKER ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 36 &nbsp;|&nbsp; Real-World IT Context</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Student Grade Tracker</span></div>
+        <div class="slide-subtitle">A list of scores. Calculate statistics. Identify outliers. Generate a letter-grade report.</div>
+
+        <div class="code-block"><span class="cm"># grade_tracker.py — analyze a student's quiz scores</span>
+student = <span class="st">"Rivera"</span>
+scores  = [<span class="nb">88</span>, <span class="nb">92</span>, <span class="nb">75</span>, <span class="nb">95</span>, <span class="nb">83</span>, <span class="nb">67</span>, <span class="nb">91</span>, <span class="nb">78</span>]
+
+<span class="cm"># Basic statistics using built-in functions</span>
+count   = <span class="fn">len</span>(scores)
+average = <span class="fn">sum</span>(scores) / count
+highest = <span class="fn">max</span>(scores)
+lowest  = <span class="fn">min</span>(scores)
+<span class="fn">print</span>(<span class="st">f"Student: {student}  |  Quizzes: {count}  |  Avg: {average:.1f}"</span>)
+<span class="fn">print</span>(<span class="st">f"High: {highest}  Low: {lowest}"</span>)
+
+<span class="cm"># Count scores that fall below a threshold</span>
+below_70 = [s <span class="kw">for</span> s <span class="kw">in</span> scores <span class="kw">if</span> s &lt; <span class="nb">70</span>]
+<span class="fn">print</span>(<span class="st">f"Below 70: {</span><span class="fn">len</span><span class="st">(below_70)} quiz(zes) — scores: {below_70}"</span>)
+<span class="cm"># Below 70: 1 quiz(zes) — scores: [67]</span>
+
+<span class="cm"># Assign letter grades using a list comprehension</span>
+<span class="kw">def</span> <span class="fn">letter_grade</span>(s):
+    <span class="kw">if</span>   s >= <span class="nb">90</span>: <span class="kw">return</span> <span class="st">"A"</span>
+    <span class="kw">elif</span> s >= <span class="nb">80</span>: <span class="kw">return</span> <span class="st">"B"</span>
+    <span class="kw">elif</span> s >= <span class="nb">70</span>: <span class="kw">return</span> <span class="st">"C"</span>
+    <span class="kw">elif</span> s >= <span class="nb">60</span>: <span class="kw">return</span> <span class="st">"D"</span>
+    <span class="kw">else</span>:         <span class="kw">return</span> <span class="st">"F"</span>
+
+grades = [<span class="fn">letter_grade</span>(s) <span class="kw">for</span> s <span class="kw">in</span> scores]
+<span class="fn">print</span>(<span class="fn">list</span>(<span class="fn">zip</span>(scores, grades)))
+<span class="cm"># [(88,'B'),(92,'A'),(75,'C'),(95,'A'),(83,'B'),(67,'D'),(91,'A'),(78,'C')]</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 — COMMON MISTAKES ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 36</div>
+        <div class="slide-title">Common Mistakes: <span class="accent">Three Traps to Avoid</span></div>
+        <div class="slide-subtitle">These errors appear in every beginner's first week with lists. Know them now.</div>
+
+        <div class="code-block"><span class="cm"># TRAP 1: IndexError — accessing an index that does not exist</span>
+servers = [<span class="st">"web01"</span>, <span class="st">"web02"</span>, <span class="st">"db01"</span>]
+<span class="cm"># print(servers[3])   # IndexError: list index out of range</span>
+<span class="cm"># Fix: check length first or use try/except</span>
+<span class="kw">if</span> <span class="fn">len</span>(servers) > <span class="nb">3</span>:
+    <span class="fn">print</span>(servers[<span class="nb">3</span>])   <span class="cm"># safe to access</span>
+
+<span class="cm"># TRAP 2: Modifying a list while iterating over it</span>
+items = [<span class="nb">1</span>, <span class="nb">2</span>, <span class="nb">3</span>, <span class="nb">4</span>, <span class="nb">5</span>]
+<span class="kw">for</span> item <span class="kw">in</span> items:          <span class="cm"># DO NOT remove from items while looping it</span>
+    <span class="kw">if</span> item % <span class="nb">2</span> == <span class="nb">0</span>:
+        items.remove(item)  <span class="cm"># skips elements — unpredictable behavior</span>
+<span class="fn">print</span>(items)   <span class="cm"># [1, 3, 5] — looks right but got lucky; do NOT rely on this</span>
+
+<span class="cm"># Fix: iterate a copy, or build a new list with comprehension</span>
+items    = [<span class="nb">1</span>, <span class="nb">2</span>, <span class="nb">3</span>, <span class="nb">4</span>, <span class="nb">5</span>]
+filtered = [x <span class="kw">for</span> x <span class="kw">in</span> items <span class="kw">if</span> x % <span class="nb">2</span> != <span class="nb">0</span>]   <span class="cm"># [1, 3, 5] — correct and safe</span>
+
+<span class="cm"># TRAP 3: Shallow copy vs reference — b = a is NOT a copy</span>
+a = [<span class="st">"web01"</span>, <span class="st">"web02"</span>]
+b = a               <span class="cm"># b points to the SAME list as a</span>
+b.append(<span class="st">"db01"</span>)
+<span class="fn">print</span>(a)   <span class="cm"># ['web01', 'web02', 'db01'] — a was also changed!</span>
+
+<span class="cm"># Fix: use copy() to get an independent list</span>
+a = [<span class="st">"web01"</span>, <span class="st">"web02"</span>]
+b = a.copy()        <span class="cm"># independent copy</span>
+b.append(<span class="st">"db01"</span>)
+<span class="fn">print</span>(a)   <span class="cm"># ['web01', 'web02'] — a is unchanged</span></div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 — PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 36</div>
+        <div class="slide-title">Practice Exercises: <span class="accent">Six Problems</span></div>
+        <div class="slide-subtitle">Save each as a separate .py file with your name, date, and a description comment at the top.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Exercise 1 — To-Do List Manager</div>
+                <div class="card-desc">
+                    Create an empty list called <span class="ic">tasks</span>. Use a while loop to prompt the user to add tasks, remove tasks by name, or type "done" to quit. After the loop, print the final task list sorted alphabetically. Use <span class="ic">append()</span>, <span class="ic">remove()</span>, and <span class="ic">sorted()</span>.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Exercise 2 — Grade Analyzer</div>
+                <div class="card-desc">
+                    Start with a list of 10 integer scores (hardcoded). Calculate and print: count, average, highest, lowest, and the number of scores above the average. Use <span class="ic">len()</span>, <span class="ic">sum()</span>, <span class="ic">min()</span>, <span class="ic">max()</span>, and a list comprehension to count above-average scores.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Exercise 3 — Duplicate Remover</div>
+                <div class="card-desc">
+                    Given the list <span class="ic">["web01","db01","web01","cache01","db01","web02"]</span>, write code to produce a new list with duplicates removed while preserving the original order. Do not use <span class="ic">set()</span> — use a list and the <span class="ic">in</span> operator to build it manually.
+                </div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Exercise 4 — Matrix Addition</div>
+                <div class="card-desc">
+                    Create two 3x3 nested lists (matrices) with integer values. Write code to produce a third matrix where each cell is the sum of the corresponding cells from the first two. Use nested for loops or nested list comprehensions.
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Exercise 5 — Server Inventory Tracker</div>
+                <div class="card-desc">
+                    Build a list of 8 server name/IP tuples. Ask the user for a hostname. Search the list and print its IP address if found, or a "not found" message if not. Use a for loop and tuple unpacking.
+                </div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Exercise 6 — List Flatten</div>
+                <div class="card-desc">
+                    Given <span class="ic">nested = [[1,2],[3,4,5],[6],[7,8,9,10]]</span>, write a single list comprehension that flattens it into a one-dimensional list. Then print the sum and the sorted version of the flat list.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 35 — KEY VOCABULARY ==================== -->
+<section class="slide" id="slide-35">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 35 of 36</div>
+        <div class="slide-title">Key Vocabulary: <span class="accent">Terms to Know Cold</span></div>
+        <div class="slide-subtitle">These terms appear in documentation, interview questions, and professional conversations.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">List</div>
+                <div class="card-desc">An ordered, mutable sequence of items. Created with <span class="ic">[]</span>. Items accessed by integer index starting at 0. The most commonly used collection type in Python.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Tuple</div>
+                <div class="card-desc">An ordered, immutable sequence of items. Created with <span class="ic">()</span> and a comma. Cannot be modified after creation. Used for fixed records, function return values, and dictionary keys.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Index</div>
+                <div class="card-desc">An integer position identifying an item in a sequence. 0-based (first item is index 0). Negative indices count backward from the end (-1 is last).</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Slice</div>
+                <div class="card-desc">A sub-sequence extracted from a list or tuple using <span class="ic">[start:stop:step]</span>. Returns a new list. Does not modify the original.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Mutable vs Immutable</div>
+                <div class="card-desc">Mutable: can be changed after creation (list, dict, set). Immutable: cannot be changed after creation (tuple, str, int, float, bool). Lists are mutable. Tuples are not.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">List Comprehension</div>
+                <div class="card-desc">A compact expression that builds a new list: <span class="ic">[expr for item in iterable if condition]</span>. Combines a for loop and optional filter into one readable line.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Shallow Copy</div>
+                <div class="card-desc">A new list object with references to the same items as the original. Created with <span class="ic">list.copy()</span> or <span class="ic">list[:]</span>. Assignment (<span class="ic">b = a</span>) does NOT copy — both variables point to the same list.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Unpacking</div>
+                <div class="card-desc">Assigning multiple variables from a sequence in one statement: <span class="ic">a, b, c = (1, 2, 3)</span>. The count of variables must match the count of items. Used extensively in for loops with <span class="ic">enumerate()</span> and <span class="ic">zip()</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">in Operator</div>
+                <div class="card-desc">Membership test: returns True if a value exists in a sequence. <span class="ic">"web01" in servers</span>. Also used as <span class="ic">not in</span>. Essential before calling <span class="ic">remove()</span> to avoid ValueError.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 36 — SUMMARY + COMPLETE ==================== -->
+<section class="slide" id="slide-36">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 36 of 36 &nbsp;|&nbsp; COP1034C Obj 4</div>
+        <div class="slide-title">Day 5 Summary: <span class="accent">Key Takeaways</span></div>
+
+        <div class="scenario-strip">
+            You started this morning with 200 server names and no way to manage them efficiently. You now have a list, a full toolkit of methods to add, remove, sort, and search it, comprehensions to filter and transform it in one line, and tuples to represent the fixed records within it. The fleet management script from Slide 28 — build, search, decommission, report — uses every major concept from today.
+        </div>
+
+        <div class="section-label">8 Facts to Carry Out of This Lecture</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text">A <strong>list</strong> is ordered, mutable, and created with <code>[]</code>. A <strong>tuple</strong> is ordered, immutable, and created with <code>()</code>. Choose based on whether the data changes.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text">Indexing is <strong>0-based</strong>. First item is index 0. Last item is index -1. Out-of-range access raises <strong>IndexError</strong>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><code>append()</code> adds one item to the end. <code>extend()</code> adds many items individually. Confusing them creates nested lists — the most common list bug.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text"><code>remove(value)</code> finds and deletes by value. <code>pop(i)</code> removes and returns by index. <code>del list[i]</code> removes by index, returns nothing. Use <code>in</code> before <code>remove()</code>.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text"><code>sort()</code> modifies in place, returns None. <code>sorted()</code> returns a new sorted list, original unchanged. Use <code>key=</code> to sort by a custom field.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">List comprehensions: <code>[expr for item in iterable if condition]</code>. Filter, transform, and extract in one readable line. Learn this pattern until it is automatic.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text"><code>b = a</code> does NOT copy a list — both names point to the same list. Use <code>b = a.copy()</code> for an independent copy. Never mutate a list while iterating it.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Tuple unpacking: <code>name, ip, port = server_tuple</code>. The swap idiom: <code>a, b = b, a</code>. Functions that return multiple values return a tuple — unpack immediately.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Python for IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 36</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* ── Slide navigation state ── */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 36;
+
+    function goToSlide(n) {
+        /* Boundary check */
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Deactivate the currently visible slide */
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        /* Activate the target slide */
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update the gold progress bar at the top */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        /* Update the counter label in the nav bar */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Disable Prev on slide 1, Next on last slide */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show Mark Complete button only on the final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard arrow key navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize to slide 1 on page load */
+    goToSlide(1);
+</script>
+
+<script>
+    /* ── Module completion via ModuleProgress component ── */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('code', 'pfi-w2-lists', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>

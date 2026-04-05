@@ -1,0 +1,1616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync (tryClassProgressSync calls CF) -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Flow: Loops &amp; Iteration | Python for IT</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container — fixed to viewport, hidden by default */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Max-width wrapper so content does not stretch on wide screens */
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Gold progress bar across the very top */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #c9a83a; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(201, 168, 58, 0.15); color: #c9a83a; border-color: #c9a83a;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button — shown only on last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #c9a83a; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip for scenario or instructor notes */
+        .scenario-strip {
+            background: rgba(201, 168, 58, 0.08); border-left: 3px solid #c9a83a;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #fef3c7; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids — 3-column and 2-column */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #c9a83a;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green { border-left-color: #3ab577; }
+        .card.c-red   { border-left-color: #ef4444; }
+        .card.c-gold  { border-left-color: #c9a83a; }
+        .card.c-cyan  { border-left-color: #06b6d4; }
+
+        /* Section label — small caps divider text */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #c9a83a; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Python code block with syntax color spans */
+        .code-block {
+            background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px; padding: 10px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem;
+            color: #e2e8f0; line-height: 1.6; white-space: pre;
+        }
+        .code-block .kw { color: #c9a83a; }   /* keywords: while, for, if, break, continue, else, in, not, import, with, as */
+        .code-block .fn { color: #06b6d4; }   /* built-in functions: print, input, range, len, int, str, open, list */
+        .code-block .st { color: #3ab577; }   /* string literals */
+        .code-block .cm { color: #475569; }   /* inline comments */
+        .code-block .nb { color: #f472b6; }   /* numeric and boolean literals: True, False, None */
+        .code-block .er { color: #ef4444; }   /* error output or warning lines */
+
+        /* Two-column code layout for side-by-side comparisons */
+        .code-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        /* Inline code span used inside card-desc and fact-text */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .code-2col { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } }
+    </style>
+    <script src="../../../../components/TryItNow.js"></script>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Control Flow: Loops & Iteration</h1>
+
+
+<!-- Gold progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:3.125%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 34 &nbsp;|&nbsp; COP1034C Obj 3 &nbsp;|&nbsp; Day 3 of 12</div>
+        <div class="title-hero">
+            <div class="big-title">
+                Python for IT: Day 3<br>
+                <span class="accent">Control Flow: Loops &amp; Iteration</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                while Loops &nbsp;&bull;&nbsp; for Loops &nbsp;&bull;&nbsp; range() &nbsp;&bull;&nbsp; Loop Patterns &nbsp;&bull;&nbsp; Nested Loops &nbsp;&bull;&nbsp; break / continue
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Your manager asks you to write a script that checks whether 50 servers are online. You know how to ping one server. But writing 50 separate ping commands is not programming — it is copying and pasting. Loops let you write the logic once and apply it to every server automatically. That is the power shift today unlocks.
+        </div>
+        <div class="title-meta-row">
+            <span>34 Slides</span>
+            <span>COP1034C Obj 3</span>
+            <span>Day 3 of 12</span>
+            <span>Lambert Ch 4</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — WHAT ARE LOOPS ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 34</div>
+        <div class="slide-title">What Are <span class="accent">Loops?</span></div>
+        <div class="slide-subtitle">Repeating behavior without repeating code.</div>
+
+        <div class="code-2col">
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">Without a loop — do not write code like this</div>
+                <div class="code-block"><span class="fn">print</span>(<span class="st">"Checking server 1"</span>)
+<span class="fn">print</span>(<span class="st">"Checking server 2"</span>)
+<span class="fn">print</span>(<span class="st">"Checking server 3"</span>)
+<span class="cm"># ... 47 more lines ...</span>
+<span class="fn">print</span>(<span class="st">"Checking server 50"</span>)</div>
+            </div>
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">With a loop — write the logic once</div>
+                <div class="code-block"><span class="kw">for</span> n <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">1</span>, <span class="nb">51</span>):
+    <span class="fn">print</span>(<span class="st">f"Checking server {n}"</span>)
+
+<span class="cm"># Output: Checking server 1</span>
+<span class="cm">#         Checking server 2</span>
+<span class="cm">#         ...  (50 lines total)</span></div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">The Core Idea</div>
+                <div class="card-desc">A loop is a block of code that executes repeatedly. Each execution of the loop body is called an <strong>iteration</strong>. You define the logic once; Python runs it as many times as you specify.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Two Types in Python</div>
+                <div class="card-desc"><span class="ic">while</span> loops repeat as long as a condition is True. <span class="ic">for</span> loops iterate over a sequence of items — a range of numbers, a list, a string. Both are essential and each has distinct best-use scenarios.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Why IT Pros Need This</div>
+                <div class="card-desc">Every automation task involves repetition — scanning ports, reading log lines, processing records, pinging hosts. Without loops, scripts cannot scale. With loops, one script handles 1 item or 1,000,000 items with the same code.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — WHILE LOOP SYNTAX ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 34</div>
+        <div class="slide-title">The <span class="accent">while</span> Loop: Syntax</div>
+        <div class="slide-subtitle">Repeat a block as long as a condition remains True.</div>
+
+        <div class="code-block"><span class="cm"># General while loop structure</span>
+<span class="kw">while</span> condition:
+    <span class="cm"># loop body — indented 4 spaces</span>
+    statement_1
+    statement_2
+    <span class="cm"># Python executes every indented line, then re-checks the condition</span>
+    <span class="cm"># When condition becomes False, execution jumps past the loop body</span>
+
+<span class="cm"># This code runs AFTER the loop finishes</span>
+statement_after_loop</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">The Condition</div>
+                <div class="card-desc">Any expression that evaluates to True or False. Uses the same comparison operators from Day 2: <span class="ic">==</span>, <span class="ic">!=</span>, <span class="ic">&lt;</span>, <span class="ic">&gt;</span>, <span class="ic">&lt;=</span>, <span class="ic">&gt;=</span>. The condition is checked before every iteration — including the very first one.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Indentation Is the Loop Body</div>
+                <div class="card-desc">Python uses indentation — not braces — to define which lines belong to the loop. The standard is 4 spaces. Every line indented under the <span class="ic">while</span> statement is part of the loop body. The first un-indented line ends the loop.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">The Exit Condition</div>
+                <div class="card-desc">Something inside the loop must eventually cause the condition to become False. Usually this means updating a variable that the condition tests. Forgetting this creates an infinite loop — the program runs until you manually stop it.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Mental model:</strong> Read a while loop as a repeated question. "While counter is less than 10 — is that still true? Yes — run the body. Check again. Still true? Run the body again. Now it is False — stop."
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — WHILE LOOP COUNTDOWN ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 34</div>
+        <div class="slide-title">while Loop: <span class="accent">Countdown Timer</span></div>
+        <div class="slide-subtitle">A concrete first example — trace every step manually before running it.</div>
+
+        <div class="code-block"><span class="cm"># Countdown from 5 to 1, then print "Launch"</span>
+countdown = <span class="nb">5</span>
+
+<span class="kw">while</span> countdown &gt; <span class="nb">0</span>:
+    <span class="fn">print</span>(<span class="st">f"T-minus {countdown}..."</span>)
+    countdown -= <span class="nb">1</span>          <span class="cm"># same as: countdown = countdown - 1</span>
+
+<span class="fn">print</span>(<span class="st">"Launch!"</span>)             <span class="cm"># runs after the loop ends — not indented</span>
+
+<span class="cm"># Output:</span>
+<span class="cm"># T-minus 5...</span>
+<span class="cm"># T-minus 4...</span>
+<span class="cm"># T-minus 3...</span>
+<span class="cm"># T-minus 2...</span>
+<span class="cm"># T-minus 1...</span>
+<span class="cm"># Launch!</span></div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Iteration 1</div>
+                <div class="card-desc">countdown = 5. Condition: 5 &gt; 0 is True. Print "T-minus 5...". Subtract 1. countdown is now 4. Return to condition check.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Iterations 2 Through 5</div>
+                <div class="card-desc">Same pattern repeats for 4, 3, 2, 1. Each time: check condition, print, subtract 1. After iteration 5, countdown becomes 0.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Iteration 6 Attempt</div>
+                <div class="card-desc">countdown = 0. Condition: 0 &gt; 0 is False. Loop exits immediately. "Launch!" prints because it is not indented — it runs once after the loop.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — INFINITE LOOPS ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 34</div>
+        <div class="slide-title">Infinite Loops: <span class="accent">How to Avoid Them</span></div>
+        <div class="slide-subtitle">When the condition never becomes False, the loop runs until the program is killed.</div>
+
+        <div class="code-2col">
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">Broken — infinite loop</div>
+                <div class="code-block"><span class="cm"># BUG: counter never changes</span>
+counter = <span class="nb">1</span>
+<span class="kw">while</span> counter &lt; <span class="nb">5</span>:
+    <span class="fn">print</span>(<span class="st">"Still going..."</span>)
+    <span class="cm"># counter += 1 is missing</span>
+    <span class="cm"># This prints forever until Ctrl+C</span></div>
+            </div>
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">Fixed — counter updates each iteration</div>
+                <div class="code-block"><span class="cm"># Correct: counter increments</span>
+counter = <span class="nb">1</span>
+<span class="kw">while</span> counter &lt; <span class="nb">5</span>:
+    <span class="fn">print</span>(<span class="st">f"Iteration {counter}"</span>)
+    counter += <span class="nb">1</span>   <span class="cm"># essential</span>
+
+<span class="cm"># Output:</span>
+<span class="cm"># Iteration 1</span>
+<span class="cm"># Iteration 2</span>
+<span class="cm"># Iteration 3</span>
+<span class="cm"># Iteration 4</span></div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Three Causes of Infinite Loops</div>
+                <div class="card-desc">1. Forgetting to update the variable the condition tests. 2. Updating it in the wrong direction (adding when you should subtract). 3. Using <span class="ic">while True:</span> without a <span class="ic">break</span> statement inside. All three are common beginner errors.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Intentional Infinite Loops</div>
+                <div class="card-desc"><span class="ic">while True:</span> is valid when you deliberately want to loop until an explicit exit — for example, a menu that keeps showing until the user types "quit." These require a <span class="ic">break</span> statement (covered on Slide 21) to escape.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">How to Stop a Runaway Loop</div>
+                <div class="card-desc">In any terminal: press <span class="ic">Ctrl+C</span>. This sends a KeyboardInterrupt to Python and terminates the program immediately. In VS Code: click the stop button in the terminal panel. In IDLE: close the interpreter window.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — WHILE WITH COUNTER ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 34</div>
+        <div class="slide-title">while Loop: <span class="accent">Using a Counter Variable</span></div>
+        <div class="slide-subtitle">The counter pattern drives the majority of while loops in practice.</div>
+
+        <div class="code-block"><span class="cm"># Check the first 10 servers in a rack (numbered 1 through 10)</span>
+server_num = <span class="nb">1</span>          <span class="cm"># initialize counter BEFORE the loop</span>
+
+<span class="kw">while</span> server_num &lt;= <span class="nb">10</span>:
+    <span class="fn">print</span>(<span class="st">f"Pinging 192.168.1.{server_num} ..."</span>)
+    server_num += <span class="nb">1</span>     <span class="cm"># increment INSIDE the loop body</span>
+
+<span class="fn">print</span>(<span class="st">f"Done. Final counter value: {server_num}"</span>)
+
+<span class="cm"># Output:</span>
+<span class="cm"># Pinging 192.168.1.1 ...</span>
+<span class="cm"># Pinging 192.168.1.2 ...</span>
+<span class="cm"># Pinging 192.168.1.3 ...</span>
+<span class="cm"># ...  (through .10)</span>
+<span class="cm"># Pinging 192.168.1.10 ...</span>
+<span class="cm"># Done. Final counter value: 11</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Counter Value After the Loop</div>
+                <div class="card-desc">After the loop, <span class="ic">server_num</span> equals 11, not 10. The increment runs after the last valid iteration, making the value 11 before the condition check fails. This is expected — the variable remains accessible and holds its last-updated value.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Three Counter Rules</div>
+                <div class="card-desc">1. Initialize the counter before the loop. 2. Use the counter in the condition. 3. Update the counter inside the loop body. Skip any one of these and you get the wrong result or an infinite loop. All three are required, every time.</div>
+            </div>
+        </div>
+
+        <div class="box box-green" style="font-size:0.83rem;">
+            <div class="box-label">IT Application</div>
+            The IP address last octet increments with the counter — <span class="ic">192.168.1.1</span> through <span class="ic">192.168.1.10</span>. Real network scripts use this pattern to generate sequential IP addresses for ping sweeps, port scans, and SNMP polling without hardcoding every address.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — SENTINEL PATTERN ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 34</div>
+        <div class="slide-title">while Loop: <span class="accent">Sentinel Pattern</span></div>
+        <div class="slide-subtitle">Loop until the user signals they are done — you do not know in advance how many iterations.</div>
+
+        <div class="code-block"><span class="cm"># Accept hostnames to check until the user types "quit"</span>
+<span class="cm"># A sentinel value is a special input that signals "stop processing"</span>
+
+host = <span class="fn">input</span>(<span class="st">"Enter hostname to check (or 'quit' to stop): "</span>)
+
+<span class="kw">while</span> host != <span class="st">"quit"</span>:
+    <span class="fn">print</span>(<span class="st">f"Checking connectivity to: {host}"</span>)
+    <span class="cm"># In a real script this line would call subprocess.run(["ping", host])</span>
+    host = <span class="fn">input</span>(<span class="st">"Enter hostname to check (or 'quit' to stop): "</span>)
+
+<span class="fn">print</span>(<span class="st">"Session ended."</span>)
+
+<span class="cm"># Example run:</span>
+<span class="cm"># Enter hostname: webserver-01   -> Checking connectivity to: webserver-01</span>
+<span class="cm"># Enter hostname: db-primary     -> Checking connectivity to: db-primary</span>
+<span class="cm"># Enter hostname: quit           -> Session ended.</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">What Is a Sentinel Value?</div>
+                <div class="card-desc">A sentinel is a special value that the program watches for as a control signal to stop. Here "quit" is the sentinel — it is not actual hostname data. Common sentinels include <span class="ic">"quit"</span>, <span class="ic">"done"</span>, <span class="ic">"exit"</span>, <span class="ic">-1</span>, and <span class="ic">0</span>.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why input() Appears Twice</div>
+                <div class="card-desc">The first call reads the initial value before the loop starts — this is called "priming" the loop. The second call at the bottom of the loop body reads the next value. Without the second call, the loop would check the same initial input forever.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — FOR LOOP SYNTAX ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 34</div>
+        <div class="slide-title">The <span class="accent">for</span> Loop: Syntax</div>
+        <div class="slide-subtitle">Iterate over every item in a sequence — one at a time, automatically.</div>
+
+        <div class="code-block"><span class="cm"># General for loop structure</span>
+<span class="kw">for</span> variable <span class="kw">in</span> sequence:
+    <span class="cm"># loop body — executes once for each item in the sequence</span>
+    statement_using_variable
+
+<span class="cm"># variable takes the value of each item on each iteration</span>
+<span class="cm"># When all items are exhausted, the loop ends automatically — no condition to manage</span></div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">The Loop Variable</div>
+                <div class="card-desc">The variable before <span class="ic">in</span> (commonly <span class="ic">i</span>, <span class="ic">item</span>, <span class="ic">num</span>, or something descriptive) is automatically assigned each successive value from the sequence. You do not need to initialize it or update it — Python handles both.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">What Counts as a Sequence?</div>
+                <div class="card-desc">Any iterable object: a <span class="ic">range()</span> of numbers, a string (individual characters), a list, a tuple, a dictionary, or the lines of a file. For loops work with all of them using the exact same syntax.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">for vs while — the Fundamental Difference</div>
+                <div class="card-desc">A <span class="ic">for</span> loop is automatic — Python advances the loop variable. A <span class="ic">while</span> loop is manual — you must update the condition yourself. For loops cannot accidentally become infinite because they stop when the sequence runs out.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Key insight:</strong> Use a <span class="ic">for</span> loop when you know what you are iterating over. Use a <span class="ic">while</span> loop when you loop based on a condition that changes in ways you cannot predict from a fixed sequence.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — TRY IT NOW ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 34 &nbsp;|&nbsp; Try It Now</div>
+        <div class="slide-title">Try It Now: <span class="accent">For Loop</span></div>
+        <div class="slide-subtitle">Use a for loop to print numbers.</div>
+        <div class="try-it-now"
+             data-starter="# Print the numbers 1 through 5, each on its own line&#10;"
+             data-solution="for i in range(1, 6):&#10;    print(i)"
+             data-expected="1
+2
+3
+4
+5"
+             data-height="100">
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 10 — FOR OVER STRINGS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 34</div>
+        <div class="slide-title">for Loop: <span class="accent">Iterating Over a String</span></div>
+        <div class="slide-subtitle">Strings are sequences of characters — for loops visit each one in order.</div>
+
+        <div class="code-block"><span class="cm"># Print each character in a hostname — one per line</span>
+hostname = <span class="st">"webserver01"</span>
+
+<span class="kw">for</span> char <span class="kw">in</span> hostname:
+    <span class="fn">print</span>(char)
+
+<span class="cm"># Output: w  e  b  s  e  r  v  e  r  0  1  (each on its own line)</span></div>
+
+        <div class="code-2col">
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">Count digits in a hostname</div>
+                <div class="code-block">hostname = <span class="st">"webserver01"</span>
+digit_count = <span class="nb">0</span>
+<span class="kw">for</span> char <span class="kw">in</span> hostname:
+    <span class="kw">if</span> char.isdigit():
+        digit_count += <span class="nb">1</span>
+<span class="fn">print</span>(<span class="st">f"Digits found: {digit_count}"</span>)
+<span class="cm"># Digits found: 2</span></div>
+            </div>
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">Validate a password contains a digit</div>
+                <div class="code-block">password = <span class="st">"MySecurePass"</span>
+has_digit = <span class="nb">False</span>
+<span class="kw">for</span> char <span class="kw">in</span> password:
+    <span class="kw">if</span> char.isdigit():
+        has_digit = <span class="nb">True</span>
+<span class="kw">if not</span> has_digit:
+    <span class="fn">print</span>(<span class="st">"Weak: no digit found"</span>)</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            String iteration is the foundation of text processing in Python — log line parsing, hostname validation, password policy enforcement, and config file scanning all rely on looping over individual characters or tokens.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — FOR OVER LISTS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 34</div>
+        <div class="slide-title">for Loop: <span class="accent">Iterating Over a List</span></div>
+        <div class="slide-subtitle">Lists are the most common sequence type you will loop over in IT automation scripts.</div>
+
+        <div class="code-block"><span class="cm"># Check a list of servers — this is how real automation scripts work</span>
+servers = [<span class="st">"web-01"</span>, <span class="st">"web-02"</span>, <span class="st">"db-primary"</span>, <span class="st">"db-replica"</span>, <span class="st">"mail-01"</span>]
+
+<span class="kw">for</span> server <span class="kw">in</span> servers:
+    <span class="fn">print</span>(<span class="st">f"Checking status of: {server}"</span>)
+
+<span class="cm"># Output:</span>
+<span class="cm"># Checking status of: web-01</span>
+<span class="cm"># Checking status of: web-02</span>
+<span class="cm"># Checking status of: db-primary</span>
+<span class="cm"># Checking status of: db-replica</span>
+<span class="cm"># Checking status of: mail-01</span></div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Descriptive Loop Variable Names</div>
+                <div class="card-desc">Naming the loop variable <span class="ic">server</span> instead of <span class="ic">i</span> or <span class="ic">x</span> makes the code self-documenting. "For each server in servers" reads like plain English. This practice matters when you return to scripts weeks later or hand them off to colleagues.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Loop Length Is Automatic</div>
+                <div class="card-desc">Python automatically runs the loop once for each item. You wrote no comparison, no counter, no increment. If the list grows to 100 servers tomorrow, the loop handles it with zero code changes. This is why for loops are preferred for sequences.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Complex Operations Inside</div>
+                <div class="card-desc">The loop body can include function calls, conditionals, nested loops, file writes — anything you know from Days 1 and 2. Loops are not limited to a single print statement. The body is ordinary Python code that runs once per iteration.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — RANGE() ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 34</div>
+        <div class="slide-title">The <span class="accent">range()</span> Function</div>
+        <div class="slide-subtitle">Generate a sequence of integers without typing them all out.</div>
+
+        <div class="code-block"><span class="cm"># Three forms of range() — wrap in list() to see all values at once</span>
+
+<span class="cm"># 1. range(stop) — starts at 0, stops BEFORE stop</span>
+<span class="fn">list</span>(<span class="fn">range</span>(<span class="nb">5</span>))         <span class="cm"># [0, 1, 2, 3, 4]</span>
+
+<span class="cm"># 2. range(start, stop) — starts at start, stops BEFORE stop</span>
+<span class="fn">list</span>(<span class="fn">range</span>(<span class="nb">1</span>, <span class="nb">6</span>))      <span class="cm"># [1, 2, 3, 4, 5]</span>
+
+<span class="cm"># 3. range(start, stop, step) — jumps by step each time</span>
+<span class="fn">list</span>(<span class="fn">range</span>(<span class="nb">0</span>, <span class="nb">10</span>, <span class="nb">2</span>))  <span class="cm"># [0, 2, 4, 6, 8]</span>
+<span class="fn">list</span>(<span class="fn">range</span>(<span class="nb">10</span>, <span class="nb">0</span>, <span class="nb">-1</span>)) <span class="cm"># [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]</span></div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">range(stop)</div>
+                <div class="card-desc">Starts at 0 by default. Stops before the stop value — not including it. <span class="ic">range(5)</span> gives 0, 1, 2, 3, 4 — five values, not six. The exclusive upper bound is the most common source of off-by-one errors for beginners.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">range(start, stop)</div>
+                <div class="card-desc">Control where counting begins. <span class="ic">range(1, 11)</span> gives 1 through 10 — useful when your data starts at 1. Server numbers, port ranges, employee IDs, and most real-world sequences start at 1, not 0.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">range(start, stop, step)</div>
+                <div class="card-desc">Skip by any amount. <span class="ic">range(0, 256, 16)</span> counts by 16s — useful for subnet boundary calculations. A negative step counts backwards. <span class="ic">range(100, 0, -1)</span> counts down from 100 to 1. Step cannot be 0.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan" style="font-size:0.83rem;">
+            <strong>Memory trick:</strong> range() arguments follow the same pattern as Python slice notation — [start : stop : step]. The stop value is always excluded. Think "up to but not including." This applies to both range() and list slicing.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — RANGE EXAMPLES ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 34</div>
+        <div class="slide-title">range() <span class="accent">Examples in Context</span></div>
+        <div class="slide-subtitle">Counting by 2s, counting backwards, and IT-specific applications.</div>
+
+        <div class="code-block"><span class="cm"># Even numbers from 0 to 20</span>
+<span class="kw">for</span> n <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">0</span>, <span class="nb">22</span>, <span class="nb">2</span>):
+    <span class="fn">print</span>(n, end=<span class="st">" "</span>)
+<span class="cm"># Output: 0 2 4 6 8 10 12 14 16 18 20</span>
+
+<span class="cm"># Countdown from 10 to 1</span>
+<span class="kw">for</span> n <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">10</span>, <span class="nb">0</span>, <span class="nb">-1</span>):
+    <span class="fn">print</span>(n, end=<span class="st">" "</span>)
+<span class="cm"># Output: 10 9 8 7 6 5 4 3 2 1</span>
+
+<span class="cm"># Scan sequential ports 1 through 1024 (well-known port range)</span>
+<span class="kw">for</span> port <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">1</span>, <span class="nb">1025</span>):
+    <span class="fn">print</span>(<span class="st">f"Probing port {port}"</span>)
+
+<span class="cm"># Scan non-sequential ports — use a list when values are not in a pattern</span>
+<span class="kw">for</span> port <span class="kw">in</span> [<span class="nb">22</span>, <span class="nb">80</span>, <span class="nb">443</span>, <span class="nb">3389</span>, <span class="nb">8080</span>, <span class="nb">8443</span>]:
+    <span class="fn">print</span>(<span class="st">f"Checking port {port}"</span>)</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">end=" " Parameter in print()</div>
+                <div class="card-desc"><span class="ic">print(n, end=" ")</span> prints the value followed by a space instead of a newline. All values appear on one line. The default <span class="ic">end</span> value is <span class="ic">"\n"</span>. Changing it is useful for formatting compact, horizontal output.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">range() Is Memory-Efficient</div>
+                <div class="card-desc"><span class="ic">range(1, 1025)</span> does not create a list of 1,024 numbers in memory. It generates each value on demand — this is called lazy evaluation. <span class="ic">range(1, 1000000)</span> uses the same tiny amount of memory as <span class="ic">range(1, 10)</span>. Always prefer range() over manually built integer lists.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — FOR LOOP WITH RANGE ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 34</div>
+        <div class="slide-title">for Loop with <span class="accent">range()</span></div>
+        <div class="slide-subtitle">The classic indexed loop — use when you need both the position and the value.</div>
+
+        <div class="code-block"><span class="cm"># Print a numbered maintenance checklist</span>
+tasks = [<span class="st">"Backup database"</span>, <span class="st">"Patch OS"</span>, <span class="st">"Rotate logs"</span>, <span class="st">"Verify firewall rules"</span>]
+
+<span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="fn">len</span>(tasks)):
+    <span class="fn">print</span>(<span class="st">f"Task {i + 1}: {tasks[i]}"</span>)
+
+<span class="cm"># Output:</span>
+<span class="cm"># Task 1: Backup database</span>
+<span class="cm"># Task 2: Patch OS</span>
+<span class="cm"># Task 3: Rotate logs</span>
+<span class="cm"># Task 4: Verify firewall rules</span></div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">len() Returns the Item Count</div>
+                <div class="card-desc"><span class="ic">len(tasks)</span> returns 4. <span class="ic">range(len(tasks))</span> is <span class="ic">range(4)</span>, yielding 0, 1, 2, 3 — exactly the valid index positions. This pattern works regardless of how long the list is. If tasks grows to 20 items, the loop adapts automatically.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">i + 1 for Display</div>
+                <div class="card-desc">List indices start at 0, but users expect numbered lists to start at 1. Printing <span class="ic">i + 1</span> as the task number gives human-readable output without changing the actual index. The bracket access <span class="ic">tasks[i]</span> still uses the correct 0-based index.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Simpler When You Do Not Need the Index</div>
+                <div class="card-desc"><span class="ic">for task in tasks:</span> is cleaner when you only need the value, not its position. Use <span class="ic">range(len(...))</span> only when you need to know where each item is, or when you need to modify items by index inside the loop body.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 15 — WHILE VS FOR ==================== -->
+<section class="slide" id="slide-15">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 15 of 34</div>
+        <div class="slide-title">while vs for: <span class="accent">When to Use Each</span></div>
+        <div class="slide-subtitle">Both loops work in many situations — but one is almost always the cleaner choice.</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Use for When...</div>
+                <div class="card-desc">
+                    You know exactly what you are iterating over at the start.<br><br>
+                    -- Iterating over a list, string, or range<br>
+                    -- Running exactly N times<br>
+                    -- Processing every item in a collection<br><br>
+                    <span class="ic">for server in server_list:</span><br>
+                    <span class="ic">for i in range(10):</span><br>
+                    <span class="ic">for line in log_file:</span>
+                </div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Use while When...</div>
+                <div class="card-desc">
+                    You loop based on a condition that changes unpredictably.<br><br>
+                    -- Waiting for user input to match a sentinel value<br>
+                    -- Retrying an operation until it succeeds<br>
+                    -- Running a service loop that depends on external state<br><br>
+                    <span class="ic">while user_input != "quit":</span><br>
+                    <span class="ic">while not connected:</span><br>
+                    <span class="ic">while attempts &lt; max_retries:</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="code-2col">
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">Retry logic — condition-driven (while)</div>
+                <div class="code-block">attempts = <span class="nb">0</span>
+connected = <span class="nb">False</span>
+<span class="kw">while not</span> connected <span class="kw">and</span> attempts &lt; <span class="nb">3</span>:
+    connected = try_connect()
+    attempts += <span class="nb">1</span></div>
+            </div>
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">Batch processing — sequence-driven (for)</div>
+                <div class="code-block"><span class="kw">for</span> host <span class="kw">in</span> host_list:
+    result = ping(host)
+    log_result(host, result)</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 16 — COUNTING PATTERN ==================== -->
+<section class="slide" id="slide-16">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 16 of 34</div>
+        <div class="slide-title">Loop Pattern: <span class="accent">Counting</span></div>
+        <div class="slide-subtitle">Count how many items inside a collection meet a specific condition.</div>
+
+        <div class="code-block"><span class="cm"># Count how many hosts responded vs how many timed out</span>
+results = [<span class="st">"up"</span>, <span class="st">"up"</span>, <span class="st">"timeout"</span>, <span class="st">"up"</span>, <span class="st">"timeout"</span>, <span class="st">"up"</span>, <span class="st">"up"</span>]
+
+up_count      = <span class="nb">0</span>    <span class="cm"># initialize counters to zero BEFORE the loop</span>
+timeout_count = <span class="nb">0</span>
+
+<span class="kw">for</span> status <span class="kw">in</span> results:
+    <span class="kw">if</span> status == <span class="st">"up"</span>:
+        up_count += <span class="nb">1</span>       <span class="cm"># increment when condition is met</span>
+    <span class="kw">else</span>:
+        timeout_count += <span class="nb">1</span>
+
+<span class="fn">print</span>(<span class="st">f"Hosts up:      {up_count}"</span>)        <span class="cm"># Hosts up:      5</span>
+<span class="fn">print</span>(<span class="st">f"Timed out:     {timeout_count}"</span>)   <span class="cm"># Timed out:     2</span></div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">The Pattern in Three Steps</div>
+                <div class="card-desc">1. Initialize counter variables to 0 before the loop. 2. Inside the loop, check each item with an if statement. 3. Increment the matching counter. Read the final counts after the loop ends. This three-step structure never changes.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Why Initialize to 0?</div>
+                <div class="card-desc">The counter must exist before the first iteration. If you write <span class="ic">up_count += 1</span> without first defining <span class="ic">up_count = 0</span>, Python raises a <span class="ic">NameError: name 'up_count' is not defined</span>. Always initialize before the loop — no exceptions.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">IT Applications</div>
+                <div class="card-desc">Count ERROR lines in a log file. Count failed login attempts in an auth log. Count devices running a deprecated OS version. Count open ports above 1024. Counting is one of the most frequent operations in monitoring and security audit scripts.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 17 — ACCUMULATOR PATTERN ==================== -->
+<section class="slide" id="slide-17">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 17 of 34</div>
+        <div class="slide-title">Loop Pattern: <span class="accent">Accumulator</span></div>
+        <div class="slide-subtitle">Build a running total — numeric sum, string, or list — across all iterations.</div>
+
+        <div class="code-block"><span class="cm"># Calculate total and average disk usage across servers (in GB)</span>
+disk_usage_gb = [<span class="nb">128</span>, <span class="nb">256</span>, <span class="nb">512</span>, <span class="nb">64</span>, <span class="nb">512</span>, <span class="nb">128</span>]
+
+total = <span class="nb">0</span>                    <span class="cm"># accumulator starts at 0 (identity value for addition)</span>
+<span class="kw">for</span> usage <span class="kw">in</span> disk_usage_gb:
+    total += usage             <span class="cm"># add each value to the running total</span>
+
+average = total / <span class="fn">len</span>(disk_usage_gb)
+<span class="fn">print</span>(<span class="st">f"Total disk in use: {total} GB"</span>)          <span class="cm"># Total disk in use: 1600 GB</span>
+<span class="fn">print</span>(<span class="st">f"Average per server: {average:.1f} GB"</span>)    <span class="cm"># Average per server: 266.7 GB</span>
+
+<span class="cm"># String accumulator — build a comma-separated report line</span>
+report = <span class="st">""</span>                   <span class="cm"># accumulator starts as empty string</span>
+<span class="kw">for</span> usage <span class="kw">in</span> disk_usage_gb:
+    report += <span class="fn">str</span>(usage) + <span class="st">" GB, "</span>
+<span class="fn">print</span>(report)   <span class="cm"># 128 GB, 256 GB, 512 GB, 64 GB, 512 GB, 128 GB,</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Choosing the Starting Value</div>
+                <div class="card-desc">For addition: start at <span class="ic">0</span>. For multiplication (product): start at <span class="ic">1</span>. For string building: start at <span class="ic">""</span>. For list building: start at <span class="ic">[]</span>. The starting value must be the identity element — a value that does not affect the final result when combined with any first item.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">:.1f Format Specifier</div>
+                <div class="card-desc">Inside an f-string, <span class="ic">:.1f</span> formats a float to one decimal place. <span class="ic">:.2f</span> gives two decimals. <span class="ic">:,</span> adds thousands separators. <span class="ic">:8.2f</span> right-aligns in an 8-character-wide field. These format specifiers make numeric output readable without importing any libraries.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 18 — TRY IT NOW ==================== -->
+<section class="slide" id="slide-18">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 18 of 34 &nbsp;|&nbsp; Try It Now</div>
+        <div class="slide-title">Try It Now: <span class="accent">Loop with Accumulator</span></div>
+        <div class="slide-subtitle">Sum up a list of numbers using a loop.</div>
+        <div class="try-it-now"
+             data-starter="prices = [12.99, 45.50, 8.75, 23.00, 15.25]&#10;total = 0&#10;&#10;# Add each price to total, then print the total&#10;"
+             data-solution="prices = [12.99, 45.50, 8.75, 23.00, 15.25]&#10;total = 0&#10;for p in prices:&#10;    total += p&#10;print(f&quot;Total: ${total:.2f}&quot;)"
+             data-expected="Total: $105.49"
+             data-height="120">
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== SLIDE 19 — INPUT VALIDATION LOOP ==================== -->
+<section class="slide" id="slide-19">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 19 of 34</div>
+        <div class="slide-title">Loop Pattern: <span class="accent">Input Validation</span></div>
+        <div class="slide-subtitle">Keep asking until the user provides acceptable input — never trust raw unvalidated data.</div>
+
+        <div class="code-block"><span class="cm"># Ask for a port number between 1 and 65535</span>
+<span class="cm"># Keep looping until the user enters a valid value</span>
+
+port = <span class="nb">0</span>                                     <span class="cm"># initialize to a failing value to enter the loop</span>
+
+<span class="kw">while</span> port &lt; <span class="nb">1</span> <span class="kw">or</span> port &gt; <span class="nb">65535</span>:
+    raw = <span class="fn">input</span>(<span class="st">"Enter a port number (1-65535): "</span>)
+    <span class="kw">if</span> raw.isdigit():
+        port = <span class="fn">int</span>(raw)
+        <span class="kw">if</span> port &lt; <span class="nb">1</span> <span class="kw">or</span> port &gt; <span class="nb">65535</span>:
+            <span class="fn">print</span>(<span class="st">"Out of valid range. Try again."</span>)
+    <span class="kw">else</span>:
+        <span class="fn">print</span>(<span class="st">"That is not a number. Try again."</span>)
+
+<span class="fn">print</span>(<span class="st">f"You selected port {port}"</span>)
+
+<span class="cm"># Example run:</span>
+<span class="cm"># Enter a port number: abc    -> That is not a number. Try again.</span>
+<span class="cm"># Enter a port number: 99999  -> Out of valid range. Try again.</span>
+<span class="cm"># Enter a port number: 443    -> You selected port 443</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Why Validate Input?</div>
+                <div class="card-desc">User input is the most unpredictable data source in any program. An unvalidated port could be a letter, a negative number, or 0 — all of which would crash a network function. Input validation loops are both a security and a reliability practice. Never pass raw input directly to system calls.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">isdigit() Before int()</div>
+                <div class="card-desc"><span class="ic">str.isdigit()</span> returns True if every character is a digit. Always check this before calling <span class="ic">int()</span> — calling <span class="ic">int("abc")</span> raises a <span class="ic">ValueError</span> and crashes the program. Guard every type conversion. Day 5 covers proper exception handling with try/except as a more advanced alternative.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 20 — NESTED LOOPS ==================== -->
+<section class="slide" id="slide-20">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 20 of 34</div>
+        <div class="slide-title">Nested Loops: <span class="accent">Loops Inside Loops</span></div>
+        <div class="slide-subtitle">Combine two dimensions of iteration — hosts and ports, rows and columns, VLANs and switches.</div>
+
+        <div class="code-block"><span class="cm"># Nested loop structure — outer loop runs, inner loop runs COMPLETELY, then outer advances</span>
+<span class="kw">for</span> outer <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">1</span>, <span class="nb">4</span>):        <span class="cm"># outer runs 3 times: values 1, 2, 3</span>
+    <span class="kw">for</span> inner <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">1</span>, <span class="nb">4</span>):    <span class="cm"># inner runs 3 times PER outer iteration</span>
+        <span class="fn">print</span>(<span class="st">f"outer={outer} inner={inner}"</span>)
+
+<span class="cm"># Output (9 lines total — 3 x 3):</span>
+<span class="cm"># outer=1 inner=1    outer=1 inner=2    outer=1 inner=3</span>
+<span class="cm"># outer=2 inner=1    outer=2 inner=2    outer=2 inner=3</span>
+<span class="cm"># outer=3 inner=1    outer=3 inner=2    outer=3 inner=3</span></div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Indentation Defines Nesting</div>
+                <div class="card-desc">The inner loop is indented inside the outer loop body. The print statement is indented inside the inner loop body. Each level of nesting requires one additional indent (4 more spaces). Python uses indentation alone — no braces — to determine which loop a statement belongs to.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Iteration Count Multiplies</div>
+                <div class="card-desc">If the outer loop runs M times and the inner loop runs N times, total iterations = M x N. A 3x3 nested loop runs 9 times. A 100x100 nested loop runs 10,000 times. Be deliberate about nested loops over large data sets — they scale quadratically.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">IT Use Case</div>
+                <div class="card-desc">Scan every host against every port: outer loop over hosts, inner loop over ports. Check every switch on every VLAN: outer loop over VLANs, inner loop over switches. Any two-dimensional scan or combination check requires nested loops.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 21 — MULTIPLICATION TABLE ==================== -->
+<section class="slide" id="slide-21">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 21 of 34</div>
+        <div class="slide-title">Nested Loops: <span class="accent">Multiplication Table</span></div>
+        <div class="slide-subtitle">A classic nested loop exercise that produces aligned two-dimensional output.</div>
+
+        <div class="code-block"><span class="cm"># Print a 5x5 multiplication table — uses nested loops + width formatting</span>
+<span class="kw">for</span> row <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">1</span>, <span class="nb">6</span>):            <span class="cm"># outer: rows 1 through 5</span>
+    <span class="kw">for</span> col <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">1</span>, <span class="nb">6</span>):        <span class="cm"># inner: columns 1 through 5</span>
+        product = row * col
+        <span class="fn">print</span>(<span class="st">f"{product:3}"</span>, end=<span class="st">""</span>)  <span class="cm"># :3 pads to 3 chars wide; end="" stays on same line</span>
+    <span class="fn">print</span>()                         <span class="cm"># newline after each row — aligned with outer loop, not inner</span>
+
+<span class="cm"># Output:</span>
+<span class="cm">#   1  2  3  4  5</span>
+<span class="cm">#   2  4  6  8 10</span>
+<span class="cm">#   3  6  9 12 15</span>
+<span class="cm">#   4  8 12 16 20</span>
+<span class="cm">#   5 10 15 20 25</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">:3 Width Specifier</div>
+                <div class="card-desc"><span class="ic">{product:3}</span> right-aligns the number in a field 3 characters wide. Single-digit numbers get 2 leading spaces; two-digit numbers get 1 leading space. This keeps columns aligned. Width specifiers are essential for tabular output in reports, audit summaries, and dashboards.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Placement of the bare print()</div>
+                <div class="card-desc">The bare <span class="ic">print()</span> with no arguments outputs just a newline. Its indentation level matters: aligned with the outer for loop body, it runs once per row (after all 5 columns print). If you accidentally indent it further, it runs after every single cell instead.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 22 — PATTERN PRINTING ==================== -->
+<section class="slide" id="slide-22">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 22 of 34</div>
+        <div class="slide-title">Nested Loops: <span class="accent">Pattern Printing</span></div>
+        <div class="slide-subtitle">Triangles and host-port combinations — a test of indentation mastery.</div>
+
+        <div class="code-2col">
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">Right triangle — inner range grows with outer</div>
+                <div class="code-block"><span class="kw">for</span> row <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">1</span>, <span class="nb">6</span>):
+    <span class="kw">for</span> col <span class="kw">in</span> <span class="fn">range</span>(row):
+        <span class="fn">print</span>(<span class="st">"*"</span>, end=<span class="st">""</span>)
+    <span class="fn">print</span>()
+
+<span class="cm"># Output:</span>
+<span class="cm"># *</span>
+<span class="cm"># **</span>
+<span class="cm"># ***</span>
+<span class="cm"># ****</span>
+<span class="cm"># *****</span></div>
+            </div>
+            <div>
+                <div class="section-label" style="margin-bottom:6px;">Host-port scanner skeleton (IT application)</div>
+                <div class="code-block">hosts = [<span class="st">"10.0.1.1"</span>, <span class="st">"10.0.1.2"</span>]
+ports = [<span class="nb">22</span>, <span class="nb">80</span>, <span class="nb">443</span>]
+
+<span class="kw">for</span> host <span class="kw">in</span> hosts:
+    <span class="kw">for</span> port <span class="kw">in</span> ports:
+        <span class="fn">print</span>(<span class="st">f"Scan {host}:{port}"</span>)
+
+<span class="cm"># Scan 10.0.1.1:22</span>
+<span class="cm"># Scan 10.0.1.1:80</span>
+<span class="cm"># Scan 10.0.1.1:443</span>
+<span class="cm"># Scan 10.0.1.2:22</span>
+<span class="cm"># Scan 10.0.1.2:80</span>
+<span class="cm"># Scan 10.0.1.2:443</span></div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Pattern insight:</strong> In the triangle, the inner <span class="ic">range(row)</span> grows because it uses the outer loop variable as its stop value. When row is 1, the inner loop runs once. When row is 5, it runs 5 times. The outer variable feeds directly into the inner loop's range — this technique unlocks many useful two-dimensional patterns.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 23 — BREAK ==================== -->
+<section class="slide" id="slide-23">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 23 of 34</div>
+        <div class="slide-title">The <span class="accent">break</span> Statement</div>
+        <div class="slide-subtitle">Exit the loop immediately — regardless of the condition or remaining items.</div>
+
+        <div class="code-block"><span class="cm"># Scan a list of hosts — stop as soon as one fails to respond</span>
+hosts = [<span class="st">"10.0.1.1"</span>, <span class="st">"10.0.1.2"</span>, <span class="st">"10.0.1.3"</span>, <span class="st">"10.0.1.4"</span>, <span class="st">"10.0.1.5"</span>]
+failed_host = <span class="nb">None</span>
+
+<span class="kw">for</span> host <span class="kw">in</span> hosts:
+    status = ping_host(host)           <span class="cm"># returns "up" or "down" (hypothetical function)</span>
+    <span class="kw">if</span> status == <span class="st">"down"</span>:
+        failed_host = host
+        <span class="kw">break</span>                          <span class="cm"># exit the loop right now — skip remaining hosts</span>
+    <span class="fn">print</span>(<span class="st">f"{host} is up"</span>)
+
+<span class="kw">if</span> failed_host:
+    <span class="fn">print</span>(<span class="st">f"ALERT: {failed_host} did not respond. Stopping scan."</span>)
+<span class="kw">else</span>:
+    <span class="fn">print</span>(<span class="st">"All hosts responded."</span>)</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What break Does</div>
+                <div class="card-desc"><span class="ic">break</span> immediately exits the enclosing loop. Any remaining items in the sequence are skipped entirely. Execution resumes on the first line after the loop body. The loop's <span class="ic">else</span> clause, if present, does not run when break triggers.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">break in Nested Loops</div>
+                <div class="card-desc"><span class="ic">break</span> exits only the innermost loop it is inside. If you have two nested loops and want to exit both, use a flag variable: set <span class="ic">found = True</span> in the inner loop, then check <span class="ic">if found: break</span> in the outer loop. This is a common pattern in search problems.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">IT Use Cases</div>
+                <div class="card-desc">Stop scanning when the first critical error is found. Stop retrying a connection after too many failures. Stop processing log lines after finding the specific event you searched for. Break is the "objective reached — exit immediately" instruction.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 24 — CONTINUE ==================== -->
+<section class="slide" id="slide-24">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 24 of 34</div>
+        <div class="slide-title">The <span class="accent">continue</span> Statement</div>
+        <div class="slide-subtitle">Skip the rest of this iteration and move immediately to the next one.</div>
+
+        <div class="code-block"><span class="cm"># Process log lines — skip blank lines and comment lines, process the rest</span>
+log_lines = [
+    <span class="st">"2024-11-01 ERROR Failed login from 203.0.113.5"</span>,
+    <span class="st">""</span>,                                         <span class="cm"># blank line — skip it</span>
+    <span class="st">"# maintenance window notes"</span>,               <span class="cm"># comment line — skip it</span>
+    <span class="st">"2024-11-01 INFO  Service restarted"</span>,
+    <span class="st">"2024-11-01 WARN  Disk usage at 87%"</span>,
+]
+
+<span class="kw">for</span> line <span class="kw">in</span> log_lines:
+    <span class="kw">if</span> line == <span class="st">""</span> <span class="kw">or</span> line.startswith(<span class="st">"#"</span>):
+        <span class="kw">continue</span>              <span class="cm"># skip to next iteration immediately</span>
+    <span class="fn">print</span>(<span class="st">f"Processing: {line}"</span>)
+
+<span class="cm"># Output:</span>
+<span class="cm"># Processing: 2024-11-01 ERROR Failed login from 203.0.113.5</span>
+<span class="cm"># Processing: 2024-11-01 INFO  Service restarted</span>
+<span class="cm"># Processing: 2024-11-01 WARN  Disk usage at 87%</span></div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">continue vs break</div>
+                <div class="card-desc"><span class="ic">continue</span> skips the current item and moves to the next — the loop keeps going. <span class="ic">break</span> exits the loop entirely. Think of continue as "skip this one, keep going" and break as "stop everything now." They are not interchangeable.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Filtering with continue</div>
+                <div class="card-desc">Using continue to skip unwanted items keeps the main processing logic at the left margin — the "happy path." Exception conditions are handled at the top of the loop and bypassed early. This produces cleaner code than wrapping the main logic in a deeply nested if/else block.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 25 — LOOP ELSE ==================== -->
+<section class="slide" id="slide-25">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 25 of 34</div>
+        <div class="slide-title">Loop <span class="accent">else</span> Clause</div>
+        <div class="slide-subtitle">Code that runs only when the loop completes normally — without hitting a break.</div>
+
+        <div class="code-block"><span class="cm"># Search an authorized IP list — else block fires when no match was found</span>
+authorized = [<span class="st">"192.168.1.10"</span>, <span class="st">"192.168.1.11"</span>, <span class="st">"192.168.1.20"</span>]
+connection_ip = <span class="st">"192.168.1.99"</span>
+
+<span class="kw">for</span> ip <span class="kw">in</span> authorized:
+    <span class="kw">if</span> ip == connection_ip:
+        <span class="fn">print</span>(<span class="st">f"Access granted to {connection_ip}"</span>)
+        <span class="kw">break</span>                  <span class="cm"># match found — break skips the else block</span>
+<span class="kw">else</span>:
+    <span class="cm"># This else belongs to the for loop, NOT to any if statement</span>
+    <span class="cm"># It runs only when break was never triggered (loop exhausted all items)</span>
+    <span class="fn">print</span>(<span class="st">f"DENIED: {connection_ip} is not in the authorized list"</span>)
+
+<span class="cm"># Output: DENIED: 192.168.1.99 is not in the authorized list</span></div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">The Two Outcomes</div>
+                <div class="card-desc">If the IP is found: <span class="ic">break</span> fires and the <span class="ic">else</span> block is skipped. If the IP is not found: the loop exhausts all items without breaking, and the <span class="ic">else</span> block runs once. Two clean, mutually exclusive outcomes from one structure.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">else Indentation Is Critical</div>
+                <div class="card-desc">The <span class="ic">else</span> keyword must be aligned with the <span class="ic">for</span> keyword — not indented. Alignment with <span class="ic">for</span> makes it a loop else. Beginners often accidentally align it with the <span class="ic">if</span> inside the loop body, which attaches it to the if statement instead.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Works on while Loops Too</div>
+                <div class="card-desc">The <span class="ic">while</span> loop supports the same <span class="ic">else</span> clause. The else runs when the while condition becomes False normally, but not when a <span class="ic">break</span> exits the loop. Useful for retry loops: "try N times; else report failure after all attempts are exhausted."</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 26 — BUILDING A LIST IN A LOOP ==================== -->
+<section class="slide" id="slide-26">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 26 of 34</div>
+        <div class="slide-title">Loops and Lists: <span class="accent">Building a Result List</span></div>
+        <div class="slide-subtitle">Collect results across iterations into a list for later processing, reporting, or alerting.</div>
+
+        <div class="code-block"><span class="cm"># Collect all failed hostnames from a check — store them for a report</span>
+hosts    = [<span class="st">"web-01"</span>, <span class="st">"web-02"</span>, <span class="st">"db-primary"</span>, <span class="st">"db-replica"</span>, <span class="st">"mail-01"</span>]
+statuses = [<span class="st">"up"</span>, <span class="st">"down"</span>, <span class="st">"up"</span>, <span class="st">"down"</span>, <span class="st">"up"</span>]   <span class="cm"># parallel list — index matches hosts</span>
+
+failed_hosts = []              <span class="cm"># empty list — accumulator for failed host names</span>
+
+<span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="fn">len</span>(hosts)):
+    <span class="kw">if</span> statuses[i] == <span class="st">"down"</span>:
+        failed_hosts.append(hosts[i])   <span class="cm"># .append() adds one item to the end of the list</span>
+
+<span class="fn">print</span>(<span class="st">f"Failed hosts:  {failed_hosts}"</span>)    <span class="cm"># Failed hosts:  ['web-02', 'db-replica']</span>
+<span class="fn">print</span>(<span class="st">f"Failure count: {len(failed_hosts)}"</span>)  <span class="cm"># Failure count: 2</span></div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">list.append()</div>
+                <div class="card-desc"><span class="ic">.append(item)</span> adds one item to the end of an existing list. It modifies the list in place and returns None. To build a list of results inside a loop: initialize an empty list before the loop, then call .append() inside the loop for each qualifying item.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Parallel Lists</div>
+                <div class="card-desc">Two lists with matching indices — <span class="ic">hosts[0]</span> corresponds to <span class="ic">statuses[0]</span>. Loop with <span class="ic">range(len(...))</span> to access both by index simultaneously. This pattern is common when processing data that came from two separate sources.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Separating Collection from Action</div>
+                <div class="card-desc">After the loop, <span class="ic">failed_hosts</span> is a complete, usable list. You can loop over it again, pass it to a function, write it to a file, or include it in an alert notification. Collecting results into a list separates "gathering data" from "acting on data" — a clean design pattern.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 27 — IT SCENARIO PING SWEEP ==================== -->
+<section class="slide" id="slide-27">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 27 of 34</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Ping Sweep</span></div>
+        <div class="slide-subtitle">Loop through an IP range and build a live picture of which hosts are responding.</div>
+
+        <div class="code-block"><span class="cm"># Ping sweep of 192.168.10.1 through 192.168.10.254 (Linux/macOS)</span>
+<span class="cm"># subprocess.run() calls the OS ping command and captures the result</span>
+<span class="kw">import</span> subprocess
+
+alive = []
+dead  = []
+
+<span class="kw">for</span> host_id <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">1</span>, <span class="nb">255</span>):
+    ip = <span class="st">f"192.168.10.{host_id}"</span>
+    result = subprocess.run(
+        [<span class="st">"ping"</span>, <span class="st">"-c"</span>, <span class="st">"1"</span>, <span class="st">"-W"</span>, <span class="st">"1"</span>, ip],  <span class="cm"># 1 packet, 1-second timeout</span>
+        capture_output=<span class="nb">True</span>
+    )
+    <span class="kw">if</span> result.returncode == <span class="nb">0</span>:             <span class="cm"># returncode 0 means ping succeeded</span>
+        alive.append(ip)
+        <span class="fn">print</span>(<span class="st">f"[UP]   {ip}"</span>)
+    <span class="kw">else</span>:
+        dead.append(ip)
+        <span class="fn">print</span>(<span class="st">f"[DOWN] {ip}"</span>)
+
+<span class="fn">print</span>(<span class="st">f"\nSummary: {len(alive)} up, {len(dead)} down"</span>)</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">subprocess.run()</div>
+                <div class="card-desc">The <span class="ic">subprocess</span> module runs external OS commands from Python. The command is passed as a list where each element is one argument. <span class="ic">capture_output=True</span> captures stdout and stderr instead of printing them. <span class="ic">returncode == 0</span> always means success in Unix convention.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Windows Equivalent</div>
+                <div class="card-desc">On Windows: <span class="ic">["ping", "-n", "1", "-w", "1000", ip]</span>. The <span class="ic">-n 1</span> sends one packet; <span class="ic">-w 1000</span> sets a 1,000ms timeout. Return code is still 0 for success. Always verify OS-specific flag differences when writing cross-platform network scripts.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Patterns Combined</div>
+                <div class="card-desc">This script uses four patterns from today: a for/range loop to generate IPs, the accumulator pattern to build alive/dead lists, the counting pattern implicitly via len(), and a conditional inside the loop body combining Day 2 conditionals with Day 3 loops.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 28 — IT SCENARIO LOG SCANNER ==================== -->
+<section class="slide" id="slide-28">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 28 of 34</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Log File Scanner</span></div>
+        <div class="slide-subtitle">Read every line of a log file, count severity levels, extract critical entries.</div>
+
+        <div class="code-block"><span class="cm"># Parse /var/log/syslog — count ERROR and WARN lines, extract error content</span>
+error_count   = <span class="nb">0</span>
+warning_count = <span class="nb">0</span>
+error_lines   = []
+
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"/var/log/syslog"</span>, <span class="st">"r"</span>) <span class="kw">as</span> log_file:
+    <span class="kw">for</span> line <span class="kw">in</span> log_file:            <span class="cm"># iterates one line at a time — memory efficient</span>
+        line = line.strip()           <span class="cm"># remove leading/trailing whitespace and newline</span>
+        <span class="kw">if</span> <span class="st">"ERROR"</span> <span class="kw">in</span> line:
+            error_count += <span class="nb">1</span>
+            error_lines.append(line)
+        <span class="kw">elif</span> <span class="st">"WARN"</span> <span class="kw">in</span> line:
+            warning_count += <span class="nb">1</span>
+
+<span class="fn">print</span>(<span class="st">f"Scan complete: {error_count} errors, {warning_count} warnings"</span>)
+<span class="fn">print</span>(<span class="st">"\n--- ERROR LINES ---"</span>)
+<span class="kw">for</span> entry <span class="kw">in</span> error_lines:
+    <span class="fn">print</span>(entry)</div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">Iterating Over a File</div>
+                <div class="card-desc">A file object is iterable. <span class="ic">for line in log_file:</span> reads one line per iteration without loading the entire file into memory. A 10 GB log file is handled just as efficiently as a 10 KB one. This is why file iteration always uses a for loop — never <span class="ic">file.readlines()</span> on large files.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">with open() — Context Manager</div>
+                <div class="card-desc"><span class="ic">with open(...) as log_file:</span> opens the file and guarantees it is closed when the indented block ends — even if an exception occurs inside the block. Always open files using <span class="ic">with</span>. Without it, files can remain open, consuming file descriptors until the process exits.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 29 — IT SCENARIO BRUTE FORCE CONCEPT ==================== -->
+<section class="slide" id="slide-29">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 29 of 34</div>
+        <div class="slide-title">IT Scenario: <span class="accent">Brute Force — Loops in Security Context</span></div>
+        <div class="slide-subtitle">Understanding the mechanics of brute force attacks helps you build better defenses.</div>
+
+        <div class="scenario-strip">
+            This slide is educational. The code demonstrates the concept so you understand what you are defending against. Credential attacks against systems you do not own or have authorization to test are illegal under 18 U.S.C. 1030 (CFAA) and Florida Statute 815.06. Defense professionals who understand offensive mechanics build better defenses.
+        </div>
+
+        <div class="code-block"><span class="cm"># How a brute force works — nested loops over usernames and passwords</span>
+<span class="cm"># This structure is why rate limiting, account lockout, and MFA exist</span>
+
+usernames = [<span class="st">"admin"</span>, <span class="st">"root"</span>, <span class="st">"administrator"</span>]
+passwords = [<span class="st">"password"</span>, <span class="st">"123456"</span>, <span class="st">"admin"</span>, <span class="st">"letmein"</span>]
+
+attempt_count = <span class="nb">0</span>
+<span class="kw">for</span> username <span class="kw">in</span> usernames:
+    <span class="kw">for</span> password <span class="kw">in</span> passwords:
+        attempt_count += <span class="nb">1</span>
+        <span class="fn">print</span>(<span class="st">f"Attempt {attempt_count}: {username} / {password}"</span>)
+        <span class="cm"># A real tool calls a login function here and checks the return code</span>
+
+<span class="fn">print</span>(<span class="st">f"\nTotal attempts: {attempt_count}"</span>)   <span class="cm"># 3 users x 4 passwords = 12</span>
+<span class="cm"># rockyou.txt contains 14 million passwords</span>
+<span class="cm"># At 1,000 attempts/second, a full rockyou.txt run takes ~4 hours</span></div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">The Defender's Takeaway</div>
+                <div class="card-desc">A brute force is two nested loops. Outer loop cycles through usernames; inner loop cycles through passwords. Every automated credential attack — SSH brute force, web form stuffing, API key enumeration — uses exactly this pattern.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Defenses This Explains</div>
+                <div class="card-desc">Account lockout after N failures (prevents the inner loop from completing). Rate limiting (slows the inner loop to years per wordlist). MFA (a second factor the inner loop cannot enumerate). Long random passwords (make the password list impossibly large to exhaust).</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Loops + Conditionals Together</div>
+                <div class="card-desc">A real tool combines all of Day 2 and Day 3: nested loops for the attempt matrix, a conditional to check the return code, a counter to track attempts, and a break to exit on success. Hydra, Medusa, and Burp Suite Intruder are all built on this pattern.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 30 — COMMON MISTAKES ==================== -->
+<section class="slide" id="slide-30">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 30 of 34</div>
+        <div class="slide-title">Common Loop <span class="accent">Mistakes</span></div>
+        <div class="slide-subtitle">Three errors that every beginner makes — recognize them before they cost you hours.</div>
+
+        <div class="card-grid">
+            <div class="card c-red">
+                <div class="card-label">Off-by-One Error</div>
+                <div class="card-desc">
+                    <div class="code-block" style="font-size:0.78rem; padding:6px 10px;"><span class="cm"># Intend to print 1-10, get 1-9</span>
+<span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">1</span>, <span class="nb">10</span>):   <span class="cm"># BUG</span>
+    <span class="fn">print</span>(i)
+<span class="cm"># Fix: range(1, 11)</span></div>
+                    Remember: range() stop is exclusive. To include 10, write <span class="ic">range(1, 11)</span>.
+                </div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Forgetting to Update the Counter</div>
+                <div class="card-desc">
+                    <div class="code-block" style="font-size:0.78rem; padding:6px 10px;"><span class="cm"># Missing update — infinite loop</span>
+n = <span class="nb">1</span>
+<span class="kw">while</span> n &lt; <span class="nb">5</span>:
+    <span class="fn">print</span>(n)
+    <span class="cm"># n += 1 is missing</span></div>
+                    In a while loop you are responsible for updating the variable that drives the condition. Python will not do it for you.
+                </div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Modifying a List During Iteration</div>
+                <div class="card-desc">
+                    <div class="code-block" style="font-size:0.78rem; padding:6px 10px;"><span class="cm"># BUG: skips items silently</span>
+items = [<span class="nb">1</span>, <span class="nb">2</span>, <span class="nb">3</span>, <span class="nb">4</span>, <span class="nb">5</span>]
+<span class="kw">for</span> x <span class="kw">in</span> items:
+    items.remove(x)  <span class="cm"># dangerous</span>
+<span class="cm"># Fix: iterate over a copy</span>
+<span class="kw">for</span> x <span class="kw">in</span> items[:]:</div>
+                    Never add or remove items from a list you are currently iterating over. Iterate over a copy using <span class="ic">items[:]</span>.
+                </div>
+            </div>
+        </div>
+
+        <div class="box box-gold" style="font-size:0.83rem;">
+            <strong>Habit to build:</strong> After writing any while loop, immediately look at the condition and ask "what line inside the loop body changes this condition?" If the answer is "nothing," you have an infinite loop. Identify and fix it before running the code.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 31 — DEBUGGING LOOPS ==================== -->
+<section class="slide" id="slide-31">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 31 of 34</div>
+        <div class="slide-title">Debugging Loops: <span class="accent">Tracing with print()</span></div>
+        <div class="slide-subtitle">When a loop produces wrong output, trace the values inside to find where logic breaks down.</div>
+
+        <div class="code-block"><span class="cm"># Goal: sum all numbers from 1 to 5 — should equal 15</span>
+<span class="cm"># Add DEBUG prints to trace each iteration</span>
+
+total = <span class="nb">0</span>
+<span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="nb">1</span>, <span class="nb">6</span>):
+    <span class="fn">print</span>(<span class="st">f"DEBUG: i={i}, total BEFORE add={total}"</span>)
+    total += i
+    <span class="fn">print</span>(<span class="st">f"DEBUG: total AFTER add={total}"</span>)
+
+<span class="fn">print</span>(<span class="st">f"Final total: {total}"</span>)
+
+<span class="cm"># Trace output:</span>
+<span class="cm"># DEBUG: i=1, total BEFORE add=0    DEBUG: total AFTER add=1</span>
+<span class="cm"># DEBUG: i=2, total BEFORE add=1    DEBUG: total AFTER add=3</span>
+<span class="cm"># DEBUG: i=3, total BEFORE add=3    DEBUG: total AFTER add=6</span>
+<span class="cm"># DEBUG: i=4, total BEFORE add=6    DEBUG: total AFTER add=10</span>
+<span class="cm"># DEBUG: i=5, total BEFORE add=10   DEBUG: total AFTER add=15</span>
+<span class="cm"># Final total: 15</span></div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">What to Print</div>
+                <div class="card-desc">Print the loop variable, all counter and accumulator variables, and key conditional values at each iteration. Label prints with "DEBUG:" so you can search for and remove them later. Seeing exact state at each step reveals precisely where the logic diverges from your expectation.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Limiting Trace Output</div>
+                <div class="card-desc">If your loop runs thousands of times, print only the first few: <span class="ic">if i &lt; 5: print(...)</span>. Or trace every Nth iteration: <span class="ic">if i % 100 == 0: print(...)</span>. Flooding the terminal with 10,000 debug lines is harder to read than 10 targeted ones.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">VS Code Debugger</div>
+                <div class="card-desc">For complex bugs, set a breakpoint on the loop line in VS Code, run in Debug mode, and step through one iteration at a time watching variable values in the Variables panel. More powerful than print debugging, but print() is faster to set up for quick checks during development.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 32 — PRACTICE EXERCISES ==================== -->
+<section class="slide" id="slide-32">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 32 of 34</div>
+        <div class="slide-title">Practice <span class="accent">Exercises</span></div>
+        <div class="slide-subtitle">Six exercises — work through them in order. Each builds on the patterns from today.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Exercise 1 — Fibonacci Sequence</div>
+                <div class="card-desc">Print the first 15 Fibonacci numbers using a while loop. Start with <span class="ic">a = 0</span> and <span class="ic">b = 1</span>. Each iteration: print a, then set <span class="ic">a, b = b, a + b</span>. Count iterations with a counter variable. Expected start: 0, 1, 1, 2, 3, 5, 8, 13...</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Exercise 2 — FizzBuzz</div>
+                <div class="card-desc">Loop from 1 to 50. Print "Fizz" if divisible by 3, "Buzz" if divisible by 5, "FizzBuzz" if divisible by both, otherwise print the number. Use the <span class="ic">%</span> operator. Check divisibility by both 3 and 5 before checking each individually — order matters.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Exercise 3 — Number Guessing Game</div>
+                <div class="card-desc">Set a secret number (e.g., 42). Use a while loop to keep asking the user to guess. Print "Too high", "Too low", or "Correct!" and break. Count guesses and print the count when they win. Use <span class="ic">int(input(...))</span> for type conversion.</div>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Exercise 4 — Sum the Digits</div>
+                <div class="card-desc">Ask the user for a number entered as a string (e.g., <span class="ic">"2048"</span>). Loop over each character, convert to int, and add to an accumulator. Print the digit sum. The digit sum of "2048" is 14. Handle non-digit characters with continue.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Exercise 5 — Reverse a String</div>
+                <div class="card-desc">Ask the user for a string. Use a for loop to build a reversed copy: loop over the original, and prepend each character to a result string using <span class="ic">result = char + result</span>. Print the reversed string. Do not use <span class="ic">[::-1]</span> — build it manually with the loop.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Exercise 6 — Simple ATM</div>
+                <div class="card-desc">Start with balance = 1000. Use <span class="ic">while True:</span> to show a menu: 1) Check balance, 2) Withdraw, 3) Exit. Use <span class="ic">break</span> to exit. Validate that withdrawals do not exceed the balance. Use <span class="ic">continue</span> to re-show the menu after an invalid entry.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 33 — KEY VOCABULARY ==================== -->
+<section class="slide" id="slide-33">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 33 of 34</div>
+        <div class="slide-title">Key <span class="accent">Vocabulary</span></div>
+        <div class="slide-subtitle">Twelve terms you must be able to define and use correctly after today.</div>
+
+        <div class="card-grid">
+            <div class="card c-gold">
+                <div class="card-label">Iteration</div>
+                <div class="card-desc">One single execution of the loop body. A loop that runs 10 times performs 10 iterations.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">while loop</div>
+                <div class="card-desc">Repeats as long as a condition is True. Condition tested before every iteration, including the first.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">for loop</div>
+                <div class="card-desc">Iterates over each item in a sequence. The loop variable is assigned automatically by Python.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">range()</div>
+                <div class="card-desc">Generates an integer sequence on demand. Accepts stop, or start/stop, or start/stop/step.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Infinite Loop</div>
+                <div class="card-desc">A loop whose condition never becomes False. Runs until manually interrupted with Ctrl+C.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Sentinel Value</div>
+                <div class="card-desc">A special input value that signals the loop to stop. Not actual data — a control signal.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">break</div>
+                <div class="card-desc">Immediately exits the enclosing loop. Remaining items are not processed.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">continue</div>
+                <div class="card-desc">Skips the rest of the current iteration and moves immediately to the next one.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Accumulator Pattern</div>
+                <div class="card-desc">Initialize a variable before the loop; update it each iteration to build a running total or collection.</div>
+            </div>
+        </div>
+
+        <div class="card-grid" style="margin-top:0;">
+            <div class="card c-gold">
+                <div class="card-label">Nested Loop</div>
+                <div class="card-desc">A loop inside another loop. The inner loop runs to completion for each single outer iteration.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Counting Pattern</div>
+                <div class="card-desc">Use a counter variable initialized to 0 before the loop. Increment it conditionally inside the loop.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">loop else</div>
+                <div class="card-desc">An else clause on a loop that runs only if the loop ended normally — break was never triggered.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 34 — SUMMARY + MARK COMPLETE ==================== -->
+<section class="slide" id="slide-34">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 34 of 34 &nbsp;|&nbsp; COP1034C Obj 3 &nbsp;|&nbsp; Day 3 of 12</div>
+        <div class="slide-title">Day 3 Summary: <span class="accent">Loops &amp; Iteration</span></div>
+
+        <div class="scenario-strip">
+            Back to those 50 servers. Instead of 50 lines of manual code, you write one for loop over a list of hostnames. Each server is pinged, its status counted, and its result logged. Failed hosts are collected into a list for the alert email. The entire script is under 20 lines and handles any number of servers with no code changes. That is the difference loops make.
+        </div>
+
+        <div class="section-label">8 Things to Carry Out of This Session</div>
+
+        <div class="summary-facts">
+            <div class="fact-row">
+                <span class="fact-num">1</span>
+                <span class="fact-text"><code>while condition:</code> repeats as long as the condition is True. Always update the condition variable inside the body or you create an infinite loop.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">2</span>
+                <span class="fact-text"><code>for variable in sequence:</code> iterates automatically over every item. Python advances the loop variable — you do not manage it manually.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">3</span>
+                <span class="fact-text"><code>range(stop)</code>, <code>range(start, stop)</code>, and <code>range(start, stop, step)</code> generate integer sequences on demand. The stop value is always excluded.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">4</span>
+                <span class="fact-text">Use <code>for</code> when iterating over a known sequence. Use <code>while</code> when looping on a condition that changes in unpredictable ways.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">5</span>
+                <span class="fact-text">Three essential patterns: <strong>counting</strong> (count items matching a condition), <strong>accumulator</strong> (build a running total or list), <strong>input validation</strong> (keep asking until input is acceptable).</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">6</span>
+                <span class="fact-text">Nested loops combine two dimensions of iteration. The inner loop completes fully for every single outer iteration. Total iterations equals outer count multiplied by inner count.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">7</span>
+                <span class="fact-text"><code>break</code> exits the loop immediately. <code>continue</code> skips the current iteration and moves to the next. The loop <code>else</code> clause runs only when break was never triggered.</span>
+            </div>
+            <div class="fact-row">
+                <span class="fact-num">8</span>
+                <span class="fact-text">Debug loops by adding <code>print()</code> statements inside the body to trace variable values on each iteration. Label them "DEBUG:" and remove them before submitting or deploying scripts.</span>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Fixed bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; Python for IT</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 34</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* =========================================================
+       Slide navigation — viewport-locked, no page scroll
+       currentSlide: 1-based index of the active slide
+       TOTAL_SLIDES: must match the number of section.slide elements
+    ========================================================= */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 34;
+
+    function goToSlide(n) {
+        /* Bounds check — do not navigate out of range */
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Deactivate the current slide */
+        const prevSlide = document.getElementById('slide-' + currentSlide);
+        if (prevSlide) prevSlide.classList.remove('active');
+
+        /* Activate the target slide */
+        currentSlide = n;
+        const nextSlide = document.getElementById('slide-' + currentSlide);
+        if (nextSlide) nextSlide.classList.add('active');
+
+        /* Update the gold progress bar as a percentage of total slides */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        /* Update the slide counter text in the nav bar */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Disable Prev button on slide 1; disable Next button on the last slide */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show the Mark Complete button only on the final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display =
+                (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard arrow key navigation — left/right arrows change slides */
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize to slide 1 on page load */
+    goToSlide(1);
+</script>
+
+<script>
+    /* =========================================================
+       Mark Complete — records module completion via ModuleProgress
+       and returns the student to the Python for IT course hub
+    ========================================================= */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('code', 'pfi-w1-loops', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+
+<!-- Accessibility layer — screen reader announcements and focus management -->
+<script src="../../../../components/PresentationA11y.js"></script>
+</body>
+</html>
