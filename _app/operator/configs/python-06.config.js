@@ -97,7 +97,7 @@ var PYTHON_06_CONFIG = {
         { id: 'obj_3', label: 'CHECKPOINT D -- nmap the extraction point',         check: 'nmapTargets.has("server-d")' },
         { id: 'obj_4', label: 'FULL RECON -- Discover all 4 checkpoints + gateway',  check: 'nodesDiscovered.size >= 5' },
         { id: 'obj_5', label: 'STEALTH -- Complete with 2+ integrity remaining',   check: 'integrity >= 2' }
-    },
+    ],
 
     integrity: 4,  /* 4 pips because 4 traps — generous but still punishes carelessness */
 
