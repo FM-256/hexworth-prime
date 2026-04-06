@@ -35,8 +35,8 @@
 
     var TIER_METHODS = {
         1: ['move', 'scan', 'status'],
-        2: ['move', 'scan', 'status', 'sweep', 'ping', 'jump', 'extinguish', 'fight'],
-        3: ['move', 'scan', 'status', 'sweep', 'ping', 'jump', 'extinguish', 'fight',
+        2: ['move', 'scan', 'status', 'sweep', 'ping', 'jump', 'extinguish', 'fight', 'unlock'],
+        3: ['move', 'scan', 'status', 'sweep', 'ping', 'jump', 'extinguish', 'fight', 'unlock',
             'nmap', 'exploit', 'spoof', 'decrypt', 'patch',
             'bridge', 'fireproof', 'terminate'],
         4: null,   // all methods
@@ -58,7 +58,7 @@
 
     // All bridge method names (used for tier 4/5 "allow all")
     var ALL_METHOD_NAMES = ['move', 'scan', 'status', 'sweep', 'ping',
-                            'jump', 'extinguish', 'fight',
+                            'jump', 'extinguish', 'fight', 'unlock',
                             'nmap', 'exploit', 'spoof', 'decrypt', 'patch',
                             'bridge', 'fireproof', 'terminate'];
 
@@ -463,6 +463,21 @@
                 }
             }
 
+            // Locked door check — requires key in state.items
+            if (cellType && cellType.indexOf('locked') === 0) {
+                if (state.unlockedDoors && state.unlockedDoors[destKey]) {
+                    engine.printLine('[MOVE] Door unlocked. Passing through.', 'success');
+                } else {
+                    var keyCount = 0;
+                    for (var ki = 0; ki < (state.items || []).length; ki++) {
+                        if (state.items[ki] === 'key') keyCount++;
+                    }
+                    engine.printLine('', 'system');
+                    engine.printLine('[LOCKED] Door is locked. ' + (keyCount > 0 ? 'Use agent.unlock(dir) with your key.' : 'Find a key first.'), 'warning');
+                    return false;
+                }
+            }
+
             // Execute the move
             state.position = { col: newCol, row: newRow };
             state.visibility[newCol + ',' + newRow] = 'visited';
@@ -472,6 +487,31 @@
             }
 
             engine.revealAdjacent(newCol, newRow);
+
+            // Auto-pickup: key nodes are collected when the agent enters the cell
+            if (cellType && cellType.indexOf('key') === 0) {
+                if (!state.items) state.items = [];
+                state.items.push('key');
+                var keyInfo = nodeInfo(cellType);
+                engine.printLine('[PICKUP] Collected KEY' + (keyInfo ? ' (' + keyInfo.label + ')' : '') + '! Keys: ' + state.items.filter(function(i){return i==='key';}).length, 'success');
+            }
+
+            // Auto-pickup: tool nodes add permanent tools to inventory
+            if (cellType && cellType.indexOf('tool-') === 0) {
+                var toolName = cellType.replace('tool-', '');
+                try {
+                    var inv = JSON.parse(localStorage.getItem('hexworth_operator_inventory') || '{"tools":[]}');
+                    if (inv.tools.indexOf(toolName) === -1) {
+                        inv.tools.push(toolName);
+                        if (!inv.earnedIn) inv.earnedIn = {};
+                        inv.earnedIn[toolName] = C().id;
+                        localStorage.setItem('hexworth_operator_inventory', JSON.stringify(inv));
+                        engine.printLine('', 'system');
+                        engine.printLine('[TOOL ACQUIRED] *** ' + toolName.toUpperCase() + ' *** added to permanent inventory!', 'heading');
+                        engine.printLine('[TOOL ACQUIRED] This tool persists across all levels.', 'success');
+                    }
+                } catch (e) { /* localStorage error */ }
+            }
 
             var info  = nodeInfo(cellType);
             var label = (cellType !== 'empty' && info) ? info.label : 'Clear path';
@@ -838,6 +878,56 @@
                 'Enemy defeated', 'Cannot fight here — no enemy in that direction.', false);
         }
 
+        /** Unlock a locked door in the adjacent cell. Consumes one key from state.items. */
+        async function unlock(dir) {
+            tick();
+            var dest = _resolveDest(dir);
+            var dirName = expandDir(typeof dir === 'string' ? dir.toLowerCase() : '');
+
+            if (!dest) {
+                engine.printLine('[UNLOCK] Invalid direction: ' + String(dir), 'error');
+                return false;
+            }
+            if (!dest.inBounds || dest.cellType === 'wall') {
+                engine.printLine('[UNLOCK] Nothing to unlock ' + dirName + '.', 'error');
+                return false;
+            }
+
+            /* Check target is a locked door */
+            if (!dest.cellType || dest.cellType.indexOf('locked') !== 0) {
+                engine.printLine('[UNLOCK] No locked door ' + dirName + '.', 'error');
+                return false;
+            }
+
+            /* Check already unlocked */
+            var state = S();
+            if (state.unlockedDoors && state.unlockedDoors[dest.key]) {
+                engine.printLine('[UNLOCK] Already unlocked.', 'system');
+                return true;
+            }
+
+            /* Check for key in inventory */
+            if (!state.items) state.items = [];
+            var keyIdx = state.items.indexOf('key');
+            if (keyIdx === -1) {
+                engine.printLine('[UNLOCK] No key in inventory. Find a key first.', 'error');
+                return false;
+            }
+
+            /* Consume key and unlock door */
+            state.items.splice(keyIdx, 1);  /* remove one key */
+            if (!state.unlockedDoors) state.unlockedDoors = {};
+            state.unlockedDoors[dest.key] = true;
+
+            var doorInfo = nodeInfo(dest.cellType);
+            engine.printLine('[UNLOCK] Door opened! (' + (doorInfo ? doorInfo.label : dest.cellType) + ', ' + dirName + '). Key consumed. Keys remaining: ' + state.items.filter(function(i){return i==='key';}).length, 'success');
+
+            engine.updateGrid();
+            engine.saveState();
+            await engine.delay(150);
+            return true;
+        }
+
         // ============================================================
         //  PERMANENT TOOLS (require tool in persistent inventory)
         //  These clear an obstacle PERMANENTLY. The obstacle is removed
@@ -950,6 +1040,7 @@
             jump:       jump,
             extinguish: extinguish,
             fight:      fight,
+            unlock:     unlock,
             /* Permanent tools (require inventory) */
             bridge:     bridge_tool,   /* renamed to avoid collision with bridge object */
             fireproof:  fireproof,
@@ -977,6 +1068,15 @@
         Object.defineProperty(bridge, 'discovered', {
             get: function() {
                 return Array.from(S().nodesDiscovered);
+            },
+            enumerable: true
+        });
+
+        // agent.items -- current level items (keys, etc.)
+        // Students use: if 'key' in agent.items
+        Object.defineProperty(bridge, 'items', {
+            get: function() {
+                return (S().items || []).slice();  // return copy
             },
             enumerable: true
         });

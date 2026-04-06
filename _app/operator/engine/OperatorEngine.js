@@ -797,6 +797,24 @@
             try { window.ModuleProgress.complete(config.id); } catch (e) {}
         }
 
+        // Completion reward: award permanent tool if config specifies one
+        // Used by "The Bridge" (L28) and future tool-granting levels
+        if (config.completionReward && config.completionReward.tool) {
+            try {
+                var toolName = config.completionReward.tool;
+                var inv = JSON.parse(localStorage.getItem('hexworth_operator_inventory') || '{"tools":[]}');
+                if (inv.tools.indexOf(toolName) === -1) {
+                    inv.tools.push(toolName);
+                    if (!inv.earnedIn) inv.earnedIn = {};
+                    inv.earnedIn[toolName] = config.id;
+                    localStorage.setItem('hexworth_operator_inventory', JSON.stringify(inv));
+                    printLine('', 'system');
+                    printLine('*** PERMANENT TOOL EARNED: ' + toolName.toUpperCase() + ' ***', 'heading');
+                    printLine('This tool is now available in ALL levels.', 'success');
+                }
+            } catch (e) { /* localStorage error */ }
+        }
+
         // GameTracker integration
         if (typeof window.GameTracker !== 'undefined' &&
             typeof window.GameTracker.record === 'function') {
