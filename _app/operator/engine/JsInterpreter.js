@@ -83,6 +83,49 @@
     //  If a loop exceeds MAX_LOOP_ITERATIONS, throws an error.
     // ----------------------------------------------------------------
 
+    // ----------------------------------------------------------------
+    //  SANDBOX ESCAPE PROTECTION
+    //  Blocks constructor chain attacks that bypass the global shadow.
+    //  e.g. Array.constructor('return this')() to get window.
+    //  Nancy review (2026-04-06): new Function() sandbox is bypassable
+    //  via constructor chains. This is a soft sandbox — block known
+    //  escape patterns before execution rather than attempting full
+    //  isolation (which would require Web Workers + postMessage).
+    // ----------------------------------------------------------------
+
+    /* Patterns that indicate sandbox escape attempts */
+    var BLOCKED_PATTERNS = [
+        /\.constructor\s*\(/g,              // obj.constructor(...)
+        /\['constructor'\]/g,               // obj['constructor']
+        /\["constructor"\]/g,               // obj["constructor"]
+        /\.__proto__/g,                     // obj.__proto__
+        /\['__proto__'\]/g,                 // obj['__proto__']
+        /\["__proto__"\]/g,                 // obj["__proto__"]
+        /Object\.getPrototypeOf/g,          // Object.getPrototypeOf()
+        /Object\.setPrototypeOf/g,          // Object.setPrototypeOf()
+        /Reflect\s*\./g,                    // Reflect.construct etc
+        /Proxy\s*\(/g,                      // new Proxy()
+        /\bimport\s*\(/g,                   // dynamic import()
+        /\brequire\s*\(/g,                  // Node.js require()
+        /\beval\s*\(/g,                     // eval()
+        /\bFunction\s*\(/g                  // Function constructor
+    ];
+
+    /**
+     * Scans student code for sandbox escape patterns.
+     * Returns null if clean, or an error message describing the violation.
+     */
+    function checkSandboxEscapes(code) {
+        for (var i = 0; i < BLOCKED_PATTERNS.length; i++) {
+            BLOCKED_PATTERNS[i].lastIndex = 0;  // reset regex state
+            if (BLOCKED_PATTERNS[i].test(code)) {
+                return 'Blocked: this pattern is not allowed in Operator missions. ' +
+                       'Use the agent API to interact with the grid.';
+            }
+        }
+        return null;
+    }
+
     /**
      * Pre-processes student code to inject loop guards.
      * Inserts `if(++__lc>MAX){throw new Error(...)}` after every
@@ -114,8 +157,24 @@
     // ----------------------------------------------------------------
 
     /**
-     * Creates a proxy around the agent bridge that counts method calls
-     * and checks the cancel flag before each operation.
+     * Creates a proxy around the agent bridge that counts method calls,
+     * checks the cancel flag, and supports callback-style invocation.
+     *
+     * AgentBridge methods are async (return Promises). For the JS
+     * Metroidvania's callback hell → promises → async/await arc,
+     * we need to support THREE calling conventions:
+     *
+     *   1. Callback:    agent.scan(function(results) { ... })
+     *   2. Promise:     agent.scan().then(results => ...)
+     *   3. Async/await: const results = await agent.scan()
+     *
+     * The shim detects if the last argument is a function (callback).
+     * If so, it strips the callback, calls the async method, then
+     * passes the result to the callback via .then(). This lets all
+     * three patterns work with the same AgentBridge underneath.
+     *
+     * Nancy review (2026-04-06): This shim keeps AgentBridge unchanged
+     * and avoids coupling the engine to one language's patterns.
      */
     function createCountingProxy(agentBridge, cancelCheckFn) {
         var cmdCount = 0;
@@ -127,13 +186,28 @@
             (function(key) {
                 var val = agentBridge[key];
                 if (typeof val === 'function') {
-                    // Wrap functions to count calls and check cancel
+                    // Wrap functions with cancel check, counting, and callback detection
                     proxy[key] = function() {
                         if (cancelCheckFn()) {
                             throw new StopExecution();
                         }
                         cmdCount++;
-                        return val.apply(agentBridge, arguments);
+
+                        // Detect callback-style invocation:
+                        // If the last argument is a function, treat it as a callback.
+                        // Strip it from args, call the async method, .then(callback).
+                        var args = Array.prototype.slice.call(arguments);
+                        var lastArg = args.length > 0 ? args[args.length - 1] : null;
+
+                        if (typeof lastArg === 'function') {
+                            var cb = args.pop();
+                            var promise = val.apply(agentBridge, args);
+                            // Chain the callback onto the Promise
+                            return promise.then(cb);
+                        }
+
+                        // Standard call — returns a Promise (works with .then() and await)
+                        return val.apply(agentBridge, args);
                     };
                 } else if (typeof val === 'object' && val !== null) {
                     // Preserve object properties (like agent.position)
@@ -346,10 +420,16 @@
         }
         var shadowBlock = shadowLines.join('\n');
 
-        // 4. Inject loop guards into student code
+        // 4. Check for sandbox escape patterns BEFORE execution
+        var escapeError = checkSandboxEscapes(code);
+        if (escapeError) {
+            return { cmdCount: 0, error: escapeError };
+        }
+
+        // 5. Inject loop guards into student code
         var guardedCode = injectLoopGuards(code);
 
-        // 5. Wrap student code in async IIFE so top-level await works
+        // 6. Wrap student code in async IIFE so top-level await works
         //    Student writes:  let r = await agent.scan()
         //    We wrap as:      return (async function() { let r = await agent.scan() })()
         var wrappedCode = shadowBlock + '\n' +
@@ -358,7 +438,7 @@
             guardedCode + '\n' +
             '})();';
 
-        // 6. Build the sandboxed function
+        // 7. Build the sandboxed function
         var paramNames = Object.keys(sandbox);
         var paramValues = paramNames.map(function(k) { return sandbox[k]; });
 
@@ -375,7 +455,7 @@
             };
         }
 
-        // 7. Execute with timeout race
+        // 8. Execute with timeout race
         try {
             await Promise.race([
                 sandboxedFn.apply(null, paramValues),
