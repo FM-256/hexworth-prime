@@ -135,7 +135,7 @@ Man pages for shipped features. Each document covers purpose, architecture, and 
 | [Achievement System](features/ACHIEVEMENT_SYSTEM.md) | AchievementManager/System/Registry/Panel.js | ~2,000 achievements, auto-generation from content, title system, discovery points |
 | [Instructor Dashboard](features/INSTRUCTOR_DASHBOARD.md) | handler-dashboard.js, ClassManager.js, AssignmentManager.js | Class management, 12+ analytics, handler comms, exports, drill-down navigation |
 | [Arcade & Game Tracker](features/ARCADE_GAME_TRACKER.md) | GameTracker.js, GameScoreboard.js, MultiPlayer.js | 75+ games, Score Reign passive XP, global leaderboards, 2-player modes |
-| [Operator Missions](features/OPERATOR_MISSIONS.md) | OperatorEngine.js, OperatorInterpreter.js, AgentBridge.js | 24 grid-based missions, fog-of-war, integrity meter, OP-6 tier framework |
+| [Operator Missions](features/OPERATOR_MISSIONS.md) | OperatorEngine.js, AgentBridge.js, OperatorInterpreter.js | 72-mission Metroidvania: 50 Python levels with obstacles, permanent tools, persistent inventory, dispatch table pedagogy |
 | [Arctic CLI Hub](features/ARCTIC_CLI_HUB.md) | ArcticEngine.js, ArcticData.js | 24 Linux districts, 600+ modules, 3 faction paths, section-level fog-of-war |
 | [Signal Hub](features/SIGNAL_HUB.md) | SignalEngine.js, SignalData.js | 92 hardware projects, 6 platforms, real parts/costs, 22-tool toolkit |
 | [Forensics Hub](features/FORENSICS_HUB.md) | ForensicsEngine.js, ForensicsData.js, cert-alignment.js | 60 modules, 5 certification alignments, courtroom-ready framework |
