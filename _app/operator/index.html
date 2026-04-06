@@ -185,7 +185,11 @@
             padding: 0 24px 16px;
             display: flex;
             gap: 4px;
+            overflow-x: auto;          /* horizontal scroll on small screens */
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;     /* hide scrollbar on Firefox */
         }
+        .op-lang-tabs::-webkit-scrollbar { display: none; } /* hide scrollbar on Chrome/Safari */
         .op-lang-tab {
             background: rgba(57, 255, 20, 0.03);
             border: 1px solid rgba(57, 255, 20, 0.1);
@@ -198,6 +202,8 @@
             border-radius: 4px;
             cursor: pointer;
             transition: all 0.2s;
+            flex-shrink: 0;            /* prevent tabs from collapsing on overflow */
+            white-space: nowrap;
         }
         .op-lang-tab:hover {
             background: rgba(57, 255, 20, 0.06);
@@ -326,7 +332,18 @@
             padding: 2px 7px;
             border-radius: 3px;
         }
-        .op-card-mode.terminal {
+        /* Language-specific mode badges */
+        .op-card-mode.linux {
+            background: rgba(239, 83, 80, 0.12);
+            color: #ef5350;
+            border: 1px solid rgba(239, 83, 80, 0.25);
+        }
+        .op-card-mode.windows {
+            background: rgba(79, 195, 247, 0.12);
+            color: #4fc3f7;
+            border: 1px solid rgba(79, 195, 247, 0.25);
+        }
+        .op-card-mode.networking {
             background: rgba(57, 255, 20, 0.12);
             color: #39ff14;
             border: 1px solid rgba(57, 255, 20, 0.25);
@@ -335,6 +352,16 @@
             background: rgba(33, 150, 243, 0.12);
             color: #64b5f6;
             border: 1px solid rgba(33, 150, 243, 0.25);
+        }
+        .op-card-mode.javascript {
+            background: rgba(247, 223, 30, 0.12);
+            color: #f7df1e;
+            border: 1px solid rgba(247, 223, 30, 0.25);
+        }
+        .op-card-mode.crypto {
+            background: rgba(255, 215, 64, 0.12);
+            color: #ffd740;
+            border: 1px solid rgba(255, 215, 64, 0.25);
         }
 
         .op-card-title {
@@ -607,8 +634,8 @@
                     </div>
                 </div>
 
-                <h2>9 Skill Domains</h2>
-                <p>Missions span 9 tracks: Network Recon, Windows Admin, Linux Admin, Firewall Ops, Incident Response, Log Analysis, Cryptography, Digital Forensics, and Python Automation. Each domain builds on the last.</p>
+                <h2>6 Language Tracks</h2>
+                <p>Missions are organized by language: <strong>Linux</strong> (filesystem, logs, forensics), <strong>Windows</strong> (CMD, PowerShell), <strong>Networking</strong> (recon, firewalls, IR), <strong>Python</strong> (50-level Metroidvania), <strong>JavaScript</strong> (coming soon), and <strong>Crypto</strong> (ciphers, keys). Use the tabs above the mission grid to filter by track.</p>
 
                 <h2>Scoring</h2>
                 <p>Missions track completion time, accuracy, and optional objectives. Hints are available but cost points. Speed runs and perfect completions earn bonus XP.</p>
@@ -619,7 +646,7 @@
     <!-- Progress Panel -->
     <div class="op-progress">
         <div class="op-progress-inner">
-            <div class="op-progress-count">MISSIONS: <strong id="progress-done">0</strong> / <strong>39</strong></div>
+            <div class="op-progress-count">MISSIONS: <strong id="progress-done">0</strong> / <strong id="progress-total">70</strong></div>
             <div class="op-progress-bar-wrap">
                 <div class="op-progress-bar" id="progress-bar"></div>
             </div>
@@ -630,8 +657,12 @@
     <!-- Language Tabs -->
     <div class="op-lang-tabs" id="lang-tabs">
         <button class="op-lang-tab active" data-lang="all">ALL</button>
-        <button class="op-lang-tab" data-lang="terminal">TERMINAL</button>
+        <button class="op-lang-tab" data-lang="linux">LINUX</button>
+        <button class="op-lang-tab" data-lang="windows">WINDOWS</button>
+        <button class="op-lang-tab" data-lang="networking">NETWORKING</button>
         <button class="op-lang-tab" data-lang="python">PYTHON</button>
+        <button class="op-lang-tab" data-lang="javascript">JAVASCRIPT</button>
+        <button class="op-lang-tab" data-lang="crypto">CRYPTO</button>
     </div>
 
     <!-- Tier Grid -->
@@ -647,29 +678,37 @@
 /* ============================================================
    Operator Hub — Mission Selection & Progress Dashboard
 
-   Renders all 24 missions organized into 4 tiers. Each mission
-   card shows: ID, title, domain (color-coded), mode (TERMINAL
-   or PYTHON), difficulty pips (1-4), and completion status.
+   Renders 70 missions organized into 5 tiers across 6 language
+   tracks: Linux, Windows, Networking, Python, JavaScript, Crypto.
+   Each card shows: ID, title, domain (color-coded), language mode,
+   difficulty pips (1-4), and completion status.
 
    Progress tracked via localStorage keys (one per mission, set
    by OperatorEngine on completion). Tier completion calculated
    by checking all missions in each tier.
 
-   9 skill domains, each with a distinct color and icon:
-   RECON, WINDOWS, LINUX, FIREWALL, IR, LOG, CRYPTO, FORENSICS, PYTHON
+   10 skill domains, each with a distinct color and icon:
+   RECON, WINDOWS, LINUX, FIREWALL, IR, LOG, CRYPTO, FORENSICS, PYTHON, JAVASCRIPT
+   6 language tracks (modes): LINUX, WINDOWS, NETWORKING, PYTHON, JAVASCRIPT, CRYPTO
 ============================================================ */
 (function() {
-    /* ── Domain definitions — color + icon per skill category ── */
+    /* ── Domain definitions — color + icon per skill category ──
+       Domains describe WHAT the mission teaches (skill domain).
+       Modes describe WHICH LANGUAGE the student uses (track).
+       A Linux filesystem mission (domain: LINUX) uses LINUX mode.
+       A network recon mission (domain: RECON) uses NETWORKING mode.
+       ── */
     var DOMAINS = {
-        'RECON':      { label: 'Network Recon',      color: '#39ff14', icon: 'icon-satellite.webp' },
-        'WINDOWS':    { label: 'Windows Admin',       color: '#4fc3f7', icon: 'icon-terminal.webp' },
-        'LINUX':      { label: 'Linux Admin',         color: '#ef5350', icon: 'icon-penguin.webp' },
-        'FIREWALL':   { label: 'Firewall Ops',        color: '#8bc34a', icon: 'icon-firewall.webp' },
-        'IR':         { label: 'Incident Response',    color: '#ff9800', icon: 'icon-siren.webp' },
-        'LOG':        { label: 'Log Analysis',         color: '#7c4dff', icon: 'icon-detective.webp' },
-        'CRYPTO':     { label: 'Cryptography',         color: '#ffd740', icon: 'icon-key.webp' },
-        'FORENSICS':  { label: 'Digital Forensics',    color: '#e040fb', icon: 'icon-magnifier.webp' },
-        'PYTHON':     { label: 'Python Automation',    color: '#2196f3', icon: 'icon-snake.webp' }
+        'RECON':       { label: 'Network Recon',      color: '#39ff14', icon: 'icon-satellite.webp' },
+        'WINDOWS':     { label: 'Windows Admin',       color: '#4fc3f7', icon: 'icon-terminal.webp' },
+        'LINUX':       { label: 'Linux Admin',         color: '#ef5350', icon: 'icon-penguin.webp' },
+        'FIREWALL':    { label: 'Firewall Ops',        color: '#8bc34a', icon: 'icon-firewall.webp' },
+        'IR':          { label: 'Incident Response',    color: '#ff9800', icon: 'icon-siren.webp' },
+        'LOG':         { label: 'Log Analysis',         color: '#7c4dff', icon: 'icon-detective.webp' },
+        'CRYPTO':      { label: 'Cryptography',         color: '#ffd740', icon: 'icon-key.webp' },
+        'FORENSICS':   { label: 'Digital Forensics',    color: '#e040fb', icon: 'icon-magnifier.webp' },
+        'PYTHON':      { label: 'Python Automation',    color: '#2196f3', icon: 'icon-snake.webp' },
+        'JAVASCRIPT':  { label: 'JavaScript',           color: '#f7df1e', icon: 'icon-js.webp' }
     };
 
     /* ── Mission data ── */
@@ -681,10 +720,10 @@
             stats: '4 missions | No prerequisites',
             level: 1,
             missions: [
-                { id: 'RECON-01',       title: 'First Contact',       sub: 'Map a network topology and bypass a firewall',                domain: 'RECON',    mode: 'TERMINAL', diff: 1, key: 'hexworth_operator_recon01',       href: 'missions/recon-01.mission.html' },
-                { id: 'WINDOWS-CMD-01', title: 'System Triage',       sub: 'Diagnose a Windows workstation with CLI tools',               domain: 'WINDOWS',  mode: 'TERMINAL', diff: 1, key: 'hexworth_operator_windowscmd01',  href: 'missions/windows-cmd-01.mission.html' },
-                { id: 'LINUX-FS-01',    title: 'Directory Dive',      sub: 'Navigate a Linux filesystem to recover evidence',             domain: 'LINUX',    mode: 'TERMINAL', diff: 1, key: 'hexworth_operator_linuxfs01',     href: 'missions/linux-fs-01.mission.html' },
-                { id: 'FIREWALL-01',    title: 'Perimeter Check',     sub: 'Audit firewall rules and harden the perimeter',               domain: 'FIREWALL', mode: 'TERMINAL', diff: 1, key: 'hexworth_operator_firewall01',    href: 'missions/firewall-01.mission.html' },
+                { id: 'RECON-01',       title: 'First Contact',       sub: 'Map a network topology and bypass a firewall',                domain: 'RECON',    mode: 'NETWORKING', diff: 1, key: 'hexworth_operator_recon01',       href: 'missions/recon-01.mission.html' },
+                { id: 'WINDOWS-CMD-01', title: 'System Triage',       sub: 'Diagnose a Windows workstation with CLI tools',               domain: 'WINDOWS',  mode: 'WINDOWS',    diff: 1, key: 'hexworth_operator_windowscmd01',  href: 'missions/windows-cmd-01.mission.html' },
+                { id: 'LINUX-FS-01',    title: 'Directory Dive',      sub: 'Navigate a Linux filesystem to recover evidence',             domain: 'LINUX',    mode: 'LINUX',      diff: 1, key: 'hexworth_operator_linuxfs01',     href: 'missions/linux-fs-01.mission.html' },
+                { id: 'FIREWALL-01',    title: 'Perimeter Check',     sub: 'Audit firewall rules and harden the perimeter',               domain: 'FIREWALL', mode: 'NETWORKING', diff: 1, key: 'hexworth_operator_firewall01',    href: 'missions/firewall-01.mission.html' },
             ]
         },
         {
@@ -694,16 +733,16 @@
             stats: '10 missions | Recommended: complete Tier 1',
             level: 2,
             missions: [
-                { id: 'RECON-02',       title: 'Deep Sweep',          sub: 'Sweep a segmented network with hidden subnets',               domain: 'RECON',     mode: 'TERMINAL', diff: 2, key: 'hexworth_operator_recon02',       href: 'missions/recon-02.mission.html' },
-                { id: 'RECON-03',       title: 'Phantom Network',     sub: 'Discover a shadow IT network evading detection',              domain: 'RECON',     mode: 'TERMINAL', diff: 2, key: 'hexworth_operator_recon03',       href: 'missions/recon-03.mission.html' },
-                { id: 'WINDOWS-CMD-02', title: 'Blue Screen Protocol',sub: 'Recover a crashed server using remote diagnostics',            domain: 'WINDOWS',   mode: 'TERMINAL', diff: 2, key: 'hexworth_operator_windowscmd02',  href: 'missions/windows-cmd-02.mission.html' },
-                { id: 'LINUX-FS-02',    title: 'Root Hunt',           sub: 'Find SUID binaries and trace privilege escalation',            domain: 'LINUX',     mode: 'TERMINAL', diff: 2, key: 'hexworth_operator_linuxfs02',     href: 'missions/linux-fs-02.mission.html' },
-                { id: 'LINUX-FS-03',    title: 'Privilege Escalation',sub: 'Exploit misconfigurations to gain root access',                domain: 'LINUX',     mode: 'TERMINAL', diff: 2, key: 'hexworth_operator_linuxfs03',     href: 'missions/linux-fs-03.mission.html' },
-                { id: 'FIREWALL-02',    title: 'Zero Day Response',   sub: 'Patch a zero-day exploit in a live firewall',                  domain: 'FIREWALL',  mode: 'TERMINAL', diff: 2, key: 'hexworth_operator_firewall02',    href: 'missions/firewall-02.mission.html' },
-                { id: 'IR-01',          title: 'Breach Protocol',     sub: 'Contain an active breach and preserve evidence',               domain: 'IR',        mode: 'TERMINAL', diff: 2, key: 'hexworth_operator_ir01',          href: 'missions/incident-response-01.mission.html' },
-                { id: 'LOG-01',         title: 'Signal Hunt',         sub: 'Analyze logs to find indicators of compromise',                domain: 'LOG',       mode: 'TERMINAL', diff: 2, key: 'hexworth_operator_loganalysis01', href: 'missions/log-analysis-01.mission.html' },
-                { id: 'CRYPTO-01',      title: 'Dead Drop',           sub: 'Decrypt an encrypted message to reveal coordinates',           domain: 'CRYPTO',    mode: 'TERMINAL', diff: 2, key: 'hexworth_operator_crypto01',      href: 'missions/crypto-01.mission.html' },
-                { id: 'FORENSICS-01',   title: 'Memory Dump',         sub: 'Extract artifacts from a volatile memory capture',             domain: 'FORENSICS', mode: 'TERMINAL', diff: 2, key: 'hexworth_operator_forensics01',   href: 'missions/forensics-01.mission.html' },
+                { id: 'RECON-02',       title: 'Deep Sweep',          sub: 'Sweep a segmented network with hidden subnets',               domain: 'RECON',     mode: 'NETWORKING', diff: 2, key: 'hexworth_operator_recon02',       href: 'missions/recon-02.mission.html' },
+                { id: 'RECON-03',       title: 'Phantom Network',     sub: 'Discover a shadow IT network evading detection',              domain: 'RECON',     mode: 'NETWORKING', diff: 2, key: 'hexworth_operator_recon03',       href: 'missions/recon-03.mission.html' },
+                { id: 'WINDOWS-CMD-02', title: 'Blue Screen Protocol',sub: 'Recover a crashed server using remote diagnostics',            domain: 'WINDOWS',   mode: 'WINDOWS',    diff: 2, key: 'hexworth_operator_windowscmd02',  href: 'missions/windows-cmd-02.mission.html' },
+                { id: 'LINUX-FS-02',    title: 'Root Hunt',           sub: 'Find SUID binaries and trace privilege escalation',            domain: 'LINUX',     mode: 'LINUX',      diff: 2, key: 'hexworth_operator_linuxfs02',     href: 'missions/linux-fs-02.mission.html' },
+                { id: 'LINUX-FS-03',    title: 'Privilege Escalation',sub: 'Exploit misconfigurations to gain root access',                domain: 'LINUX',     mode: 'LINUX',      diff: 2, key: 'hexworth_operator_linuxfs03',     href: 'missions/linux-fs-03.mission.html' },
+                { id: 'FIREWALL-02',    title: 'Zero Day Response',   sub: 'Patch a zero-day exploit in a live firewall',                  domain: 'FIREWALL',  mode: 'NETWORKING', diff: 2, key: 'hexworth_operator_firewall02',    href: 'missions/firewall-02.mission.html' },
+                { id: 'IR-01',          title: 'Breach Protocol',     sub: 'Contain an active breach and preserve evidence',               domain: 'IR',        mode: 'NETWORKING', diff: 2, key: 'hexworth_operator_ir01',          href: 'missions/incident-response-01.mission.html' },
+                { id: 'LOG-01',         title: 'Signal Hunt',         sub: 'Analyze logs to find indicators of compromise',                domain: 'LOG',       mode: 'LINUX',      diff: 2, key: 'hexworth_operator_loganalysis01', href: 'missions/log-analysis-01.mission.html' },
+                { id: 'CRYPTO-01',      title: 'Dead Drop',           sub: 'Decrypt an encrypted message to reveal coordinates',           domain: 'CRYPTO',    mode: 'CRYPTO',     diff: 2, key: 'hexworth_operator_crypto01',      href: 'missions/crypto-01.mission.html' },
+                { id: 'FORENSICS-01',   title: 'Memory Dump',         sub: 'Extract artifacts from a volatile memory capture',             domain: 'FORENSICS', mode: 'LINUX',      diff: 2, key: 'hexworth_operator_forensics01',   href: 'missions/forensics-01.mission.html' },
             ]
         },
         {
@@ -713,12 +752,12 @@
             stats: '7 missions | Recommended: complete Tier 2',
             level: 3,
             missions: [
-                { id: 'IR-02',        title: 'Ransomware Dawn',  sub: 'Respond to a ransomware outbreak across multiple systems',     domain: 'IR',        mode: 'TERMINAL', diff: 3, key: 'hexworth_operator_ir02',          href: 'missions/incident-response-02.mission.html' },
-                { id: 'IR-03',        title: 'Supply Chain',     sub: 'Trace a supply chain compromise to its source',                domain: 'IR',        mode: 'TERMINAL', diff: 3, key: 'hexworth_operator_ir03',          href: 'missions/incident-response-03.mission.html' },
-                { id: 'LOG-02',       title: 'APT Tracker',      sub: 'Correlate logs across systems to track an APT actor',          domain: 'LOG',       mode: 'TERMINAL', diff: 3, key: 'hexworth_operator_loganalysis02', href: 'missions/log-analysis-02.mission.html' },
-                { id: 'CRYPTO-02',    title: 'Key Escrow',       sub: 'Recover escrowed keys from a compromised key server',          domain: 'CRYPTO',    mode: 'TERMINAL', diff: 3, key: 'hexworth_operator_crypto02',      href: 'missions/crypto-02.mission.html' },
-                { id: 'FORENSICS-02', title: 'Cloud Artifact',   sub: 'Investigate cloud artifacts in AWS and container logs',        domain: 'FORENSICS', mode: 'TERMINAL', diff: 3, key: 'hexworth_operator_forensics02',   href: 'missions/forensics-02.mission.html' },
-                { id: 'FORENSICS-03', title: 'Insider Threat',   sub: 'Uncover an insider exfiltrating data through covert channels', domain: 'FORENSICS', mode: 'TERMINAL', diff: 3, key: 'hexworth_operator_forensics03',   href: 'missions/forensics-03.mission.html' },
+                { id: 'IR-02',        title: 'Ransomware Dawn',  sub: 'Respond to a ransomware outbreak across multiple systems',     domain: 'IR',        mode: 'NETWORKING', diff: 3, key: 'hexworth_operator_ir02',          href: 'missions/incident-response-02.mission.html' },
+                { id: 'IR-03',        title: 'Supply Chain',     sub: 'Trace a supply chain compromise to its source',                domain: 'IR',        mode: 'NETWORKING', diff: 3, key: 'hexworth_operator_ir03',          href: 'missions/incident-response-03.mission.html' },
+                { id: 'LOG-02',       title: 'APT Tracker',      sub: 'Correlate logs across systems to track an APT actor',          domain: 'LOG',       mode: 'LINUX',      diff: 3, key: 'hexworth_operator_loganalysis02', href: 'missions/log-analysis-02.mission.html' },
+                { id: 'CRYPTO-02',    title: 'Key Escrow',       sub: 'Recover escrowed keys from a compromised key server',          domain: 'CRYPTO',    mode: 'CRYPTO',     diff: 3, key: 'hexworth_operator_crypto02',      href: 'missions/crypto-02.mission.html' },
+                { id: 'FORENSICS-02', title: 'Cloud Artifact',   sub: 'Investigate cloud artifacts in AWS and container logs',        domain: 'FORENSICS', mode: 'LINUX',      diff: 3, key: 'hexworth_operator_forensics02',   href: 'missions/forensics-02.mission.html' },
+                { id: 'FORENSICS-03', title: 'Insider Threat',   sub: 'Uncover an insider exfiltrating data through covert channels', domain: 'FORENSICS', mode: 'LINUX',      diff: 3, key: 'hexworth_operator_forensics03',   href: 'missions/forensics-03.mission.html' },
             ]
         },
         {
@@ -809,7 +848,84 @@
         return html;
     }
 
-    /* ── Python-specific tier structure (shown when Python tab is active) ── */
+    /* ── Per-language tier structures ──
+       Shown when a specific language tab is active. Each defines
+       its own tier groupings and references mission IDs from TIERS.
+       ── */
+
+    /* Linux track: filesystem, log analysis, forensics */
+    var LINUX_TIERS = [
+        {
+            name: 'LINUX TIER 1 &mdash; FILESYSTEM',
+            subtitle: 'Navigate & Read',
+            desc: 'Core Linux commands: ls, cat, grep, find, pwd.',
+            stats: '3 missions | Start here',
+            missions: ['LINUX-FS-01', 'LINUX-FS-02', 'LINUX-FS-03']
+        },
+        {
+            name: 'LINUX TIER 2 &mdash; LOG ANALYSIS',
+            subtitle: 'Hunt & Correlate',
+            desc: 'Find IOCs in logs. Correlate across systems.',
+            stats: '2 missions | Recommended: complete Linux Tier 1',
+            missions: ['LOG-01', 'LOG-02']
+        },
+        {
+            name: 'LINUX TIER 3 &mdash; FORENSICS',
+            subtitle: 'Evidence & Artifacts',
+            desc: 'Memory dumps, cloud artifacts, insider threat investigation.',
+            stats: '3 missions | Recommended: complete Linux Tier 2',
+            missions: ['FORENSICS-01', 'FORENSICS-02', 'FORENSICS-03']
+        }
+    ];
+
+    /* Windows track: CMD, PowerShell (future) */
+    var WINDOWS_TIERS = [
+        {
+            name: 'WINDOWS TIER 1 &mdash; COMMAND PROMPT',
+            subtitle: 'Windows CLI',
+            desc: 'ipconfig, netstat, tasklist, sfc &mdash; Windows IR tools.',
+            stats: '2 missions | Start here',
+            missions: ['WINDOWS-CMD-01', 'WINDOWS-CMD-02']
+        }
+    ];
+
+    /* Networking track: recon, firewalls, incident response */
+    var NETWORKING_TIERS = [
+        {
+            name: 'NET TIER 1 &mdash; RECON',
+            subtitle: 'Discover & Map',
+            desc: 'Network scanning, topology mapping, nmap.',
+            stats: '3 missions | Start here',
+            missions: ['RECON-01', 'RECON-02', 'RECON-03']
+        },
+        {
+            name: 'NET TIER 2 &mdash; DEFENSE',
+            subtitle: 'Firewall & Hardening',
+            desc: 'Audit rules, patch zero-days, harden perimeters.',
+            stats: '2 missions | Recommended: complete Net Tier 1',
+            missions: ['FIREWALL-01', 'FIREWALL-02']
+        },
+        {
+            name: 'NET TIER 3 &mdash; INCIDENT RESPONSE',
+            subtitle: 'Contain & Recover',
+            desc: 'Breach containment, ransomware response, supply chain tracing.',
+            stats: '3 missions | Recommended: complete Net Tier 2',
+            missions: ['IR-01', 'IR-02', 'IR-03']
+        }
+    ];
+
+    /* Crypto track: cryptography operations */
+    var CRYPTO_TIERS = [
+        {
+            name: 'CRYPTO TIER 1 &mdash; FOUNDATIONS',
+            subtitle: 'Decode & Decrypt',
+            desc: 'Base64, hashes, ciphers, key recovery.',
+            stats: '2 missions | Start here',
+            missions: ['CRYPTO-01', 'CRYPTO-02']
+        }
+    ];
+
+    /* Python track: 50-level Metroidvania */
     var PYTHON_TIERS = [
         {
             name: 'PYTHON TIER 1 &mdash; FOUNDATIONS',
@@ -882,11 +998,24 @@
             '<span class="op-pip-legend-item"><span class="pip-demo"></span><span class="pip-demo"></span><span class="pip-demo"></span><span class="pip-demo"></span> 4 = Expert</span>';
         container.appendChild(legend);
 
-        /* Determine which tier structure to use */
+        /* ── Determine which tier structure to use ──
+           Language tabs with their own tier structures get custom groupings.
+           Tabs without a custom structure filter the main TIERS by mode.
+           ── */
         var tiersToRender;
-        if (filter === 'python') {
-            /* Python tab: use Python-specific tier structure */
-            tiersToRender = PYTHON_TIERS.map(function(pt) {
+
+        /* Per-language tier structures — maps filter name to tier data */
+        var LANG_TIER_MAP = {
+            'python':     PYTHON_TIERS,
+            'linux':      LINUX_TIERS,
+            'windows':    WINDOWS_TIERS,
+            'networking': NETWORKING_TIERS,
+            'crypto':     CRYPTO_TIERS
+        };
+
+        if (LANG_TIER_MAP[filter]) {
+            /* Language tab with custom tier structure: resolve mission IDs to objects */
+            tiersToRender = LANG_TIER_MAP[filter].map(function(pt) {
                 return {
                     name: pt.name,
                     subtitle: pt.subtitle,
@@ -895,10 +1024,11 @@
                     missions: pt.missions.map(function(id) { return ALL_MISSIONS[id]; }).filter(Boolean)
                 };
             });
-        } else if (filter === 'terminal') {
-            /* Terminal tab: use standard tiers but filter out Python missions */
+        } else if (filter !== 'all') {
+            /* Language tab without custom tiers: filter main TIERS by mode */
+            var modeUpper = filter.toUpperCase();
             tiersToRender = TIERS.map(function(tier) {
-                var filtered = tier.missions.filter(function(m) { return m.mode === 'TERMINAL'; });
+                var filtered = tier.missions.filter(function(m) { return m.mode === modeUpper; });
                 if (filtered.length === 0) return null;
                 return {
                     name: tier.name,
@@ -909,7 +1039,7 @@
                 };
             }).filter(Boolean);
         } else {
-            /* All tab: show everything in original tier structure */
+            /* ALL tab: show everything in original tier structure */
             tiersToRender = TIERS;
         }
 
@@ -967,8 +1097,9 @@
             container.appendChild(tierEl);
         });
 
-        /* Update progress panel */
+        /* Update progress panel — count is dynamic based on active filter */
         document.getElementById('progress-done').textContent = totalDone;
+        document.getElementById('progress-total').textContent = totalMissions;
         var bar = document.getElementById('progress-bar');
         bar.style.width = Math.round((totalDone / Math.max(totalMissions, 1)) * 100) + '%';
     }
