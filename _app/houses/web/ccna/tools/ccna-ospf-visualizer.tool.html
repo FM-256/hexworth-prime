@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSPF Network Visualizer | CCNA Tools</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #090910;
+            --bg-card: #111120;
+            --bg-card-hover: #181830;
+            --cisco-primary: #10b981;
+            --cisco-dim: rgba(16, 185, 129, 0.12);
+            --cisco-border: rgba(16, 185, 129, 0.2);
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --text-muted: #5a6370;
+            --border: rgba(255, 255, 255, 0.08);
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+            --area0-color: #10b981;
+            --area1-color: #3b82f6;
+            --area2-color: #f59e0b;
+            --area3-color: #ec4899;
+            --area4-color: #8b5cf6;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .tool-header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .tool-header-left { display: flex; align-items: center; gap: 15px; }
+        .tool-badge {
+            background: var(--cisco-primary);
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .tool-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--cisco-primary); }
+        .back-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+        .back-link:hover { color: var(--cisco-primary); border-color: var(--cisco-border); }
+        .back-link img { width: 14px; height: 14px; opacity: 0.7; }
+
+        /* Main layout */
+        .main-layout { display: flex; height: calc(100vh - 56px); }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            min-width: 320px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .sidebar-section {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .sidebar-title {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 10px;
+        }
+
+        .input-row-s { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; align-items: flex-end; }
+        .input-group-s { display: flex; flex-direction: column; gap: 3px; }
+        .input-group-s label { font-size: 0.68rem; color: var(--text-muted); font-weight: 500; }
+        .input-group-s input, .input-group-s select {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 6px 8px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .input-group-s input:focus, .input-group-s select:focus { border-color: var(--cisco-primary); }
+
+        .btn {
+            background: var(--cisco-primary); color: #fff; border: none; padding: 7px 14px;
+            border-radius: 5px; font-size: 0.78rem; cursor: pointer; font-weight: 600;
+            font-family: 'Inter', sans-serif; transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.85; }
+        .btn-sm { padding: 5px 10px; font-size: 0.72rem; }
+        .btn-outline { background: transparent; border: 1px solid var(--cisco-border); color: var(--cisco-primary); }
+        .btn-outline:hover { background: var(--cisco-dim); opacity: 1; }
+        .btn-danger { background: var(--danger); }
+        .btn-info { background: var(--info); }
+
+        /* Canvas area */
+        .canvas-wrap {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        #topoCanvas {
+            display: block;
+            cursor: crosshair;
+        }
+        .canvas-toolbar {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            display: flex;
+            gap: 6px;
+            z-index: 10;
+        }
+        .canvas-toolbar .btn { box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+
+        .canvas-help {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            background: rgba(0,0,0,0.6);
+            padding: 6px 12px;
+            border-radius: 6px;
+        }
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+        .data-table th {
+            text-align: left;
+            padding: 5px 6px;
+            color: var(--text-muted);
+            font-size: 0.68rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border);
+        }
+        .data-table td {
+            padding: 5px 6px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+        }
+
+        /* Router info panel */
+        .router-info {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 300px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            z-index: 10;
+            display: none;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .router-info.visible { display: block; }
+        .router-info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .router-info-header h3 { font-size: 0.9rem; color: var(--cisco-primary); }
+        .router-info-close {
+            cursor: pointer; color: var(--text-muted); font-size: 0.9rem;
+            width: 24px; height: 24px; display: flex; align-items: center;
+            justify-content: center; border-radius: 4px;
+        }
+        .router-info-close:hover { background: rgba(255,255,255,0.05); color: var(--text-primary); }
+
+        .info-label {
+            font-size: 0.68rem; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; margin-top: 10px; margin-bottom: 4px;
+        }
+        .info-value {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--text-secondary);
+        }
+
+        /* Area legend */
+        .area-legend { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+        .area-dot {
+            display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; color: var(--text-muted);
+        }
+        .area-dot span {
+            width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+        }
+
+        /* Cost calculator */
+        .cost-calc {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 8px;
+        }
+        .cost-result {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            color: var(--cisco-primary);
+            font-weight: 600;
+            margin-top: 6px;
+        }
+
+        /* DR/BDR panel */
+        .dr-result {
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            margin-top: 8px;
+        }
+        .dr-result.dr { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: var(--cisco-primary); }
+        .dr-result.bdr { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); color: var(--info); }
+        .dr-result.drother { background: rgba(107,114,128,0.1); border: 1px solid rgba(107,114,128,0.3); color: var(--text-muted); }
+
+        @media (max-width: 900px) {
+            .main-layout { flex-direction: column; }
+            .sidebar { width: 100%; min-width: 100%; max-height: 40vh; }
+            .canvas-wrap { min-height: 400px; }
+            .router-info { width: 260px; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="tool-header">
+    <div class="tool-header-left">
+        <span class="tool-badge">OSPF</span>
+        <h1>OSPF Network Visualizer</h1>
+    </div>
+    <a href="../index.html" class="back-link">
+        <img src="/assets/images/icons/icon-arrow-left.webp" alt="">
+        CCNA Hub
+    </a>
+</header>
+
+<div class="main-layout">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-title">Add Router</div>
+            <div class="input-row-s">
+                <div class="input-group-s">
+                    <label>Router ID</label>
+                    <input type="text" id="newRid" value="" placeholder="Auto" style="width:100px;" title="Leave empty for auto-assign">
+                </div>
+                <div class="input-group-s">
+                    <label>Priority</label>
+                    <input type="number" id="newPriority" value="1" min="0" max="255" style="width:60px;">
+                </div>
+                <div class="input-group-s">
+                    <label>Area</label>
+                    <select id="newArea" style="width:70px;">
+                        <option value="0">Area 0</option>
+                        <option value="1">Area 1</option>
+                        <option value="2">Area 2</option>
+                        <option value="3">Area 3</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn btn-sm" onclick="addRouter()">Add Router</button>
+            <button class="btn btn-sm btn-outline" onclick="loadSampleTopology()" style="margin-left:4px;">Load Sample</button>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-title">Add Link</div>
+            <div class="input-row-s">
+                <div class="input-group-s">
+                    <label>From Router</label>
+                    <select id="linkFrom" style="width:100px;"></select>
+                </div>
+                <div class="input-group-s">
+                    <label>To Router</label>
+                    <select id="linkTo" style="width:100px;"></select>
+                </div>
+                <div class="input-group-s">
+                    <label>Bandwidth</label>
+                    <select id="linkBw" style="width:90px;">
+                        <option value="10000">10 Gbps</option>
+                        <option value="1000" selected>1 Gbps</option>
+                        <option value="100">100 Mbps</option>
+                        <option value="10">10 Mbps</option>
+                        <option value="1.544">T1 (1.544)</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn btn-sm" onclick="addLink()">Add Link</button>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-title">OSPF Actions</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button class="btn btn-sm btn-info" onclick="runSPF()">Run SPF</button>
+                <button class="btn btn-sm btn-outline" onclick="runDRElection()">DR/BDR Election</button>
+                <button class="btn btn-sm btn-danger" onclick="clearTopology()">Clear All</button>
+            </div>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-title">Cost Calculator</div>
+            <div class="cost-calc">
+                <div class="input-row-s">
+                    <div class="input-group-s">
+                        <label>Reference BW (Mbps)</label>
+                        <input type="number" id="refBw" value="100" min="1" style="width:90px;" oninput="calcCost()">
+                    </div>
+                    <div class="input-group-s">
+                        <label>Interface BW (Mbps)</label>
+                        <input type="number" id="intBw" value="1000" min="1" style="width:90px;" oninput="calcCost()">
+                    </div>
+                </div>
+                <div style="font-size:0.7rem;color:var(--text-muted);">Cost = Reference BW / Interface BW</div>
+                <div class="cost-result" id="costResult">Cost: 1</div>
+                <div style="font-size:0.68rem;color:var(--warning);margin-top:4px;" id="costNote"></div>
+            </div>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-title">Area Legend</div>
+            <div class="area-legend">
+                <div class="area-dot"><span style="background:var(--area0-color);"></span>Area 0 (Backbone)</div>
+                <div class="area-dot"><span style="background:var(--area1-color);"></span>Area 1</div>
+                <div class="area-dot"><span style="background:var(--area2-color);"></span>Area 2</div>
+                <div class="area-dot"><span style="background:var(--area3-color);"></span>Area 3</div>
+            </div>
+        </div>
+
+        <div class="sidebar-section" id="neighborTableSection" style="display:none;">
+            <div class="sidebar-title">OSPF Neighbor Table</div>
+            <table class="data-table" id="neighborTable">
+                <thead><tr><th>Neighbor</th><th>State</th><th>Role</th><th>Interface</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div class="sidebar-section" id="lsdbSection" style="display:none;">
+            <div class="sidebar-title">LSDB (Link-State Database)</div>
+            <table class="data-table" id="lsdbTable">
+                <thead><tr><th>Link ID</th><th>ADV Router</th><th>Type</th><th>Cost</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Canvas -->
+    <div class="canvas-wrap">
+        <div class="canvas-toolbar">
+            <button class="btn btn-sm" onclick="zoomIn()">+</button>
+            <button class="btn btn-sm" onclick="zoomOut()">-</button>
+            <button class="btn btn-sm btn-outline" onclick="resetView()">Reset View</button>
+        </div>
+        <canvas id="topoCanvas"></canvas>
+        <div class="canvas-help">Click a router to select | Drag to move | Double-click for details</div>
+
+        <div class="router-info" id="routerInfo">
+            <div class="router-info-header">
+                <h3 id="riName"></h3>
+                <div class="router-info-close" onclick="closeRouterInfo()">X</div>
+            </div>
+            <div class="info-label">Router ID</div>
+            <div class="info-value" id="riRid"></div>
+            <div class="info-label">Area</div>
+            <div class="info-value" id="riArea"></div>
+            <div class="info-label">Priority</div>
+            <div class="info-value" id="riPriority"></div>
+            <div class="info-label">DR/BDR Role</div>
+            <div class="info-value" id="riRole"></div>
+            <div class="info-label">Interfaces</div>
+            <div class="info-value" id="riInterfaces"></div>
+            <div class="info-label">Routing Table (SPF Result)</div>
+            <div class="info-value" id="riRoutes"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ═══ Data Model ═══ */
+let routers = [];
+let links = [];
+let nextRouterId = 1;
+let selectedRouter = null;
+let dragRouter = null;
+let dragOffsetX = 0, dragOffsetY = 0;
+let spfResults = {};
+let drResults = {};
+let zoom = 1;
+let panX = 0, panY = 0;
+
+const AREA_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6'];
+const ROUTER_RADIUS = 26;
+
+function genRid() {
+    const id = nextRouterId;
+    nextRouterId++;
+    return `${id}.${id}.${id}.${id}`;
+}
+
+/* ═══ Add Router ═══ */
+function addRouter() {
+    const ridInput = document.getElementById('newRid').value.trim();
+    const rid = ridInput || genRid();
+    const priority = parseInt(document.getElementById('newPriority').value) || 1;
+    const area = parseInt(document.getElementById('newArea').value);
+
+    if (routers.find(r => r.rid === rid)) {
+        alert('Router ID already exists');
+        return;
+    }
+
+    const canvas = document.getElementById('topoCanvas');
+    const cx = 100 + Math.random() * (canvas.width - 200);
+    const cy = 80 + Math.random() * (canvas.height - 160);
+
+    routers.push({ rid, priority, area, x: cx, y: cy, name: 'R' + routers.length });
+    document.getElementById('newRid').value = '';
+    updateRouterSelects();
+    draw();
+}
+
+/* ═══ Add Link ═══ */
+function addLink() {
+    const fromRid = document.getElementById('linkFrom').value;
+    const toRid = document.getElementById('linkTo').value;
+    const bw = parseFloat(document.getElementById('linkBw').value);
+
+    if (!fromRid || !toRid || fromRid === toRid) {
+        alert('Select two different routers');
+        return;
+    }
+    if (links.find(l => (l.from === fromRid && l.to === toRid) || (l.from === toRid && l.to === fromRid))) {
+        alert('Link already exists between these routers');
+        return;
+    }
+
+    const refBw = parseInt(document.getElementById('refBw').value) || 100;
+    const cost = Math.max(1, Math.floor(refBw / bw));
+
+    links.push({ from: fromRid, to: toRid, bw, cost });
+    draw();
+}
+
+/* ═══ Update selects ═══ */
+function updateRouterSelects() {
+    const opts = routers.map(r => `<option value="${r.rid}">${r.name} (${r.rid})</option>`).join('');
+    document.getElementById('linkFrom').innerHTML = opts;
+    document.getElementById('linkTo').innerHTML = opts;
+}
+
+/* ═══ Clear ═══ */
+function clearTopology() {
+    routers = [];
+    links = [];
+    nextRouterId = 1;
+    spfResults = {};
+    drResults = {};
+    selectedRouter = null;
+    updateRouterSelects();
+    closeRouterInfo();
+    document.getElementById('neighborTableSection').style.display = 'none';
+    document.getElementById('lsdbSection').style.display = 'none';
+    draw();
+}
+
+/* ═══ Sample Topology ═══ */
+function loadSampleTopology() {
+    clearTopology();
+    const canvas = document.getElementById('topoCanvas');
+    const w = canvas.width, h = canvas.height;
+
+    routers = [
+        { rid: '1.1.1.1', priority: 100, area: 0, x: w*0.3, y: h*0.3, name: 'R1' },
+        { rid: '2.2.2.2', priority: 50, area: 0, x: w*0.6, y: h*0.3, name: 'R2' },
+        { rid: '3.3.3.3', priority: 1, area: 0, x: w*0.45, y: h*0.55, name: 'R3' },
+        { rid: '4.4.4.4', priority: 1, area: 1, x: w*0.15, y: h*0.65, name: 'R4' },
+        { rid: '5.5.5.5', priority: 1, area: 2, x: w*0.75, y: h*0.65, name: 'R5' },
+    ];
+    nextRouterId = 6;
+
+    links = [
+        { from: '1.1.1.1', to: '2.2.2.2', bw: 1000, cost: 1 },
+        { from: '1.1.1.1', to: '3.3.3.3', bw: 100, cost: 1 },
+        { from: '2.2.2.2', to: '3.3.3.3', bw: 1000, cost: 1 },
+        { from: '1.1.1.1', to: '4.4.4.4', bw: 100, cost: 10 },
+        { from: '2.2.2.2', to: '5.5.5.5', bw: 1000, cost: 1 },
+    ];
+
+    // Recalculate costs with current ref BW
+    const refBw = parseInt(document.getElementById('refBw').value) || 100;
+    links.forEach(l => l.cost = Math.max(1, Math.floor(refBw / l.bw)));
+
+    updateRouterSelects();
+    draw();
+}
+
+/* ═══ Cost Calculator ═══ */
+function calcCost() {
+    const ref = parseInt(document.getElementById('refBw').value) || 100;
+    const intf = parseInt(document.getElementById('intBw').value) || 1;
+    const cost = Math.max(1, Math.floor(ref / intf));
+    document.getElementById('costResult').textContent = 'Cost: ' + cost;
+
+    const note = document.getElementById('costNote');
+    if (ref === 100 && intf >= 100) {
+        note.textContent = 'Default ref BW=100. FastEthernet and GigE both get cost=1. Consider increasing ref BW.';
+    } else if (ref >= 10000) {
+        note.textContent = 'Good. 10G ref BW differentiates between 10G, 1G, 100M, and 10M links.';
+    } else {
+        note.textContent = '';
+    }
+}
+calcCost();
+
+/* ═══ SPF Algorithm ═══ */
+function runSPF() {
+    if (routers.length === 0) { alert('Add routers first'); return; }
+    spfResults = {};
+
+    for (const source of routers) {
+        const dist = {};
+        const prev = {};
+        const visited = new Set();
+        routers.forEach(r => { dist[r.rid] = Infinity; prev[r.rid] = null; });
+        dist[source.rid] = 0;
+
+        for (let i = 0; i < routers.length; i++) {
+            let u = null;
+            let minDist = Infinity;
+            for (const r of routers) {
+                if (!visited.has(r.rid) && dist[r.rid] < minDist) {
+                    minDist = dist[r.rid];
+                    u = r.rid;
+                }
+            }
+            if (u === null) break;
+            visited.add(u);
+
+            // Get neighbors
+            for (const link of links) {
+                let neighbor = null;
+                if (link.from === u) neighbor = link.to;
+                else if (link.to === u) neighbor = link.from;
+                if (neighbor && !visited.has(neighbor)) {
+                    const alt = dist[u] + link.cost;
+                    if (alt < dist[neighbor]) {
+                        dist[neighbor] = alt;
+                        prev[neighbor] = u;
+                    }
+                }
+            }
+        }
+
+        spfResults[source.rid] = { dist, prev };
+    }
+
+    draw();
+
+    // Show tables for selected or first router
+    const target = selectedRouter || routers[0];
+    showRouterTables(target);
+}
+
+/* ═══ DR/BDR Election ═══ */
+function runDRElection() {
+    if (routers.length === 0) { alert('Add routers first'); return; }
+    drResults = {};
+
+    // Group routers by area for election
+    const areas = {};
+    routers.forEach(r => {
+        if (!areas[r.area]) areas[r.area] = [];
+        areas[r.area].push(r);
+    });
+
+    for (const [areaId, areaRouters] of Object.entries(areas)) {
+        // Only routers with priority > 0 participate
+        const eligible = areaRouters.filter(r => r.priority > 0);
+        const sorted = [...eligible].sort((a, b) => {
+            if (b.priority !== a.priority) return b.priority - a.priority;
+            // Higher RID wins tie
+            return a.rid < b.rid ? 1 : -1;
+        });
+
+        if (sorted.length >= 1) drResults[sorted[0].rid] = 'DR';
+        if (sorted.length >= 2) drResults[sorted[1].rid] = 'BDR';
+        for (let i = 2; i < sorted.length; i++) drResults[sorted[i].rid] = 'DROther';
+
+        // Priority 0 routers
+        areaRouters.filter(r => r.priority === 0).forEach(r => {
+            drResults[r.rid] = 'DROther (Priority 0)';
+        });
+    }
+
+    draw();
+
+    if (selectedRouter) showRouterTables(selectedRouter);
+}
+
+/* ═══ Show Router Tables ═══ */
+function showRouterTables(router) {
+    // Neighbor table
+    const nSection = document.getElementById('neighborTableSection');
+    const nBody = document.querySelector('#neighborTable tbody');
+    const neighbors = [];
+
+    links.forEach(l => {
+        let neighborRid = null;
+        if (l.from === router.rid) neighborRid = l.to;
+        else if (l.to === router.rid) neighborRid = l.from;
+        if (neighborRid) {
+            const nr = routers.find(r => r.rid === neighborRid);
+            neighbors.push({
+                rid: neighborRid,
+                name: nr ? nr.name : '?',
+                state: 'FULL',
+                role: drResults[neighborRid] || '-',
+                cost: l.cost
+            });
+        }
+    });
+
+    if (neighbors.length > 0) {
+        nSection.style.display = 'block';
+        nBody.innerHTML = neighbors.map(n =>
+            `<tr><td>${n.rid}</td><td style="color:var(--cisco-primary);">FULL</td><td>${n.role}</td><td>cost ${n.cost}</td></tr>`
+        ).join('');
+    } else {
+        nSection.style.display = 'none';
+    }
+
+    // LSDB
+    const lSection = document.getElementById('lsdbSection');
+    const lBody = document.querySelector('#lsdbTable tbody');
+    const lsdbEntries = [];
+
+    // Show all links the router knows about (all links in same area + backbone)
+    links.forEach(l => {
+        const fromR = routers.find(r => r.rid === l.from);
+        const toR = routers.find(r => r.rid === l.to);
+        if (fromR && toR && (fromR.area === router.area || toR.area === router.area || fromR.area === 0 || toR.area === 0)) {
+            lsdbEntries.push({
+                linkId: l.from + ' -> ' + l.to,
+                advRouter: l.from,
+                type: 'Router LSA',
+                cost: l.cost
+            });
+        }
+    });
+
+    if (lsdbEntries.length > 0) {
+        lSection.style.display = 'block';
+        lBody.innerHTML = lsdbEntries.map(e =>
+            `<tr><td>${e.linkId}</td><td>${e.advRouter}</td><td style="color:var(--info);">${e.type}</td><td>${e.cost}</td></tr>`
+        ).join('');
+    }
+}
+
+/* ═══ Router Info Panel ═══ */
+function showRouterInfo(router) {
+    const panel = document.getElementById('routerInfo');
+    panel.classList.add('visible');
+    document.getElementById('riName').textContent = router.name;
+    document.getElementById('riRid').textContent = router.rid;
+    document.getElementById('riArea').textContent = 'Area ' + router.area + (router.area === 0 ? ' (Backbone)' : '');
+    document.getElementById('riPriority').textContent = router.priority;
+    document.getElementById('riRole').textContent = drResults[router.rid] || 'Not elected (run DR/BDR Election)';
+
+    // Interfaces
+    const ifaces = [];
+    links.forEach(l => {
+        if (l.from === router.rid) ifaces.push(`-> ${l.to} (cost: ${l.cost}, BW: ${l.bw} Mbps)`);
+        else if (l.to === router.rid) ifaces.push(`-> ${l.from} (cost: ${l.cost}, BW: ${l.bw} Mbps)`);
+    });
+    document.getElementById('riInterfaces').innerHTML = ifaces.length > 0
+        ? ifaces.map(i => `<div>${i}</div>`).join('')
+        : 'No interfaces';
+
+    // SPF routes
+    const spf = spfResults[router.rid];
+    if (spf) {
+        const routeLines = [];
+        for (const r of routers) {
+            if (r.rid === router.rid) continue;
+            const cost = spf.dist[r.rid];
+            if (cost === Infinity) {
+                routeLines.push(`${r.rid} - Unreachable`);
+            } else {
+                // Build path
+                const path = [];
+                let curr = r.rid;
+                while (curr) {
+                    path.unshift(curr);
+                    curr = spf.prev[curr];
+                }
+                routeLines.push(`${r.rid} cost=${cost} via ${path.join(' > ')}`);
+            }
+        }
+        document.getElementById('riRoutes').innerHTML = routeLines.length > 0
+            ? routeLines.map(l => `<div style="margin-bottom:4px;">${l}</div>`).join('')
+            : 'Run SPF first';
+    } else {
+        document.getElementById('riRoutes').textContent = 'Run SPF first';
+    }
+}
+
+function closeRouterInfo() {
+    document.getElementById('routerInfo').classList.remove('visible');
+}
+
+/* ═══ Canvas Drawing ═══ */
+const canvas = document.getElementById('topoCanvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+    const wrap = canvas.parentElement;
+    canvas.width = wrap.clientWidth;
+    canvas.height = wrap.clientHeight;
+    draw();
+}
+
+function draw() {
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    ctx.save();
+    ctx.translate(panX, panY);
+    ctx.scale(zoom, zoom);
+
+    // Draw area backgrounds (subtle)
+    const areaGroups = {};
+    routers.forEach(r => {
+        if (!areaGroups[r.area]) areaGroups[r.area] = [];
+        areaGroups[r.area].push(r);
+    });
+    for (const [area, rts] of Object.entries(areaGroups)) {
+        if (rts.length < 2) continue;
+        const color = AREA_COLORS[parseInt(area)] || AREA_COLORS[0];
+        ctx.fillStyle = color + '08';
+        ctx.strokeStyle = color + '20';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([6, 4]);
+
+        // Bounding box with padding
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        rts.forEach(r => {
+            minX = Math.min(minX, r.x);
+            minY = Math.min(minY, r.y);
+            maxX = Math.max(maxX, r.x);
+            maxY = Math.max(maxY, r.y);
+        });
+        const pad = 50;
+        ctx.beginPath();
+        ctx.roundRect(minX - pad, minY - pad, maxX - minX + pad * 2, maxY - minY + pad * 2, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        // Area label
+        ctx.setLineDash([]);
+        ctx.fillStyle = color + '60';
+        ctx.font = '11px Inter, sans-serif';
+        ctx.fillText('Area ' + area, minX - pad + 8, minY - pad + 16);
+    }
+    ctx.setLineDash([]);
+
+    // Draw links
+    links.forEach(link => {
+        const fromR = routers.find(r => r.rid === link.from);
+        const toR = routers.find(r => r.rid === link.to);
+        if (!fromR || !toR) return;
+
+        // Check if this link is on SPF shortest path for selected router
+        let isOnPath = false;
+        if (selectedRouter && spfResults[selectedRouter.rid]) {
+            const prev = spfResults[selectedRouter.rid].prev;
+            for (const r of routers) {
+                if (prev[r.rid] === link.from && r.rid === link.to) isOnPath = true;
+                if (prev[r.rid] === link.to && r.rid === link.from) isOnPath = true;
+            }
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(fromR.x, fromR.y);
+        ctx.lineTo(toR.x, toR.y);
+        ctx.strokeStyle = isOnPath ? '#10b981' : 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = isOnPath ? 3 : 1.5;
+        ctx.stroke();
+
+        // Cost label
+        const mx = (fromR.x + toR.x) / 2;
+        const my = (fromR.y + toR.y) / 2;
+        ctx.fillStyle = '#0a0a18';
+        ctx.fillRect(mx - 14, my - 8, 28, 16);
+        ctx.fillStyle = isOnPath ? '#10b981' : '#8b949e';
+        ctx.font = '10px JetBrains Mono, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(link.cost, mx, my);
+    });
+
+    // Draw routers
+    routers.forEach(router => {
+        const color = AREA_COLORS[router.area] || AREA_COLORS[0];
+        const isSelected = selectedRouter && selectedRouter.rid === router.rid;
+
+        // Outer glow for selected
+        if (isSelected) {
+            ctx.beginPath();
+            ctx.arc(router.x, router.y, ROUTER_RADIUS + 6, 0, Math.PI * 2);
+            ctx.fillStyle = color + '20';
+            ctx.fill();
+        }
+
+        // Router circle
+        ctx.beginPath();
+        ctx.arc(router.x, router.y, ROUTER_RADIUS, 0, Math.PI * 2);
+        ctx.fillStyle = '#111120';
+        ctx.fill();
+        ctx.strokeStyle = isSelected ? '#fff' : color;
+        ctx.lineWidth = isSelected ? 2.5 : 2;
+        ctx.stroke();
+
+        // Router name
+        ctx.fillStyle = '#e0e0e0';
+        ctx.font = 'bold 12px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(router.name, router.x, router.y - 4);
+
+        // RID below name
+        ctx.fillStyle = '#5a6370';
+        ctx.font = '9px JetBrains Mono, monospace';
+        ctx.fillText(router.rid, router.x, router.y + 10);
+
+        // DR/BDR badge
+        const role = drResults[router.rid];
+        if (role) {
+            const badgeText = role.startsWith('DR') && role !== 'DROther' && !role.includes('Priority') ? role : (role.includes('BDR') ? 'BDR' : '');
+            if (badgeText) {
+                ctx.fillStyle = badgeText === 'DR' ? '#10b981' : '#3b82f6';
+                const bw = ctx.measureText(badgeText).width + 8;
+                ctx.fillRect(router.x - bw/2, router.y - ROUTER_RADIUS - 16, bw, 14);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 9px JetBrains Mono, monospace';
+                ctx.fillText(badgeText, router.x, router.y - ROUTER_RADIUS - 9);
+            }
+        }
+    });
+
+    ctx.restore();
+}
+
+/* ═══ Mouse Interaction ═══ */
+function getMousePos(e) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: (e.clientX - rect.left - panX) / zoom,
+        y: (e.clientY - rect.top - panY) / zoom
+    };
+}
+
+function findRouterAt(x, y) {
+    for (let i = routers.length - 1; i >= 0; i--) {
+        const r = routers[i];
+        const dx = r.x - x, dy = r.y - y;
+        if (Math.sqrt(dx*dx + dy*dy) <= ROUTER_RADIUS) return r;
+    }
+    return null;
+}
+
+canvas.addEventListener('mousedown', e => {
+    const pos = getMousePos(e);
+    const router = findRouterAt(pos.x, pos.y);
+    if (router) {
+        dragRouter = router;
+        dragOffsetX = router.x - pos.x;
+        dragOffsetY = router.y - pos.y;
+        selectedRouter = router;
+        showRouterTables(router);
+        draw();
+    } else {
+        selectedRouter = null;
+        closeRouterInfo();
+        draw();
+    }
+});
+
+canvas.addEventListener('mousemove', e => {
+    if (dragRouter) {
+        const pos = getMousePos(e);
+        dragRouter.x = pos.x + dragOffsetX;
+        dragRouter.y = pos.y + dragOffsetY;
+        draw();
+    }
+});
+
+canvas.addEventListener('mouseup', () => { dragRouter = null; });
+canvas.addEventListener('mouseleave', () => { dragRouter = null; });
+
+canvas.addEventListener('dblclick', e => {
+    const pos = getMousePos(e);
+    const router = findRouterAt(pos.x, pos.y);
+    if (router) {
+        selectedRouter = router;
+        showRouterInfo(router);
+        showRouterTables(router);
+        draw();
+    }
+});
+
+/* ═══ Zoom ═══ */
+function zoomIn() { zoom = Math.min(3, zoom * 1.2); draw(); }
+function zoomOut() { zoom = Math.max(0.3, zoom / 1.2); draw(); }
+function resetView() { zoom = 1; panX = 0; panY = 0; draw(); }
+
+canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    if (e.deltaY < 0) zoomIn();
+    else zoomOut();
+});
+
+/* ═══ Init ═══ */
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+</script>
+
+</body>
+</html>

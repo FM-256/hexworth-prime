@@ -219,7 +219,71 @@ Link ID       ADV Router    Age   Seq#       Checksum  Tag
             </div>
         </section>
 
-        <!-- Section 5: Route Summarization -->
+        <!-- Section 5: Multi-Area Configuration Example -->
+        <section class="ccna-section">
+            <h2 class="ccna-section-title">Multi-Area OSPF Configuration</h2>
+            <p class="ccna-text">Consider a three-area topology: Area 0 (backbone) connects Area 10 (branch) and Area 20 (data center). R1 is an internal router in Area 0. R2 is the ABR connecting Area 0 and Area 10. R3 is in Area 10. R4 is the ABR connecting Area 0 and Area 20.</p>
+            <div class="ccna-code">
+<span class="comment">/* ──── R2 (ABR: Area 0 + Area 10) ──── */</span>
+<span class="prompt">R2(config)#</span> router ospf 1
+<span class="prompt">R2(config-router)#</span> router-id <span class="value">2.2.2.2</span>
+
+<span class="comment">/* Interface toward Area 0 backbone */</span>
+<span class="prompt">R2(config-router)#</span> network <span class="highlight">10.0.0.0 0.0.0.3</span> area <span class="value">0</span>
+
+<span class="comment">/* Interfaces toward Area 10 branch */</span>
+<span class="prompt">R2(config-router)#</span> network <span class="highlight">192.168.10.0 0.0.0.255</span> area <span class="value">10</span>
+<span class="prompt">R2(config-router)#</span> network <span class="highlight">192.168.11.0 0.0.0.255</span> area <span class="value">10</span>
+
+<span class="comment">/* This makes R2 an ABR -- it has interfaces in two areas */</span>
+<span class="comment">/* R2 will generate Type 3 Summary LSAs in both directions: */</span>
+<span class="comment">/*   Area 0 networks -> summarized into Area 10 */</span>
+<span class="comment">/*   Area 10 networks -> summarized into Area 0 */</span>
+
+<span class="comment">/* ──── R3 (Internal router in Area 10) ──── */</span>
+<span class="prompt">R3(config)#</span> router ospf 1
+<span class="prompt">R3(config-router)#</span> router-id <span class="value">3.3.3.3</span>
+<span class="prompt">R3(config-router)#</span> network <span class="highlight">192.168.10.0 0.0.0.255</span> area <span class="value">10</span>
+<span class="prompt">R3(config-router)#</span> network <span class="highlight">192.168.12.0 0.0.0.255</span> area <span class="value">10</span>
+
+<span class="comment">/* R3 sees Area 0 routes as O IA (OSPF Inter-Area) */</span>
+<span class="prompt">R3#</span> show ip route ospf
+<span class="highlight">O IA</span> 10.0.0.0/30 [<span class="value">110/65</span>] via 192.168.10.1, 00:10:23, Gi0/0
+<span class="highlight">O</span>    192.168.11.0/24 [<span class="value">110/2</span>] via 192.168.10.1, 00:10:20, Gi0/0
+<span class="comment">/* Notice: O = intra-area, O IA = inter-area */</span>
+            </div>
+        </section>
+
+        <!-- Section 5b: Virtual Links -->
+        <section class="ccna-section">
+            <h2 class="ccna-section-title">Virtual Links</h2>
+            <p class="ccna-text">Every OSPF area must connect to Area 0. If an area cannot be directly connected (due to physical topology limitations), a virtual link tunnels OSPF through a transit area to reach the backbone. Virtual links are a workaround, not a best practice -- redesigning the topology is preferred.</p>
+            <div class="ccna-code">
+<span class="comment">/* Scenario: Area 30 connects to Area 10, not directly to Area 0 */</span>
+<span class="comment">/* Configure a virtual link through Area 10 (transit area) */</span>
+
+<span class="comment">/* On ABR between Area 0 and Area 10 (Router ID 2.2.2.2): */</span>
+<span class="prompt">R2(config)#</span> router ospf 1
+<span class="prompt">R2(config-router)#</span> area <span class="value">10</span> virtual-link <span class="value">5.5.5.5</span>
+<span class="comment">/* 5.5.5.5 = Router ID of the far-end ABR (Area 10 to Area 30) */</span>
+
+<span class="comment">/* On ABR between Area 10 and Area 30 (Router ID 5.5.5.5): */</span>
+<span class="prompt">R5(config)#</span> router ospf 1
+<span class="prompt">R5(config-router)#</span> area <span class="value">10</span> virtual-link <span class="value">2.2.2.2</span>
+<span class="comment">/* 2.2.2.2 = Router ID of the far-end ABR (Area 0 to Area 10) */</span>
+
+<span class="comment">/* Verify the virtual link */</span>
+<span class="prompt">R2#</span> show ip ospf virtual-links
+Virtual Link OSPF_VL0 to router <span class="value">5.5.5.5</span> is <span class="highlight">up</span>
+  Transit area 10, via interface GigabitEthernet0/1
+            </div>
+            <div class="ccna-callout-warn">
+                <strong><img src="/assets/images/icons/icon-warning.webp" alt="" class="ccna-icon"> Virtual Link Restrictions:</strong>
+                <p>Virtual links cannot traverse stub areas, totally stubby areas, or NSSA areas. The transit area must be a normal (regular) area. If you need a virtual link through a stub area, you must first change the area type.</p>
+            </div>
+        </section>
+
+        <!-- Section 6: Route Summarization -->
         <section class="ccna-section">
             <h2 class="ccna-section-title">Inter-Area Route Summarization</h2>
             <p class="ccna-text">Route summarization reduces the number of routes advertised between areas by combining multiple specific routes into a single summary route. Only ABRs can perform inter-area summarization. This reduces routing table size, decreases LSA flooding, and improves network stability.</p>
@@ -372,7 +436,42 @@ Link ID       ADV Router    Age   Seq#       Checksum  Tag
             </div>
         </section>
 
-        <!-- Section 10: Default Route Injection -->
+        <!-- Section 10: OSPF Route Redistribution Concepts -->
+        <section class="ccna-section">
+            <h2 class="ccna-section-title">OSPF Route Redistribution Concepts</h2>
+            <p class="ccna-text">Route redistribution injects routes from one routing source into OSPF. The router performing redistribution becomes an ASBR and generates Type 5 External LSAs. Common redistribution sources include static routes, connected routes, EIGRP, RIP, and BGP. Redistribution requires careful planning to avoid routing loops.</p>
+            <div class="ccna-code">
+<span class="comment">/* Redistribute static routes into OSPF */</span>
+<span class="prompt">Router(config)#</span> router ospf 1
+<span class="prompt">Router(config-router)#</span> redistribute static subnets
+<span class="comment">/* "subnets" keyword is critical -- without it, only classful */</span>
+<span class="comment">/* networks are redistributed */</span>
+
+<span class="comment">/* Redistribute connected routes */</span>
+<span class="prompt">Router(config-router)#</span> redistribute connected subnets
+
+<span class="comment">/* Redistribute EIGRP into OSPF */</span>
+<span class="prompt">Router(config-router)#</span> redistribute eigrp <span class="value">100</span> subnets
+
+<span class="comment">/* Redistributed routes appear as E2 (External Type 2) by default */</span>
+<span class="prompt">Router#</span> show ip route ospf
+<span class="highlight">O E2</span> 172.20.0.0/16 [<span class="value">110/20</span>] via 10.0.0.1, 00:03:45, Gi0/0
+<span class="comment">/* E2 metric does not change as route propagates through OSPF */</span>
+<span class="comment">/* E1 metric adds internal OSPF cost (specify metric-type 1) */</span>
+            </div>
+            <div class="ccna-card-grid">
+                <div class="ccna-card">
+                    <strong>External Type 2 (E2)</strong>
+                    <span>Default type. Cost is the seed metric set during redistribution and does not increase as the route is advertised through OSPF. Simpler but less optimal when multiple ASBRs exist for the same external route.</span>
+                </div>
+                <div class="ccna-card">
+                    <strong>External Type 1 (E1)</strong>
+                    <span>Cost = external seed metric + internal OSPF cost to reach the ASBR. Better path selection when multiple ASBRs inject the same route. Configure with <span class="ccna-inline">metric-type 1</span> keyword.</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 11: Default Route Injection -->
         <section class="ccna-section">
             <h2 class="ccna-section-title">Default Route Injection</h2>
             <p class="ccna-text">To propagate a default route throughout the OSPF domain, use the <span class="ccna-inline">default-information originate</span> command. This is typically configured on a border router that has a default route to the internet or an upstream provider. The command creates a Type 5 External LSA for 0.0.0.0/0.</p>

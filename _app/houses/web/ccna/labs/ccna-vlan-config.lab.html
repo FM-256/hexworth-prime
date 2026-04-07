@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLAN Configuration Lab | CCNA</title>
+    <style>
+        :root {
+            --cisco-primary: #10b981;
+            --cisco-secondary: #34d399;
+            --cisco-accent: #6ee7b7;
+            --cisco-dark: #047857;
+            --bg-dark: #090910;
+            --bg-card: #111120;
+            --bg-card-hover: #191930;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: rgba(16, 185, 129, 0.15);
+            --border-hover: rgba(16, 185, 129, 0.4);
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --vlan10: #3b82f6;
+            --vlan20: #f59e0b;
+            --vlan30: #a855f7;
+            --vlan99: #ef4444;
+            --vlan1: #64748b;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark); color: var(--text-primary);
+            min-height: 100vh; line-height: 1.6;
+        }
+        .lab-container { max-width: 1300px; margin: 0 auto; padding: 1.5rem; }
+        .back-link {
+            display: inline-flex; align-items: center; gap: 6px;
+            color: var(--cisco-primary); text-decoration: none; font-size: 0.85rem;
+            padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border-color);
+            background: rgba(16,185,129,0.05); transition: all 0.2s; margin-bottom: 1rem;
+        }
+        .back-link:hover { color: var(--cisco-secondary); border-color: var(--border-hover); }
+        .lab-header {
+            text-align: center; margin-bottom: 1.5rem; padding: 2rem;
+            background: linear-gradient(135deg, #064e3b 0%, #0a3d2e 50%, #064e3b 100%);
+            border-radius: 16px; border: 1px solid var(--border-color);
+            box-shadow: 0 0 20px rgba(16,185,129,0.15);
+        }
+        .lab-header h1 {
+            font-size: 2rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--cisco-primary), var(--cisco-accent));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-secondary); font-size: 0.85rem; }
+
+        .main-layout { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; }
+        @media (max-width: 1000px) { .main-layout { grid-template-columns: 1fr; } }
+
+        /* Switch Diagram */
+        .switch-visual {
+            background: var(--bg-card); border-radius: 10px; padding: 1.25rem;
+            border: 1px solid var(--border-color); margin-bottom: 1.5rem;
+        }
+        .switch-visual h3 { color: var(--cisco-secondary); font-size: 0.95rem; margin-bottom: 1rem; }
+        .switch-chassis {
+            background: #1a1a2e; border-radius: 8px; padding: 16px; border: 2px solid #333;
+            position: relative;
+        }
+        .switch-label {
+            text-align: center; font-size: 0.75rem; color: var(--cisco-accent);
+            letter-spacing: 2px; margin-bottom: 10px; font-weight: 600;
+        }
+        .port-grid {
+            display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px;
+        }
+        .port-row-label { grid-column: 1 / -1; font-size: 0.65rem; color: var(--text-muted); margin-top: 4px; }
+        .port {
+            aspect-ratio: 1; border-radius: 3px; border: 1px solid #444;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.55rem; font-weight: 600; color: #fff;
+            cursor: default; transition: all 0.2s; position: relative;
+        }
+        .port[data-vlan="1"] { background: var(--vlan1); }
+        .port[data-vlan="10"] { background: var(--vlan10); }
+        .port[data-vlan="20"] { background: var(--vlan20); }
+        .port[data-vlan="30"] { background: var(--vlan30); }
+        .port[data-vlan="99"] { background: var(--vlan99); }
+        .port.trunk { background: linear-gradient(135deg, var(--cisco-primary), var(--cisco-dark)); border-color: var(--cisco-accent); }
+        .port:hover::after {
+            content: attr(data-tooltip); position: absolute; bottom: 110%; left: 50%;
+            transform: translateX(-50%); background: #000; color: #fff; padding: 3px 8px;
+            border-radius: 4px; font-size: 0.65rem; white-space: nowrap; z-index: 10;
+        }
+        .vlan-legend {
+            display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; font-size: 0.75rem;
+        }
+        .legend-item { display: flex; align-items: center; gap: 4px; }
+        .legend-dot { width: 12px; height: 12px; border-radius: 2px; }
+
+        /* Terminal */
+        .terminal-wrap {
+            background: #000; border-radius: 10px; overflow: hidden;
+            border: 1px solid rgba(16,185,129,0.3);
+        }
+        .terminal-bar {
+            background: #1a1a2a; padding: 8px 14px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .t-dot { width: 11px; height: 11px; border-radius: 50%; }
+        .t-dot.r { background: #ff5f56; } .t-dot.y { background: #ffbd2e; } .t-dot.g { background: #27ca40; }
+        .terminal-bar span { color: var(--text-muted); font-size: 0.8rem; margin-left: 8px; }
+        .terminal-body {
+            padding: 12px 16px; height: 320px; overflow-y: auto;
+            font-family: 'Consolas','Courier New', monospace; font-size: 0.85rem;
+        }
+        .terminal-body::-webkit-scrollbar { width: 6px; }
+        .terminal-body::-webkit-scrollbar-thumb { background: rgba(16,185,129,0.3); border-radius: 3px; }
+        .t-line { margin-bottom: 1px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; }
+        .t-line.cmd { color: #fff; } .t-line.out { color: #ccc; }
+        .t-line.err { color: #ff5555; } .t-line.ok { color: var(--success); }
+        .t-line.info { color: var(--cisco-primary); }
+        .input-row { display: flex; align-items: center; margin-top: 4px; }
+        .prompt-text { color: var(--cisco-primary); margin-right: 4px; white-space: nowrap; font-weight: bold; }
+        #cliInput {
+            flex: 1; background: transparent; border: none; color: #fff;
+            font-family: inherit; font-size: inherit; outline: none; caret-color: var(--cisco-accent);
+        }
+
+        /* Task Panel */
+        .task-panel {
+            background: var(--bg-card); border-radius: 10px; padding: 1.25rem;
+            border: 1px solid var(--border-color); align-self: start;
+        }
+        .task-panel h3 { color: var(--cisco-secondary); font-size: 1rem; margin-bottom: 1rem; }
+        .task-item {
+            display: flex; align-items: flex-start; gap: 0.6rem;
+            padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.85rem; color: var(--text-secondary);
+        }
+        .task-item:last-child { border-bottom: none; }
+        .task-icon {
+            width: 22px; height: 22px; border-radius: 4px; flex-shrink: 0;
+            border: 2px solid var(--text-muted); display: flex; align-items: center;
+            justify-content: center; margin-top: 1px; transition: all 0.3s;
+        }
+        .task-icon.done { background: var(--success); border-color: var(--success); }
+        .task-icon.done::after { content: ''; display: block; width: 10px; height: 10px; background: url('/assets/images/icons/icon-check.webp') center/contain no-repeat; }
+        .task-item.done .task-text { color: var(--success); text-decoration: line-through; }
+        .progress-wrap { margin-top: 1rem; }
+        .prog-bar { height: 8px; background: rgba(16,185,129,0.1); border-radius: 4px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--cisco-dark), var(--cisco-primary)); border-radius: 4px; transition: width 0.5s; }
+        .prog-label { text-align: right; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+        .hint-section {
+            background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25);
+            border-radius: 8px; padding: 0.75rem 1rem; margin-top: 1rem; font-size: 0.8rem;
+        }
+        .hint-section strong { color: var(--warning); }
+        .hint-section p { color: var(--text-secondary); margin-top: 0.25rem; }
+        .complete-bar {
+            margin-top: 1.5rem; padding: 1.5rem; background: var(--bg-card);
+            border-radius: 10px; border: 1px solid var(--border-color); text-align: center; display: none;
+        }
+        .complete-bar.show { display: block; }
+        .complete-bar h2 { color: var(--success); margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+<div class="lab-container">
+    <a href="../index.html" class="back-link">
+        <img src="/assets/images/icons/icon-arrow-left.webp" alt="" width="14" height="14"> Back to CCNA Hub
+    </a>
+
+    <header class="lab-header">
+        <h1>VLAN Configuration Lab</h1>
+        <p class="subtitle">Create VLANs, assign ports, configure trunks, and manage a Catalyst switch</p>
+        <div class="lab-meta">
+            <span class="meta-item">75 minutes</span>
+            <span class="meta-item">Intermediate</span>
+            <span class="meta-item">5 Tasks</span>
+        </div>
+    </header>
+
+    <!-- Switch Diagram -->
+    <div class="switch-visual">
+        <h3><img src="/assets/images/icons/icon-network.webp" alt="" width="16" height="16" style="vertical-align:middle"> Catalyst 2960 — 24-Port Switch</h3>
+        <div class="switch-chassis">
+            <div class="switch-label">CISCO CATALYST 2960-24TT</div>
+            <div class="port-grid" id="portGrid"></div>
+        </div>
+        <div class="vlan-legend" id="vlanLegend">
+            <div class="legend-item"><div class="legend-dot" style="background:var(--vlan1)"></div> VLAN 1 (Default)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--vlan10)"></div> VLAN 10 — Sales</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--vlan20)"></div> VLAN 20 — Engineering</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--vlan30)"></div> VLAN 30 — Management</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--vlan99)"></div> VLAN 99 — Native</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--cisco-primary)"></div> Trunk</div>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <div>
+            <!-- Terminal -->
+            <div class="terminal-wrap">
+                <div class="terminal-bar">
+                    <div class="t-dot r"></div><div class="t-dot y"></div><div class="t-dot g"></div>
+                    <span id="termTitle">Switch Console</span>
+                </div>
+                <div class="terminal-body" id="termBody">
+                    <div class="t-line info">Cisco IOS Software, C2960 Software Version 15.2(2)E9</div>
+                    <div class="t-line out">Switch></div>
+                </div>
+                <div style="padding: 0 16px 12px;">
+                    <div class="input-row">
+                        <span class="prompt-text" id="cliPrompt">Switch></span>
+                        <input type="text" id="cliInput" autocomplete="off" spellcheck="false" autofocus>
+                    </div>
+                </div>
+            </div>
+            <div class="hint-section">
+                <strong><img src="/assets/images/icons/icon-info.webp" alt="" width="14" height="14" style="vertical-align:middle"> Hint</strong>
+                <p id="hintText">Start by entering privileged mode with <code>enable</code>, then <code>configure terminal</code>. Create VLANs with <code>vlan 10</code> and <code>name Sales</code>.</p>
+            </div>
+        </div>
+
+        <div class="task-panel">
+            <h3><img src="/assets/images/icons/icon-list.webp" alt="" width="16" height="16" style="vertical-align:middle"> Lab Tasks</h3>
+            <div id="taskList">
+                <div class="task-item" data-task="0"><div class="task-icon" id="ti0"></div><span class="task-text">Create VLANs 10 (Sales), 20 (Engineering), 30 (Management), 99 (Native)</span></div>
+                <div class="task-item" data-task="1"><div class="task-icon" id="ti1"></div><span class="task-text">Assign ports to VLANs (Fa0/1-6 Sales, Fa0/7-12 Eng, Fa0/13-18 Mgmt)</span></div>
+                <div class="task-item" data-task="2"><div class="task-icon" id="ti2"></div><span class="task-text">Configure Gi0/1 and Gi0/2 as trunk ports</span></div>
+                <div class="task-item" data-task="3"><div class="task-icon" id="ti3"></div><span class="task-text">Set native VLAN 99 on trunk ports</span></div>
+                <div class="task-item" data-task="4"><div class="task-icon" id="ti4"></div><span class="task-text">Verify with show vlan brief and show interfaces trunk</span></div>
+            </div>
+            <div class="progress-wrap">
+                <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+                <div class="prog-label" id="progLabel">0 / 5 complete</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="complete-bar" id="completeBar">
+        <h2><img src="/assets/images/icons/icon-checkmark.webp" alt="" width="24" height="24" style="vertical-align:middle"> Lab Complete</h2>
+        <p>VLAN configuration verified. Trunk ports operational. Network segmentation successful.</p>
+    </div>
+</div>
+
+<script>
+(function() {
+    /* ── Switch State ── */
+    const S = {
+        hostname: 'Switch',
+        mode: 'user', // user | priv | config | config-if | config-vlan | config-line
+        configIf: '',
+        configVlan: 0,
+        vlans: {
+            1: { name: 'default', active: true },
+        },
+        ports: {},
+        trunks: {}
+    };
+
+    // Initialize 24 FastEthernet + 2 GigabitEthernet ports
+    for (let i = 1; i <= 24; i++) {
+        const pn = 'FastEthernet0/' + i;
+        S.ports[pn] = { vlan: 1, mode: 'access', up: true };
+    }
+    S.ports['GigabitEthernet0/1'] = { vlan: 1, mode: 'access', up: true };
+    S.ports['GigabitEthernet0/2'] = { vlan: 1, mode: 'access', up: true };
+    S.trunks['GigabitEthernet0/1'] = { native: 1, allowed: 'ALL' };
+    S.trunks['GigabitEthernet0/2'] = { native: 1, allowed: 'ALL' };
+
+    const MODES = {
+        user: () => S.hostname + '>',
+        priv: () => S.hostname + '#',
+        config: () => S.hostname + '(config)#',
+        'config-if': () => S.hostname + '(config-if)#',
+        'config-vlan': () => S.hostname + '(config-vlan)#',
+        'config-line': () => S.hostname + '(config-line)#'
+    };
+
+    const tasks = [false, false, false, false, false];
+    const hints = [
+        'Create VLANs: <code>vlan 10</code> then <code>name Sales</code>. Repeat for 20, 30, 99.',
+        'Assign ports: <code>interface Fa0/1</code>, <code>switchport mode access</code>, <code>switchport access vlan 10</code>. Use <code>interface range</code> for multiple ports.',
+        'Configure trunk: <code>interface Gi0/1</code>, <code>switchport mode trunk</code>.',
+        'Set native VLAN: on trunk interface, <code>switchport trunk native vlan 99</code>.',
+        'Run <code>show vlan brief</code> and <code>show interfaces trunk</code> in privileged EXEC mode.'
+    ];
+    let cmdHistory = [], histIdx = -1;
+
+    const $body = document.getElementById('termBody');
+    const $input = document.getElementById('cliInput');
+    const $prompt = document.getElementById('cliPrompt');
+    const $hint = document.getElementById('hintText');
+
+    function out(text, cls) {
+        const d = document.createElement('div');
+        d.className = 't-line ' + (cls || 'out');
+        d.textContent = text;
+        $body.appendChild(d);
+        $body.scrollTop = $body.scrollHeight;
+    }
+
+    function updatePrompt() {
+        $prompt.textContent = MODES[S.mode]();
+    }
+
+    /* ── Port Diagram ── */
+    function renderPorts() {
+        const grid = document.getElementById('portGrid');
+        grid.innerHTML = '';
+        // Row 1: Fa0/1-12
+        for (let i = 1; i <= 12; i++) {
+            const p = document.createElement('div');
+            const pn = 'FastEthernet0/' + i;
+            const vlan = S.ports[pn].vlan;
+            const mode = S.ports[pn].mode;
+            p.className = 'port' + (mode === 'trunk' ? ' trunk' : '');
+            p.setAttribute('data-vlan', vlan);
+            p.setAttribute('data-tooltip', pn + ' | VLAN ' + vlan + ' | ' + mode);
+            p.textContent = i;
+            grid.appendChild(p);
+        }
+        // Row 2: Fa0/13-24
+        const label1 = document.createElement('div');
+        label1.className = 'port-row-label';
+        label1.textContent = 'Fa0/1-12 above | Fa0/13-24 below';
+        grid.appendChild(label1);
+        for (let i = 13; i <= 24; i++) {
+            const p = document.createElement('div');
+            const pn = 'FastEthernet0/' + i;
+            const vlan = S.ports[pn].vlan;
+            const mode = S.ports[pn].mode;
+            p.className = 'port' + (mode === 'trunk' ? ' trunk' : '');
+            p.setAttribute('data-vlan', vlan);
+            p.setAttribute('data-tooltip', pn + ' | VLAN ' + vlan + ' | ' + mode);
+            p.textContent = i;
+            grid.appendChild(p);
+        }
+        // Uplinks row
+        const label2 = document.createElement('div');
+        label2.className = 'port-row-label';
+        label2.textContent = 'Gi0/1 and Gi0/2 — Uplink Ports';
+        grid.appendChild(label2);
+        ['GigabitEthernet0/1', 'GigabitEthernet0/2'].forEach((pn, idx) => {
+            const p = document.createElement('div');
+            const mode = S.ports[pn].mode;
+            const vlan = S.ports[pn].vlan;
+            p.className = 'port' + (mode === 'trunk' ? ' trunk' : '');
+            p.setAttribute('data-vlan', vlan);
+            p.setAttribute('data-tooltip', pn + ' | ' + (mode === 'trunk' ? 'TRUNK' : 'VLAN ' + vlan) + ' | ' + mode);
+            p.textContent = 'G' + (idx + 1);
+            p.style.gridColumn = 'span 2';
+            grid.appendChild(p);
+        });
+    }
+
+    function completeTask(idx) {
+        if (tasks[idx]) return;
+        tasks[idx] = true;
+        document.getElementById('ti' + idx).classList.add('done');
+        document.getElementById('ti' + idx).closest('.task-item').classList.add('done');
+        const done = tasks.filter(Boolean).length;
+        document.getElementById('progFill').style.width = (done / tasks.length * 100) + '%';
+        document.getElementById('progLabel').textContent = done + ' / ' + tasks.length + ' complete';
+        out('>> Task ' + (idx + 1) + ' complete!', 'ok');
+        for (let i = 0; i < tasks.length; i++) {
+            if (!tasks[i]) { $hint.innerHTML = hints[i]; break; }
+        }
+        if (done === tasks.length) {
+            document.getElementById('completeBar').classList.add('show');
+            $hint.innerHTML = 'All tasks complete. Well done!';
+            if (window.ModuleProgress) ModuleProgress.complete('ccna-vlan-config-lab');
+        }
+    }
+
+    function checkTasks() {
+        // Task 0: VLANs 10, 20, 30, 99 exist
+        if (S.vlans[10] && S.vlans[20] && S.vlans[30] && S.vlans[99]) completeTask(0);
+        // Task 1: Ports assigned
+        let s = 0, e = 0, m = 0;
+        for (let i = 1; i <= 6; i++) if (S.ports['FastEthernet0/' + i].vlan === 10) s++;
+        for (let i = 7; i <= 12; i++) if (S.ports['FastEthernet0/' + i].vlan === 20) e++;
+        for (let i = 13; i <= 18; i++) if (S.ports['FastEthernet0/' + i].vlan === 30) m++;
+        if (s >= 6 && e >= 6 && m >= 6) completeTask(1);
+        // Task 2: Gi0/1 and Gi0/2 as trunk
+        if (S.ports['GigabitEthernet0/1'].mode === 'trunk' && S.ports['GigabitEthernet0/2'].mode === 'trunk') completeTask(2);
+        // Task 3: Native VLAN 99
+        if (S.trunks['GigabitEthernet0/1'].native === 99 && S.trunks['GigabitEthernet0/2'].native === 99) completeTask(3);
+    }
+
+    function resolveIf(raw) {
+        const r = raw.replace(/\s+/g, '').toLowerCase();
+        if (r.startsWith('fa') || r.startsWith('fastethernet')) {
+            const num = r.replace(/^(fastethernet|fa)/, '');
+            const n = parseInt(num.replace('0/', ''));
+            if (n >= 1 && n <= 24) return 'FastEthernet0/' + n;
+        }
+        if (r.startsWith('gi') || r.startsWith('g0') || r.startsWith('gigabitethernet')) {
+            const num = r.replace(/^(gigabitethernet|gi|g)/, '');
+            const n = parseInt(num.replace('0/', ''));
+            if (n >= 1 && n <= 2) return 'GigabitEthernet0/' + n;
+        }
+        return null;
+    }
+
+    function resolveRange(raw) {
+        // "range Fa0/1 - 6" or "range FastEthernet0/1-6" etc
+        const m = raw.match(/range\s+(fa(?:stethernet)?)\s*0\/(\d+)\s*-\s*(\d+)/i);
+        if (m) {
+            const start = parseInt(m[2]), end = parseInt(m[3]);
+            const result = [];
+            for (let i = start; i <= end && i <= 24; i++) result.push('FastEthernet0/' + i);
+            return result;
+        }
+        return null;
+    }
+
+    /* ── Command Processor ── */
+    function process(raw) {
+        const cmd = raw.trim();
+        if (!cmd) return;
+        out(MODES[S.mode]() + ' ' + cmd, 'cmd');
+        const lower = cmd.toLowerCase();
+        const parts = lower.split(/\s+/);
+
+        // Universal navigation
+        if (lower === 'exit') {
+            if (S.mode === 'config-if' || S.mode === 'config-vlan' || S.mode === 'config-line') S.mode = 'config';
+            else if (S.mode === 'config') S.mode = 'priv';
+            else if (S.mode === 'priv') S.mode = 'user';
+            S.configIf = ''; S.configVlan = 0;
+            updatePrompt(); checkTasks(); renderPorts(); return;
+        }
+        if (lower === 'end') {
+            if (S.mode !== 'user') S.mode = 'priv';
+            S.configIf = ''; S.configVlan = 0;
+            updatePrompt(); checkTasks(); renderPorts(); return;
+        }
+
+        /* User EXEC */
+        if (S.mode === 'user') {
+            if (lower === 'enable') { S.mode = 'priv'; updatePrompt(); }
+            else out("% Unknown command", 'err');
+            return;
+        }
+
+        /* Privileged EXEC */
+        if (S.mode === 'priv') {
+            if (lower === 'configure terminal' || lower === 'conf t') {
+                S.mode = 'config'; out('Enter configuration commands, one per line.'); updatePrompt();
+            } else if (lower === 'show vlan brief' || lower === 'sh vlan brief' || lower === 'show vlan br') {
+                out('');
+                out('VLAN Name                             Status    Ports');
+                out('---- -------------------------------- --------- -------------------------------');
+                const vlanPorts = {};
+                for (const [pn, pv] of Object.entries(S.ports)) {
+                    if (pv.mode !== 'trunk') {
+                        if (!vlanPorts[pv.vlan]) vlanPorts[pv.vlan] = [];
+                        const short = pn.replace('FastEthernet', 'Fa').replace('GigabitEthernet', 'Gi');
+                        vlanPorts[pv.vlan].push(short);
+                    }
+                }
+                for (const [vid, v] of Object.entries(S.vlans)) {
+                    const portList = (vlanPorts[vid] || []).join(', ');
+                    out(String(vid).padEnd(5) + (v.name || '').padEnd(33) + 'active    ' + portList);
+                }
+                // Also show default VLAN 1
+                if (!S.vlans[1]) {
+                    const portList = (vlanPorts[1] || []).join(', ');
+                    out('1    default                          active    ' + portList);
+                }
+                if (!S._showVlan) S._showVlan = false;
+                S._showVlan = true;
+            } else if (lower === 'show interfaces trunk' || lower === 'show int trunk' || lower === 'sh int trunk') {
+                out('');
+                out('Port        Mode         Encapsulation  Status        Native vlan');
+                for (const [pn, port] of Object.entries(S.ports)) {
+                    if (port.mode === 'trunk') {
+                        const short = pn.replace('FastEthernet', 'Fa').replace('GigabitEthernet', 'Gi');
+                        const trk = S.trunks[pn] || { native: 1, allowed: 'ALL' };
+                        out(short.padEnd(12) + 'on'.padEnd(13) + '802.1q'.padEnd(15) + 'trunking'.padEnd(14) + trk.native);
+                    }
+                }
+                out('');
+                out('Port        Vlans allowed on trunk');
+                for (const [pn, port] of Object.entries(S.ports)) {
+                    if (port.mode === 'trunk') {
+                        const short = pn.replace('FastEthernet', 'Fa').replace('GigabitEthernet', 'Gi');
+                        const trk = S.trunks[pn] || { allowed: 'ALL' };
+                        out(short.padEnd(12) + (trk.allowed === 'ALL' ? '1-4094' : trk.allowed));
+                    }
+                }
+                if (!S._showTrunk) S._showTrunk = false;
+                S._showTrunk = true;
+            } else if (lower === 'show running-config' || lower === 'show run') {
+                out('Building configuration...');
+                out('hostname ' + S.hostname);
+                out('!');
+                for (const [vid, v] of Object.entries(S.vlans)) {
+                    if (parseInt(vid) !== 1) { out('vlan ' + vid); out(' name ' + v.name); out('!'); }
+                }
+                for (const [pn, port] of Object.entries(S.ports)) {
+                    out('interface ' + pn);
+                    if (port.mode === 'trunk') {
+                        out(' switchport mode trunk');
+                        if (S.trunks[pn]) out(' switchport trunk native vlan ' + S.trunks[pn].native);
+                    } else {
+                        out(' switchport mode access');
+                        out(' switchport access vlan ' + port.vlan);
+                    }
+                    out('!');
+                }
+                out('end');
+            } else if (lower === 'disable') { S.mode = 'user'; updatePrompt();
+            } else if (lower.startsWith('copy ')) { out('[OK]', 'ok');
+            } else { out("% Unknown command", 'err'); }
+
+            // Check task 4
+            if (S._showVlan && S._showTrunk && tasks[0] && tasks[1] && tasks[2] && tasks[3]) completeTask(4);
+            checkTasks(); return;
+        }
+
+        /* Global Config */
+        if (S.mode === 'config') {
+            if (parts[0] === 'hostname' && parts[1]) {
+                S.hostname = cmd.split(/\s+/)[1]; updatePrompt();
+            } else if (parts[0] === 'vlan' && parts[1]) {
+                const vid = parseInt(parts[1]);
+                if (vid >= 2 && vid <= 4094) {
+                    S.configVlan = vid;
+                    if (!S.vlans[vid]) S.vlans[vid] = { name: 'VLAN' + vid, active: true };
+                    S.mode = 'config-vlan'; updatePrompt();
+                } else { out('% Invalid VLAN ID', 'err'); }
+            } else if (lower.startsWith('interface range ')) {
+                const ports = resolveRange(lower.replace('interface ', ''));
+                if (ports && ports.length) {
+                    S._rangeMode = ports;
+                    S.configIf = ports[0];
+                    S.mode = 'config-if'; updatePrompt();
+                } else { out('% Invalid range', 'err'); }
+            } else if (lower.startsWith('interface ') || lower.startsWith('int ')) {
+                const ifRaw = cmd.split(/\s+/).slice(1).join(' ');
+                const ifName = resolveIf(ifRaw);
+                if (ifName && S.ports[ifName]) {
+                    S.configIf = ifName; S._rangeMode = null;
+                    S.mode = 'config-if'; updatePrompt();
+                } else { out('% Invalid interface: ' + ifRaw, 'err'); }
+            } else if (lower.startsWith('line ')) {
+                S.mode = 'config-line'; updatePrompt();
+            } else if (lower.startsWith('no vlan ')) {
+                const vid = parseInt(parts[2]);
+                if (S.vlans[vid] && vid !== 1) { delete S.vlans[vid]; out('% VLAN ' + vid + ' deleted'); }
+            } else { out("% Unknown command", 'err'); }
+            checkTasks(); renderPorts(); return;
+        }
+
+        /* VLAN Config */
+        if (S.mode === 'config-vlan') {
+            if (parts[0] === 'name' && parts.slice(1).join(' ')) {
+                S.vlans[S.configVlan].name = cmd.split(/\s+/).slice(1).join(' ');
+            } else { out("% Unknown command", 'err'); }
+            checkTasks(); return;
+        }
+
+        /* Interface Config */
+        if (S.mode === 'config-if') {
+            const targets = S._rangeMode || [S.configIf];
+            if (lower === 'switchport mode access') {
+                targets.forEach(t => { S.ports[t].mode = 'access'; });
+            } else if (lower === 'switchport mode trunk') {
+                targets.forEach(t => {
+                    S.ports[t].mode = 'trunk';
+                    if (!S.trunks[t]) S.trunks[t] = { native: 1, allowed: 'ALL' };
+                });
+                out('%LINEPROTO-5-UPDOWN: Trunk negotiation on ' + targets.join(', '), 'ok');
+            } else if (lower.startsWith('switchport access vlan ')) {
+                const vid = parseInt(parts[3]);
+                if (S.vlans[vid]) {
+                    targets.forEach(t => { S.ports[t].vlan = vid; S.ports[t].mode = 'access'; });
+                } else { out('% VLAN ' + vid + ' does not exist. Create it first.', 'err'); }
+            } else if (lower.startsWith('switchport trunk native vlan ')) {
+                const vid = parseInt(parts[4]);
+                targets.forEach(t => {
+                    if (S.trunks[t]) S.trunks[t].native = vid;
+                    else { S.trunks[t] = { native: vid, allowed: 'ALL' }; }
+                });
+            } else if (lower.startsWith('switchport trunk allowed vlan ')) {
+                const list = cmd.split(/\s+/).slice(4).join(' ');
+                targets.forEach(t => {
+                    if (S.trunks[t]) S.trunks[t].allowed = list;
+                });
+            } else if (lower === 'no shutdown' || lower === 'no shut') {
+                targets.forEach(t => { S.ports[t].up = true; });
+            } else if (lower === 'shutdown') {
+                targets.forEach(t => { S.ports[t].up = false; });
+            } else if (lower.startsWith('description ')) {
+                // accept silently
+            } else { out("% Unknown interface command", 'err'); }
+            checkTasks(); renderPorts(); return;
+        }
+
+        /* Line Config */
+        if (S.mode === 'config-line') {
+            // Accept line config commands silently
+            checkTasks(); return;
+        }
+
+        out("% Unknown command", 'err');
+    }
+
+    /* ── Input ── */
+    $input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            const val = $input.value;
+            if (val.trim()) { cmdHistory.unshift(val); histIdx = -1; }
+            process(val);
+            $input.value = '';
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (histIdx < cmdHistory.length - 1) { histIdx++; $input.value = cmdHistory[histIdx]; }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (histIdx > 0) { histIdx--; $input.value = cmdHistory[histIdx]; }
+            else { histIdx = -1; $input.value = ''; }
+        }
+    });
+
+    document.querySelector('.terminal-wrap').addEventListener('click', () => $input.focus());
+
+    renderPorts();
+    updatePrompt();
+})();
+</script>
+</body>
+</html>

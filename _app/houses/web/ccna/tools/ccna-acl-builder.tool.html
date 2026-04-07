@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ACL Builder &amp; Tester | CCNA Tools</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #090910;
+            --bg-card: #111120;
+            --bg-card-hover: #181830;
+            --cisco-primary: #10b981;
+            --cisco-dim: rgba(16, 185, 129, 0.12);
+            --cisco-border: rgba(16, 185, 129, 0.2);
+            --text-primary: #e0e0e0;
+            --text-secondary: #8b949e;
+            --text-muted: #5a6370;
+            --border: rgba(255, 255, 255, 0.08);
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+            --permit-color: #4ade80;
+            --deny-color: #f87171;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .tool-header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .tool-header-left { display: flex; align-items: center; gap: 15px; }
+        .tool-badge {
+            background: var(--cisco-primary);
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .tool-header h1 { font-size: 1.1rem; font-weight: 600; color: var(--cisco-primary); }
+        .back-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+        .back-link:hover { color: var(--cisco-primary); border-color: var(--cisco-border); }
+        .back-link img { width: 14px; height: 14px; opacity: 0.7; }
+
+        .tool-body { max-width: 1200px; margin: 0 auto; padding: 25px 20px; }
+
+        /* Tabs */
+        .tab-bar { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
+        .tab-btn {
+            background: none; border: none; color: var(--text-muted);
+            padding: 10px 20px; font-size: 0.85rem; cursor: pointer;
+            border-bottom: 2px solid transparent; font-family: 'Inter', sans-serif; transition: all 0.2s;
+        }
+        .tab-btn:hover { color: var(--text-secondary); }
+        .tab-btn.active { color: var(--cisco-primary); border-bottom-color: var(--cisco-primary); }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .card-title {
+            font-size: 0.78rem; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px;
+        }
+
+        /* Form elements */
+        .input-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; align-items: flex-end; }
+        .input-group { display: flex; flex-direction: column; gap: 4px; }
+        .input-group label { font-size: 0.72rem; color: var(--text-muted); font-weight: 500; }
+        .input-group input, .input-group select {
+            background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 6px;
+            padding: 8px 12px; color: var(--text-primary); font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem; outline: none; transition: border-color 0.2s;
+        }
+        .input-group input:focus, .input-group select:focus { border-color: var(--cisco-primary); }
+        .input-group select { cursor: pointer; }
+
+        .btn {
+            background: var(--cisco-primary); color: #fff; border: none; padding: 9px 20px;
+            border-radius: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 600;
+            font-family: 'Inter', sans-serif; transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.85; }
+        .btn-outline { background: transparent; border: 1px solid var(--cisco-border); color: var(--cisco-primary); }
+        .btn-outline:hover { background: var(--cisco-dim); opacity: 1; }
+        .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+        .btn-danger { background: var(--danger); }
+
+        /* ACL entries display */
+        .acl-entry {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+            transition: background 0.15s;
+        }
+        .acl-entry:hover { background: rgba(255,255,255,0.02); }
+        .acl-entry.matched { background: rgba(16,185,129,0.08); border-left: 3px solid var(--cisco-primary); }
+        .acl-seq {
+            color: var(--text-muted); font-size: 0.72rem; width: 30px; flex-shrink: 0; text-align: right;
+        }
+        .acl-action-permit { color: var(--permit-color); font-weight: 600; }
+        .acl-action-deny { color: var(--deny-color); font-weight: 600; }
+        .acl-text { flex: 1; color: var(--text-secondary); }
+        .acl-delete { cursor: pointer; color: var(--text-muted); opacity: 0; transition: opacity 0.2s; font-size: 0.7rem; }
+        .acl-entry:hover .acl-delete { opacity: 1; }
+        .acl-delete:hover { color: var(--danger); }
+        .acl-implicit {
+            padding: 10px 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            border-top: 1px dashed var(--border);
+            font-style: italic;
+        }
+        .acl-implicit.matched { background: rgba(239,68,68,0.08); border-left: 3px solid var(--danger); }
+
+        /* Config output */
+        .config-output {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+            background: #0a0a18; border: 1px solid var(--border); border-radius: 6px;
+            padding: 14px; color: #c9d1d9; white-space: pre; overflow-x: auto;
+            line-height: 1.6; position: relative;
+        }
+        .copy-btn {
+            position: absolute; top: 8px; right: 8px;
+            background: rgba(255,255,255,0.08); border: 1px solid var(--border);
+            color: var(--text-muted); padding: 4px 10px; border-radius: 4px;
+            font-size: 0.7rem; cursor: pointer; font-family: 'Inter', sans-serif;
+        }
+        .copy-btn:hover { color: var(--text-primary); border-color: var(--cisco-border); }
+
+        /* Packet test result */
+        .test-result {
+            padding: 14px; border-radius: 8px; margin-top: 14px; font-size: 0.88rem;
+        }
+        .test-result.permit { background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.3); color: var(--permit-color); }
+        .test-result.deny { background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.3); color: var(--deny-color); }
+
+        /* Wildcard calculator */
+        .wc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .wc-result {
+            font-family: 'JetBrains Mono', monospace; font-size: 1.1rem;
+            color: var(--cisco-primary); font-weight: 600; margin-top: 8px;
+        }
+        .wc-label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
+
+        /* Best practices */
+        .tip-card {
+            background: rgba(16,185,129,0.04); border-left: 3px solid var(--cisco-primary);
+            padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 10px;
+        }
+        .tip-card strong { color: var(--cisco-primary); font-size: 0.82rem; }
+        .tip-card p { color: var(--text-secondary); font-size: 0.82rem; margin-top: 4px; }
+
+        /* Radio group */
+        .radio-group { display: flex; gap: 2px; }
+        .radio-opt {
+            padding: 6px 14px; border: 1px solid var(--border); cursor: pointer;
+            font-size: 0.8rem; color: var(--text-muted); transition: all 0.2s;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .radio-opt:first-child { border-radius: 6px 0 0 6px; }
+        .radio-opt:last-child { border-radius: 0 6px 6px 0; }
+        .radio-opt.active-permit { background: rgba(74,222,128,0.15); border-color: rgba(74,222,128,0.4); color: var(--permit-color); }
+        .radio-opt.active-deny { background: rgba(248,113,113,0.15); border-color: rgba(248,113,113,0.4); color: var(--deny-color); }
+
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+        @media (max-width: 900px) {
+            .two-col { grid-template-columns: 1fr; }
+            .wc-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 768px) {
+            .tool-header { padding: 12px 15px; flex-wrap: wrap; gap: 8px; }
+            .tool-header h1 { font-size: 0.95rem; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="tool-header">
+    <div class="tool-header-left">
+        <span class="tool-badge">ACL</span>
+        <h1>ACL Builder & Tester</h1>
+    </div>
+    <a href="../index.html" class="back-link">
+        <img src="/assets/images/icons/icon-arrow-left.webp" alt="">
+        CCNA Hub
+    </a>
+</header>
+
+<div class="tool-body">
+    <div class="tab-bar">
+        <button class="tab-btn active" data-tab="builder">ACL Builder</button>
+        <button class="tab-btn" data-tab="tester">Packet Tester</button>
+        <button class="tab-btn" data-tab="wildcard">Wildcard Calculator</button>
+        <button class="tab-btn" data-tab="tips">Best Practices</button>
+    </div>
+
+    <!-- ═══ Builder Tab ═══ -->
+    <div class="tab-panel active" id="tab-builder">
+        <div class="card">
+            <div class="card-title">ACL Configuration</div>
+            <div class="input-row">
+                <div class="input-group">
+                    <label>ACL Type</label>
+                    <select id="aclType" onchange="updateBuilderUI()">
+                        <option value="standard-numbered">Standard Numbered (1-99)</option>
+                        <option value="extended-numbered" selected>Extended Numbered (100-199)</option>
+                        <option value="standard-named">Standard Named</option>
+                        <option value="extended-named">Extended Named</option>
+                    </select>
+                </div>
+                <div class="input-group" id="aclNumGroup">
+                    <label>ACL Number</label>
+                    <input type="number" id="aclNumber" value="100" min="1" max="199" style="width:80px;">
+                </div>
+                <div class="input-group" id="aclNameGroup" style="display:none;">
+                    <label>ACL Name</label>
+                    <input type="text" id="aclName" value="MY_ACL" style="width:140px;">
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Add ACL Entry</div>
+            <div class="input-row">
+                <div class="input-group">
+                    <label>Action</label>
+                    <div class="radio-group" id="actionGroup">
+                        <div class="radio-opt active-permit" data-val="permit" onclick="selectAction(this)">permit</div>
+                        <div class="radio-opt" data-val="deny" onclick="selectAction(this)">deny</div>
+                    </div>
+                </div>
+                <div class="input-group ext-field">
+                    <label>Protocol</label>
+                    <select id="entryProtocol">
+                        <option value="ip">ip</option>
+                        <option value="tcp">tcp</option>
+                        <option value="udp">udp</option>
+                        <option value="icmp">icmp</option>
+                    </select>
+                </div>
+            </div>
+            <div class="input-row">
+                <div class="input-group">
+                    <label>Source IP</label>
+                    <input type="text" id="entrySrcIp" value="192.168.1.0" placeholder="IP or 'any'" style="width:150px;">
+                </div>
+                <div class="input-group">
+                    <label>Source Wildcard</label>
+                    <input type="text" id="entrySrcWc" value="0.0.0.255" placeholder="0.0.0.255" style="width:140px;">
+                </div>
+                <div class="input-group ext-field">
+                    <label>Destination IP</label>
+                    <input type="text" id="entryDstIp" value="10.0.0.0" placeholder="IP or 'any'" style="width:150px;">
+                </div>
+                <div class="input-group ext-field">
+                    <label>Dest Wildcard</label>
+                    <input type="text" id="entryDstWc" value="0.0.0.255" placeholder="0.0.0.255" style="width:140px;">
+                </div>
+            </div>
+            <div class="input-row ext-field" id="portRow">
+                <div class="input-group">
+                    <label>Port Operator</label>
+                    <select id="entryPortOp">
+                        <option value="">None</option>
+                        <option value="eq">eq (equal)</option>
+                        <option value="gt">gt (greater than)</option>
+                        <option value="lt">lt (less than)</option>
+                        <option value="range">range</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Port(s)</label>
+                    <input type="text" id="entryPort" placeholder="80 or 80 443" style="width:120px;">
+                </div>
+            </div>
+            <button class="btn" onclick="addEntry()">Add Entry</button>
+        </div>
+
+        <div class="two-col">
+            <div class="card">
+                <div class="card-title">ACL Entries</div>
+                <div id="aclEntries"></div>
+                <div class="acl-implicit" id="implicitDeny">--- implicit deny any ---</div>
+                <div style="margin-top: 12px;">
+                    <button class="btn btn-sm btn-outline" onclick="clearAcl()">Clear All</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">IOS Configuration</div>
+                <div class="config-output" id="aclConfig"><button class="copy-btn" onclick="copyAclConfig()">Copy</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Packet Tester Tab ═══ -->
+    <div class="tab-panel" id="tab-tester">
+        <div class="two-col">
+            <div class="card">
+                <div class="card-title">Define Test Packet</div>
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>Source IP</label>
+                        <input type="text" id="testSrcIp" value="192.168.1.50" style="width:150px;">
+                    </div>
+                    <div class="input-group">
+                        <label>Destination IP</label>
+                        <input type="text" id="testDstIp" value="10.0.0.25" style="width:150px;">
+                    </div>
+                </div>
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>Protocol</label>
+                        <select id="testProtocol">
+                            <option value="tcp">TCP</option>
+                            <option value="udp">UDP</option>
+                            <option value="icmp">ICMP</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Dest Port</label>
+                        <input type="number" id="testPort" value="80" min="1" max="65535" style="width:100px;">
+                    </div>
+                </div>
+                <button class="btn" onclick="testPacket()">Test Packet</button>
+                <div id="testResultBox"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Current ACL (from Builder)</div>
+                <div id="testerAclView"></div>
+                <div class="acl-implicit" id="testerImplicit">--- implicit deny any ---</div>
+                <p style="color:var(--text-muted);font-size:0.78rem;margin-top:10px;">
+                    <img src="/assets/images/icons/icon-info.webp" alt="" style="width:13px;height:13px;vertical-align:middle;margin-right:4px;opacity:0.6;">
+                    Build your ACL in the Builder tab, then test packets here.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Wildcard Calculator Tab ═══ -->
+    <div class="tab-panel" id="tab-wildcard">
+        <div class="card">
+            <div class="card-title">Wildcard Mask Calculator</div>
+            <div class="wc-grid">
+                <div>
+                    <div class="input-group">
+                        <label>Subnet Mask</label>
+                        <input type="text" id="wcSubnet" value="255.255.255.0" placeholder="255.255.255.0" style="width:180px;" oninput="calcWildcard()">
+                    </div>
+                    <div class="wc-label" style="margin-top:12px;">Wildcard Mask</div>
+                    <div class="wc-result" id="wcResult">0.0.0.255</div>
+                </div>
+                <div>
+                    <div class="input-group">
+                        <label>Wildcard Mask</label>
+                        <input type="text" id="wcWild" value="0.0.0.255" placeholder="0.0.0.255" style="width:180px;" oninput="calcSubnetFromWc()">
+                    </div>
+                    <div class="wc-label" style="margin-top:12px;">Subnet Mask</div>
+                    <div class="wc-result" id="wcSubnetResult">255.255.255.0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Common Masks Quick Reference</div>
+            <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+                <thead>
+                    <tr>
+                        <th style="text-align:left;padding:8px;color:var(--text-muted);font-size:0.72rem;border-bottom:1px solid var(--border);">Prefix</th>
+                        <th style="text-align:left;padding:8px;color:var(--text-muted);font-size:0.72rem;border-bottom:1px solid var(--border);">Subnet Mask</th>
+                        <th style="text-align:left;padding:8px;color:var(--text-muted);font-size:0.72rem;border-bottom:1px solid var(--border);">Wildcard Mask</th>
+                        <th style="text-align:left;padding:8px;color:var(--text-muted);font-size:0.72rem;border-bottom:1px solid var(--border);">Hosts</th>
+                        <th style="text-align:left;padding:8px;color:var(--text-muted);font-size:0.72rem;border-bottom:1px solid var(--border);">Usage</th>
+                    </tr>
+                </thead>
+                <tbody id="maskTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ═══ Best Practices Tab ═══ -->
+    <div class="tab-panel" id="tab-tips">
+        <div class="tip-card">
+            <strong><img src="/assets/images/icons/icon-target.webp" alt="" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;">Standard ACLs: Place Close to the Destination</strong>
+            <p>Standard ACLs only filter on source IP. Placing them near the source would block traffic to ALL destinations from that source, not just the intended one.</p>
+        </div>
+        <div class="tip-card">
+            <strong><img src="/assets/images/icons/icon-target.webp" alt="" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;">Extended ACLs: Place Close to the Source</strong>
+            <p>Extended ACLs filter on source, destination, protocol, and port. Place them near the source to drop unwanted traffic early and save bandwidth.</p>
+        </div>
+        <div class="tip-card">
+            <strong><img src="/assets/images/icons/icon-warning.webp" alt="" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;">Implicit Deny at the End</strong>
+            <p>Every ACL has an invisible "deny ip any any" at the end. If no rule matches, the packet is dropped. Always add at least one permit statement, or nothing gets through.</p>
+        </div>
+        <div class="tip-card">
+            <strong><img src="/assets/images/icons/icon-info.webp" alt="" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;">Order Matters</strong>
+            <p>ACLs are processed top-down. The first matching rule wins. Place more specific rules before general ones.</p>
+        </div>
+        <div class="tip-card">
+            <strong><img src="/assets/images/icons/icon-list.webp" alt="" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;">One ACL Per Interface, Per Direction, Per Protocol</strong>
+            <p>You can have one inbound and one outbound ACL per interface (per protocol). Applying a new ACL replaces the old one.</p>
+        </div>
+        <div class="tip-card">
+            <strong><img src="/assets/images/icons/icon-lock.webp" alt="" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;">Use Named ACLs</strong>
+            <p>Named ACLs are easier to edit (you can insert and delete individual entries by sequence number). Numbered ACLs require deleting and recreating the entire ACL to reorder.</p>
+        </div>
+        <div class="tip-card">
+            <strong><img src="/assets/images/icons/icon-network.webp" alt="" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;">Wildcard Mask Logic</strong>
+            <p>Wildcard mask 0 = must match. Wildcard mask 255 = don't care. So 0.0.0.255 matches 256 addresses in the last octet. To match a single host, use wildcard 0.0.0.0 (or the keyword "host").</p>
+        </div>
+        <div class="tip-card">
+            <strong><img src="/assets/images/icons/icon-shield.webp" alt="" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;">Always Log Denied Traffic (in production)</strong>
+            <p>Add the "log" keyword to deny statements: <span style="font-family:'JetBrains Mono',monospace;color:var(--cisco-primary);">deny ip any any log</span>. This helps with troubleshooting and security monitoring.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ═══ Tab switching ═══ */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        if (btn.dataset.tab === 'tester') renderTesterView();
+    });
+});
+
+/* ═══ ACL State ═══ */
+let aclEntries = [];
+let currentAction = 'permit';
+let seqCounter = 10;
+
+function selectAction(el) {
+    document.querySelectorAll('#actionGroup .radio-opt').forEach(o => {
+        o.classList.remove('active-permit', 'active-deny');
+    });
+    currentAction = el.dataset.val;
+    el.classList.add(currentAction === 'permit' ? 'active-permit' : 'active-deny');
+}
+
+function isExtended() {
+    const t = document.getElementById('aclType').value;
+    return t.includes('extended');
+}
+
+function isNamed() {
+    const t = document.getElementById('aclType').value;
+    return t.includes('named');
+}
+
+function updateBuilderUI() {
+    const ext = isExtended();
+    const named = isNamed();
+    document.querySelectorAll('.ext-field').forEach(el => el.style.display = ext ? '' : 'none');
+    document.getElementById('aclNumGroup').style.display = named ? 'none' : '';
+    document.getElementById('aclNameGroup').style.display = named ? '' : 'none';
+    if (!named) {
+        const numInput = document.getElementById('aclNumber');
+        numInput.min = ext ? 100 : 1;
+        numInput.max = ext ? 199 : 99;
+        numInput.value = ext ? 100 : 10;
+    }
+    renderAcl();
+}
+
+function addEntry() {
+    const entry = {
+        seq: seqCounter,
+        action: currentAction,
+        protocol: isExtended() ? document.getElementById('entryProtocol').value : 'ip',
+        srcIp: document.getElementById('entrySrcIp').value.trim() || 'any',
+        srcWc: document.getElementById('entrySrcWc').value.trim(),
+        dstIp: isExtended() ? (document.getElementById('entryDstIp').value.trim() || 'any') : '',
+        dstWc: isExtended() ? document.getElementById('entryDstWc').value.trim() : '',
+        portOp: isExtended() ? document.getElementById('entryPortOp').value : '',
+        port: isExtended() ? document.getElementById('entryPort').value.trim() : ''
+    };
+
+    // Handle 'any' and 'host' keywords
+    if (entry.srcIp.toLowerCase() === 'any') { entry.srcIp = 'any'; entry.srcWc = ''; }
+    if (entry.srcWc === '0.0.0.0') { entry.srcIp = 'host ' + entry.srcIp; entry.srcWc = ''; }
+    if (entry.dstIp.toLowerCase() === 'any') { entry.dstIp = 'any'; entry.dstWc = ''; }
+    if (entry.dstWc === '0.0.0.0' && entry.dstIp) { entry.dstIp = 'host ' + entry.dstIp; entry.dstWc = ''; }
+
+    // Only include port for TCP/UDP
+    if (entry.protocol !== 'tcp' && entry.protocol !== 'udp') {
+        entry.portOp = '';
+        entry.port = '';
+    }
+
+    aclEntries.push(entry);
+    seqCounter += 10;
+    renderAcl();
+}
+
+function removeEntry(seq) {
+    aclEntries = aclEntries.filter(e => e.seq !== seq);
+    renderAcl();
+}
+
+function clearAcl() {
+    aclEntries = [];
+    seqCounter = 10;
+    renderAcl();
+}
+
+function buildEntryText(e, includeSeq) {
+    let parts = [];
+    if (includeSeq) parts.push(String(e.seq));
+    parts.push(e.action);
+    if (isExtended()) parts.push(e.protocol);
+    parts.push(e.srcIp);
+    if (e.srcWc) parts.push(e.srcWc);
+    if (isExtended()) {
+        parts.push(e.dstIp);
+        if (e.dstWc) parts.push(e.dstWc);
+        if (e.portOp && e.port) {
+            parts.push(e.portOp);
+            parts.push(e.port);
+        }
+    }
+    return parts.join(' ');
+}
+
+function renderAcl() {
+    const container = document.getElementById('aclEntries');
+    container.innerHTML = aclEntries.map(e => {
+        const actionClass = e.action === 'permit' ? 'acl-action-permit' : 'acl-action-deny';
+        return `<div class="acl-entry" data-seq="${e.seq}">
+            <span class="acl-seq">${e.seq}</span>
+            <span class="${actionClass}">${e.action}</span>
+            <span class="acl-text">${buildEntryText(e, false).replace(e.action + ' ', '')}</span>
+            <span class="acl-delete" onclick="removeEntry(${e.seq})">X</span>
+        </div>`;
+    }).join('');
+
+    // Generate config
+    renderConfig();
+}
+
+function renderConfig() {
+    const cfg = document.getElementById('aclConfig');
+    let text = '';
+    const type = document.getElementById('aclType').value;
+    const ext = isExtended();
+    const named = isNamed();
+
+    if (named) {
+        const name = document.getElementById('aclName').value || 'MY_ACL';
+        text += `ip access-list ${ext ? 'extended' : 'standard'} ${name}\n`;
+        aclEntries.forEach(e => {
+            text += ` ${buildEntryText(e, true)}\n`;
+        });
+    } else {
+        const num = document.getElementById('aclNumber').value;
+        aclEntries.forEach(e => {
+            text += `access-list ${num} ${buildEntryText(e, false)}\n`;
+        });
+    }
+
+    if (aclEntries.length > 0) {
+        text += `!\n! Apply to interface:\ninterface GigabitEthernet0/0\n`;
+        if (named) {
+            text += ` ip access-group ${document.getElementById('aclName').value || 'MY_ACL'} in\n`;
+        } else {
+            text += ` ip access-group ${document.getElementById('aclNumber').value} in\n`;
+        }
+    }
+
+    cfg.textContent = text || '! No entries yet. Add rules above.';
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'copy-btn';
+    copyBtn.textContent = 'Copy';
+    copyBtn.onclick = copyAclConfig;
+    cfg.appendChild(copyBtn);
+}
+
+function copyAclConfig() {
+    const text = document.getElementById('aclConfig').textContent.replace('Copy', '').trim();
+    navigator.clipboard.writeText(text);
+}
+
+/* ═══ Packet Tester ═══ */
+function ipToNum(ip) {
+    if (ip === 'any') return 0;
+    const clean = ip.replace(/^host\s+/, '');
+    const p = clean.trim().split('.').map(Number);
+    if (p.length !== 4 || p.some(o => isNaN(o) || o < 0 || o > 255)) return null;
+    return ((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]) >>> 0;
+}
+
+function wcToNum(wc) {
+    if (!wc) return 0;
+    return ipToNum(wc) || 0;
+}
+
+function ipMatchesWildcard(packetIp, aclIp, aclWc) {
+    if (aclIp === 'any') return true;
+    const isHost = aclIp.startsWith('host ');
+    const aclAddr = isHost ? aclIp.replace('host ', '') : aclIp;
+    const wcMask = isHost ? 0 : wcToNum(aclWc);
+    const pNum = ipToNum(packetIp);
+    const aNum = ipToNum(aclAddr);
+    if (pNum === null || aNum === null) return false;
+    // Wildcard: 0 bits must match, 1 bits don't care
+    return ((pNum ^ aNum) & ~wcMask) === 0;
+}
+
+function entryMatchesPacket(entry, packet) {
+    const ext = isExtended();
+
+    // Protocol check (extended only)
+    if (ext && entry.protocol !== 'ip') {
+        if (entry.protocol !== packet.protocol) return false;
+    }
+
+    // Source IP
+    if (!ipMatchesWildcard(packet.srcIp, entry.srcIp, entry.srcWc)) return false;
+
+    // Destination IP (extended only)
+    if (ext) {
+        if (!ipMatchesWildcard(packet.dstIp, entry.dstIp, entry.dstWc)) return false;
+
+        // Port check
+        if (entry.portOp && entry.port && (entry.protocol === 'tcp' || entry.protocol === 'udp')) {
+            const pPort = parseInt(packet.port);
+            const ports = entry.port.split(/\s+/).map(Number);
+            switch (entry.portOp) {
+                case 'eq': if (pPort !== ports[0]) return false; break;
+                case 'gt': if (pPort <= ports[0]) return false; break;
+                case 'lt': if (pPort >= ports[0]) return false; break;
+                case 'range': if (pPort < ports[0] || pPort > ports[1]) return false; break;
+            }
+        }
+    }
+
+    return true;
+}
+
+function renderTesterView() {
+    const container = document.getElementById('testerAclView');
+    container.innerHTML = aclEntries.map(e => {
+        const actionClass = e.action === 'permit' ? 'acl-action-permit' : 'acl-action-deny';
+        return `<div class="acl-entry" data-seq="${e.seq}">
+            <span class="acl-seq">${e.seq}</span>
+            <span class="${actionClass}">${e.action}</span>
+            <span class="acl-text">${buildEntryText(e, false).replace(e.action + ' ', '')}</span>
+        </div>`;
+    }).join('') || '<p style="color:var(--text-muted);padding:12px;font-size:0.85rem;">No ACL entries. Build one in the Builder tab first.</p>';
+}
+
+function testPacket() {
+    const packet = {
+        srcIp: document.getElementById('testSrcIp').value.trim(),
+        dstIp: document.getElementById('testDstIp').value.trim(),
+        protocol: document.getElementById('testProtocol').value,
+        port: document.getElementById('testPort').value
+    };
+
+    // Clear previous highlights
+    document.querySelectorAll('#testerAclView .acl-entry').forEach(el => el.classList.remove('matched'));
+    document.getElementById('testerImplicit').classList.remove('matched');
+
+    let matchedEntry = null;
+    for (const entry of aclEntries) {
+        if (entryMatchesPacket(entry, packet)) {
+            matchedEntry = entry;
+            break;
+        }
+    }
+
+    const resultBox = document.getElementById('testResultBox');
+
+    if (matchedEntry) {
+        const el = document.querySelector(`#testerAclView .acl-entry[data-seq="${matchedEntry.seq}"]`);
+        if (el) el.classList.add('matched');
+        const isPermit = matchedEntry.action === 'permit';
+        resultBox.innerHTML = `<div class="test-result ${isPermit ? 'permit' : 'deny'}">
+            <img src="/assets/images/icons/${isPermit ? 'icon-check' : 'icon-crossmark'}.webp" alt="" style="width:16px;height:16px;vertical-align:middle;margin-right:8px;">
+            <strong>${isPermit ? 'PERMITTED' : 'DENIED'}</strong> by rule ${matchedEntry.seq}: ${buildEntryText(matchedEntry, false)}
+        </div>`;
+    } else {
+        document.getElementById('testerImplicit').classList.add('matched');
+        resultBox.innerHTML = `<div class="test-result deny">
+            <img src="/assets/images/icons/icon-crossmark.webp" alt="" style="width:16px;height:16px;vertical-align:middle;margin-right:8px;">
+            <strong>DENIED</strong> by implicit deny (no rules matched)
+        </div>`;
+    }
+
+    renderTesterView();
+    // Re-apply highlight after re-render
+    if (matchedEntry) {
+        setTimeout(() => {
+            const el = document.querySelector(`#testerAclView .acl-entry[data-seq="${matchedEntry.seq}"]`);
+            if (el) el.classList.add('matched');
+        }, 10);
+    } else {
+        setTimeout(() => document.getElementById('testerImplicit').classList.add('matched'), 10);
+    }
+}
+
+/* ═══ Wildcard Calculator ═══ */
+function calcWildcard() {
+    const mask = document.getElementById('wcSubnet').value.trim();
+    const parts = mask.split('.').map(Number);
+    if (parts.length !== 4 || parts.some(o => isNaN(o) || o < 0 || o > 255)) return;
+    const wc = parts.map(o => 255 - o).join('.');
+    document.getElementById('wcResult').textContent = wc;
+}
+
+function calcSubnetFromWc() {
+    const wc = document.getElementById('wcWild').value.trim();
+    const parts = wc.split('.').map(Number);
+    if (parts.length !== 4 || parts.some(o => isNaN(o) || o < 0 || o > 255)) return;
+    const mask = parts.map(o => 255 - o).join('.');
+    document.getElementById('wcSubnetResult').textContent = mask;
+}
+
+/* ═══ Populate mask reference table ═══ */
+(function() {
+    const masks = [
+        { prefix: '/32', mask: '255.255.255.255', wc: '0.0.0.0', hosts: 1, use: 'Host route' },
+        { prefix: '/30', mask: '255.255.255.252', wc: '0.0.0.3', hosts: 2, use: 'Point-to-point link' },
+        { prefix: '/29', mask: '255.255.255.248', wc: '0.0.0.7', hosts: 6, use: 'Small server subnet' },
+        { prefix: '/28', mask: '255.255.255.240', wc: '0.0.0.15', hosts: 14, use: 'Small LAN' },
+        { prefix: '/27', mask: '255.255.255.224', wc: '0.0.0.31', hosts: 30, use: 'Small department' },
+        { prefix: '/26', mask: '255.255.255.192', wc: '0.0.0.63', hosts: 62, use: 'Medium LAN' },
+        { prefix: '/25', mask: '255.255.255.128', wc: '0.0.0.127', hosts: 126, use: 'Half Class C' },
+        { prefix: '/24', mask: '255.255.255.0', wc: '0.0.0.255', hosts: 254, use: 'Standard LAN (Class C)' },
+        { prefix: '/22', mask: '255.255.252.0', wc: '0.0.3.255', hosts: 1022, use: 'Large campus LAN' },
+        { prefix: '/20', mask: '255.255.240.0', wc: '0.0.15.255', hosts: 4094, use: 'Building/floor' },
+        { prefix: '/16', mask: '255.255.0.0', wc: '0.0.255.255', hosts: 65534, use: 'Large enterprise (Class B)' },
+        { prefix: '/8', mask: '255.0.0.0', wc: '0.255.255.255', hosts: 16777214, use: 'ISP / Class A' },
+    ];
+    const tbody = document.getElementById('maskTable');
+    tbody.innerHTML = masks.map(m => `
+        <tr>
+            <td style="padding:8px;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;color:var(--cisco-primary);">${m.prefix}</td>
+            <td style="padding:8px;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;">${m.mask}</td>
+            <td style="padding:8px;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;color:var(--warning);">${m.wc}</td>
+            <td style="padding:8px;border-bottom:1px solid var(--border);">${m.hosts.toLocaleString()}</td>
+            <td style="padding:8px;border-bottom:1px solid var(--border);color:var(--text-secondary);">${m.use}</td>
+        </tr>
+    `).join('');
+})();
+
+/* ═══ Init ═══ */
+updateBuilderUI();
+renderAcl();
+</script>
+
+</body>
+</html>
