@@ -44,7 +44,7 @@ window.SignalGuides['sg-16'] = {
         '<rect x="124" y="142" width="56" height="16" rx="3" fill="rgba(34,197,94,0.1)" stroke="rgba(34,197,94,0.25)" stroke-width="0.5"/>' +
         '<text x="152" y="153" text-anchor="middle" fill="#4ade80" font-size="6">SSH</text>' +
         '<rect x="192" y="142" width="40" height="16" rx="3" fill="rgba(34,197,94,0.1)" stroke="rgba(34,197,94,0.25)" stroke-width="0.5"/>' +
-        '<text x="212" y="153" text-anchor="middle" fill="#4ade80" font-size="6">:5000</text>' +
+        '<text x="212" y="153" text-anchor="middle" fill="#4ade80" font-size="6">:8080</text>' +
         '</g>' +
 
         '<!-- OTG Adapter -->' +
@@ -106,7 +106,7 @@ window.SignalGuides['sg-16'] = {
         '<rect x="260" y="230" width="150" height="70" rx="8" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
         '<rect x="260" y="230" width="150" height="20" rx="8" fill="rgba(34,197,94,0.1)"/>' +
         '<rect x="260" y="243" width="150" height="7" fill="rgba(34,197,94,0.1)"/>' +
-        '<text x="335" y="245" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">FLASK :5000</text>' +
+        '<text x="335" y="245" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">FLASK :8080</text>' +
         '<text x="335" y="268" text-anchor="middle" fill="#8b949e" font-size="7">Upload / Download</text>' +
         '<text x="335" y="282" text-anchor="middle" fill="#8b949e" font-size="7">Burn-after-read msgs</text>' +
         '</g>' +
@@ -579,7 +579,7 @@ sudo /usr/local/bin/lock-vault.sh`,
            // Key icon
            '<rect x="534" y="88" width="96" height="40" rx="4" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.25)" stroke-width="0.5"/>' +
            '<text x="582" y="104" text-anchor="middle" fill="#eab308" font-size="7" font-weight="600">Keyfile</text>' +
-           '<text x="582" y="118" text-anchor="middle" fill="#a3860f" font-size="6">/root/.vault.key</text>' +
+           '<text x="582" y="118" text-anchor="middle" fill="#a3860f" font-size="6">/root/.vault-key</text>' +
            '</svg>',
 
         // Step 3 (index 3): Flask dead drop app data flow
@@ -606,14 +606,14 @@ sudo /usr/local/bin/lock-vault.sh`,
            // Flask server
            '<rect x="197" y="40" width="140" height="130" rx="6" fill="#1e2736" stroke="#22c55e" stroke-width="1.5"/>' +
            '<rect x="197" y="40" width="140" height="20" rx="6" fill="rgba(34,197,94,0.1)"/>' +
-           '<text x="267" y="54" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">FLASK :5000</text>' +
+           '<text x="267" y="54" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="600">FLASK :8080</text>' +
            '<rect x="210" y="68" width="114" height="20" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
            '<text x="267" y="81" text-anchor="middle" fill="#8b949e" font-size="7">/upload (POST)</text>' +
            '<rect x="210" y="92" width="114" height="20" rx="3" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>' +
            '<text x="267" y="105" text-anchor="middle" fill="#8b949e" font-size="7">/download (GET)</text>' +
            '<rect x="210" y="116" width="114" height="20" rx="3" fill="rgba(234,179,8,0.08)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
            '<text x="267" y="129" text-anchor="middle" fill="#eab308" font-size="7">/message (self-destruct)</text>' +
-           '<text x="267" y="158" text-anchor="middle" fill="#555" font-size="7">Pi Zero 2 W :5000</text>' +
+           '<text x="267" y="158" text-anchor="middle" fill="#555" font-size="7">Pi Zero 2 W :8080</text>' +
            // Arrow to vault
            '<line x1="339" y1="95" x2="395" y2="95" stroke="#ff6b35" stroke-width="1.5" marker-end="url(#sg16-arr)"/>' +
            '<text x="367" y="88" text-anchor="middle" fill="#ff6b35" font-size="7">read/write</text>' +
@@ -692,7 +692,7 @@ sudo /usr/local/bin/lock-vault.sh`,
              '<rect x="390" y="80" width="160" height="22" rx="8" fill="rgba(168,85,247,0.12)"/>' +
              '<text x="470" y="96" text-anchor="middle" fill="#a855f7" font-size="10" font-weight="600">Flask App</text>' +
              '<text x="470" y="116" text-anchor="middle" fill="#8b949e" font-size="7">Python web server</text>' +
-             '<text x="470" y="131" text-anchor="middle" fill="#555" font-size="7">binds 0.0.0.0:5000</text>' +
+             '<text x="470" y="131" text-anchor="middle" fill="#555" font-size="7">binds 0.0.0.0:8080</text>' +
              '<text x="470" y="148" text-anchor="middle" fill="#555" font-size="7">serves WiFi AP clients</text>' +
              '<circle id="sg16-dot-flask" cx="470" cy="96" r="7" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="1.5"/>' +
              '<text x="470" y="100" text-anchor="middle" fill="#a855f7" font-size="8" font-weight="700">4</text>' +
@@ -722,7 +722,7 @@ sudo /usr/local/bin/lock-vault.sh`,
                 id: 'flask',
                 name: 'Flask Web Application',
                 purpose: 'The interface. Provides file upload, download, and self-destructing message endpoints. Runs as a systemd service. Only accessible to devices connected to the Pi\'s WiFi AP — not the internet.',
-                specs: ['Python Flask 3.x', 'Binds on 0.0.0.0:5000', 'File uploads stored to /mnt/vault/drops/', 'Messages deleted on first read (os.unlink)']
+                specs: ['Python Flask 3.x', 'Binds on 0.0.0.0:8080', 'File uploads stored to /mnt/vault/drops/', 'Messages deleted on first read (os.unlink)']
             }
         ]
     },
@@ -730,7 +730,7 @@ sudo /usr/local/bin/lock-vault.sh`,
     commonMistakes: [
         {
             title: 'Storing the keyfile on the encrypted drive itself',
-            correct: 'Keep the keyfile on the Pi\'s SD card at /root/.vault.key (or better, derive it from a passphrase). The security model depends on the key being physically separate from the encrypted data.',
+            correct: 'Keep the keyfile on the Pi\'s SD card at /root/.vault-key (or better, derive it from a passphrase). The security model depends on the key being physically separate from the encrypted data.',
             incorrect: 'Placing the keyfile inside /mnt/vault/ or on the USB drive itself means the key and the lock are in the same place — anyone with the USB drive can unlock it without the Pi.',
             consequence: 'Complete security failure. The LUKS encryption is bypassed because the attacker finds the key alongside the ciphertext.',
             svgDiff: '<svg viewBox="0 0 540 160" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
@@ -741,7 +741,7 @@ sudo /usr/local/bin/lock-vault.sh`,
                      '<rect x="25" y="40" width="80" height="50" rx="4" fill="#1e2736" stroke="#22c55e" stroke-width="1"/>' +
                      '<text x="65" y="59" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">Pi SD Card</text>' +
                      '<rect x="35" y="65" width="60" height="18" rx="2" fill="rgba(234,179,8,0.15)" stroke="rgba(234,179,8,0.4)" stroke-width="0.5"/>' +
-                     '<text x="65" y="77" text-anchor="middle" fill="#eab308" font-size="6">.vault.key</text>' +
+                     '<text x="65" y="77" text-anchor="middle" fill="#eab308" font-size="6">.vault-key</text>' +
                      '<rect x="125" y="40" width="80" height="50" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1"/>' +
                      '<text x="165" y="59" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="600">USB Drive</text>' +
                      '<rect x="135" y="65" width="60" height="18" rx="2" fill="rgba(168,85,247,0.15)" stroke="rgba(168,85,247,0.4)" stroke-width="0.5"/>' +
@@ -755,7 +755,7 @@ sudo /usr/local/bin/lock-vault.sh`,
                      '<rect x="300" y="40" width="80" height="50" rx="4" fill="#1e2736" stroke="#3b82f6" stroke-width="1"/>' +
                      '<text x="340" y="59" text-anchor="middle" fill="#60a5fa" font-size="7" font-weight="600">USB Drive</text>' +
                      '<rect x="310" y="65" width="60" height="18" rx="2" fill="rgba(234,179,8,0.15)" stroke="rgba(234,179,8,0.4)" stroke-width="0.5"/>' +
-                     '<text x="340" y="77" text-anchor="middle" fill="#eab308" font-size="6">.vault.key</text>' +
+                     '<text x="340" y="77" text-anchor="middle" fill="#eab308" font-size="6">.vault-key</text>' +
                      '<rect x="395" y="40" width="80" height="50" rx="4" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
                      '<text x="435" y="59" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">USB Drive</text>' +
                      '<rect x="405" y="65" width="60" height="18" rx="2" fill="rgba(168,85,247,0.15)" stroke="rgba(168,85,247,0.4)" stroke-width="0.5"/>' +
@@ -2556,8 +2556,8 @@ sudo iptables -t nat -A OUTPUT -p udp --dport 53 -j REDIRECT --to-ports 5353
 sudo iptables -t nat -A OUTPUT -p tcp --syn -j REDIRECT --to-ports 9040
 
 # If acting as a router for other devices (AP mode):
-sudo iptables -t nat -A PREROUTING -i wlan1 -p udp --dport 53 -j REDIRECT --to-ports 5353
-sudo iptables -t nat -A PREROUTING -i wlan1 -p tcp --syn -j REDIRECT --to-ports 9040
+sudo iptables -t nat -A PREROUTING -i wlan0 -p udp --dport 53 -j REDIRECT --to-ports 5353
+sudo iptables -t nat -A PREROUTING -i wlan0 -p tcp --syn -j REDIRECT --to-ports 9040
 
 # Block non-Tor UDP (except DNS which we handle above)
 sudo iptables -A OUTPUT -m owner --uid-owner $TOR_UID -j ACCEPT
@@ -3323,7 +3323,7 @@ void scanAllChannels() {
 
     // Global alert: jamming if many channels spike simultaneously
     // Normal congestion hits 1-3 channels; jamming hits 6+
-    globalAlert = (alertChannels >= 6);
+    globalAlert = (alertChannels >= 3);
 }`,
             language: 'C++ (Arduino)'
         },

@@ -145,7 +145,7 @@ window.SignalGuides = {
                 '    Internal pull-ups enabled in code (INPUT_PULLUP).\n' +
                 '    No external resistors needed.',
 
-        wiringNotes: '<p><strong>CYD Display:</strong> The ILI9341 TFT is hardwired to the ESP32 on the CYD board. SPI pins are fixed: MOSI=13, SCK=14, CS=15, DC=2, RST=12, BL=21. The TFT_eSPI library handles this with the correct User_Setup.</p>' +
+        wiringNotes: '<p><strong>CYD Display:</strong> The ILI9341 TFT is hardwired to the ESP32 on the CYD board. SPI pins are fixed: MOSI=13, SCK=14, CS=5, DC=2, RST=4, BL=21. The TFT_eSPI library handles this with the correct User_Setup.</p>' +
                      '<p><strong>Touch:</strong> The XPT2046 touch controller shares the SPI bus. Touch CS is on GPIO 33. Touch works out of the box with TFT_eSPI.</p>' +
                      '<p><strong>Buzzer:</strong> The onboard buzzer is on GPIO 26. Use <code>ledcWriteTone()</code> to generate sound.</p>' +
                      '<p><strong>Buttons are optional:</strong> The game works with touchscreen alone. Buttons just feel better for an arcade experience.</p>',
@@ -220,7 +220,7 @@ window.SignalGuides = {
                  '</ul>',
 
         troubleshooting: '<ul>' +
-                         '<li><strong>Screen stays white after upload:</strong> Wrong pin definitions in User_Setup.h. Double-check MOSI=13, SCK=14, CS=15, DC=2, RST=12. Restart the IDE after changes.</li>' +
+                         '<li><strong>Screen stays white after upload:</strong> Wrong pin definitions in User_Setup.h. Double-check MOSI=13, SCK=14, CS=5, DC=2, RST=4. Restart the IDE after changes.</li>' +
                          '<li><strong>Touch does not respond:</strong> Make sure <code>TOUCH_CS 33</code> is defined in User_Setup.h. Some CYD revisions use a different touch CS pin &mdash; check your board silkscreen.</li>' +
                          '<li><strong>Ball moves but paddles do not:</strong> Touch coordinates may be inverted. Try swapping <code>tx</code> and <code>ty</code> in the touch handler, or change <code>tft.setRotation()</code> to a different value (0&ndash;3).</li>' +
                          '<li><strong>Flickering or tearing:</strong> Make sure you are erasing old positions (black rect) before drawing new ones, not calling <code>fillScreen()</code> every frame. Also verify your SPI frequency is 40MHz.</li>' +
@@ -766,7 +766,7 @@ window.SignalGuides = {
                '<text x="190" y="143" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="600">ILI9341 TFT</text>' +
                '<text x="190" y="158" text-anchor="middle" fill="#8b949e" font-size="8">CS = GPIO 15</text>' +
                '<text x="190" y="172" text-anchor="middle" fill="#8b949e" font-size="8">DC = GPIO 2</text>' +
-               '<text x="190" y="186" text-anchor="middle" fill="#8b949e" font-size="8">RST = GPIO 12</text>' +
+               '<text x="190" y="186" text-anchor="middle" fill="#8b949e" font-size="8">RST = GPIO 4</text>' +
                '<text x="190" y="200" text-anchor="middle" fill="#8b949e" font-size="8">40 MHz SPI clock</text>' +
                '<!-- SD Card -->' +
                '<rect x="440" y="120" width="180" height="100" rx="6" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
@@ -829,7 +829,7 @@ window.SignalGuides = {
                  '</svg>',
             components: [
                 { id: 'sg27-comp-esp32', name: 'ESP32 DevKit', purpose: 'Runs Peanut-GB emulator at 240MHz — fetch/decode/execute Game Boy SM83 instructions', specs: ['240MHz dual-core', '520KB SRAM for GB state', 'PSRAM module recommended for large ROMs'] },
-                { id: 'sg27-comp-ili9341', name: 'ILI9341 TFT', purpose: '320x240 display driven via SPI — Game Boy 160x144 frame rendered with 1x or 2x scale', specs: ['SPI: MOSI=13 MISO=12 SCK=14', 'CS=15, DC=2, RST=12', 'lcd_draw_line() callback fills rows'] },
+                { id: 'sg27-comp-ili9341', name: 'ILI9341 TFT', purpose: '320x240 display driven via SPI — Game Boy 160x144 frame rendered with 1x or 2x scale', specs: ['SPI: MOSI=23 MISO=19 SCK=18', 'CS=5, DC=2, RST=4', 'lcd_draw_line() callback fills rows'] },
                 { id: 'sg27-comp-btns', name: '6 Game Buttons', purpose: 'D-pad (UP/DOWN/LEFT/RIGHT) plus A and B buttons mapped to Game Boy inputs', specs: ['Active LOW with INPUT_PULLUP', 'Debounced in readButtons()', 'Avoid GPIO 34/35/36/39 (no pull-up)'] },
                 { id: 'sg27-comp-sd', name: 'SD Card Reader', purpose: 'Stores .gb ROM files and save data — shares SPI bus with TFT using separate CS pin', specs: ['CS = GPIO 5', 'FAT32 format required', 'Use SD.open() callbacks for rom_read'] },
                 { id: 'sg27-comp-lipo', name: 'LiPo Battery', purpose: '3.7V lithium polymer battery with TP4056 charge controller for portable operation', specs: ['1000-2000mAh typical', 'TP4056 over-discharge protection', 'Voltage divider on GPIO34 for level'] },
@@ -1898,7 +1898,7 @@ window.SignalGuides = {
                 '    +------------------------------------------+',
 
         wiringNotes: '<p><strong>Zero-delay encoder:</strong> Pre-made PCB that connects arcade buttons and joystick via screw terminals, outputs USB. No programming needed &mdash; appears as a standard USB gamepad.</p>' +
-                     '<p><strong>Power distribution:</strong> Use a 5V 5A power supply. Split with a wiring harness: USB-C for Pi (3A), barrel for display, screw terminals for amp and LEDs. Add a 1000&micro;F capacitor across the WS2812B power input.</p>' +
+                     '<p><strong>Power distribution:</strong> Use a 5V 6A power supply. Split with a wiring harness: USB-C for Pi (3A), barrel for display, screw terminals for amp and LEDs. Add a 1000&micro;F capacitor across the WS2812B power input.</p>' +
                      '<p><strong>Display:</strong> The 7" HDMI IPS display has a driver board with HDMI input and 5V power. Mount the screen from behind the cabinet panel.</p>',
 
         steps: [

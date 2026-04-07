@@ -3185,7 +3185,7 @@ void checkSerial() {
            '<text x="476" y="76" fill="#8b949e" font-size="6.5">Output:</text><text x="580" y="76" fill="#c9d1d9" font-size="6.5">3.3V digital HIGH</text>' +
            '<text x="476" y="88" fill="#8b949e" font-size="6.5">Range:</text><text x="580" y="88" fill="#c9d1d9" font-size="6.5">up to 7m</text>' +
            '<text x="476" y="100" fill="#8b949e" font-size="6.5">Warm-up:</text><text x="580" y="100" fill="#ef4444" font-size="6.5" font-weight="600">30-60 seconds!</text>' +
-           '<text x="476" y="112" fill="#8b949e" font-size="6.5">Angle:</text><text x="580" y="112" fill="#c9d1d9" font-size="6.5">120 degrees cone</text>' +
+           '<text x="476" y="112" fill="#8b949e" font-size="6.5">Angle:</text><text x="580" y="112" fill="#c9d1d9" font-size="6.5">110 degrees cone</text>' +
            '<text x="476" y="124" fill="#8b949e" font-size="6.5">Sx pot:</text><text x="580" y="124" fill="#c9d1d9" font-size="6.5">sensitivity (range)</text>' +
            '<text x="476" y="136" fill="#8b949e" font-size="6.5">Tx pot:</text><text x="580" y="136" fill="#c9d1d9" font-size="6.5">hold time (3s-300s)</text>' +
            '<text x="340" y="166" text-anchor="middle" fill="#333" font-size="7">Warm-up is critical: connect PIR and wait 60 seconds BEFORE the sketch starts checking the OUT pin.</text>' +
@@ -3277,8 +3277,8 @@ void checkSerial() {
             {
                 id: 'fresnel',
                 name: 'A — Fresnel Lens',
-                purpose: 'A segmented plastic lens that focuses infrared radiation from a wide field of view onto the tiny dual pyroelectric element. Without this lens, the sensor would only detect objects directly in front of it. The lens creates a detection cone of about 120 degrees horizontally.',
-                specs: ['120 degree FOV', 'Focuses IR radiation', 'White polycarbonate', 'Segmented Fresnel optics', 'Replaceable']
+                purpose: 'A segmented plastic lens that focuses infrared radiation from a wide field of view onto the tiny dual pyroelectric element. Without this lens, the sensor would only detect objects directly in front of it. The lens creates a detection cone of about 110 degrees horizontally.',
+                specs: ['110 degree FOV', 'Focuses IR radiation', 'White polycarbonate', 'Segmented Fresnel optics', 'Replaceable']
             },
             {
                 id: 'pyro',
