@@ -34,7 +34,8 @@ window.SignalGuides = {
 
         wiringNotes: '<p><strong>Pin reference:</strong> D2&ndash;D6 are digital pins on the Mega\'s double-row header. GND is any of the three GND pins.</p>' +
                      '<p><strong>Resistor value:</strong> 220&Omega; limits current to ~15mA at 5V, safe for standard LEDs. Never connect an LED directly to a pin without a resistor &mdash; you will burn it out.</p>' +
-                     '<p><strong>Wire colors:</strong> Black = ground, other colors = signal. Pick a consistent scheme and stick with it.</p>',
+                     '<p><strong>Wire colors:</strong> Black = ground, other colors = signal. Pick a consistent scheme and stick with it.</p>' +
+                     '<p><strong>Safety:</strong> Always disconnect the USB cable before adding or changing wires. A misplaced wire on a powered board can short 5V to GND and damage the Mega. Build the habit now &mdash; power off, wire, verify, then reconnect.</p>',
 
         wiringSvg: '<div class="svg-build-wrap">' +
             '<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
@@ -106,32 +107,32 @@ window.SignalGuides = {
             '<text x="570" y="239" text-anchor="middle" fill="#c084fc" font-size="6">220R</text>' +
 
             '<!-- LED 5 (D6) -->' +
-            '<polygon points="630,175 640,195 620,195" fill="rgba(226,232,240,0.3)" stroke="#e2e8f0" stroke-width="1"/>' +
-            '<text x="630" y="210" text-anchor="middle" fill="#e2e8f0" font-size="7">LED 5</text>' +
-            '<rect x="550" y="282" width="40" height="8" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5"/>' +
-            '<text x="570" y="289" text-anchor="middle" fill="#c084fc" font-size="6">220R</text>' +
+            '<polygon points="630,225 640,245 620,245" fill="rgba(226,232,240,0.3)" stroke="#e2e8f0" stroke-width="1"/>' +
+            '<text x="630" y="260" text-anchor="middle" fill="#e2e8f0" font-size="7">LED 5</text>' +
+            '<rect x="638" y="232" width="40" height="8" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5"/>' +
+            '<text x="658" y="239" text-anchor="middle" fill="#c084fc" font-size="6">220R</text>' +
             '</g>' +
 
-            '<!-- Wires -->' +
-            '<!-- GND wire (black) -->' +
+            '<!-- Wires — arranged top-to-bottom matching pin order -->' +
+            '<!-- GND wire (black dashed) -->' +
             '<line x1="221" y1="137" x2="392" y2="140" stroke="#8b949e" stroke-width="2" stroke-dasharray="6,3"/>' +
-            '<!-- D2 wire (yellow) -->' +
+            '<!-- D2 wire (yellow) — to LED 1 -->' +
             '<line x1="221" y1="167" x2="430" y2="175" stroke="#eab308" stroke-width="1.5"/>' +
-            '<!-- D3 wire (green) -->' +
+            '<!-- D3 wire (green) — to LED 2, below LED 1 -->' +
             '<line x1="221" y1="197" x2="430" y2="225" stroke="#22c55e" stroke-width="1.5"/>' +
-            '<!-- D4 wire (blue) -->' +
+            '<!-- D4 wire (blue) — to LED 3, right column top -->' +
             '<line x1="221" y1="227" x2="530" y2="175" stroke="#3b82f6" stroke-width="1.5"/>' +
-            '<!-- D5 wire (red) -->' +
+            '<!-- D5 wire (red) — to LED 4, right column bottom -->' +
             '<line x1="221" y1="257" x2="530" y2="225" stroke="#ef4444" stroke-width="1.5"/>' +
-            '<!-- D6 wire (white) -->' +
-            '<line x1="221" y1="287" x2="630" y2="175" stroke="#e2e8f0" stroke-width="1.5"/>' +
+            '<!-- D6 wire (white) — to LED 5, far right bottom -->' +
+            '<line x1="221" y1="287" x2="630" y2="225" stroke="#e2e8f0" stroke-width="1.5"/>' +
 
-            '<!-- Resistor to GND connections -->' +
-            '<line x1="490" y1="186" x2="530" y2="140" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>' +
-            '<line x1="490" y1="236" x2="530" y2="140" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>' +
-            '<line x1="590" y1="186" x2="600" y2="140" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>' +
-            '<line x1="590" y1="236" x2="600" y2="140" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>' +
-            '<line x1="590" y1="286" x2="640" y2="140" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>' +
+            '<!-- Resistor to GND rail connections -->' +
+            '<line x1="490" y1="186" x2="500" y2="140" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>' +
+            '<line x1="490" y1="236" x2="510" y2="140" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>' +
+            '<line x1="590" y1="186" x2="570" y2="140" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>' +
+            '<line x1="590" y1="236" x2="580" y2="140" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>' +
+            '<line x1="678" y1="236" x2="650" y2="140" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>' +
 
             '<!-- LED detail callout -->' +
             '<rect x="400" y="300" width="260" height="50" rx="6" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.2)" stroke-width="0.5"/>' +
@@ -161,8 +162,9 @@ window.SignalGuides = {
             },
             {
                 title: 'Wire Your First External LED',
-                content: '<p>Now build a real circuit. Insert an LED into the breadboard with the <strong>long leg (anode)</strong> in one row and the <strong>short leg (cathode)</strong> in the adjacent row. Connect a 220&Omega; resistor from the cathode row to the ground rail. Run a jumper wire from the anode row to <strong>pin D2</strong> on the Mega, and another from the GND rail to any <strong>GND</strong> pin on the Mega.</p>' +
-                         '<p>The circuit path is: Pin D2 &rarr; wire &rarr; LED anode &rarr; LED cathode &rarr; resistor &rarr; GND rail &rarr; wire &rarr; Mega GND.</p>',
+                content: '<p><strong>Disconnect the USB cable before wiring.</strong> Insert an LED into the breadboard with the <strong>long leg (anode)</strong> in one row and the <strong>short leg (cathode)</strong> in the adjacent row. Connect a 220&Omega; resistor from the cathode row to the ground rail. Run a jumper wire from the anode row to <strong>pin D2</strong> on the Mega, and another from the GND rail to any <strong>GND</strong> pin on the Mega.</p>' +
+                         '<p>The circuit path is: Pin D2 &rarr; wire &rarr; LED anode &rarr; LED cathode &rarr; resistor &rarr; GND rail &rarr; wire &rarr; Mega GND.</p>' +
+                         '<p>Double-check all connections, then reconnect USB and upload the code.</p>',
                 code: '// External LED on pin 2\nconst int LED_PIN = 2;\n\nvoid setup() {\n  pinMode(LED_PIN, OUTPUT);\n}\n\nvoid loop() {\n  digitalWrite(LED_PIN, HIGH);\n  delay(500);\n  digitalWrite(LED_PIN, LOW);\n  delay(500);\n}',
                 language: 'Arduino',
                 tip: '<strong>Tip:</strong> If the LED does not light up, flip it around. LEDs only conduct in one direction. The long leg is positive.'
@@ -176,8 +178,8 @@ window.SignalGuides = {
             },
             {
                 title: 'Wire Multiple LEDs',
-                content: '<p>Add four more LEDs on pins D3 through D6, each with its own 220&Omega; resistor to ground. Use different color LEDs if you have them. Each LED gets its own row on the breadboard &mdash; do not share rows between different LED circuits.</p>' +
-                         '<p>Keep your wiring neat. Short, flat jumper wires are easier to debug than long tangled ones.</p>',
+                content: '<p><strong>Disconnect USB before adding wires.</strong> Add four more LEDs on pins D3 through D6, each with its own 220&Omega; resistor to ground. Use different color LEDs if you have them. Each LED gets its own row on the breadboard &mdash; do not share rows between different LED circuits.</p>' +
+                         '<p>Keep your wiring neat. Short, flat jumper wires are easier to debug than long tangled ones. Reconnect USB and upload when done.</p>',
                 code: '// 5 LEDs on pins 2-6\nconst int LED_PINS[] = {2, 3, 4, 5, 6};\nconst int NUM_LEDS = 5;\n\nvoid setup() {\n  Serial.begin(9600);\n  for (int i = 0; i < NUM_LEDS; i++) {\n    pinMode(LED_PINS[i], OUTPUT);\n  }\n  Serial.println("SG-01: 5 LEDs initialized on pins 2-6");\n}\n\nvoid loop() {\n  // All on\n  for (int i = 0; i < NUM_LEDS; i++) {\n    digitalWrite(LED_PINS[i], HIGH);\n  }\n  delay(500);\n  \n  // All off\n  for (int i = 0; i < NUM_LEDS; i++) {\n    digitalWrite(LED_PINS[i], LOW);\n  }\n  delay(500);\n}',
                 language: 'Arduino',
                 tip: null
@@ -268,8 +270,24 @@ window.SignalGuides = {
                '<text x="500" y="78" fill="#555" font-size="6">LED Vf ~2V  |  safe limit ~20mA</text>' +
                '</svg>',
 
-            // Step 4 — Create a Chase Pattern: timing diagram
-            4: '<svg viewBox="0 0 680 170" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+            // Step 3 — Add Serial Feedback: Serial Monitor mockup
+            3: '<svg viewBox="0 0 680 140" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<rect width="680" height="140" fill="#0d1117" rx="6"/>' +
+               '<rect x="12" y="8" width="656" height="20" rx="3" fill="#1e2736"/>' +
+               '<text x="20" y="22" fill="#8b949e" font-size="8">Serial Monitor — COM3 (9600 baud)</text>' +
+               '<rect x="12" y="32" width="656" height="100" rx="3" fill="#000" stroke="#333" stroke-width="1"/>' +
+               '<text x="20" y="50" fill="#4ade80" font-size="8">SG-01: External LED initialized on pin 2</text>' +
+               '<text x="20" y="64" fill="#e2e8f0" font-size="8">LED ON</text>' +
+               '<text x="20" y="78" fill="#e2e8f0" font-size="8">LED OFF</text>' +
+               '<text x="20" y="92" fill="#e2e8f0" font-size="8">LED ON</text>' +
+               '<text x="20" y="106" fill="#e2e8f0" font-size="8">LED OFF</text>' +
+               '<text x="20" y="120" fill="#4ade80" font-size="8" opacity="0.5">_</text>' +
+               '<rect x="580" y="110" width="80" height="18" rx="3" fill="#1e2736" stroke="#333" stroke-width="0.5"/>' +
+               '<text x="620" y="123" text-anchor="middle" fill="#8b949e" font-size="7">9600 baud</text>' +
+               '</svg>',
+
+            // Step 5 — Create a Chase Pattern: timing diagram
+            5: '<svg viewBox="0 0 680 170" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
                '<defs><pattern id="sg01-sv4-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
                '<rect width="680" height="170" fill="#0d1117" rx="6"/>' +
                '<rect x="8" y="8" width="664" height="154" fill="url(#sg01-sv4-grid)" rx="3"/>' +
