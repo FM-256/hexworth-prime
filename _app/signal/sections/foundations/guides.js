@@ -1204,7 +1204,7 @@ window.SignalGuides = {
             {
                 title: 'Build a Live Terminal Dashboard',
                 content: '<p>Clear the screen on each update to create a live dashboard effect. This script keeps a rolling history of the last 10 readings and shows min/max/average for each sensor.</p>',
-                code: 'import serial\nimport sys\nimport os\nfrom datetime import datetime\nfrom collections import deque\n\nPORT = "/dev/ttyACM0"\nBAUD = 9600\nHISTORY_SIZE = 10\n\nhistory = deque(maxlen=HISTORY_SIZE)\n\ndef parse_data(line):\n    parts = line.split(",")\n    if len(parts) != 6 or parts[0] != "DATA":\n        return None\n    try:\n        return {\n            "count": int(parts[1]),\n            "temp_c": float(parts[2]),\n            "humidity": float(parts[3]),\n            "light": int(parts[4]),\n            "distance": float(parts[5])\n        }\n    except ValueError:\n        return None\n\ndef clear_screen():\n    os.system("cls" if os.name == "nt" else "clear")\n\ndef render_dashboard():\n    clear_screen()\n    now = datetime.now().strftime("%H:%M:%S")\n    latest = history[-1]\n    \n    print(f"  SG-03 SENSOR DASHBOARD          {now}\")\n    print(\"=\" * 52)\n    \n    # Current values\n    print(f\"  Temperature:  {latest[\'temp_c\']:6.1f} C\")\n    print(f\"  Humidity:     {latest[\'humidity\']:6.1f} %\")\n    print(f\"  Light Level:  {latest[\'light\']:6d}\")\n    print(f\"  Distance:     {latest[\'distance\']:6.1f} cm\")\n    print()\n    \n    # Stats from history\n    if len(history) > 1:\n        temps = [d[\"temp_c\"] for d in history if d[\"temp_c\"] > -900]\n        lights = [d[\"light\"] for d in history]\n        \n        if temps:\n            print(f\"  Temp range:   {min(temps):.1f} - {max(temps):.1f} C  \"\n                  f\"(avg {sum(temps)/len(temps):.1f})\")\n        print(f\"  Light range:  {min(lights)} - {max(lights)}  \"\n              f\"(avg {sum(lights)//len(lights)})\")\n    \n    print()\n    print(f\"  Readings: {latest[\'count\']}  |  Buffer: {len(history)}/{HISTORY_SIZE}\")\n    print(\"  Ctrl+C to quit\")\n\ndef main():\n    ser = serial.Serial(PORT, BAUD, timeout=2)\n    \n    try:\n        while True:\n            line = ser.readline().decode(\"utf-8\", errors=\"replace\").strip()\n            if not line or line.startswith(\"INIT:\"):\n                continue\n            data = parse_data(line)\n            if data:\n                history.append(data)\n                render_dashboard()\n    except KeyboardInterrupt:\n        print(\"\\nDashboard closed.\")\n    finally:\n        ser.close()\n\nif __name__ == \"__main__\":\n    main()',
+                code: 'import serial\nimport sys\nimport os\nfrom datetime import datetime\nfrom collections import deque\n\nPORT = "/dev/ttyACM0"\nBAUD = 9600\nHISTORY_SIZE = 10\n\nhistory = deque(maxlen=HISTORY_SIZE)\n\ndef parse_data(line):\n    parts = line.split(",")\n    if len(parts) != 6 or parts[0] != "DATA":\n        return None\n    try:\n        return {\n            "count": int(parts[1]),\n            "temp_c": float(parts[2]),\n            "humidity": float(parts[3]),\n            "light": int(parts[4]),\n            "distance": float(parts[5])\n        }\n    except ValueError:\n        return None\n\ndef clear_screen():\n    os.system("cls" if os.name == "nt" else "clear")\n\ndef render_dashboard():\n    clear_screen()\n    now = datetime.now().strftime("%H:%M:%S")\n    latest = history[-1]\n    \n    print(f\"  SG-03 SENSOR DASHBOARD          {now}\")\n    print(\"=\" * 52)\n    \n    # Current values\n    print(f\"  Temperature:  {latest[\'temp_c\']:6.1f} C\")\n    print(f\"  Humidity:     {latest[\'humidity\']:6.1f} %\")\n    print(f\"  Light Level:  {latest[\'light\']:6d}\")\n    print(f\"  Distance:     {latest[\'distance\']:6.1f} cm\")\n    print()\n    \n    # Stats from history\n    if len(history) > 1:\n        temps = [d[\"temp_c\"] for d in history if d[\"temp_c\"] > -900]\n        lights = [d[\"light\"] for d in history]\n        \n        if temps:\n            print(f\"  Temp range:   {min(temps):.1f} - {max(temps):.1f} C  \"\n                  f\"(avg {sum(temps)/len(temps):.1f})\")\n        print(f\"  Light range:  {min(lights)} - {max(lights)}  \"\n              f\"(avg {sum(lights)//len(lights)})\")\n    \n    print()\n    print(f\"  Readings: {latest[\'count\']}  |  Buffer: {len(history)}/{HISTORY_SIZE}\")\n    print(\"  Ctrl+C to quit\")\n\ndef main():\n    ser = serial.Serial(PORT, BAUD, timeout=2)\n    \n    try:\n        while True:\n            line = ser.readline().decode(\"utf-8\", errors=\"replace\").strip()\n            if not line or line.startswith(\"INIT:\"):\n                continue\n            data = parse_data(line)\n            if data:\n                history.append(data)\n                render_dashboard()\n    except KeyboardInterrupt:\n        print(\"\\nDashboard closed.\")\n    finally:\n        ser.close()\n\nif __name__ == \"__main__\":\n    main()',
                 language: 'Python',
                 tip: '<strong>Tip:</strong> On Windows, <code>os.system("cls")</code> flickers. For a smoother experience, use ANSI escape codes: <code>print("\\033[2J\\033[H", end="")</code> to clear and move the cursor to the top.'
             },
@@ -1259,25 +1259,25 @@ window.SignalGuides = {
                '<rect x="74" y="42" width="44" height="16" rx="2" fill="rgba(255,255,255,0.02)" stroke="#333" stroke-width="0.5"/>' +
                '<text x="96" y="54" text-anchor="middle" fill="#ef4444" font-size="6.5">START</text>' +
                '<text x="96" y="90" text-anchor="middle" fill="#ef4444" font-size="5.5">LOW</text>' +
-               '<!-- 8 data bits (showing "D" = 0x44 = 01000100) -->' +
+               '<!-- 8 data bits (showing "D" = 0x44 = 01000100, LSB first: 0,0,1,0,0,1,0,0) -->' +
                '<rect x="118" y="58" width="36" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
                '<text x="136" y="90" text-anchor="middle" fill="#22c55e" font-size="5.5">0</text>' +
                '<text x="136" y="54" text-anchor="middle" fill="#555" font-size="5">b0</text>' +
-               '<rect x="154" y="42" width="36" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
-               '<text x="172" y="52" text-anchor="middle" fill="#22c55e" font-size="5.5">1</text>' +
-               '<text x="172" y="90" text-anchor="middle" fill="#555" font-size="5">b1</text>' +
-               '<rect x="190" y="58" width="36" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
-               '<text x="208" y="90" text-anchor="middle" fill="#22c55e" font-size="5.5">0</text>' +
-               '<text x="208" y="54" text-anchor="middle" fill="#555" font-size="5">b2</text>' +
+               '<rect x="154" y="58" width="36" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
+               '<text x="172" y="90" text-anchor="middle" fill="#22c55e" font-size="5.5">0</text>' +
+               '<text x="172" y="54" text-anchor="middle" fill="#555" font-size="5">b1</text>' +
+               '<rect x="190" y="42" width="36" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
+               '<text x="208" y="52" text-anchor="middle" fill="#22c55e" font-size="5.5">1</text>' +
+               '<text x="208" y="90" text-anchor="middle" fill="#555" font-size="5">b2</text>' +
                '<rect x="226" y="58" width="36" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
                '<text x="244" y="90" text-anchor="middle" fill="#22c55e" font-size="5.5">0</text>' +
                '<text x="244" y="54" text-anchor="middle" fill="#555" font-size="5">b3</text>' +
-               '<rect x="262" y="42" width="36" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
-               '<text x="280" y="52" text-anchor="middle" fill="#22c55e" font-size="5.5">1</text>' +
-               '<text x="280" y="90" text-anchor="middle" fill="#555" font-size="5">b4</text>' +
-               '<rect x="298" y="58" width="36" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
-               '<text x="316" y="90" text-anchor="middle" fill="#22c55e" font-size="5.5">0</text>' +
-               '<text x="316" y="54" text-anchor="middle" fill="#555" font-size="5">b5</text>' +
+               '<rect x="262" y="58" width="36" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
+               '<text x="280" y="90" text-anchor="middle" fill="#22c55e" font-size="5.5">0</text>' +
+               '<text x="280" y="54" text-anchor="middle" fill="#555" font-size="5">b4</text>' +
+               '<rect x="298" y="42" width="36" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
+               '<text x="316" y="52" text-anchor="middle" fill="#22c55e" font-size="5.5">1</text>' +
+               '<text x="316" y="90" text-anchor="middle" fill="#555" font-size="5">b5</text>' +
                '<rect x="334" y="58" width="36" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
                '<text x="352" y="90" text-anchor="middle" fill="#22c55e" font-size="5.5">0</text>' +
                '<text x="352" y="54" text-anchor="middle" fill="#555" font-size="5">b6</text>' +
@@ -1400,7 +1400,7 @@ window.SignalGuides = {
                     id: 'arduino',
                     name: 'Arduino Mega 2560 (transmitter)',
                     purpose: 'Reads sensors and transmits structured text over the hardware UART0. Pin 0 (RX) and pin 1 (TX) are wired internally to the CH340G USB-to-serial converter chip on the Mega. No external wiring needed &mdash; the USB cable carries serial data.',
-                    specs: ['UART0 baud: 9600 (configurable)', 'TX pin: D0 (to USB chip)', 'CH340G USB-UART bridge', 'Serial buffer: 64 bytes RX, 64 bytes TX']
+                    specs: ['UART0 baud: 9600 (configurable)', 'TX pin: D1, RX pin: D0 (to USB chip)', 'CH340G USB-UART bridge', 'Serial buffer: 64 bytes RX, 64 bytes TX']
                 },
                 {
                     id: 'serial',
@@ -1425,6 +1425,12 @@ window.SignalGuides = {
                     name: 'CSV Parsing (Python)',
                     purpose: 'line.split(\',\') splits the received string into a list. parts[0] must equal "DATA". parts[2] through parts[5] are cast to float/int. If any conversion fails, the line is discarded rather than crashing the script.',
                     specs: ['split(\',\') -> list', 'try/except on float()', 'Validate parts[0]==\"DATA\"', 'Return None on bad parse']
+                },
+                {
+                    id: 'computer',
+                    name: 'Computer (Python Runtime)',
+                    purpose: 'The computer runs Python 3 with the pyserial library. It connects to the Arduino via USB, reads serial data, parses it, and displays or logs the results. Any OS works: Windows, macOS, or Linux.',
+                    specs: ['Python 3.6+', 'pyserial library', 'Terminal/shell access', 'USB port available']
                 }
             ]
         },
