@@ -33,7 +33,7 @@ window.SignalGuides = {
                 '    Short leg (cathode -) --> 220 ohm resistor --> GND rail',
 
         wiringNotes: '<p><strong>Pin reference:</strong> D2&ndash;D6 are digital pins on the Mega\'s double-row header. GND is any of the three GND pins.</p>' +
-                     '<p><strong>Resistor value:</strong> 220&Omega; limits current to ~15mA at 5V, safe for standard LEDs. Never connect an LED directly to a pin without a resistor &mdash; you will burn it out.</p>' +
+                     '<p><strong>Resistor value:</strong> 220&Omega; limits current to ~13&ndash;14mA at 5V (accounting for the LED forward voltage drop of ~2V: I = (5V &minus; 2V) / 220&Omega; = 13.6mA). Safe limit for standard LEDs is 20mA. Never connect an LED directly to a pin without a resistor &mdash; you will burn it out.</p>' +
                      '<p><strong>Wire colors:</strong> Black = ground, other colors = signal. Pick a consistent scheme and stick with it.</p>' +
                      '<p><strong>Safety:</strong> Always disconnect the USB cable before adding or changing wires. A misplaced wire on a powered board can short 5V to GND and damage the Mega. Build the habit now &mdash; power off, wire, verify, then reconnect.</p>',
 
@@ -286,12 +286,52 @@ window.SignalGuides = {
                '<text x="620" y="123" text-anchor="middle" fill="#8b949e" font-size="7">9600 baud</text>' +
                '</svg>',
 
+            // Step 4 — Wire Multiple LEDs: 5-LED breadboard layout
+            4: '<svg viewBox="0 0 680 160" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+               '<rect width="680" height="160" fill="#0d1117" rx="6"/>' +
+               '<text x="340" y="18" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">5-LED BREADBOARD LAYOUT — ONE LED PER ROW</text>' +
+               '<!-- Row labels -->' +
+               '<text x="60" y="48" fill="#eab308" font-size="8" font-weight="600">Row 10: D2</text>' +
+               '<text x="60" y="72" fill="#22c55e" font-size="8" font-weight="600">Row 15: D3</text>' +
+               '<text x="60" y="96" fill="#3b82f6" font-size="8" font-weight="600">Row 20: D4</text>' +
+               '<text x="60" y="120" fill="#ef4444" font-size="8" font-weight="600">Row 25: D5</text>' +
+               '<text x="60" y="144" fill="#e2e8f0" font-size="8" font-weight="600">Row 30: D6</text>' +
+               '<!-- LED + Resistor symbols per row -->' +
+               '<polygon points="200,38 210,52 190,52" fill="rgba(234,179,8,0.3)" stroke="#eab308" stroke-width="1"/>' +
+               '<rect x="230" y="41" width="30" height="6" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5"/>' +
+               '<line x1="260" y1="44" x2="290" y2="44" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2"/>' +
+               '<text x="300" y="48" fill="#8b949e" font-size="7">GND</text>' +
+               '<polygon points="200,62 210,76 190,76" fill="rgba(34,197,94,0.3)" stroke="#22c55e" stroke-width="1"/>' +
+               '<rect x="230" y="65" width="30" height="6" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5"/>' +
+               '<line x1="260" y1="68" x2="290" y2="68" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2"/>' +
+               '<text x="300" y="72" fill="#8b949e" font-size="7">GND</text>' +
+               '<polygon points="200,86 210,100 190,100" fill="rgba(59,130,246,0.3)" stroke="#3b82f6" stroke-width="1"/>' +
+               '<rect x="230" y="89" width="30" height="6" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5"/>' +
+               '<line x1="260" y1="92" x2="290" y2="92" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2"/>' +
+               '<text x="300" y="96" fill="#8b949e" font-size="7">GND</text>' +
+               '<polygon points="200,110 210,124 190,124" fill="rgba(239,68,68,0.3)" stroke="#ef4444" stroke-width="1"/>' +
+               '<rect x="230" y="113" width="30" height="6" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5"/>' +
+               '<line x1="260" y1="116" x2="290" y2="116" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2"/>' +
+               '<text x="300" y="120" fill="#8b949e" font-size="7">GND</text>' +
+               '<polygon points="200,134 210,148 190,148" fill="rgba(226,232,240,0.3)" stroke="#e2e8f0" stroke-width="1"/>' +
+               '<rect x="230" y="137" width="30" height="6" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5"/>' +
+               '<line x1="260" y1="140" x2="290" y2="140" stroke="#8b949e" stroke-width="1" stroke-dasharray="3,2"/>' +
+               '<text x="300" y="144" fill="#8b949e" font-size="7">GND</text>' +
+               '<!-- Key reminder -->' +
+               '<rect x="380" y="40" width="270" height="80" rx="6" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.15)" stroke-width="0.5"/>' +
+               '<text x="390" y="58" fill="#eab308" font-size="8" font-weight="600">KEY RULES</text>' +
+               '<text x="390" y="74" fill="#8b949e" font-size="7">1. Each LED gets its own breadboard row</text>' +
+               '<text x="390" y="88" fill="#8b949e" font-size="7">2. Each LED gets its own 220 ohm resistor</text>' +
+               '<text x="390" y="102" fill="#8b949e" font-size="7">3. All resistors connect to the shared GND rail</text>' +
+               '<text x="390" y="116" fill="#8b949e" font-size="7">4. Skip rows between LEDs for easy access</text>' +
+               '</svg>',
+
             // Step 5 — Create a Chase Pattern: timing diagram
             5: '<svg viewBox="0 0 680 170" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
                '<defs><pattern id="sg01-sv4-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
                '<rect width="680" height="170" fill="#0d1117" rx="6"/>' +
                '<rect x="8" y="8" width="664" height="154" fill="url(#sg01-sv4-grid)" rx="3"/>' +
-               '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">CHASE PATTERN — TIMING DIAGRAM (100ms per step)</text>' +
+               '<text x="340" y="22" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.15em">CHASE PATTERN — FORWARD SWEEP (100ms per step, backward sweep mirrors in reverse)</text>' +
                '<!-- Lane labels -->' +
                '<text x="44" y="48" text-anchor="end" fill="#eab308" font-size="7">D2</text>' +
                '<text x="44" y="70" text-anchor="end" fill="#22c55e" font-size="7">D3</text>' +
