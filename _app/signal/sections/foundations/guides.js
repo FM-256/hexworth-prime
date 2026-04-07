@@ -1538,10 +1538,8 @@ window.SignalGuides = {
                 '    |        GND |-------|VSS (pin 1)|     |     |\n' +
                 '    |         5V |-------|VDD (pin 2)|     |     |\n' +
                 '    |            |       |V0  (pin 3)|-----|Wiper|\n' +
-                '    |        GND |-------|RS  (pin 4)= D12 |     |\n' +
-                '    |            |       |RW  (pin 5)|=GND +-----+\n' +
-                '    |        D12 |-------|RS  (pin 4)|     5V--[H]\n' +
-                '    |        GND |-------|RW  (pin 5)|     GND-[L]\n' +
+                '    |        D12 |-------|RS  (pin 4)|     +-----+\n' +
+                '    |        GND |-------|RW  (pin 5)|     5V--[H]\n' +
                 '    |        D11 |-------|E   (pin 6)|\n' +
                 '    |         D5 |-------|D4 (pin 11)|\n' +
                 '    |         D4 |-------|D5 (pin 12)|\n' +
@@ -1556,7 +1554,8 @@ window.SignalGuides = {
 
         wiringNotes: '<p><strong>I2C vs Parallel:</strong> If you have an I2C backpack soldered to your LCD (a small board on the back with 4 pins), use Option A. If your LCD has 16 bare pins, use Option B. I2C uses only 2 data wires and is much simpler.</p>' +
                      '<p><strong>Contrast:</strong> With parallel wiring, the potentiometer on pin V0 controls contrast. Turn it slowly until you see dark blocks appear on the LCD &mdash; that means it is working. I2C backpacks usually have a small blue potentiometer on the board itself.</p>' +
-                     '<p><strong>Button wiring:</strong> We use <code>INPUT_PULLUP</code> mode, so the button connects pin D10 directly to GND. No external resistor needed. When pressed, the pin reads LOW.</p>',
+                     '<p><strong>Button wiring:</strong> We use <code>INPUT_PULLUP</code> mode, so the button connects pin D10 directly to GND. No external resistor needed. When pressed, the pin reads LOW.</p>' +
+                     '<p><strong>Safety:</strong> Disconnect USB before wiring the LCD. The parallel connection has 12+ wires &mdash; a single misplaced wire to the wrong pin can damage the LCD or Arduino. Build the circuit fully, verify all connections, then reconnect power.</p>',
 
         wiringSvg: '<div class="svg-build-wrap">' +
             '<svg viewBox="0 0 720 460" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
@@ -1765,7 +1764,7 @@ window.SignalGuides = {
                '<text x="160" y="55" text-anchor="middle" fill="#a855f7" font-size="5.5">4.7K</text>' +
                '<rect x="148" y="42" width="24" height="16" rx="2" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="1"/>' +
                '<line x1="160" y1="42" x2="160" y2="36" stroke="#ef4444" stroke-width="1.5"/>' +
-               '<text x="160" y="34" text-anchor="middle" fill="#ef4444" font-size="5.5">3.3V</text>' +
+               '<text x="160" y="34" text-anchor="middle" fill="#ef4444" font-size="5.5">5V</text>' +
                '<text x="204" y="55" text-anchor="middle" fill="#a855f7" font-size="5.5">4.7K</text>' +
                '<rect x="192" y="42" width="24" height="16" rx="2" fill="rgba(168,85,247,0.15)" stroke="#a855f7" stroke-width="1"/>' +
                '<line x1="204" y1="42" x2="204" y2="36" stroke="#ef4444" stroke-width="1.5"/>' +
@@ -1786,7 +1785,7 @@ window.SignalGuides = {
                '<!-- Address decode box -->' +
                '<rect x="30" y="136" width="620" height="36" rx="5" fill="rgba(255,107,53,0.05)" stroke="rgba(255,107,53,0.2)" stroke-width="1"/>' +
                '<text x="40" y="152" fill="#ff6b35" font-size="7" font-weight="700">I2C Address Decode:  </text>' +
-               '<text x="160" y="152" fill="#8b949e" font-size="7">0x27 = 0b0100111  (PCF8574, A2=0, A1=1, A2=1)</text>' +
+               '<text x="160" y="152" fill="#8b949e" font-size="7">0x27 = 0b0100111  (PCF8574, A0=1, A1=1, A2=0)</text>' +
                '<text x="40" y="166" fill="#555" font-size="6.5">If your LCD does not respond at 0x27, run the I2C scanner sketch to find its actual address before proceeding.</text>' +
                '</svg>',
 
@@ -2027,6 +2026,11 @@ window.SignalGuides = {
                 '    |              D7   |---[Data]        |\n' +
                 '    |                   |   [VCC]---5V    |\n' +
                 '    |                   |   [GND]---GND   |\n' +
+                '    |                   |                 |\n' +
+                '    |   Photoresistor (from SG-02):       |\n' +
+                '    |              A0   |---[junction]    |\n' +
+                '    |                   |   photo---5V    |\n' +
+                '    |                   |   10K ---GND    |\n' +
                 '    +-------------------+\n' +
                 '\n' +
                 '    SD Card Module:  CS=53, MOSI=51, MISO=50, SCK=52  (Mega SPI pins)\n' +
@@ -2036,7 +2040,8 @@ window.SignalGuides = {
         wiringNotes: '<p><strong>SPI pins are fixed on the Mega:</strong> MOSI=51, MISO=50, SCK=52. Only the CS (Chip Select) pin is flexible &mdash; we use D53 (the default SS pin on Mega). Do not use different pins for MOSI/MISO/SCK.</p>' +
                      '<p><strong>DS3231 vs DS1307:</strong> The DS3231 is far more accurate (drift of ~2 minutes/year vs ~5 minutes/month). The code works with either module since both use the same I2C protocol, but DS3231 is strongly recommended.</p>' +
                      '<p><strong>SD card formatting:</strong> The microSD card must be formatted as <strong>FAT16</strong> or <strong>FAT32</strong>. Most new cards ship as FAT32. If the SD library fails to initialize, try reformatting the card with the official SD Card Formatter tool.</p>' +
-                     '<p><strong>Power note:</strong> The SD module can draw significant current during writes. If you experience random resets, power the SD module from the Mega\'s 5V pin (not the breadboard rail) and add a 100&micro;F capacitor between VCC and GND.</p>',
+                     '<p><strong>Power note:</strong> The SD module can draw significant current during writes. If you experience random resets, power the SD module from the Mega\'s 5V pin (not the breadboard rail) and add a 100&micro;F capacitor between VCC and GND.</p>' +
+                     '<p><strong>Safety:</strong> Disconnect USB before wiring the SPI and I2C connections. With 7+ wires across SPI, I2C, and power, a misplaced wire can damage the SD module, RTC, or Arduino. Verify all connections before reconnecting power.</p>',
 
         wiringSvg: '<div class="svg-build-wrap">' +
             '<svg viewBox="0 0 720 460" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
