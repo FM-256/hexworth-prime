@@ -255,7 +255,7 @@ window.SignalGuides = {
                '<line x1="415" y1="84" x2="425" y2="100" stroke="#a855f7" stroke-width="1"/>' +
                '<text x="414" y="148" text-anchor="middle" fill="#c084fc" font-size="7" font-weight="600">220 ohm</text>' +
                '<text x="414" y="160" text-anchor="middle" fill="#8b949e" font-size="6">red-red-brown</text>' +
-               '<text x="414" y="170" text-anchor="middle" fill="#555" font-size="5.5">limits ~15mA</text>' +
+               '<text x="414" y="170" text-anchor="middle" fill="#555" font-size="5.5">limits ~13.6mA</text>' +
                '<!-- GND block -->' +
                '<rect x="560" y="82" width="44" height="36" rx="4" fill="#0a1628" stroke="#8b949e" stroke-width="1"/>' +
                '<line x1="582" y1="96" x2="582" y2="110" stroke="#60a5fa" stroke-width="2"/>' +
@@ -377,10 +377,10 @@ window.SignalGuides = {
         },
 
         componentCallouts: {
-            svg: '<svg viewBox="0 0 560 200" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
+            svg: '<svg viewBox="0 0 560 220" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;display:block;width:100%">' +
                  '<defs><pattern id="sg01-cc-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="0.8" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
-                 '<rect width="560" height="200" fill="#0d1117" rx="6"/>' +
-                 '<rect x="6" y="6" width="548" height="188" fill="url(#sg01-cc-grid)" rx="3"/>' +
+                 '<rect width="560" height="220" fill="#0d1117" rx="6"/>' +
+                 '<rect x="6" y="6" width="548" height="208" fill="url(#sg01-cc-grid)" rx="3"/>' +
                  '<text x="280" y="20" text-anchor="middle" fill="#444" font-size="8" font-weight="700" letter-spacing="0.14em">SG-01 COMPONENT LAYOUT</text>' +
                  '<!-- Arduino Mega outline -->' +
                  '<rect x="20" y="34" width="120" height="148" rx="6" fill="#0f1a2e" stroke="#3b82f6" stroke-width="1.5" data-callout="mega"/>' +
@@ -415,6 +415,9 @@ window.SignalGuides = {
                  '<rect x="336" y="104" width="28" height="8" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5" data-callout="resistor"/>' +
                  '<polygon points="310,128 326,138 310,148" fill="rgba(239,68,68,0.3)" stroke="#ef4444" stroke-width="1" data-callout="led"/>' +
                  '<rect x="336" y="134" width="28" height="8" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5" data-callout="resistor"/>' +
+                 '<!-- LED 5 (D6 white) -->' +
+                 '<polygon points="220,156 236,166 220,176" fill="rgba(226,232,240,0.3)" stroke="#e2e8f0" stroke-width="1" data-callout="led"/>' +
+                 '<rect x="256" y="162" width="28" height="8" rx="2" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="0.5" data-callout="resistor"/>' +
                  '</svg>',
             components: [
                 {
