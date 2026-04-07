@@ -1781,11 +1781,11 @@ window.SignalGuides = {
                '<rect x="398" y="66" width="64" height="16" rx="2" fill="rgba(85,85,85,0.15)" stroke="#555" stroke-width="1"/>' +
                '<text x="430" y="77" text-anchor="middle" fill="#666" font-size="8" font-weight="700">0x3F</text>' +
                '<text x="430" y="94" text-anchor="middle" fill="#444" font-size="5.5">A0=1 A1=1 A2=1</text>' +
-               '<text x="430" y="106" text-anchor="middle" fill="#444" font-size="5.5">solder bridge variant</text>' +
+               '<text x="430" y="106" text-anchor="middle" fill="#444" font-size="5.5">PCF8574A chip (base 0x38)</text>' +
                '<!-- Address decode box -->' +
                '<rect x="30" y="136" width="620" height="36" rx="5" fill="rgba(255,107,53,0.05)" stroke="rgba(255,107,53,0.2)" stroke-width="1"/>' +
                '<text x="40" y="152" fill="#ff6b35" font-size="7" font-weight="700">I2C Address Decode:  </text>' +
-               '<text x="160" y="152" fill="#8b949e" font-size="7">0x27 = 0x20+7 = 0b0100111  (PCF8574, A0=1, A1=1, A2=1)</text>' +
+               '<text x="160" y="152" fill="#8b949e" font-size="7">0x27 = 0x20+7 = 0b00100111  (PCF8574, A0=1, A1=1, A2=1)</text>' +
                '<text x="40" y="166" fill="#555" font-size="6.5">If your LCD does not respond at 0x27, run the I2C scanner sketch to find its actual address before proceeding.</text>' +
                '</svg>',
 
