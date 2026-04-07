@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ACL Configuration Lab | CCNA</title>
+    <style>
+        :root {
+            --cisco-primary: #10b981;
+            --cisco-secondary: #34d399;
+            --cisco-accent: #6ee7b7;
+            --cisco-dark: #047857;
+            --bg-dark: #090910;
+            --bg-card: #111120;
+            --bg-card-hover: #191930;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: rgba(16, 185, 129, 0.15);
+            --border-hover: rgba(16, 185, 129, 0.4);
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark); color: var(--text-primary);
+            min-height: 100vh; line-height: 1.6;
+        }
+        .lab-container { max-width: 1300px; margin: 0 auto; padding: 1.5rem; }
+        .back-link {
+            display: inline-flex; align-items: center; gap: 6px;
+            color: var(--cisco-primary); text-decoration: none; font-size: 0.85rem;
+            padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border-color);
+            background: rgba(16,185,129,0.05); transition: all 0.2s; margin-bottom: 1rem;
+        }
+        .back-link:hover { color: var(--cisco-secondary); border-color: var(--border-hover); }
+        .lab-header {
+            text-align: center; margin-bottom: 1.5rem; padding: 2rem;
+            background: linear-gradient(135deg, #064e3b 0%, #0a3d2e 50%, #064e3b 100%);
+            border-radius: 16px; border: 1px solid var(--border-color);
+            box-shadow: 0 0 20px rgba(16,185,129,0.15);
+        }
+        .lab-header h1 {
+            font-size: 2rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--cisco-primary), var(--cisco-accent));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-secondary); font-size: 0.85rem; }
+
+        /* Topology */
+        .topology-section {
+            background: var(--bg-card); border-radius: 10px; padding: 1.25rem;
+            border: 1px solid var(--border-color); margin-bottom: 1.5rem;
+        }
+        .topology-section h3 { color: var(--cisco-secondary); font-size: 0.95rem; margin-bottom: 1rem; }
+        .topo-canvas {
+            background: #0a0a14; border-radius: 8px; padding: 20px;
+            border: 1px solid #222;
+        }
+        .topo-svg { width: 100%; height: 200px; }
+        .topo-svg text { font-family: 'Consolas', monospace; }
+        .topo-svg .label { fill: var(--cisco-accent); font-size: 13px; font-weight: bold; }
+        .topo-svg .ip-label { fill: var(--text-secondary); font-size: 10px; }
+        .topo-svg .net-label { fill: var(--warning); font-size: 10px; }
+        .topo-svg .box { fill: #1a1a2e; stroke: var(--cisco-primary); stroke-width: 2; rx: 8; }
+        .topo-svg .link { stroke: #444; stroke-width: 2; }
+        .topo-svg .arrow { fill: none; stroke: var(--danger); stroke-width: 1.5; marker-end: url(#arrowRed); }
+        .topo-svg .arrow-ok { fill: none; stroke: var(--success); stroke-width: 1.5; marker-end: url(#arrowGreen); }
+
+        .main-layout { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; }
+        @media (max-width: 1000px) { .main-layout { grid-template-columns: 1fr; } }
+
+        /* Terminal */
+        .terminal-wrap {
+            background: #000; border-radius: 10px; overflow: hidden;
+            border: 1px solid rgba(16,185,129,0.3);
+        }
+        .terminal-bar {
+            background: #1a1a2a; padding: 8px 14px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .t-dot { width: 11px; height: 11px; border-radius: 50%; }
+        .t-dot.r { background: #ff5f56; } .t-dot.y { background: #ffbd2e; } .t-dot.g { background: #27ca40; }
+        .terminal-bar span { color: var(--text-muted); font-size: 0.8rem; margin-left: 8px; }
+        .terminal-body {
+            padding: 12px 16px; height: 300px; overflow-y: auto;
+            font-family: 'Consolas','Courier New', monospace; font-size: 0.85rem;
+        }
+        .terminal-body::-webkit-scrollbar { width: 6px; }
+        .terminal-body::-webkit-scrollbar-thumb { background: rgba(16,185,129,0.3); border-radius: 3px; }
+        .t-line { margin-bottom: 1px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; }
+        .t-line.cmd { color: #fff; } .t-line.out { color: #ccc; }
+        .t-line.err { color: #ff5555; } .t-line.ok { color: var(--success); }
+        .t-line.info { color: var(--cisco-primary); }
+        .input-row { display: flex; align-items: center; margin-top: 4px; }
+        .prompt-text { color: var(--cisco-primary); margin-right: 4px; white-space: nowrap; font-weight: bold; }
+        #cliInput {
+            flex: 1; background: transparent; border: none; color: #fff;
+            font-family: inherit; font-size: inherit; outline: none; caret-color: var(--cisco-accent);
+        }
+
+        /* Packet Tester */
+        .packet-tester {
+            background: var(--bg-card); border-radius: 10px; padding: 1.25rem;
+            border: 1px solid var(--border-color); margin-top: 1.5rem;
+        }
+        .packet-tester h3 { color: var(--cisco-secondary); font-size: 0.95rem; margin-bottom: 1rem; }
+        .pkt-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .pkt-field label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 3px; }
+        .pkt-field input, .pkt-field select {
+            width: 100%; padding: 7px 10px; background: #0a0a14; border: 1px solid #333;
+            border-radius: 6px; color: var(--text-primary); font-size: 0.85rem; font-family: 'Consolas', monospace;
+        }
+        .pkt-field input:focus, .pkt-field select:focus { outline: none; border-color: var(--cisco-primary); }
+        .pkt-btn {
+            grid-column: 1 / -1; padding: 10px; background: linear-gradient(135deg, var(--cisco-dark), var(--cisco-primary));
+            border: none; border-radius: 6px; color: #fff; font-weight: 600; cursor: pointer; font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .pkt-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(16,185,129,0.3); }
+        .pkt-result {
+            grid-column: 1 / -1; padding: 10px; border-radius: 6px; font-size: 0.85rem;
+            font-family: 'Consolas', monospace; display: none; margin-top: 4px;
+        }
+        .pkt-result.show { display: block; }
+        .pkt-result.permit { background: rgba(34,197,94,0.15); border: 1px solid var(--success); color: var(--success); }
+        .pkt-result.deny { background: rgba(239,68,68,0.15); border: 1px solid var(--danger); color: var(--danger); }
+
+        /* Task Panel */
+        .task-panel {
+            background: var(--bg-card); border-radius: 10px; padding: 1.25rem;
+            border: 1px solid var(--border-color); align-self: start;
+        }
+        .task-panel h3 { color: var(--cisco-secondary); font-size: 1rem; margin-bottom: 1rem; }
+        .task-item {
+            display: flex; align-items: flex-start; gap: 0.6rem;
+            padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.85rem; color: var(--text-secondary);
+        }
+        .task-item:last-child { border-bottom: none; }
+        .task-icon {
+            width: 22px; height: 22px; border-radius: 4px; flex-shrink: 0;
+            border: 2px solid var(--text-muted); display: flex; align-items: center;
+            justify-content: center; margin-top: 1px; transition: all 0.3s;
+        }
+        .task-icon.done { background: var(--success); border-color: var(--success); }
+        .task-icon.done::after { content: ''; display: block; width: 10px; height: 10px; background: url('/assets/images/icons/icon-check.webp') center/contain no-repeat; }
+        .task-item.done .task-text { color: var(--success); text-decoration: line-through; }
+        .progress-wrap { margin-top: 1rem; }
+        .prog-bar { height: 8px; background: rgba(16,185,129,0.1); border-radius: 4px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--cisco-dark), var(--cisco-primary)); border-radius: 4px; transition: width 0.5s; }
+        .prog-label { text-align: right; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+        .hint-section {
+            background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25);
+            border-radius: 8px; padding: 0.75rem 1rem; margin-top: 1rem; font-size: 0.8rem;
+        }
+        .hint-section strong { color: var(--warning); }
+        .hint-section p { color: var(--text-secondary); margin-top: 0.25rem; }
+        .complete-bar {
+            margin-top: 1.5rem; padding: 1.5rem; background: var(--bg-card);
+            border-radius: 10px; border: 1px solid var(--border-color); text-align: center; display: none;
+        }
+        .complete-bar.show { display: block; }
+        .complete-bar h2 { color: var(--success); margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+<div class="lab-container">
+    <a href="../index.html" class="back-link">
+        <img src="/assets/images/icons/icon-arrow-left.webp" alt="" width="14" height="14"> Back to CCNA Hub
+    </a>
+
+    <header class="lab-header">
+        <h1>ACL Configuration & Testing Lab</h1>
+        <p class="subtitle">Build standard and extended access control lists, apply them to interfaces, and test with simulated packets</p>
+        <div class="lab-meta">
+            <span class="meta-item">90 minutes</span>
+            <span class="meta-item">Intermediate</span>
+            <span class="meta-item">5 Tasks</span>
+        </div>
+    </header>
+
+    <!-- Topology -->
+    <div class="topology-section">
+        <h3><img src="/assets/images/icons/icon-network.webp" alt="" width="16" height="16" style="vertical-align:middle"> Network Topology</h3>
+        <div class="topo-canvas">
+            <svg class="topo-svg" viewBox="0 0 700 200">
+                <defs>
+                    <marker id="arrowRed" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ef4444"/></marker>
+                    <marker id="arrowGreen" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#22c55e"/></marker>
+                </defs>
+                <!-- LAN-A -->
+                <rect x="20" y="50" width="140" height="60" class="box"/>
+                <text x="90" y="75" text-anchor="middle" class="label">LAN-A</text>
+                <text x="90" y="95" text-anchor="middle" class="ip-label">192.168.10.0/24</text>
+                <!-- Router -->
+                <rect x="260" y="40" width="180" height="80" class="box" style="stroke:var(--cisco-accent)"/>
+                <text x="350" y="65" text-anchor="middle" class="label">Router (R1)</text>
+                <text x="350" y="82" text-anchor="middle" class="ip-label">Gi0/0: .1 | Gi0/1: .1 | Se0/0: .1</text>
+                <text x="350" y="110" text-anchor="middle" class="net-label">ACLs applied here</text>
+                <!-- LAN-B -->
+                <rect x="20" y="130" width="140" height="60" class="box"/>
+                <text x="90" y="155" text-anchor="middle" class="label">LAN-B</text>
+                <text x="90" y="175" text-anchor="middle" class="ip-label">192.168.20.0/24</text>
+                <!-- WAN -->
+                <rect x="540" y="50" width="140" height="60" class="box"/>
+                <text x="610" y="75" text-anchor="middle" class="label">WAN/ISP</text>
+                <text x="610" y="95" text-anchor="middle" class="ip-label">10.0.0.0/30</text>
+                <!-- Links -->
+                <line x1="160" y1="80" x2="260" y2="70" class="link"/>
+                <line x1="160" y1="160" x2="260" y2="100" class="link"/>
+                <line x1="440" y1="80" x2="540" y2="80" class="link"/>
+                <!-- Interface labels -->
+                <text x="210" y="62" text-anchor="middle" class="ip-label">Gi0/0</text>
+                <text x="210" y="125" text-anchor="middle" class="ip-label">Gi0/1</text>
+                <text x="490" y="72" text-anchor="middle" class="ip-label">Se0/0</text>
+            </svg>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <div>
+            <!-- Terminal -->
+            <div class="terminal-wrap">
+                <div class="terminal-bar">
+                    <div class="t-dot r"></div><div class="t-dot y"></div><div class="t-dot g"></div>
+                    <span>R1 Console</span>
+                </div>
+                <div class="terminal-body" id="termBody"></div>
+                <div style="padding: 0 16px 12px;">
+                    <div class="input-row">
+                        <span class="prompt-text" id="cliPrompt">R1#</span>
+                        <input type="text" id="cliInput" autocomplete="off" spellcheck="false" autofocus>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Packet Tester -->
+            <div class="packet-tester">
+                <h3><img src="/assets/images/icons/icon-radar.webp" alt="" width="16" height="16" style="vertical-align:middle"> Packet Tester</h3>
+                <div class="pkt-form">
+                    <div class="pkt-field">
+                        <label>Source IP</label>
+                        <input type="text" id="pktSrc" placeholder="192.168.10.50" value="192.168.10.50">
+                    </div>
+                    <div class="pkt-field">
+                        <label>Destination IP</label>
+                        <input type="text" id="pktDst" placeholder="10.0.0.2" value="10.0.0.2">
+                    </div>
+                    <div class="pkt-field">
+                        <label>Protocol</label>
+                        <select id="pktProto">
+                            <option value="tcp">TCP</option>
+                            <option value="udp">UDP</option>
+                            <option value="icmp">ICMP</option>
+                        </select>
+                    </div>
+                    <div class="pkt-field">
+                        <label>Destination Port</label>
+                        <input type="number" id="pktPort" placeholder="80" value="80">
+                    </div>
+                    <div class="pkt-field">
+                        <label>Test Interface</label>
+                        <select id="pktIface">
+                            <option value="GigabitEthernet0/0">Gi0/0 (LAN-A)</option>
+                            <option value="GigabitEthernet0/1">Gi0/1 (LAN-B)</option>
+                            <option value="Serial0/0/0">Se0/0 (WAN)</option>
+                        </select>
+                    </div>
+                    <div class="pkt-field">
+                        <label>Direction</label>
+                        <select id="pktDir">
+                            <option value="in">Inbound (in)</option>
+                            <option value="out">Outbound (out)</option>
+                        </select>
+                    </div>
+                    <button class="pkt-btn" onclick="testPacket()">Test Packet</button>
+                    <div class="pkt-result" id="pktResult"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="task-panel">
+            <h3><img src="/assets/images/icons/icon-list.webp" alt="" width="16" height="16" style="vertical-align:middle"> Lab Tasks</h3>
+            <div id="taskList">
+                <div class="task-item"><div class="task-icon" id="ti0"></div><span class="task-text">Create standard ACL 10 blocking host 192.168.10.50</span></div>
+                <div class="task-item"><div class="task-icon" id="ti1"></div><span class="task-text">Create named extended ACL "WEB_FILTER" allowing HTTP, denying Telnet</span></div>
+                <div class="task-item"><div class="task-icon" id="ti2"></div><span class="task-text">Apply ACL 10 to Se0/0 outbound; apply WEB_FILTER to Gi0/0 inbound</span></div>
+                <div class="task-item"><div class="task-icon" id="ti3"></div><span class="task-text">Test packets: verify blocked host and allowed HTTP traffic</span></div>
+                <div class="task-item"><div class="task-icon" id="ti4"></div><span class="task-text">Fix the pre-loaded broken ACL 99 on Gi0/1 (wrong direction)</span></div>
+            </div>
+            <div class="progress-wrap">
+                <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+                <div class="prog-label" id="progLabel">0 / 5 complete</div>
+            </div>
+            <div class="hint-section">
+                <strong><img src="/assets/images/icons/icon-info.webp" alt="" width="14" height="14" style="vertical-align:middle"> Hint</strong>
+                <p id="hintText">Create a standard ACL: <code>access-list 10 deny host 192.168.10.50</code> then <code>access-list 10 permit any</code>.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="complete-bar" id="completeBar">
+        <h2><img src="/assets/images/icons/icon-checkmark.webp" alt="" width="24" height="24" style="vertical-align:middle"> Lab Complete</h2>
+        <p>ACL configuration and testing verified. You understand standard ACLs, extended ACLs, application direction, and packet testing.</p>
+    </div>
+</div>
+
+<script>
+(function() {
+    const STATE = {
+        hostname: 'R1',
+        mode: 'priv',
+        configIf: '',
+        aclConfigName: '',
+        interfaces: {
+            'GigabitEthernet0/0': { ip: '192.168.10.1', mask: '255.255.255.0', acl_in: '', acl_out: '' },
+            'GigabitEthernet0/1': { ip: '192.168.20.1', mask: '255.255.255.0', acl_in: '', acl_out: '99' },
+            'Serial0/0/0': { ip: '10.0.0.1', mask: '255.255.255.252', acl_in: '', acl_out: '' }
+        },
+        standardACLs: {
+            // Pre-loaded broken ACL for task 5
+            '99': [
+                { action: 'permit', source: '192.168.20.0', wildcard: '0.0.0.255' },
+                { action: 'deny', source: 'any', wildcard: '' }
+            ]
+        },
+        namedACLs: {},
+    };
+
+    const MODES = {
+        user: () => STATE.hostname + '>',
+        priv: () => STATE.hostname + '#',
+        config: () => STATE.hostname + '(config)#',
+        'config-if': () => STATE.hostname + '(config-if)#',
+        'config-ext-nacl': () => STATE.hostname + '(config-ext-nacl)#',
+        'config-std-nacl': () => STATE.hostname + '(config-std-nacl)#'
+    };
+
+    const tasks = [false, false, false, false, false];
+    const hints = [
+        'Create a standard ACL: <code>access-list 10 deny host 192.168.10.50</code> then <code>access-list 10 permit any</code>.',
+        'Create named extended ACL: <code>ip access-list extended WEB_FILTER</code>, then <code>permit tcp any any eq 80</code> and <code>deny tcp any any eq 23</code>.',
+        'Apply ACLs: on Se0/0 use <code>ip access-group 10 out</code>; on Gi0/0 use <code>ip access-group WEB_FILTER in</code>.',
+        'Use the Packet Tester below to send test traffic and verify ACL behavior.',
+        'ACL 99 is applied outbound on Gi0/1 but should be inbound. Remove it with <code>no ip access-group 99 out</code> and reapply with <code>ip access-group 99 in</code>.'
+    ];
+
+    let testCount = 0;
+
+    const $body = document.getElementById('termBody');
+    const $input = document.getElementById('cliInput');
+    const $prompt = document.getElementById('cliPrompt');
+    const $hint = document.getElementById('hintText');
+    $hint.innerHTML = hints[0];
+
+    function out(text, cls) {
+        const d = document.createElement('div');
+        d.className = 't-line ' + (cls || 'out');
+        d.textContent = text;
+        $body.appendChild(d);
+        $body.scrollTop = $body.scrollHeight;
+    }
+
+    function updatePrompt() { $prompt.textContent = MODES[STATE.mode](); }
+
+    function completeTask(idx) {
+        if (tasks[idx]) return;
+        tasks[idx] = true;
+        document.getElementById('ti' + idx).classList.add('done');
+        document.getElementById('ti' + idx).closest('.task-item').classList.add('done');
+        const done = tasks.filter(Boolean).length;
+        document.getElementById('progFill').style.width = (done / tasks.length * 100) + '%';
+        document.getElementById('progLabel').textContent = done + ' / ' + tasks.length + ' complete';
+        out('>> Task ' + (idx + 1) + ' complete!', 'ok');
+        for (let i = 0; i < tasks.length; i++) { if (!tasks[i]) { $hint.innerHTML = hints[i]; break; } }
+        if (done === tasks.length) {
+            document.getElementById('completeBar').classList.add('show');
+            $hint.innerHTML = 'All tasks complete!';
+            if (window.ModuleProgress) ModuleProgress.complete('ccna-acl-lab');
+        }
+    }
+
+    function checkTasks() {
+        // Task 0: Standard ACL 10 exists with deny host 192.168.10.50 and permit any
+        const acl10 = STATE.standardACLs['10'];
+        if (acl10) {
+            const hasDeny = acl10.some(e => e.action === 'deny' && e.source === '192.168.10.50' && (e.wildcard === '' || e.wildcard === '0.0.0.0'));
+            const hasPermit = acl10.some(e => e.action === 'permit' && e.source === 'any');
+            if (hasDeny && hasPermit) completeTask(0);
+        }
+        // Task 1: Named extended ACL WEB_FILTER
+        const wf = STATE.namedACLs['WEB_FILTER'];
+        if (wf) {
+            const hasHTTP = wf.some(e => e.action === 'permit' && e.protocol === 'tcp' && e.dstPort === 80);
+            const hasTelnet = wf.some(e => e.action === 'deny' && e.protocol === 'tcp' && e.dstPort === 23);
+            if (hasHTTP && hasTelnet) completeTask(1);
+        }
+        // Task 2: ACLs applied correctly
+        if (STATE.interfaces['Serial0/0/0'].acl_out === '10' && STATE.interfaces['GigabitEthernet0/0'].acl_in === 'WEB_FILTER') completeTask(2);
+        // Task 3: Tested packets (checked in testPacket function)
+        // Task 4: ACL 99 moved from Gi0/1 out to Gi0/1 in
+        if (STATE.interfaces['GigabitEthernet0/1'].acl_in === '99' && STATE.interfaces['GigabitEthernet0/1'].acl_out === '') completeTask(4);
+    }
+
+    function resolveIf(raw) {
+        const r = raw.replace(/\s+/g, '').toLowerCase();
+        if (r.includes('0/0/0') || r.startsWith('se') || r.startsWith('serial')) return 'Serial0/0/0';
+        if (r.includes('0/1') && (r.startsWith('gi') || r.startsWith('g'))) return 'GigabitEthernet0/1';
+        if (r.includes('0/0') && (r.startsWith('gi') || r.startsWith('g'))) return 'GigabitEthernet0/0';
+        return null;
+    }
+
+    function ipInNetwork(ip, network, wildcard) {
+        if (network === 'any') return true;
+        if (wildcard === '' || wildcard === '0.0.0.0') return ip === network;
+        const ipParts = ip.split('.').map(Number);
+        const netParts = network.split('.').map(Number);
+        const wcParts = wildcard.split('.').map(Number);
+        for (let i = 0; i < 4; i++) {
+            if ((ipParts[i] & ~wcParts[i]) !== (netParts[i] & ~wcParts[i])) return false;
+        }
+        return true;
+    }
+
+    /* ── Packet Test Engine ── */
+    window.testPacket = function() {
+        const src = document.getElementById('pktSrc').value.trim();
+        const dst = document.getElementById('pktDst').value.trim();
+        const proto = document.getElementById('pktProto').value;
+        const port = parseInt(document.getElementById('pktPort').value) || 0;
+        const iface = document.getElementById('pktIface').value;
+        const dir = document.getElementById('pktDir').value;
+        const resEl = document.getElementById('pktResult');
+
+        const aclName = dir === 'in' ? STATE.interfaces[iface].acl_in : STATE.interfaces[iface].acl_out;
+        if (!aclName) {
+            resEl.className = 'pkt-result show permit';
+            resEl.textContent = 'PERMITTED — No ACL applied on ' + iface + ' ' + dir + 'bound.';
+            testCount++;
+            if (testCount >= 3) completeTask(3);
+            return;
+        }
+
+        // Check standard ACL
+        if (STATE.standardACLs[aclName]) {
+            const entries = STATE.standardACLs[aclName];
+            for (const e of entries) {
+                const matchSrc = ipInNetwork(src, e.source, e.wildcard);
+                if (matchSrc) {
+                    if (e.action === 'deny') {
+                        resEl.className = 'pkt-result show deny';
+                        resEl.textContent = 'DENIED by ACL ' + aclName + ' — matched: ' + e.action + ' ' + e.source + (e.wildcard ? ' ' + e.wildcard : '');
+                    } else {
+                        resEl.className = 'pkt-result show permit';
+                        resEl.textContent = 'PERMITTED by ACL ' + aclName + ' — matched: ' + e.action + ' ' + e.source;
+                    }
+                    testCount++;
+                    if (testCount >= 3) completeTask(3);
+                    return;
+                }
+            }
+            // Implicit deny
+            resEl.className = 'pkt-result show deny';
+            resEl.textContent = 'DENIED by ACL ' + aclName + ' — implicit deny (no matching entry).';
+            testCount++;
+            if (testCount >= 3) completeTask(3);
+            return;
+        }
+
+        // Check named extended ACL
+        if (STATE.namedACLs[aclName]) {
+            const entries = STATE.namedACLs[aclName];
+            for (const e of entries) {
+                const matchProto = !e.protocol || e.protocol === proto || e.protocol === 'ip';
+                const matchSrc = ipInNetwork(src, e.src || 'any', e.srcWC || '');
+                const matchDst = ipInNetwork(dst, e.dst || 'any', e.dstWC || '');
+                const matchPort = !e.dstPort || e.dstPort === port;
+                if (matchProto && matchSrc && matchDst && matchPort) {
+                    if (e.action === 'deny') {
+                        resEl.className = 'pkt-result show deny';
+                        resEl.textContent = 'DENIED by ACL ' + aclName + ' — matched: ' + e.action + ' ' + (e.protocol || '') + ' ' + (e.src || 'any') + ' -> ' + (e.dst || 'any') + (e.dstPort ? ' eq ' + e.dstPort : '');
+                    } else {
+                        resEl.className = 'pkt-result show permit';
+                        resEl.textContent = 'PERMITTED by ACL ' + aclName + ' — matched: ' + e.action + ' ' + (e.protocol || '') + ' ' + (e.src || 'any') + ' -> ' + (e.dst || 'any') + (e.dstPort ? ' eq ' + e.dstPort : '');
+                    }
+                    testCount++;
+                    if (testCount >= 3) completeTask(3);
+                    return;
+                }
+            }
+            resEl.className = 'pkt-result show deny';
+            resEl.textContent = 'DENIED by ACL ' + aclName + ' — implicit deny (no matching entry).';
+            testCount++;
+            if (testCount >= 3) completeTask(3);
+            return;
+        }
+
+        resEl.className = 'pkt-result show permit';
+        resEl.textContent = 'PERMITTED — ACL "' + aclName + '" not found.';
+        testCount++;
+    };
+
+    /* ── Command Processor ── */
+    function process(raw) {
+        const cmd = raw.trim();
+        if (!cmd) return;
+        out(MODES[STATE.mode]() + ' ' + cmd, 'cmd');
+        const lower = cmd.toLowerCase();
+        const parts = lower.split(/\s+/);
+
+        if (lower === 'exit') {
+            if (STATE.mode === 'config-if' || STATE.mode === 'config-ext-nacl' || STATE.mode === 'config-std-nacl') STATE.mode = 'config';
+            else if (STATE.mode === 'config') STATE.mode = 'priv';
+            else if (STATE.mode === 'priv') STATE.mode = 'user';
+            STATE.configIf = ''; STATE.aclConfigName = '';
+            updatePrompt(); checkTasks(); return;
+        }
+        if (lower === 'end') {
+            STATE.mode = 'priv'; STATE.configIf = ''; STATE.aclConfigName = '';
+            updatePrompt(); checkTasks(); return;
+        }
+
+        if (STATE.mode === 'user') {
+            if (lower === 'enable') { STATE.mode = 'priv'; updatePrompt(); }
+            else out("% Unknown command", 'err');
+            return;
+        }
+
+        /* Priv */
+        if (STATE.mode === 'priv') {
+            if (lower === 'configure terminal' || lower === 'conf t') {
+                STATE.mode = 'config'; out('Enter configuration commands, one per line.'); updatePrompt();
+            } else if (lower === 'show access-lists' || lower === 'show access-list' || lower === 'sh access-lists') {
+                let found = false;
+                for (const [num, entries] of Object.entries(STATE.standardACLs)) {
+                    out('Standard IP access list ' + num);
+                    entries.forEach(e => {
+                        out('    ' + (e.action === 'permit' ? 'permit' : 'deny  ') + ' ' + e.source + (e.wildcard ? ' ' + e.wildcard : ''));
+                    });
+                    found = true;
+                }
+                for (const [name, entries] of Object.entries(STATE.namedACLs)) {
+                    out('Extended IP access list ' + name);
+                    entries.forEach(e => {
+                        let line = '    ' + e.action + ' ' + (e.protocol || 'ip') + ' ' + (e.src || 'any');
+                        if (e.srcWC) line += ' ' + e.srcWC;
+                        line += ' ' + (e.dst || 'any');
+                        if (e.dstWC) line += ' ' + e.dstWC;
+                        if (e.dstPort) line += ' eq ' + e.dstPort;
+                        out(line);
+                    });
+                    found = true;
+                }
+                if (!found) out('% No access lists configured.');
+            } else if (lower === 'show ip interface brief' || lower === 'sh ip int brief') {
+                out('Interface                  IP-Address      OK? Method Status                Protocol');
+                for (const [name, iface] of Object.entries(STATE.interfaces)) {
+                    out(name.padEnd(27) + iface.ip.padEnd(16) + 'YES manual  up                    up');
+                }
+            } else if (lower.startsWith('show ip interface') || lower.startsWith('sh ip int ')) {
+                // Show applied ACLs
+                for (const [name, iface] of Object.entries(STATE.interfaces)) {
+                    out(name + ' is up, line protocol is up');
+                    out('  Internet address is ' + iface.ip + '/' + (name.includes('Serial') ? '30' : '24'));
+                    if (iface.acl_in) out('  Inbound  access list is ' + iface.acl_in);
+                    else out('  Inbound  access list is not set');
+                    if (iface.acl_out) out('  Outgoing access list is ' + iface.acl_out);
+                    else out('  Outgoing access list is not set');
+                    out('');
+                }
+            } else if (lower === 'show running-config' || lower === 'show run') {
+                out('hostname ' + STATE.hostname);
+                out('!');
+                for (const [num, entries] of Object.entries(STATE.standardACLs)) {
+                    entries.forEach(e => out('access-list ' + num + ' ' + e.action + ' ' + e.source + (e.wildcard ? ' ' + e.wildcard : '')));
+                }
+                for (const [name, entries] of Object.entries(STATE.namedACLs)) {
+                    out('ip access-list extended ' + name);
+                    entries.forEach(e => {
+                        let line = ' ' + e.action + ' ' + (e.protocol || 'ip') + ' ' + (e.src || 'any');
+                        if (e.srcWC) line += ' ' + e.srcWC;
+                        line += ' ' + (e.dst || 'any');
+                        if (e.dstWC) line += ' ' + e.dstWC;
+                        if (e.dstPort) line += ' eq ' + e.dstPort;
+                        out(line);
+                    });
+                }
+                out('!');
+                for (const [name, iface] of Object.entries(STATE.interfaces)) {
+                    out('interface ' + name);
+                    out(' ip address ' + iface.ip + ' ' + iface.mask);
+                    if (iface.acl_in) out(' ip access-group ' + iface.acl_in + ' in');
+                    if (iface.acl_out) out(' ip access-group ' + iface.acl_out + ' out');
+                    out('!');
+                }
+                out('end');
+            } else if (lower.startsWith('copy ')) { out('[OK]', 'ok');
+            } else { out("% Unknown command", 'err'); }
+            checkTasks(); return;
+        }
+
+        /* Config */
+        if (STATE.mode === 'config') {
+            if (lower.startsWith('access-list ')) {
+                // Standard numbered ACL: access-list [num] permit/deny [source] [wildcard]
+                const m = lower.match(/access-list\s+(\d+)\s+(permit|deny)\s+(.+)/);
+                if (m) {
+                    const num = m[1];
+                    const action = m[2];
+                    let source, wildcard = '';
+                    const rest = m[3].trim().split(/\s+/);
+                    if (rest[0] === 'host') {
+                        source = rest[1]; wildcard = '0.0.0.0';
+                    } else if (rest[0] === 'any') {
+                        source = 'any'; wildcard = '';
+                    } else {
+                        source = rest[0]; wildcard = rest[1] || '';
+                    }
+                    if (!STATE.standardACLs[num]) STATE.standardACLs[num] = [];
+                    STATE.standardACLs[num].push({ action, source, wildcard });
+                } else { out('% Invalid access-list syntax', 'err'); }
+            } else if (lower.startsWith('ip access-list extended ')) {
+                const name = cmd.split(/\s+/).slice(3).join('_').toUpperCase() || cmd.split(/\s+/)[3];
+                const aclName = cmd.split(/\s+/)[3]; // preserve case
+                STATE.aclConfigName = aclName;
+                if (!STATE.namedACLs[aclName]) STATE.namedACLs[aclName] = [];
+                STATE.mode = 'config-ext-nacl'; updatePrompt();
+            } else if (lower.startsWith('no access-list ')) {
+                const num = parts[2];
+                delete STATE.standardACLs[num];
+                out('% ACL ' + num + ' removed.');
+            } else if (lower.startsWith('interface ') || lower.startsWith('int ')) {
+                const ifRaw = cmd.split(/\s+/).slice(1).join(' ');
+                const ifName = resolveIf(ifRaw);
+                if (ifName) {
+                    STATE.configIf = ifName; STATE.mode = 'config-if'; updatePrompt();
+                } else { out('% Invalid interface', 'err'); }
+            } else if (parts[0] === 'hostname' && parts[1]) {
+                STATE.hostname = cmd.split(/\s+/)[1]; updatePrompt();
+            } else { out("% Unknown command", 'err'); }
+            checkTasks(); return;
+        }
+
+        /* Config-if */
+        if (STATE.mode === 'config-if') {
+            const iface = STATE.interfaces[STATE.configIf];
+            if (lower.startsWith('ip access-group ')) {
+                const aclId = cmd.split(/\s+/)[2];
+                const direction = parts[3]; // in or out
+                if (direction === 'in') iface.acl_in = aclId;
+                else if (direction === 'out') iface.acl_out = aclId;
+                else { out('% Specify in or out', 'err'); checkTasks(); return; }
+            } else if (lower.startsWith('no ip access-group ')) {
+                const direction = parts[4];
+                if (direction === 'in') iface.acl_in = '';
+                else if (direction === 'out') iface.acl_out = '';
+            } else if (lower === 'no shutdown' || lower === 'shutdown') {
+                // accept silently
+            } else { out("% Unknown interface command", 'err'); }
+            checkTasks(); return;
+        }
+
+        /* Config-ext-nacl */
+        if (STATE.mode === 'config-ext-nacl') {
+            // permit/deny [protocol] [src] [srcwc] [dst] [dstwc] [eq port]
+            const m = lower.match(/^(permit|deny)\s+(tcp|udp|icmp|ip)\s+(\S+)(?:\s+(\S+))?\s+(\S+)(?:\s+(\S+))?(?:\s+eq\s+(\S+))?/);
+            if (m) {
+                const entry = {
+                    action: m[1],
+                    protocol: m[2],
+                    src: m[3],
+                    srcWC: (m[3] !== 'any' && m[4] && !m[4].match(/^(any|\d+\.\d+)/)) ? '' : (m[4] || ''),
+                    dst: m[5] || 'any',
+                    dstWC: m[6] || '',
+                    dstPort: 0
+                };
+                // Fixup: if src has wildcard, dst shifts
+                const rawParts = lower.split(/\s+/);
+                let idx = 2; // after action, protocol
+                entry.src = rawParts[idx++] || 'any';
+                if (entry.src !== 'any' && rawParts[idx] && rawParts[idx].match(/^\d+\.\d+\.\d+\.\d+$/) && rawParts[idx] !== rawParts[idx]) {
+                    entry.srcWC = rawParts[idx++];
+                } else { entry.srcWC = ''; }
+                entry.dst = rawParts[idx++] || 'any';
+                if (entry.dst !== 'any' && rawParts[idx] && rawParts[idx].match(/^\d+\.\d+\.\d+\.\d+$/) && rawParts[idx] !== 'eq') {
+                    entry.dstWC = rawParts[idx++];
+                } else { entry.dstWC = ''; }
+                if (rawParts[idx] === 'eq') {
+                    const portName = rawParts[idx + 1];
+                    const portMap = { '80': 80, 'www': 80, 'http': 80, '443': 443, 'https': 443, '23': 23, 'telnet': 23, '22': 22, 'ssh': 22, '53': 53, 'dns': 53, '21': 21, 'ftp': 21 };
+                    entry.dstPort = portMap[portName] || parseInt(portName) || 0;
+                }
+                STATE.namedACLs[STATE.aclConfigName].push(entry);
+            } else if (lower.startsWith('permit ') || lower.startsWith('deny ')) {
+                out('% Syntax: [permit|deny] [tcp|udp|icmp|ip] [src] [dst] [eq port]', 'err');
+            } else { out("% Unknown ACL command", 'err'); }
+            checkTasks(); return;
+        }
+
+        out("% Unknown command", 'err');
+    }
+
+    $input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { process($input.value); $input.value = ''; }
+    });
+
+    document.querySelector('.terminal-wrap').addEventListener('click', () => $input.focus());
+
+    out('R1 Console ready. Interfaces pre-configured and up.', 'info');
+    out('Note: ACL 99 is pre-loaded on Gi0/1 outbound (intentionally misconfigured for Task 5).', 'info');
+    out('', 'out');
+    updatePrompt();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Troubleshooting Lab | CCNA</title>
+    <style>
+        :root {
+            --cisco-primary: #10b981;
+            --cisco-secondary: #34d399;
+            --cisco-accent: #6ee7b7;
+            --cisco-dark: #047857;
+            --bg-dark: #090910;
+            --bg-card: #111120;
+            --bg-card-hover: #191930;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: rgba(16, 185, 129, 0.15);
+            --border-hover: rgba(16, 185, 129, 0.4);
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark); color: var(--text-primary);
+            min-height: 100vh; line-height: 1.6;
+        }
+        .lab-container { max-width: 1300px; margin: 0 auto; padding: 1.5rem; }
+        .back-link {
+            display: inline-flex; align-items: center; gap: 6px;
+            color: var(--cisco-primary); text-decoration: none; font-size: 0.85rem;
+            padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border-color);
+            background: rgba(16,185,129,0.05); transition: all 0.2s; margin-bottom: 1rem;
+        }
+        .back-link:hover { color: var(--cisco-secondary); border-color: var(--border-hover); }
+        .lab-header {
+            text-align: center; margin-bottom: 1.5rem; padding: 2rem;
+            background: linear-gradient(135deg, #064e3b 0%, #0a3d2e 50%, #064e3b 100%);
+            border-radius: 16px; border: 1px solid var(--border-color);
+            box-shadow: 0 0 20px rgba(16,185,129,0.15);
+        }
+        .lab-header h1 {
+            font-size: 2rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--cisco-primary), var(--cisco-accent));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-secondary); font-size: 0.85rem; }
+
+        /* Scenario Selector */
+        .scenario-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;
+            margin-bottom: 1.5rem;
+        }
+        .scenario-card {
+            background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px;
+            padding: 1rem; cursor: pointer; transition: all 0.2s;
+        }
+        .scenario-card:hover { border-color: var(--border-hover); background: var(--bg-card-hover); }
+        .scenario-card.active { border-color: var(--cisco-primary); background: rgba(16,185,129,0.1); }
+        .scenario-card.solved { border-color: var(--success); }
+        .scenario-card .sc-num { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+        .scenario-card .sc-title { font-size: 0.9rem; font-weight: 600; color: var(--text-primary); margin: 4px 0; }
+        .scenario-card .sc-status { font-size: 0.75rem; color: var(--danger); }
+        .scenario-card.solved .sc-status { color: var(--success); }
+
+        /* Scenario Detail */
+        .scenario-detail {
+            background: var(--bg-card); border-radius: 10px; padding: 1.25rem;
+            border: 1px solid var(--border-color); margin-bottom: 1.5rem;
+        }
+        .scenario-detail h3 { color: var(--cisco-secondary); font-size: 1rem; margin-bottom: 0.5rem; }
+        .symptom-box {
+            background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25);
+            border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.75rem; font-size: 0.85rem;
+        }
+        .symptom-box strong { color: var(--danger); }
+        .symptom-box p { color: var(--text-secondary); margin-top: 4px; }
+        .topology-mini {
+            background: #0a0a14; border-radius: 8px; padding: 16px; border: 1px solid #222;
+            font-family: 'Consolas', monospace; font-size: 0.75rem; color: var(--cisco-primary);
+            white-space: pre; line-height: 1.5; overflow-x: auto; margin-bottom: 0.75rem;
+        }
+
+        /* Device Tabs */
+        .device-tabs { display: flex; gap: 6px; margin-bottom: 1rem; flex-wrap: wrap; }
+        .device-tab {
+            padding: 6px 14px; background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+        .device-tab:hover { border-color: var(--border-hover); }
+        .device-tab.active { background: rgba(16,185,129,0.15); border-color: var(--cisco-primary); color: var(--cisco-accent); }
+
+        .main-layout { display: grid; grid-template-columns: 1fr 300px; gap: 1.5rem; }
+        @media (max-width: 1000px) { .main-layout { grid-template-columns: 1fr; } }
+
+        /* Terminal */
+        .terminal-wrap {
+            background: #000; border-radius: 10px; overflow: hidden;
+            border: 1px solid rgba(16,185,129,0.3);
+        }
+        .terminal-bar {
+            background: #1a1a2a; padding: 8px 14px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .t-dot { width: 11px; height: 11px; border-radius: 50%; }
+        .t-dot.r { background: #ff5f56; } .t-dot.y { background: #ffbd2e; } .t-dot.g { background: #27ca40; }
+        .terminal-bar span { color: var(--text-muted); font-size: 0.8rem; margin-left: 8px; }
+        .terminal-body {
+            padding: 12px 16px; height: 350px; overflow-y: auto;
+            font-family: 'Consolas','Courier New', monospace; font-size: 0.83rem;
+        }
+        .terminal-body::-webkit-scrollbar { width: 6px; }
+        .terminal-body::-webkit-scrollbar-thumb { background: rgba(16,185,129,0.3); border-radius: 3px; }
+        .t-line { margin-bottom: 1px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; }
+        .t-line.cmd { color: #fff; } .t-line.out { color: #ccc; }
+        .t-line.err { color: #ff5555; } .t-line.ok { color: var(--success); }
+        .t-line.info { color: var(--cisco-primary); }
+        .input-row { display: flex; align-items: center; margin-top: 4px; }
+        .prompt-text { color: var(--cisco-primary); margin-right: 4px; white-space: nowrap; font-weight: bold; }
+        #cliInput {
+            flex: 1; background: transparent; border: none; color: #fff;
+            font-family: inherit; font-size: inherit; outline: none; caret-color: var(--cisco-accent);
+        }
+
+        /* Side Panel */
+        .side-panel {
+            background: var(--bg-card); border-radius: 10px; padding: 1.25rem;
+            border: 1px solid var(--border-color); align-self: start;
+        }
+        .side-panel h3 { color: var(--cisco-secondary); font-size: 1rem; margin-bottom: 0.75rem; }
+        .step-list { list-style: none; }
+        .step-list li {
+            display: flex; align-items: flex-start; gap: 0.5rem;
+            padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.8rem; color: var(--text-secondary);
+        }
+        .step-list li:last-child { border-bottom: none; }
+        .step-check {
+            width: 18px; height: 18px; border-radius: 3px; flex-shrink: 0;
+            border: 2px solid var(--text-muted); margin-top: 1px;
+        }
+        .step-check.done { background: var(--success); border-color: var(--success); }
+        .hint-btn {
+            display: block; width: 100%; padding: 8px; margin-top: 0.75rem;
+            background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3);
+            border-radius: 6px; color: var(--warning); cursor: pointer; font-size: 0.8rem;
+            text-align: center; transition: all 0.2s;
+        }
+        .hint-btn:hover { background: rgba(245,158,11,0.2); }
+        .hint-text {
+            margin-top: 8px; padding: 8px; background: rgba(245,158,11,0.08);
+            border-radius: 6px; font-size: 0.8rem; color: var(--text-secondary); display: none;
+        }
+        .hint-text.show { display: block; }
+
+        /* Progress */
+        .progress-wrap { margin-top: 1rem; }
+        .prog-bar { height: 8px; background: rgba(16,185,129,0.1); border-radius: 4px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--cisco-dark), var(--cisco-primary)); border-radius: 4px; transition: width 0.5s; }
+        .prog-label { text-align: right; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+        .complete-bar {
+            margin-top: 1.5rem; padding: 1.5rem; background: var(--bg-card);
+            border-radius: 10px; border: 1px solid var(--border-color); text-align: center; display: none;
+        }
+        .complete-bar.show { display: block; }
+        .complete-bar h2 { color: var(--success); margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+<div class="lab-container">
+    <a href="../index.html" class="back-link">
+        <img src="/assets/images/icons/icon-arrow-left.webp" alt="" width="14" height="14"> Back to CCNA Hub
+    </a>
+
+    <header class="lab-header">
+        <h1>Network Troubleshooting Lab</h1>
+        <p class="subtitle">Diagnose and fix intentionally broken network configurations across 6 real-world scenarios</p>
+        <div class="lab-meta">
+            <span class="meta-item">120 minutes</span>
+            <span class="meta-item">Advanced</span>
+            <span class="meta-item">6 Scenarios</span>
+        </div>
+    </header>
+
+    <!-- Scenario Cards -->
+    <div class="scenario-grid" id="scenarioGrid"></div>
+
+    <!-- Scenario Detail -->
+    <div class="scenario-detail" id="scenarioDetail"></div>
+
+    <!-- Device Tabs -->
+    <div class="device-tabs" id="deviceTabs"></div>
+
+    <div class="main-layout">
+        <div>
+            <div class="terminal-wrap">
+                <div class="terminal-bar">
+                    <div class="t-dot r"></div><div class="t-dot y"></div><div class="t-dot g"></div>
+                    <span id="termTitle">Select a scenario to begin</span>
+                </div>
+                <div class="terminal-body" id="termBody">
+                    <div class="t-line info">Choose a scenario from the cards above.</div>
+                    <div class="t-line info">Each has a broken configuration that you must diagnose and fix.</div>
+                </div>
+                <div style="padding: 0 16px 12px;">
+                    <div class="input-row">
+                        <span class="prompt-text" id="cliPrompt">Router#</span>
+                        <input type="text" id="cliInput" autocomplete="off" spellcheck="false">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="side-panel" id="sidePanel">
+            <h3><img src="/assets/images/icons/icon-list.webp" alt="" width="16" height="16" style="vertical-align:middle"> Troubleshooting Steps</h3>
+            <ul class="step-list" id="stepList">
+                <li>Select a scenario to see steps.</li>
+            </ul>
+            <button class="hint-btn" onclick="toggleHint()"><img src="/assets/images/icons/icon-info.webp" alt="" width="12" height="12" style="vertical-align:middle"> Show Hint</button>
+            <div class="hint-text" id="hintText">Select a scenario first.</div>
+            <div class="progress-wrap">
+                <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+                <div class="prog-label" id="progLabel">0 / 6 solved</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="complete-bar" id="completeBar">
+        <h2><img src="/assets/images/icons/icon-checkmark.webp" alt="" width="24" height="24" style="vertical-align:middle"> All Scenarios Complete</h2>
+        <p>You have successfully diagnosed and fixed all 6 network issues. Troubleshooting mastery achieved.</p>
+    </div>
+</div>
+
+<script>
+(function() {
+    /* ── Scenario Definitions ── */
+    const SCENARIOS = [
+        {
+            id: 0,
+            title: 'VLAN Mismatch',
+            desc: 'Trunk not carrying correct VLANs',
+            symptom: 'PC1 on VLAN 10 (Sales) cannot reach PC3 on VLAN 10 across the trunk link between SW1 and SW2. Both PCs are confirmed to be in VLAN 10 on their respective switches.',
+            topology: '  [PC1]--[SW1]===TRUNK===[SW2]--[PC3]\n  VLAN 10    Gi0/1    Gi0/1    VLAN 10\n\n  SW1 trunk allows: 10,20,30\n  SW2 trunk allows: 20,30 (VLAN 10 MISSING!)',
+            devices: {
+                SW1: {
+                    hostname: 'SW1',
+                    type: 'switch',
+                    state: { mode: 'priv' },
+                    show: {
+                        'show vlan brief': 'VLAN Name                             Status    Ports\n---- -------------------------------- --------- ------\n1    default                          active    Fa0/19-24\n10   Sales                            active    Fa0/1-6\n20   Engineering                      active    Fa0/7-12\n30   Management                       active    Fa0/13-18',
+                        'show interfaces trunk': 'Port        Mode         Encapsulation  Status        Native vlan\nGi0/1       on           802.1q         trunking      1\n\nPort        Vlans allowed on trunk\nGi0/1       10,20,30',
+                        'show running-config': 'hostname SW1\n!\nvlan 10\n name Sales\nvlan 20\n name Engineering\nvlan 30\n name Management\n!\ninterface GigabitEthernet0/1\n switchport mode trunk\n switchport trunk allowed vlan 10,20,30\n!'
+                    }
+                },
+                SW2: {
+                    hostname: 'SW2',
+                    type: 'switch',
+                    state: { mode: 'priv', fixed: false },
+                    show: {
+                        'show vlan brief': 'VLAN Name                             Status    Ports\n---- -------------------------------- --------- ------\n1    default                          active    Fa0/19-24\n10   Sales                            active    Fa0/1-6\n20   Engineering                      active    Fa0/7-12\n30   Management                       active    Fa0/13-18',
+                        'show interfaces trunk': 'Port        Mode         Encapsulation  Status        Native vlan\nGi0/1       on           802.1q         trunking      1\n\nPort        Vlans allowed on trunk\nGi0/1       20,30',
+                        'show running-config': 'hostname SW2\n!\nvlan 10\n name Sales\nvlan 20\n name Engineering\nvlan 30\n name Management\n!\ninterface GigabitEthernet0/1\n switchport mode trunk\n switchport trunk allowed vlan 20,30\n!'
+                    },
+                    fix: function(cmd) {
+                        const lower = cmd.toLowerCase();
+                        if (lower.includes('switchport trunk allowed vlan') && lower.includes('10')) {
+                            this.state.fixed = true;
+                            this.show['show interfaces trunk'] = 'Port        Mode         Encapsulation  Status        Native vlan\nGi0/1       on           802.1q         trunking      1\n\nPort        Vlans allowed on trunk\nGi0/1       10,20,30';
+                            return 'Trunk VLAN list updated.';
+                        }
+                        return null;
+                    }
+                }
+            },
+            steps: ['Identify which switch trunk is missing VLAN 10', 'Run show interfaces trunk on both switches', 'Add VLAN 10 to SW2 trunk allowed list'],
+            hint: 'On SW2, the trunk is only allowing VLANs 20 and 30. Use "switchport trunk allowed vlan add 10" or "switchport trunk allowed vlan 10,20,30" on the trunk interface.',
+            checkSolved: function() { return this.devices.SW2.state.fixed; }
+        },
+        {
+            id: 1,
+            title: 'OSPF Neighbor Failure',
+            desc: 'Mismatched hello/dead timers',
+            symptom: 'R1 and R2 are directly connected via Serial0/0/0 but OSPF adjacency is stuck in INIT state. Both routers have OSPF configured with correct network statements.',
+            topology: '  [R1]===Serial===[R2]\n  Se0/0/0       Se0/0/0\n  10.0.0.1/30   10.0.0.2/30\n\n  R1: hello 10, dead 40 (default)\n  R2: hello 30, dead 120 (WRONG!)',
+            devices: {
+                R1: {
+                    hostname: 'R1',
+                    type: 'router',
+                    state: { mode: 'priv' },
+                    show: {
+                        'show ip ospf neighbor': '% No OSPF neighbors found (INIT only)\nNeighbor ID     State     Dead Time   Address         Interface\n10.0.0.2        INIT/  -  00:00:38    10.0.0.2        Serial0/0/0',
+                        'show ip ospf interface serial0/0/0': 'Serial0/0/0 is up, line protocol is up\n  Internet Address 10.0.0.1/30, Area 0\n  Process ID 1, Router ID 10.0.0.1\n  Timer intervals configured:\n    Hello 10, Dead 40, Wait 40, Retransmit 5',
+                        'show running-config': 'hostname R1\n!\ninterface Serial0/0/0\n ip address 10.0.0.1 255.255.255.252\n no shutdown\n!\nrouter ospf 1\n network 10.0.0.0 0.0.0.3 area 0'
+                    }
+                },
+                R2: {
+                    hostname: 'R2',
+                    type: 'router',
+                    state: { mode: 'priv', fixed: false },
+                    show: {
+                        'show ip ospf neighbor': '% No OSPF neighbors found (INIT only)\nNeighbor ID     State     Dead Time   Address         Interface\n10.0.0.1        INIT/  -  00:01:58    10.0.0.1        Serial0/0/0',
+                        'show ip ospf interface serial0/0/0': 'Serial0/0/0 is up, line protocol is up\n  Internet Address 10.0.0.2/30, Area 0\n  Process ID 1, Router ID 10.0.0.2\n  Timer intervals configured:\n    Hello 30, Dead 120, Wait 120, Retransmit 5',
+                        'show running-config': 'hostname R2\n!\ninterface Serial0/0/0\n ip address 10.0.0.2 255.255.255.252\n ip ospf hello-interval 30\n ip ospf dead-interval 120\n no shutdown\n!\nrouter ospf 1\n network 10.0.0.0 0.0.0.3 area 0'
+                    },
+                    fix: function(cmd) {
+                        const lower = cmd.toLowerCase();
+                        if (lower.includes('no ip ospf hello-interval') || lower.includes('ip ospf hello-interval 10')) {
+                            this.state.fixed = true;
+                            this.show['show ip ospf interface serial0/0/0'] = 'Serial0/0/0 is up, line protocol is up\n  Internet Address 10.0.0.2/30, Area 0\n  Timer intervals configured:\n    Hello 10, Dead 40, Wait 40, Retransmit 5';
+                            this.show['show ip ospf neighbor'] = 'Neighbor ID     State        Dead Time   Address         Interface\n10.0.0.1        FULL/  -     00:00:32    10.0.0.1        Serial0/0/0';
+                            return '%OSPF-5-ADJCHG: Process 1, Nbr 10.0.0.1 on Serial0/0/0 from LOADING to FULL';
+                        }
+                        return null;
+                    }
+                }
+            },
+            steps: ['Check OSPF neighbor state on both routers', 'Compare hello/dead timer values', 'Fix the mismatched timers on R2'],
+            hint: 'OSPF requires matching hello and dead intervals. R2 has hello 30 / dead 120 but R1 uses defaults (10/40). On R2 interface: "no ip ospf hello-interval" and "no ip ospf dead-interval".',
+            checkSolved: function() { return this.devices.R2.state.fixed; }
+        },
+        {
+            id: 2,
+            title: 'ACL Wrong Direction',
+            desc: 'ACL blocking legitimate traffic',
+            symptom: 'Users on LAN-A (192.168.10.0/24) cannot access the web server at 10.0.0.100 via HTTP, despite an ACL that should only block Telnet. HTTP traffic is being denied.',
+            topology: '  [LAN-A: 192.168.10.0/24]--Gi0/0--[R1]--Se0/0--[Server 10.0.0.100]\n\n  ACL "WEB_CONTROL" applied on Gi0/0 OUTBOUND\n  (Should be INBOUND!)',
+            devices: {
+                R1: {
+                    hostname: 'R1',
+                    type: 'router',
+                    state: { mode: 'priv', fixed: false },
+                    show: {
+                        'show access-lists': 'Extended IP access list WEB_CONTROL\n    10 deny tcp any any eq 23\n    20 permit tcp any any eq 80\n    (implicit deny all at end)',
+                        'show ip interface gigabitethernet0/0': 'GigabitEthernet0/0 is up, line protocol is up\n  Internet address is 192.168.10.1/24\n  Inbound  access list is not set\n  Outgoing access list is WEB_CONTROL',
+                        'show running-config': 'hostname R1\n!\nip access-list extended WEB_CONTROL\n deny tcp any any eq 23\n permit tcp any any eq 80\n!\ninterface GigabitEthernet0/0\n ip address 192.168.10.1 255.255.255.0\n ip access-group WEB_CONTROL out\n no shutdown\n!\ninterface Serial0/0/0\n ip address 10.0.0.1 255.255.255.252\n no shutdown'
+                    },
+                    fix: function(cmd) {
+                        const lower = cmd.toLowerCase();
+                        if (lower === 'no ip access-group web_control out') {
+                            this.state._removedOut = true;
+                            this.show['show ip interface gigabitethernet0/0'] = 'GigabitEthernet0/0 is up, line protocol is up\n  Internet address is 192.168.10.1/24\n  Inbound  access list is not set\n  Outgoing access list is not set';
+                            return '% ACL removed from outbound.';
+                        }
+                        if (lower === 'ip access-group web_control in' && this.state._removedOut) {
+                            this.state.fixed = true;
+                            this.show['show ip interface gigabitethernet0/0'] = 'GigabitEthernet0/0 is up, line protocol is up\n  Internet address is 192.168.10.1/24\n  Inbound  access list is WEB_CONTROL\n  Outgoing access list is not set';
+                            return '% ACL applied inbound. HTTP traffic from LAN-A now flows correctly.';
+                        }
+                        return null;
+                    }
+                }
+            },
+            steps: ['Identify which interface the ACL is applied to', 'Determine the correct direction (in vs out)', 'Remove ACL from wrong direction and reapply correctly'],
+            hint: 'The ACL is applied outbound on Gi0/0 but traffic from LAN-A enters Gi0/0 inbound. Remove with "no ip access-group WEB_CONTROL out" then apply "ip access-group WEB_CONTROL in" on the interface.',
+            checkSolved: function() { return this.devices.R1.state.fixed; }
+        },
+        {
+            id: 3,
+            title: 'NAT Missing Designation',
+            desc: 'NAT not translating packets',
+            symptom: 'NAT static and overload rules are configured, but no translations appear in the NAT table. Internal hosts cannot reach the internet.',
+            topology: '  [LAN 192.168.1.0/24]--Gi0/0--[R1]--Se0/0--[ISP 203.0.113.2]\n\n  Gi0/0: ip nat inside -- MISSING!\n  Se0/0: ip nat outside -- CONFIGURED',
+            devices: {
+                R1: {
+                    hostname: 'R1',
+                    type: 'router',
+                    state: { mode: 'priv', fixed: false },
+                    show: {
+                        'show ip nat translations': '% No NAT translations.',
+                        'show ip nat statistics': 'Total active translations: 0\nOutside interfaces:\n  Serial0/0/0\nInside interfaces:\n  (none)',
+                        'show running-config': 'hostname R1\n!\ninterface GigabitEthernet0/0\n ip address 192.168.1.1 255.255.255.0\n no shutdown\n!\ninterface Serial0/0/0\n ip address 203.0.113.1 255.255.255.252\n ip nat outside\n no shutdown\n!\naccess-list 1 permit 192.168.1.0 0.0.0.255\nip nat inside source list 1 interface Serial0/0/0 overload\nip nat inside source static 192.168.1.10 203.0.113.10'
+                    },
+                    fix: function(cmd) {
+                        const lower = cmd.toLowerCase();
+                        if (lower === 'ip nat inside') {
+                            this.state.fixed = true;
+                            this.show['show ip nat statistics'] = 'Total active translations: 1\nOutside interfaces:\n  Serial0/0/0\nInside interfaces:\n  GigabitEthernet0/0\nHits: 47  Misses: 0';
+                            this.show['show ip nat translations'] = 'Pro  Inside global      Inside local       Outside local\n---  203.0.113.10       192.168.1.10       ---';
+                            return '% GigabitEthernet0/0 marked as NAT inside. Translations now active.';
+                        }
+                        return null;
+                    }
+                }
+            },
+            steps: ['Check show ip nat statistics for inside/outside interfaces', 'Identify the missing ip nat inside on Gi0/0', 'Apply ip nat inside to Gi0/0'],
+            hint: 'The "show ip nat statistics" output shows no inside interfaces. On Gi0/0, enter interface config and add "ip nat inside".',
+            checkSolved: function() { return this.devices.R1.state.fixed; }
+        },
+        {
+            id: 4,
+            title: 'Subnet Mask Error',
+            desc: 'Wrong subnet mask causing routing failure',
+            symptom: 'R1 and R2 are connected via a /30 link but R2 has a /24 mask. R2 thinks the entire 10.0.0.0/24 is local, so it never routes packets to R1.',
+            topology: '  [LAN-A 192.168.1.0/24]--Gi0/0--[R1]--Se0/0--[R2]--Gi0/0--[LAN-B 192.168.2.0/24]\n                                  10.0.0.1/30  10.0.0.2/24 <-- WRONG!\n                                              Should be /30',
+            devices: {
+                R1: {
+                    hostname: 'R1',
+                    type: 'router',
+                    state: { mode: 'priv' },
+                    show: {
+                        'show ip interface brief': 'Interface                  IP-Address      OK? Method Status                Protocol\nGigabitEthernet0/0         192.168.1.1     YES manual  up                    up\nSerial0/0/0                10.0.0.1        YES manual  up                    up',
+                        'show ip interface serial0/0/0': 'Serial0/0/0 is up, line protocol is up\n  Internet address is 10.0.0.1/30\n  Broadcast address is 255.255.255.255',
+                        'show ip route': 'C    192.168.1.0/24 is directly connected, GigabitEthernet0/0\nC    10.0.0.0/30 is directly connected, Serial0/0/0\nO    192.168.2.0/24 [110/65] via 10.0.0.2',
+                        'show running-config': 'hostname R1\n!\ninterface GigabitEthernet0/0\n ip address 192.168.1.1 255.255.255.0\n!\ninterface Serial0/0/0\n ip address 10.0.0.1 255.255.255.252\n!\nrouter ospf 1\n network 10.0.0.0 0.0.0.3 area 0\n network 192.168.1.0 0.0.0.255 area 0'
+                    }
+                },
+                R2: {
+                    hostname: 'R2',
+                    type: 'router',
+                    state: { mode: 'priv', fixed: false },
+                    show: {
+                        'show ip interface brief': 'Interface                  IP-Address      OK? Method Status                Protocol\nGigabitEthernet0/0         192.168.2.1     YES manual  up                    up\nSerial0/0/0                10.0.0.2        YES manual  up                    up',
+                        'show ip interface serial0/0/0': 'Serial0/0/0 is up, line protocol is up\n  Internet address is 10.0.0.2/24\n  Broadcast address is 255.255.255.255',
+                        'show ip route': 'C    192.168.2.0/24 is directly connected, GigabitEthernet0/0\nC    10.0.0.0/24 is directly connected, Serial0/0/0',
+                        'show running-config': 'hostname R2\n!\ninterface GigabitEthernet0/0\n ip address 192.168.2.1 255.255.255.0\n!\ninterface Serial0/0/0\n ip address 10.0.0.2 255.255.255.0\n!\nrouter ospf 1\n network 10.0.0.0 0.0.0.255 area 0\n network 192.168.2.0 0.0.0.255 area 0'
+                    },
+                    fix: function(cmd) {
+                        const lower = cmd.toLowerCase();
+                        if (lower.match(/ip address 10\.0\.0\.2 255\.255\.255\.252/)) {
+                            this.state.fixed = true;
+                            this.show['show ip interface serial0/0/0'] = 'Serial0/0/0 is up, line protocol is up\n  Internet address is 10.0.0.2/30\n  Broadcast address is 255.255.255.255';
+                            this.show['show ip route'] = 'C    192.168.2.0/24 is directly connected, GigabitEthernet0/0\nC    10.0.0.0/30 is directly connected, Serial0/0/0\nO    192.168.1.0/24 [110/65] via 10.0.0.1';
+                            return '%OSPF-5-ADJCHG: Nbr 10.0.0.1 on Serial0/0/0 from LOADING to FULL';
+                        }
+                        return null;
+                    }
+                }
+            },
+            steps: ['Compare subnet masks on the serial link', 'Identify R2 has /24 instead of /30', 'Correct the subnet mask on R2 Serial0/0/0'],
+            hint: 'R2 Serial0/0/0 has 255.255.255.0 (/24) instead of 255.255.255.252 (/30). Enter interface config on R2 and correct with "ip address 10.0.0.2 255.255.255.252".',
+            checkSolved: function() { return this.devices.R2.state.fixed; }
+        },
+        {
+            id: 5,
+            title: 'STP Root Bridge',
+            desc: 'Unexpected root bridge election',
+            symptom: 'Access switch SW2 (old switch, priority 4096) has become the root bridge instead of the distribution switch SW1. This causes suboptimal traffic paths and a blocked uplink.',
+            topology: '  [SW1: Priority 32769]===TRUNK===[SW2: Priority 4096]\n  Distribution Switch          Access Switch (ROOT!)\n       |                            |\n     Servers                    Workstations\n\n  SW2 should NOT be root. SW1 should be root.',
+            devices: {
+                SW1: {
+                    hostname: 'SW1',
+                    type: 'switch',
+                    state: { mode: 'priv', fixed: false },
+                    show: {
+                        'show spanning-tree': 'VLAN0001\n  Spanning tree enabled protocol ieee\n  Root ID    Priority    4097\n             Address     aabb.cc00.0200\n             Cost        4\n             Port        1 (GigabitEthernet0/1)\n             Hello Time   2 sec  Max Age 20 sec  Forward Delay 15 sec\n\n  Bridge ID  Priority    32769  (priority 32768 sys-id-ext 1)\n             Address     aabb.cc00.0100\n             Hello Time   2 sec  Max Age 20 sec  Forward Delay 15 sec\n\nInterface        Role Sts   Cost      Prio.Nbr\n---------------- ---- ---   --------- --------\nGi0/1            Root FWD   4         128.1',
+                        'show running-config': 'hostname SW1\n!\ninterface GigabitEthernet0/1\n switchport mode trunk\n!'
+                    },
+                    fix: function(cmd) {
+                        const lower = cmd.toLowerCase();
+                        if (lower.includes('spanning-tree vlan 1 priority') && parseInt(lower.split('priority')[1]) < 4096) {
+                            this.state.fixed = true;
+                            this.show['show spanning-tree'] = 'VLAN0001\n  Spanning tree enabled protocol ieee\n  Root ID    Priority    ' + lower.split('priority')[1].trim() + '\n             Address     aabb.cc00.0100\n             This bridge is the root\n             Hello Time   2 sec  Max Age 20 sec  Forward Delay 15 sec\n\n  Bridge ID  Priority    ' + lower.split('priority')[1].trim() + '  (priority ' + lower.split('priority')[1].trim() + ' sys-id-ext 1)\n             Address     aabb.cc00.0100\n\nInterface        Role Sts   Cost      Prio.Nbr\n---------------- ---- ---   --------- --------\nGi0/1            Desg FWD   4         128.1';
+                            return '%STP: VLAN0001 new root bridge is SW1 (aabb.cc00.0100)';
+                        }
+                        if (lower.includes('spanning-tree vlan 1 root primary')) {
+                            this.state.fixed = true;
+                            this.show['show spanning-tree'] = 'VLAN0001\n  Spanning tree enabled protocol ieee\n  Root ID    Priority    24577\n             Address     aabb.cc00.0100\n             This bridge is the root\n\n  Bridge ID  Priority    24577\n             Address     aabb.cc00.0100\n\nInterface        Role Sts   Cost      Prio.Nbr\n---------------- ---- ---   --------- --------\nGi0/1            Desg FWD   4         128.1';
+                            return '%STP: VLAN0001 new root bridge is SW1';
+                        }
+                        return null;
+                    }
+                },
+                SW2: {
+                    hostname: 'SW2',
+                    type: 'switch',
+                    state: { mode: 'priv' },
+                    show: {
+                        'show spanning-tree': 'VLAN0001\n  Spanning tree enabled protocol ieee\n  Root ID    Priority    4097\n             Address     aabb.cc00.0200\n             This bridge is the root\n             Hello Time   2 sec  Max Age 20 sec  Forward Delay 15 sec\n\n  Bridge ID  Priority    4097  (priority 4096 sys-id-ext 1)\n             Address     aabb.cc00.0200\n\nInterface        Role Sts   Cost      Prio.Nbr\n---------------- ---- ---   --------- --------\nGi0/1            Desg FWD   4         128.1',
+                        'show running-config': 'hostname SW2\n!\nspanning-tree vlan 1 priority 4096\n!\ninterface GigabitEthernet0/1\n switchport mode trunk\n!'
+                    }
+                }
+            },
+            steps: ['Check spanning-tree state on both switches', 'Identify SW2 is root due to lower priority', 'Set SW1 as root by lowering its priority below 4096'],
+            hint: 'SW2 has priority 4096, making it root. On SW1, set a lower priority: "spanning-tree vlan 1 priority 0" or use "spanning-tree vlan 1 root primary" in global config.',
+            checkSolved: function() { return this.devices.SW1.state.fixed; }
+        }
+    ];
+
+    let activeScenario = null;
+    let activeDevice = null;
+    const solved = [false, false, false, false, false, false];
+
+    const $body = document.getElementById('termBody');
+    const $input = document.getElementById('cliInput');
+    const $prompt = document.getElementById('cliPrompt');
+
+    function out(text, cls) {
+        const d = document.createElement('div');
+        d.className = 't-line ' + (cls || 'out');
+        d.textContent = text;
+        $body.appendChild(d);
+        $body.scrollTop = $body.scrollHeight;
+    }
+
+    function outMulti(text, cls) {
+        text.split('\n').forEach(line => out(line, cls));
+    }
+
+    /* ── Render Scenario Grid ── */
+    function renderGrid() {
+        const grid = document.getElementById('scenarioGrid');
+        grid.innerHTML = SCENARIOS.map((s, i) => `
+            <div class="scenario-card ${activeScenario === i ? 'active' : ''} ${solved[i] ? 'solved' : ''}" onclick="selectScenario(${i})">
+                <div class="sc-num">Scenario ${i + 1}</div>
+                <div class="sc-title">${s.title}</div>
+                <div class="sc-status">${solved[i] ? 'SOLVED' : s.desc}</div>
+            </div>
+        `).join('');
+    }
+
+    window.selectScenario = function(idx) {
+        activeScenario = idx;
+        const s = SCENARIOS[idx];
+        const deviceNames = Object.keys(s.devices);
+        activeDevice = deviceNames[0];
+
+        // Render detail
+        document.getElementById('scenarioDetail').innerHTML = `
+            <h3>Scenario ${idx + 1}: ${s.title}</h3>
+            <div class="symptom-box">
+                <strong><img src="/assets/images/icons/icon-warning.webp" alt="" width="14" height="14" style="vertical-align:middle"> Reported Symptom</strong>
+                <p>${s.symptom}</p>
+            </div>
+            <div class="topology-mini">${s.topology}</div>
+        `;
+
+        // Device tabs
+        const tabs = document.getElementById('deviceTabs');
+        tabs.innerHTML = deviceNames.map(d => `
+            <div class="device-tab ${d === activeDevice ? 'active' : ''}" onclick="switchDevice('${d}')">${d}</div>
+        `).join('');
+
+        // Steps
+        const stepList = document.getElementById('stepList');
+        stepList.innerHTML = s.steps.map((st, i) => `
+            <li><div class="step-check ${solved[idx] ? 'done' : ''}" id="step${i}"></div><span>${st}</span></li>
+        `).join('');
+
+        document.getElementById('hintText').textContent = s.hint;
+        document.getElementById('hintText').classList.remove('show');
+
+        // Terminal
+        $body.innerHTML = '';
+        const dev = s.devices[activeDevice];
+        out(dev.hostname + ' Console ready. Use show commands to diagnose.', 'info');
+        out('Enter config mode with "configure terminal" to apply fixes.', 'info');
+        out('');
+        $prompt.textContent = dev.hostname + '#';
+        document.getElementById('termTitle').textContent = dev.hostname + ' Console';
+        $input.focus();
+
+        renderGrid();
+    };
+
+    window.switchDevice = function(name) {
+        if (!activeScenario && activeScenario !== 0) return;
+        activeDevice = name;
+        const s = SCENARIOS[activeScenario];
+        document.querySelectorAll('.device-tab').forEach(t => t.classList.toggle('active', t.textContent === name));
+
+        $body.innerHTML = '';
+        const dev = s.devices[name];
+        out(dev.hostname + ' Console ready.', 'info');
+        out('');
+        $prompt.textContent = dev.hostname + '#';
+        document.getElementById('termTitle').textContent = dev.hostname + ' Console';
+        // Reset mode
+        dev.state.mode = 'priv';
+        $input.focus();
+    };
+
+    window.toggleHint = function() {
+        document.getElementById('hintText').classList.toggle('show');
+    };
+
+    function updateProgress() {
+        const done = solved.filter(Boolean).length;
+        document.getElementById('progFill').style.width = (done / 6 * 100) + '%';
+        document.getElementById('progLabel').textContent = done + ' / 6 solved';
+        if (done === 6) {
+            document.getElementById('completeBar').classList.add('show');
+            if (window.ModuleProgress) ModuleProgress.complete('ccna-troubleshooting-lab');
+        }
+    }
+
+    /* ── Command Processor ── */
+    function process(raw) {
+        const cmd = raw.trim();
+        if (!cmd) return;
+        if (activeScenario === null) { out('% Select a scenario first.', 'err'); return; }
+
+        const s = SCENARIOS[activeScenario];
+        const dev = s.devices[activeDevice];
+        const lower = cmd.toLowerCase();
+
+        out(dev.hostname + '# ' + cmd, 'cmd');
+
+        // Navigation
+        if (lower === 'exit' || lower === 'end') {
+            dev.state.mode = 'priv';
+            $prompt.textContent = dev.hostname + '#';
+            return;
+        }
+        if (lower === 'enable') {
+            dev.state.mode = 'priv';
+            $prompt.textContent = dev.hostname + '#';
+            return;
+        }
+        if (lower === 'configure terminal' || lower === 'conf t') {
+            dev.state.mode = 'config';
+            $prompt.textContent = dev.hostname + '(config)#';
+            out('Enter configuration commands, one per line.');
+            return;
+        }
+
+        // Sub-modes
+        if (dev.state.mode === 'config') {
+            if (lower.startsWith('interface ') || lower.startsWith('int ')) {
+                dev.state.mode = 'config-if';
+                dev.state._configIf = cmd.split(/\s+/).slice(1).join(' ');
+                $prompt.textContent = dev.hostname + '(config-if)#';
+                return;
+            }
+            // Try fix function
+            if (dev.fix) {
+                const result = dev.fix(cmd);
+                if (result) {
+                    out(result, 'ok');
+                    if (s.checkSolved()) {
+                        solved[activeScenario] = true;
+                        out('>> Scenario ' + (activeScenario + 1) + ' SOLVED!', 'ok');
+                        document.querySelectorAll('#stepList .step-check').forEach(c => c.classList.add('done'));
+                        renderGrid();
+                        updateProgress();
+                    }
+                    return;
+                }
+            }
+            // Accept some config commands silently
+            out('% Command accepted.', 'info');
+            return;
+        }
+
+        if (dev.state.mode === 'config-if') {
+            // Try fix function
+            if (dev.fix) {
+                const result = dev.fix(cmd);
+                if (result) {
+                    out(result, 'ok');
+                    if (s.checkSolved()) {
+                        solved[activeScenario] = true;
+                        out('>> Scenario ' + (activeScenario + 1) + ' SOLVED!', 'ok');
+                        document.querySelectorAll('#stepList .step-check').forEach(c => c.classList.add('done'));
+                        renderGrid();
+                        updateProgress();
+                    }
+                    return;
+                }
+            }
+            if (lower === 'exit') {
+                dev.state.mode = 'config';
+                $prompt.textContent = dev.hostname + '(config)#';
+                return;
+            }
+            out('% Command accepted.', 'info');
+            return;
+        }
+
+        // Privileged EXEC - show commands
+        if (dev.state.mode === 'priv') {
+            // Match show commands
+            const showKey = Object.keys(dev.show).find(k => {
+                const kl = k.toLowerCase();
+                return lower === kl || lower === kl.replace(/\s+/g, ' ');
+            });
+
+            // Also try partial match
+            if (!showKey) {
+                const partialKey = Object.keys(dev.show).find(k => {
+                    return lower.startsWith(k.toLowerCase().substring(0, 8));
+                });
+                if (partialKey) {
+                    outMulti(dev.show[partialKey]);
+                    return;
+                }
+            }
+
+            if (showKey) {
+                outMulti(dev.show[showKey]);
+                return;
+            }
+
+            // Common show aliases
+            if (lower === 'show run' || lower === 'sh run') {
+                const rc = dev.show['show running-config'];
+                if (rc) { outMulti(rc); return; }
+            }
+            if (lower === 'sh ip int brief' || lower === 'show ip int brief') {
+                const ib = dev.show['show ip interface brief'];
+                if (ib) { outMulti(ib); return; }
+            }
+            if (lower === 'sh int trunk') {
+                const tr = dev.show['show interfaces trunk'];
+                if (tr) { outMulti(tr); return; }
+            }
+            if (lower === 'sh vlan brief' || lower === 'sh vlan br') {
+                const vl = dev.show['show vlan brief'];
+                if (vl) { outMulti(vl); return; }
+            }
+            if (lower === 'sh span' || lower.startsWith('show spanning')) {
+                const st = dev.show['show spanning-tree'];
+                if (st) { outMulti(st); return; }
+            }
+            if (lower.startsWith('show ip ospf nei') || lower === 'sh ip ospf nei') {
+                const on = dev.show['show ip ospf neighbor'];
+                if (on) { outMulti(on); return; }
+            }
+            if (lower.startsWith('show ip ospf int') || lower === 'sh ip ospf int') {
+                // Try matching any key that starts with "show ip ospf interface"
+                for (const k of Object.keys(dev.show)) {
+                    if (k.startsWith('show ip ospf interface')) { outMulti(dev.show[k]); return; }
+                }
+            }
+            if (lower.startsWith('show ip nat')) {
+                for (const k of Object.keys(dev.show)) {
+                    if (k.startsWith('show ip nat') && lower.startsWith(k.substring(0, 15))) { outMulti(dev.show[k]); return; }
+                }
+            }
+            if (lower.startsWith('show ip int ') && !lower.includes('brief')) {
+                for (const k of Object.keys(dev.show)) {
+                    if (k.startsWith('show ip interface') && !k.includes('brief')) { outMulti(dev.show[k]); return; }
+                }
+            }
+            if (lower.startsWith('show ip route') || lower === 'sh ip route') {
+                const rt = dev.show['show ip route'];
+                if (rt) { outMulti(rt); return; }
+            }
+            if (lower.startsWith('show access-list') || lower.startsWith('sh access-list')) {
+                const al = dev.show['show access-lists'];
+                if (al) { outMulti(al); return; }
+            }
+            if (lower.startsWith('copy ')) { out('[OK]', 'ok'); return; }
+            if (lower === 'ping') { out('% Specify destination address.', 'err'); return; }
+            if (lower.startsWith('ping ')) { out('Sending 5 ICMP echo requests...\n!!!!! (simulated)', 'info'); return; }
+
+            out("% Unknown command or no output for '" + cmd + "'", 'err');
+        }
+    }
+
+    $input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { process($input.value); $input.value = ''; }
+    });
+    document.querySelector('.terminal-wrap').addEventListener('click', () => $input.focus());
+
+    renderGrid();
+    updateProgress();
+})();
+</script>
+</body>
+</html>

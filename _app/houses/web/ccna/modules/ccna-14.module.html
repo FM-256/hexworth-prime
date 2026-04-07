@@ -386,6 +386,109 @@ NAT*: s=93.184.216.34, d=203.0.113.1->192.168.1.50 [12346]
             </table>
         </section>
 
+        <!-- Section 11: NAT Operation Order -->
+        <section class="ne-section">
+            <h2 class="ne-section-title">NAT Processing Order</h2>
+            <p class="ne-text">Understanding when NAT translation occurs relative to other operations (routing, ACLs) is critical for troubleshooting. The processing order differs for inbound and outbound traffic.</p>
+            <table class="ne-table">
+                <thead>
+                    <tr><th>Direction</th><th>Processing Order</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Inside to Outside (outbound)</td><td>1. Routing decision, 2. Check outbound ACL, 3. NAT translation (inside local to inside global)</td></tr>
+                    <tr><td>Outside to Inside (inbound)</td><td>1. NAT translation (inside global to inside local), 2. Check inbound ACL, 3. Routing decision</td></tr>
+                </tbody>
+            </table>
+            <div class="ne-callout">
+                <strong>Why This Matters:</strong>
+                <p>ACLs on the outside interface reference the <strong>translated</strong> (global) address for inbound traffic but the <strong>original</strong> (local) address for outbound traffic. Getting this wrong means your ACLs will not match the traffic you intend.</p>
+            </div>
+        </section>
+
+        <!-- Section 12: NAT Scenarios -->
+        <section class="ne-section">
+            <h2 class="ne-section-title">Common NAT Scenarios</h2>
+            <div class="ne-card-grid">
+                <div class="ne-card">
+                    <strong>Small Office / Home Office (SOHO)</strong>
+                    <span>PAT using the ISP-assigned address on the WAN interface. All devices share one public IP. This is the most common deployment on the planet -- every home router does this.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Enterprise Branch Office</strong>
+                    <span>PAT with a pool of public addresses for employee internet access. Static NAT for servers that need inbound access (e.g., VPN concentrator). Separate policies for different traffic types.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Data Center Hosting</strong>
+                    <span>Static NAT 1:1 mapping for each public-facing server. Web servers, mail servers, DNS servers each get a dedicated public IP. Firewall rules control which services are exposed.</span>
+                </div>
+                <div class="ne-card">
+                    <strong>Overlapping Address Spaces</strong>
+                    <span>When two organizations with the same RFC 1918 ranges merge or connect via VPN. NAT translates both sides to unique address spaces to prevent conflicts.</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 13: Exam Practice -->
+        <section class="ne-section">
+            <h2 class="ne-section-title">Exam-Style Command Reference</h2>
+            <div class="ne-code">
+<span class="comment">! ── Complete PAT Configuration Walkthrough ──</span>
+
+<span class="comment">! Scenario: 192.168.10.0/24 network needs internet access</span>
+<span class="comment">! WAN interface: GigabitEthernet0/1 (DHCP from ISP)</span>
+<span class="comment">! LAN interface: GigabitEthernet0/0 (192.168.10.1/24)</span>
+
+<span class="prompt">Router(config)#</span> interface GigabitEthernet0/0
+<span class="prompt">Router(config-if)#</span> ip address 192.168.10.1 255.255.255.0
+<span class="prompt">Router(config-if)#</span> <span class="highlight">ip nat inside</span>
+<span class="prompt">Router(config-if)#</span> no shutdown
+
+<span class="prompt">Router(config)#</span> interface GigabitEthernet0/1
+<span class="prompt">Router(config-if)#</span> ip address dhcp
+<span class="prompt">Router(config-if)#</span> <span class="highlight">ip nat outside</span>
+<span class="prompt">Router(config-if)#</span> no shutdown
+
+<span class="prompt">Router(config)#</span> access-list 1 permit <span class="value">192.168.10.0 0.0.0.255</span>
+<span class="prompt">Router(config)#</span> <span class="highlight">ip nat inside source list 1 interface GigabitEthernet0/1 overload</span>
+
+<span class="comment">! ── Verification checklist ──</span>
+<span class="prompt">Router#</span> show ip nat translations      <span class="comment">! Active translations</span>
+<span class="prompt">Router#</span> show ip nat statistics        <span class="comment">! Hit/miss counts</span>
+<span class="prompt">Router#</span> show ip interface brief       <span class="comment">! Verify interfaces are up</span>
+<span class="prompt">Router#</span> show access-lists             <span class="comment">! Verify ACL matches</span>
+<span class="prompt">Router#</span> show running-config | include nat  <span class="comment">! NAT config lines</span>
+            </div>
+            <div class="ne-code">
+<span class="comment">! ── Complete Static NAT + PAT Combination ──</span>
+<span class="comment">! Static: Web server 192.168.10.100 --> 203.0.113.10</span>
+<span class="comment">! PAT: All other hosts share 203.0.113.1</span>
+
+<span class="prompt">Router(config)#</span> ip nat inside source static <span class="value">192.168.10.100</span> <span class="highlight">203.0.113.10</span>
+<span class="prompt">Router(config)#</span> access-list 1 deny host 192.168.10.100
+<span class="comment">! Exclude the web server from PAT (already has static)</span>
+<span class="prompt">Router(config)#</span> access-list 1 permit 192.168.10.0 0.0.0.255
+<span class="prompt">Router(config)#</span> ip nat inside source list 1 interface Gi0/1 overload
+            </div>
+        </section>
+
+        <!-- Section 14: NAT Comparison Table -->
+        <section class="ne-section">
+            <h2 class="ne-section-title">NAT Types -- Quick Comparison</h2>
+            <table class="ne-table">
+                <thead>
+                    <tr><th>Feature</th><th>Static NAT</th><th>Dynamic NAT</th><th>PAT (Overload)</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Mapping</td><td>1:1 permanent</td><td>1:1 from pool</td><td>Many:1 using ports</td></tr>
+                    <tr><td>Address Conservation</td><td>None</td><td>Some</td><td>Maximum</td></tr>
+                    <tr><td>Inbound Access</td><td>Yes (always mapped)</td><td>No (dynamic)</td><td>No (requires port forwarding)</td></tr>
+                    <tr><td>Pool Exhaustion</td><td>N/A</td><td>Yes (drops new connections)</td><td>Rare (~65K ports per IP)</td></tr>
+                    <tr><td>Configuration Keyword</td><td>ip nat inside source static</td><td>ip nat inside source list ... pool</td><td>... pool ... overload</td></tr>
+                    <tr><td>Use Case</td><td>Servers</td><td>Medium networks</td><td>Everything else</td></tr>
+                </tbody>
+            </table>
+        </section>
+
         <div class="ne-takeaways">
             <h3>Key Takeaways</h3>
             <ul>

@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSPF Configuration Lab | CCNA</title>
+    <style>
+        :root {
+            --cisco-primary: #10b981;
+            --cisco-secondary: #34d399;
+            --cisco-accent: #6ee7b7;
+            --cisco-dark: #047857;
+            --bg-dark: #090910;
+            --bg-card: #111120;
+            --bg-card-hover: #191930;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: rgba(16, 185, 129, 0.15);
+            --border-hover: rgba(16, 185, 129, 0.4);
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark); color: var(--text-primary);
+            min-height: 100vh; line-height: 1.6;
+        }
+        .lab-container { max-width: 1300px; margin: 0 auto; padding: 1.5rem; }
+        .back-link {
+            display: inline-flex; align-items: center; gap: 6px;
+            color: var(--cisco-primary); text-decoration: none; font-size: 0.85rem;
+            padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border-color);
+            background: rgba(16,185,129,0.05); transition: all 0.2s; margin-bottom: 1rem;
+        }
+        .back-link:hover { color: var(--cisco-secondary); border-color: var(--border-hover); }
+        .lab-header {
+            text-align: center; margin-bottom: 1.5rem; padding: 2rem;
+            background: linear-gradient(135deg, #064e3b 0%, #0a3d2e 50%, #064e3b 100%);
+            border-radius: 16px; border: 1px solid var(--border-color);
+            box-shadow: 0 0 20px rgba(16,185,129,0.15);
+        }
+        .lab-header h1 {
+            font-size: 2rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--cisco-primary), var(--cisco-accent));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-secondary); font-size: 0.85rem; }
+
+        /* Topology */
+        .topology-section {
+            background: var(--bg-card); border-radius: 10px; padding: 1.25rem;
+            border: 1px solid var(--border-color); margin-bottom: 1.5rem;
+        }
+        .topology-section h3 { color: var(--cisco-secondary); font-size: 0.95rem; margin-bottom: 1rem; }
+        .topo-canvas {
+            background: #0a0a14; border-radius: 8px; padding: 20px;
+            border: 1px solid #222; position: relative; min-height: 280px;
+        }
+        .topo-svg { width: 100%; height: 260px; }
+        .topo-svg text { font-family: 'Consolas', monospace; font-size: 11px; }
+        .topo-svg .router-label { fill: var(--cisco-accent); font-size: 14px; font-weight: bold; }
+        .topo-svg .ip-label { fill: var(--text-secondary); font-size: 10px; }
+        .topo-svg .link-line { stroke: #333; stroke-width: 2; }
+        .topo-svg .link-active { stroke: var(--cisco-primary); stroke-width: 2; }
+        .topo-svg .net-label { fill: var(--warning); font-size: 10px; }
+        .topo-svg .router-box { fill: #1a1a2e; stroke: var(--cisco-primary); stroke-width: 2; rx: 8; }
+        .topo-svg .router-box.active { stroke: var(--cisco-accent); stroke-width: 3; fill: #142820; }
+        .topo-svg .lan-circle { fill: none; stroke: var(--vlan10, #3b82f6); stroke-width: 1.5; stroke-dasharray: 5,3; }
+
+        .neighbor-state {
+            margin-top: 12px; font-size: 0.8rem;
+        }
+        .neighbor-state h4 { color: var(--cisco-secondary); margin-bottom: 6px; }
+        .nbr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+        .nbr-card {
+            background: #0a0a14; border: 1px solid #222; border-radius: 6px; padding: 8px 12px;
+        }
+        .nbr-card .nbr-name { color: var(--cisco-accent); font-weight: 600; }
+        .nbr-card .nbr-status { font-size: 0.75rem; margin-top: 2px; }
+        .nbr-card .nbr-status.full { color: var(--success); }
+        .nbr-card .nbr-status.down { color: var(--danger); }
+        .nbr-card .nbr-status.init { color: var(--warning); }
+
+        /* Router Tabs */
+        .router-tabs {
+            display: flex; gap: 8px; margin-bottom: 1rem;
+        }
+        .router-tab {
+            padding: 8px 20px; background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .router-tab:hover { border-color: var(--border-hover); color: var(--cisco-primary); }
+        .router-tab.active {
+            background: rgba(16,185,129,0.15); border-color: var(--cisco-primary);
+            color: var(--cisco-accent); font-weight: 600;
+        }
+
+        .main-layout { display: grid; grid-template-columns: 1fr 320px; gap: 1.5rem; }
+        @media (max-width: 1000px) { .main-layout { grid-template-columns: 1fr; } }
+
+        /* Terminal */
+        .terminal-wrap {
+            background: #000; border-radius: 10px; overflow: hidden;
+            border: 1px solid rgba(16,185,129,0.3);
+        }
+        .terminal-bar {
+            background: #1a1a2a; padding: 8px 14px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .t-dot { width: 11px; height: 11px; border-radius: 50%; }
+        .t-dot.r { background: #ff5f56; } .t-dot.y { background: #ffbd2e; } .t-dot.g { background: #27ca40; }
+        .terminal-bar span { color: var(--text-muted); font-size: 0.8rem; margin-left: 8px; }
+        .terminal-body {
+            padding: 12px 16px; height: 350px; overflow-y: auto;
+            font-family: 'Consolas','Courier New', monospace; font-size: 0.85rem;
+        }
+        .terminal-body::-webkit-scrollbar { width: 6px; }
+        .terminal-body::-webkit-scrollbar-thumb { background: rgba(16,185,129,0.3); border-radius: 3px; }
+        .t-line { margin-bottom: 1px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; }
+        .t-line.cmd { color: #fff; } .t-line.out { color: #ccc; }
+        .t-line.err { color: #ff5555; } .t-line.ok { color: var(--success); }
+        .t-line.info { color: var(--cisco-primary); }
+        .input-row { display: flex; align-items: center; margin-top: 4px; }
+        .prompt-text { color: var(--cisco-primary); margin-right: 4px; white-space: nowrap; font-weight: bold; }
+        .cli-input {
+            flex: 1; background: transparent; border: none; color: #fff;
+            font-family: inherit; font-size: inherit; outline: none; caret-color: var(--cisco-accent);
+        }
+
+        /* Task Panel */
+        .task-panel {
+            background: var(--bg-card); border-radius: 10px; padding: 1.25rem;
+            border: 1px solid var(--border-color); align-self: start;
+        }
+        .task-panel h3 { color: var(--cisco-secondary); font-size: 1rem; margin-bottom: 1rem; }
+        .task-item {
+            display: flex; align-items: flex-start; gap: 0.6rem;
+            padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.85rem; color: var(--text-secondary);
+        }
+        .task-item:last-child { border-bottom: none; }
+        .task-icon {
+            width: 22px; height: 22px; border-radius: 4px; flex-shrink: 0;
+            border: 2px solid var(--text-muted); display: flex; align-items: center;
+            justify-content: center; margin-top: 1px; transition: all 0.3s;
+        }
+        .task-icon.done { background: var(--success); border-color: var(--success); }
+        .task-icon.done::after { content: ''; display: block; width: 10px; height: 10px; background: url('/assets/images/icons/icon-check.webp') center/contain no-repeat; }
+        .task-item.done .task-text { color: var(--success); text-decoration: line-through; }
+        .progress-wrap { margin-top: 1rem; }
+        .prog-bar { height: 8px; background: rgba(16,185,129,0.1); border-radius: 4px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--cisco-dark), var(--cisco-primary)); border-radius: 4px; transition: width 0.5s; }
+        .prog-label { text-align: right; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+        .hint-section {
+            background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25);
+            border-radius: 8px; padding: 0.75rem 1rem; margin-top: 1rem; font-size: 0.8rem;
+        }
+        .hint-section strong { color: var(--warning); }
+        .hint-section p { color: var(--text-secondary); margin-top: 0.25rem; }
+        .complete-bar {
+            margin-top: 1.5rem; padding: 1.5rem; background: var(--bg-card);
+            border-radius: 10px; border: 1px solid var(--border-color); text-align: center; display: none;
+        }
+        .complete-bar.show { display: block; }
+        .complete-bar h2 { color: var(--success); margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+<div class="lab-container">
+    <a href="../index.html" class="back-link">
+        <img src="/assets/images/icons/icon-arrow-left.webp" alt="" width="14" height="14"> Back to CCNA Hub
+    </a>
+
+    <header class="lab-header">
+        <h1>OSPF Configuration Lab</h1>
+        <p class="subtitle">Configure single-area OSPF across a three-router triangle topology</p>
+        <div class="lab-meta">
+            <span class="meta-item">90 minutes</span>
+            <span class="meta-item">Intermediate</span>
+            <span class="meta-item">5 Tasks</span>
+        </div>
+    </header>
+
+    <!-- Topology -->
+    <div class="topology-section">
+        <h3><img src="/assets/images/icons/icon-network.webp" alt="" width="16" height="16" style="vertical-align:middle"> Network Topology — OSPF Area 0</h3>
+        <div class="topo-canvas">
+            <svg class="topo-svg" viewBox="0 0 700 260">
+                <!-- Links -->
+                <line x1="200" y1="60" x2="500" y2="60" class="link-line" id="linkR1R2"/>
+                <line x1="200" y1="60" x2="350" y2="220" class="link-line" id="linkR1R3"/>
+                <line x1="500" y1="60" x2="350" y2="220" class="link-line" id="linkR2R3"/>
+
+                <!-- R1 -->
+                <rect x="140" y="30" width="120" height="60" class="router-box active" id="boxR1"/>
+                <text x="200" y="55" text-anchor="middle" class="router-label">R1</text>
+                <text x="200" y="75" text-anchor="middle" class="ip-label">10.0.12.1/30</text>
+                <text x="130" y="50" text-anchor="end" class="ip-label">Gi0/0: 192.168.1.1/24</text>
+                <text x="150" y="110" class="net-label">LAN: 192.168.1.0/24</text>
+                <ellipse cx="170" cy="125" rx="55" ry="15" class="lan-circle" style="stroke:#3b82f6"/>
+
+                <!-- R2 -->
+                <rect x="440" y="30" width="120" height="60" class="router-box" id="boxR2"/>
+                <text x="500" y="55" text-anchor="middle" class="router-label">R2</text>
+                <text x="500" y="75" text-anchor="middle" class="ip-label">10.0.12.2/30</text>
+                <text x="570" y="50" text-anchor="start" class="ip-label">Gi0/0: 192.168.2.1/24</text>
+                <text x="490" y="110" class="net-label">LAN: 192.168.2.0/24</text>
+                <ellipse cx="530" cy="125" rx="55" ry="15" class="lan-circle" style="stroke:#f59e0b"/>
+
+                <!-- R3 -->
+                <rect x="290" y="190" width="120" height="60" class="router-box" id="boxR3"/>
+                <text x="350" y="215" text-anchor="middle" class="router-label">R3</text>
+                <text x="350" y="235" text-anchor="middle" class="ip-label">10.0.13.2 | 10.0.23.2</text>
+                <text x="420" y="240" class="ip-label">Gi0/0: 192.168.3.1/24</text>
+
+                <!-- Link labels -->
+                <text x="350" y="50" text-anchor="middle" class="net-label">10.0.12.0/30</text>
+                <text x="250" y="155" text-anchor="middle" class="net-label">10.0.13.0/30</text>
+                <text x="450" y="155" text-anchor="middle" class="net-label">10.0.23.0/30</text>
+            </svg>
+        </div>
+        <div class="neighbor-state">
+            <h4>OSPF Neighbor State</h4>
+            <div class="nbr-grid" id="nbrGrid">
+                <div class="nbr-card"><span class="nbr-name">R1 -- R2</span><div class="nbr-status down" id="nbrR1R2">DOWN</div></div>
+                <div class="nbr-card"><span class="nbr-name">R1 -- R3</span><div class="nbr-status down" id="nbrR1R3">DOWN</div></div>
+                <div class="nbr-card"><span class="nbr-name">R2 -- R3</span><div class="nbr-status down" id="nbrR2R3">DOWN</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Router Tabs -->
+    <div class="router-tabs">
+        <div class="router-tab active" data-router="R1" onclick="switchRouter('R1')">R1</div>
+        <div class="router-tab" data-router="R2" onclick="switchRouter('R2')">R2</div>
+        <div class="router-tab" data-router="R3" onclick="switchRouter('R3')">R3</div>
+    </div>
+
+    <div class="main-layout">
+        <div>
+            <div class="terminal-wrap">
+                <div class="terminal-bar">
+                    <div class="t-dot r"></div><div class="t-dot y"></div><div class="t-dot g"></div>
+                    <span id="termTitle">R1 Console</span>
+                </div>
+                <div class="terminal-body" id="termBody"></div>
+                <div style="padding: 0 16px 12px;">
+                    <div class="input-row">
+                        <span class="prompt-text" id="cliPrompt">R1#</span>
+                        <input type="text" class="cli-input" id="cliInput" autocomplete="off" spellcheck="false" autofocus>
+                    </div>
+                </div>
+            </div>
+            <div class="hint-section">
+                <strong><img src="/assets/images/icons/icon-info.webp" alt="" width="14" height="14" style="vertical-align:middle"> Hint</strong>
+                <p id="hintText">Enter global config with <code>configure terminal</code>, then <code>router ospf 1</code>. Add networks with <code>network [addr] [wildcard] area 0</code>.</p>
+            </div>
+        </div>
+
+        <div class="task-panel">
+            <h3><img src="/assets/images/icons/icon-list.webp" alt="" width="16" height="16" style="vertical-align:middle"> Lab Tasks</h3>
+            <div id="taskList">
+                <div class="task-item"><div class="task-icon" id="ti0"></div><span class="task-text">Configure OSPF on R1 with correct network statements</span></div>
+                <div class="task-item"><div class="task-icon" id="ti1"></div><span class="task-text">Configure OSPF on R2 and R3</span></div>
+                <div class="task-item"><div class="task-icon" id="ti2"></div><span class="task-text">Set passive interfaces on LAN interfaces (Gi0/0)</span></div>
+                <div class="task-item"><div class="task-icon" id="ti3"></div><span class="task-text">Verify OSPF neighbor adjacencies reach FULL state</span></div>
+                <div class="task-item"><div class="task-icon" id="ti4"></div><span class="task-text">Verify OSPF routes with show ip route</span></div>
+            </div>
+            <div class="progress-wrap">
+                <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+                <div class="prog-label" id="progLabel">0 / 5 complete</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="complete-bar" id="completeBar">
+        <h2><img src="/assets/images/icons/icon-checkmark.webp" alt="" width="24" height="24" style="vertical-align:middle"> Lab Complete</h2>
+        <p>OSPF adjacencies established. All routes learned dynamically. Single-area OSPF operational.</p>
+    </div>
+</div>
+
+<script>
+(function() {
+    /* ── Topology definition ── */
+    const TOPO = {
+        R1: {
+            interfaces: {
+                'GigabitEthernet0/0': { ip: '192.168.1.1', mask: '255.255.255.0', network: '192.168.1.0', wildcard: '0.0.0.255', up: true, type: 'LAN' },
+                'Serial0/0/0': { ip: '10.0.12.1', mask: '255.255.255.252', network: '10.0.12.0', wildcard: '0.0.0.3', up: true, peer: 'R2', type: 'WAN' },
+                'Serial0/0/1': { ip: '10.0.13.1', mask: '255.255.255.252', network: '10.0.13.0', wildcard: '0.0.0.3', up: true, peer: 'R3', type: 'WAN' }
+            }
+        },
+        R2: {
+            interfaces: {
+                'GigabitEthernet0/0': { ip: '192.168.2.1', mask: '255.255.255.0', network: '192.168.2.0', wildcard: '0.0.0.255', up: true, type: 'LAN' },
+                'Serial0/0/0': { ip: '10.0.12.2', mask: '255.255.255.252', network: '10.0.12.0', wildcard: '0.0.0.3', up: true, peer: 'R1', type: 'WAN' },
+                'Serial0/0/1': { ip: '10.0.23.1', mask: '255.255.255.252', network: '10.0.23.0', wildcard: '0.0.0.3', up: true, peer: 'R3', type: 'WAN' }
+            }
+        },
+        R3: {
+            interfaces: {
+                'GigabitEthernet0/0': { ip: '192.168.3.1', mask: '255.255.255.0', network: '192.168.3.0', wildcard: '0.0.0.255', up: true, type: 'LAN' },
+                'Serial0/0/0': { ip: '10.0.13.2', mask: '255.255.255.252', network: '10.0.13.0', wildcard: '0.0.0.3', up: true, peer: 'R1', type: 'WAN' },
+                'Serial0/0/1': { ip: '10.0.23.2', mask: '255.255.255.252', network: '10.0.23.0', wildcard: '0.0.0.3', up: true, peer: 'R2', type: 'WAN' }
+            }
+        }
+    };
+
+    /* ── Per-router state ── */
+    const routers = {};
+    for (const name of ['R1', 'R2', 'R3']) {
+        routers[name] = {
+            hostname: name,
+            mode: 'priv',
+            configIf: '',
+            ospf: { pid: 0, networks: [], passiveIfs: [], rid: '' },
+            history: [],
+            termLines: []
+        };
+    }
+
+    let activeRouter = 'R1';
+    const tasks = [false, false, false, false, false];
+    const hints = [
+        'On R1: <code>router ospf 1</code>, then <code>network 192.168.1.0 0.0.0.255 area 0</code>, <code>network 10.0.12.0 0.0.0.3 area 0</code>, <code>network 10.0.13.0 0.0.0.3 area 0</code>.',
+        'Switch to R2/R3 tabs and configure OSPF with the correct networks for each router.',
+        'Under <code>router ospf 1</code>, use <code>passive-interface GigabitEthernet0/0</code> on each router.',
+        'Run <code>show ip ospf neighbor</code> and verify adjacencies show FULL state.',
+        'Run <code>show ip route</code> and confirm "O" routes appear for remote networks.'
+    ];
+
+    const $body = document.getElementById('termBody');
+    const $input = document.getElementById('cliInput');
+    const $prompt = document.getElementById('cliPrompt');
+    const $hint = document.getElementById('hintText');
+    $hint.innerHTML = hints[0];
+
+    function R() { return routers[activeRouter]; }
+
+    const MODES = {
+        user: (r) => r.hostname + '>',
+        priv: (r) => r.hostname + '#',
+        config: (r) => r.hostname + '(config)#',
+        'config-if': (r) => r.hostname + '(config-if)#',
+        'config-router': (r) => r.hostname + '(config-router)#'
+    };
+
+    function out(text, cls) {
+        const d = document.createElement('div');
+        d.className = 't-line ' + (cls || 'out');
+        d.textContent = text;
+        $body.appendChild(d);
+        R().termLines.push({ text, cls: cls || 'out' });
+        $body.scrollTop = $body.scrollHeight;
+    }
+
+    function updatePrompt() {
+        $prompt.textContent = MODES[R().mode](R());
+        document.getElementById('termTitle').textContent = activeRouter + ' Console';
+    }
+
+    window.switchRouter = function(name) {
+        // Save current terminal
+        routers[activeRouter].termLines = [];
+        const lines = $body.querySelectorAll('.t-line');
+        lines.forEach(l => routers[activeRouter].termLines.push({ text: l.textContent, cls: l.className.replace('t-line ', '') }));
+
+        activeRouter = name;
+        document.querySelectorAll('.router-tab').forEach(t => t.classList.toggle('active', t.dataset.router === name));
+        document.querySelectorAll('.router-box').forEach(b => b.classList.remove('active'));
+        document.getElementById('box' + name).classList.add('active');
+
+        // Restore terminal
+        $body.innerHTML = '';
+        R().termLines.forEach(l => {
+            const d = document.createElement('div');
+            d.className = 't-line ' + l.cls;
+            d.textContent = l.text;
+            $body.appendChild(d);
+        });
+        if (R().termLines.length === 0) {
+            out(name + ' Console ready.', 'info');
+        }
+        updatePrompt();
+        $input.focus();
+    };
+
+    /* ── OSPF Neighbor Calculation ── */
+    function getNeighborState(r1, r2) {
+        const o1 = routers[r1].ospf;
+        const o2 = routers[r2].ospf;
+        if (!o1.pid || !o2.pid) return 'DOWN';
+        // Find shared link
+        for (const [ifName, iface] of Object.entries(TOPO[r1].interfaces)) {
+            if (iface.peer === r2) {
+                const net = iface.network;
+                const wc = iface.wildcard;
+                const r1HasNet = o1.networks.some(n => n.network === net);
+                const r2If = Object.values(TOPO[r2].interfaces).find(i => i.peer === r1);
+                const r2HasNet = r2If && o2.networks.some(n => n.network === r2If.network);
+                // Check passive
+                const r1Passive = o1.passiveIfs.includes(ifName);
+                const r2IfName = Object.entries(TOPO[r2].interfaces).find(([, i]) => i.peer === r1);
+                const r2Passive = r2IfName && o2.passiveIfs.includes(r2IfName[0]);
+                if (r1HasNet && r2HasNet && !r1Passive && !r2Passive) return 'FULL';
+                if (r1HasNet || r2HasNet) return 'INIT';
+            }
+        }
+        return 'DOWN';
+    }
+
+    function updateNeighborDisplay() {
+        const pairs = [['R1','R2','nbrR1R2','linkR1R2'], ['R1','R3','nbrR1R3','linkR1R3'], ['R2','R3','nbrR2R3','linkR2R3']];
+        pairs.forEach(([a, b, elemId, linkId]) => {
+            const state = getNeighborState(a, b);
+            const el = document.getElementById(elemId);
+            const link = document.getElementById(linkId);
+            el.textContent = state;
+            el.className = 'nbr-status ' + state.toLowerCase();
+            link.className = state === 'FULL' ? 'link-active' : 'link-line';
+        });
+    }
+
+    function completeTask(idx) {
+        if (tasks[idx]) return;
+        tasks[idx] = true;
+        document.getElementById('ti' + idx).classList.add('done');
+        document.getElementById('ti' + idx).closest('.task-item').classList.add('done');
+        const done = tasks.filter(Boolean).length;
+        document.getElementById('progFill').style.width = (done / tasks.length * 100) + '%';
+        document.getElementById('progLabel').textContent = done + ' / ' + tasks.length + ' complete';
+        out('>> Task ' + (idx + 1) + ' complete!', 'ok');
+        for (let i = 0; i < tasks.length; i++) { if (!tasks[i]) { $hint.innerHTML = hints[i]; break; } }
+        if (done === tasks.length) {
+            document.getElementById('completeBar').classList.add('show');
+            $hint.innerHTML = 'All tasks complete!';
+            if (window.ModuleProgress) ModuleProgress.complete('ccna-ospf-config-lab');
+        }
+    }
+
+    function checkTasks() {
+        // Task 0: R1 OSPF configured with correct networks
+        const r1o = routers.R1.ospf;
+        const r1Nets = r1o.networks.map(n => n.network);
+        if (r1o.pid && r1Nets.includes('192.168.1.0') && r1Nets.includes('10.0.12.0') && r1Nets.includes('10.0.13.0')) completeTask(0);
+
+        // Task 1: R2 and R3 configured
+        const r2o = routers.R2.ospf;
+        const r3o = routers.R3.ospf;
+        const r2Nets = r2o.networks.map(n => n.network);
+        const r3Nets = r3o.networks.map(n => n.network);
+        if (r2o.pid && r2Nets.length >= 2 && r3o.pid && r3Nets.length >= 2) completeTask(1);
+
+        // Task 2: Passive interfaces on Gi0/0
+        if (r1o.passiveIfs.includes('GigabitEthernet0/0') &&
+            r2o.passiveIfs.includes('GigabitEthernet0/0') &&
+            r3o.passiveIfs.includes('GigabitEthernet0/0')) completeTask(2);
+
+        // Tasks 3 & 4 checked in show commands
+        updateNeighborDisplay();
+    }
+
+    function resolveIf(raw) {
+        const r = raw.replace(/\s+/g, '').toLowerCase();
+        if (r.startsWith('gi') || r.startsWith('gigabitethernet')) {
+            return 'GigabitEthernet0/0';
+        }
+        if (r.startsWith('se') || r.startsWith('serial')) {
+            const num = r.replace(/^(serial|se)/, '');
+            if (num.includes('0/0/1') || num === '1') return 'Serial0/0/1';
+            return 'Serial0/0/0';
+        }
+        return null;
+    }
+
+    /* ── Command Processor ── */
+    function process(raw) {
+        const cmd = raw.trim();
+        if (!cmd) return;
+        const r = R();
+        out(MODES[r.mode](r) + ' ' + cmd, 'cmd');
+        const lower = cmd.toLowerCase();
+        const parts = lower.split(/\s+/);
+
+        if (lower === 'exit') {
+            if (r.mode === 'config-if' || r.mode === 'config-router') r.mode = 'config';
+            else if (r.mode === 'config') r.mode = 'priv';
+            else if (r.mode === 'priv') r.mode = 'user';
+            updatePrompt(); checkTasks(); return;
+        }
+        if (lower === 'end') {
+            if (r.mode !== 'user') r.mode = 'priv';
+            r.configIf = ''; updatePrompt(); checkTasks(); return;
+        }
+
+        /* User */
+        if (r.mode === 'user') {
+            if (lower === 'enable') { r.mode = 'priv'; updatePrompt(); }
+            else out("% Unknown command", 'err');
+            return;
+        }
+
+        /* Priv */
+        if (r.mode === 'priv') {
+            if (lower === 'configure terminal' || lower === 'conf t') {
+                r.mode = 'config'; out('Enter configuration commands, one per line.'); updatePrompt();
+            } else if (lower === 'show ip ospf neighbor' || lower === 'sh ip ospf nei') {
+                out('');
+                out('Neighbor ID     Pri   State           Dead Time   Address         Interface');
+                for (const [rn, rv] of Object.entries(routers)) {
+                    if (rn === activeRouter) continue;
+                    for (const [ifn, iface] of Object.entries(TOPO[activeRouter].interfaces)) {
+                        if (iface.peer === rn) {
+                            const state = getNeighborState(activeRouter, rn);
+                            if (state !== 'DOWN') {
+                                const peerIf = Object.values(TOPO[rn].interfaces).find(i => i.peer === activeRouter);
+                                out(peerIf.ip.padEnd(16) + '1     ' + (state + '/BDR').padEnd(16) + '00:00:32    ' + peerIf.ip.padEnd(16) + ifn);
+                            }
+                        }
+                    }
+                }
+                // Check task 3
+                const allFull = getNeighborState('R1','R2') === 'FULL' && getNeighborState('R1','R3') === 'FULL' && getNeighborState('R2','R3') === 'FULL';
+                if (allFull) completeTask(3);
+            } else if (lower.startsWith('show ip route') || lower === 'sh ip route') {
+                out('Codes: C - connected, S - static, O - OSPF');
+                out('       [110/x] - OSPF metric');
+                out('');
+                // Connected routes
+                for (const [ifn, iface] of Object.entries(TOPO[activeRouter].interfaces)) {
+                    out('C    ' + iface.network + '/' + maskToCidr(iface.mask) + ' is directly connected, ' + ifn);
+                }
+                // OSPF learned routes
+                for (const [rn, rv] of Object.entries(routers)) {
+                    if (rn === activeRouter) continue;
+                    const state = getNeighborState(activeRouter, rn);
+                    if (state === 'FULL') {
+                        for (const [ifn, iface] of Object.entries(TOPO[rn].interfaces)) {
+                            const alreadyConnected = Object.values(TOPO[activeRouter].interfaces).some(i => i.network === iface.network);
+                            if (!alreadyConnected) {
+                                const via = Object.values(TOPO[rn].interfaces).find(i => i.peer === activeRouter);
+                                if (via) out('O    ' + iface.network + '/' + maskToCidr(iface.mask) + ' [110/65] via ' + via.ip);
+                            }
+                        }
+                    }
+                }
+                // Check task 4
+                const allFull2 = getNeighborState('R1','R2') === 'FULL' && getNeighborState('R1','R3') === 'FULL' && getNeighborState('R2','R3') === 'FULL';
+                if (allFull2) completeTask(4);
+            } else if (lower === 'show ip ospf interface' || lower === 'sh ip ospf int') {
+                for (const [ifn, iface] of Object.entries(TOPO[activeRouter].interfaces)) {
+                    const inOspf = r.ospf.networks.some(n => n.network === iface.network);
+                    if (inOspf) {
+                        const passive = r.ospf.passiveIfs.includes(ifn);
+                        out(ifn + ' is up, line protocol is up');
+                        out('  Internet Address ' + iface.ip + '/' + maskToCidr(iface.mask) + ', Area 0');
+                        out('  Process ID ' + r.ospf.pid + ', Router ID ' + r.ospf.rid);
+                        out('  Network Type POINT_TO_POINT, Cost: 64');
+                        if (passive) out('  No Hellos (Passive interface)');
+                        out('  Hello 10, Dead 40, Retransmit 5');
+                        out('');
+                    }
+                }
+            } else if (lower === 'show running-config' || lower === 'show run') {
+                out('hostname ' + r.hostname);
+                out('!');
+                for (const [ifn, iface] of Object.entries(TOPO[activeRouter].interfaces)) {
+                    out('interface ' + ifn);
+                    out(' ip address ' + iface.ip + ' ' + iface.mask);
+                    out(' no shutdown');
+                    out('!');
+                }
+                if (r.ospf.pid) {
+                    out('router ospf ' + r.ospf.pid);
+                    r.ospf.networks.forEach(n => out(' network ' + n.network + ' ' + n.wildcard + ' area ' + n.area));
+                    r.ospf.passiveIfs.forEach(i => out(' passive-interface ' + i));
+                    out('!');
+                }
+                out('end');
+            } else if (lower === 'show ip interface brief' || lower === 'sh ip int brief') {
+                out('Interface                  IP-Address      OK? Method Status                Protocol');
+                for (const [ifn, iface] of Object.entries(TOPO[activeRouter].interfaces)) {
+                    out(ifn.padEnd(27) + iface.ip.padEnd(16) + 'YES manual  up'.padEnd(22) + '                up');
+                }
+            } else if (lower.startsWith('copy ')) { out('[OK]', 'ok');
+            } else { out("% Unknown command", 'err'); }
+            checkTasks(); return;
+        }
+
+        /* Config */
+        if (r.mode === 'config') {
+            if (parts[0] === 'hostname' && parts[1]) {
+                r.hostname = cmd.split(/\s+/)[1]; updatePrompt();
+            } else if (lower.startsWith('router ospf ')) {
+                const pid = parseInt(parts[2]);
+                if (pid >= 1 && pid <= 65535) {
+                    r.ospf.pid = pid;
+                    if (!r.ospf.rid) {
+                        const firstIp = Object.values(TOPO[activeRouter].interfaces)[0].ip;
+                        r.ospf.rid = firstIp;
+                    }
+                    r.mode = 'config-router'; updatePrompt();
+                } else { out('% Invalid OSPF process ID', 'err'); }
+            } else if (lower.startsWith('interface ') || lower.startsWith('int ')) {
+                const ifRaw = cmd.split(/\s+/).slice(1).join(' ');
+                const ifName = resolveIf(ifRaw);
+                if (ifName && TOPO[activeRouter].interfaces[ifName]) {
+                    r.configIf = ifName; r.mode = 'config-if'; updatePrompt();
+                } else { out('% Invalid interface', 'err'); }
+            } else { out("% Unknown command", 'err'); }
+            checkTasks(); return;
+        }
+
+        /* Config-router (OSPF) */
+        if (r.mode === 'config-router') {
+            if (lower.startsWith('network ')) {
+                // network x.x.x.x y.y.y.y area z
+                const m = lower.match(/network\s+(\S+)\s+(\S+)\s+area\s+(\d+)/);
+                if (m) {
+                    const entry = { network: m[1], wildcard: m[2], area: parseInt(m[3]) };
+                    const exists = r.ospf.networks.some(n => n.network === entry.network && n.wildcard === entry.wildcard);
+                    if (!exists) r.ospf.networks.push(entry);
+                } else { out('% Incomplete command. Usage: network [addr] [wildcard] area [id]', 'err'); }
+            } else if (lower.startsWith('passive-interface ')) {
+                const ifRaw = cmd.split(/\s+/).slice(1).join(' ');
+                const ifName = resolveIf(ifRaw);
+                if (ifName) {
+                    if (!r.ospf.passiveIfs.includes(ifName)) r.ospf.passiveIfs.push(ifName);
+                } else { out('% Invalid interface', 'err'); }
+            } else if (lower.startsWith('router-id ')) {
+                r.ospf.rid = parts[1];
+            } else if (lower.startsWith('no network ')) {
+                const m2 = lower.match(/no network\s+(\S+)\s+(\S+)\s+area\s+(\d+)/);
+                if (m2) r.ospf.networks = r.ospf.networks.filter(n => n.network !== m2[1]);
+            } else { out("% Unknown router config command", 'err'); }
+            checkTasks(); return;
+        }
+
+        /* Config-if */
+        if (r.mode === 'config-if') {
+            // Interface is pre-configured, mostly accept silently
+            if (lower.startsWith('ip address ')) {
+                out('% Interfaces are pre-configured in this lab.', 'info');
+            } else if (lower === 'no shutdown') {
+                out('%LINK-3-UPDOWN: Interface ' + r.configIf + ', changed state to up', 'ok');
+            } else { out("% Unknown interface command", 'err'); }
+            checkTasks(); return;
+        }
+    }
+
+    function maskToCidr(mask) {
+        return mask.split('.').reduce((c, o) => c + (parseInt(o) >>> 0).toString(2).replace(/0/g, '').length, 0);
+    }
+
+    $input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            const val = $input.value;
+            process(val);
+            $input.value = '';
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+        }
+    });
+
+    document.querySelector('.terminal-wrap').addEventListener('click', () => $input.focus());
+
+    out('R1 Console ready. All interfaces pre-configured and up.', 'info');
+    out('Your task: Configure OSPF routing across all three routers.', 'info');
+    out('', 'out');
+    updatePrompt();
+    updateNeighborDisplay();
+})();
+</script>
+</body>
+</html>

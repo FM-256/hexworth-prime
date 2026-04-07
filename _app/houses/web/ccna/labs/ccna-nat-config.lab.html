@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NAT & PAT Configuration Lab | CCNA</title>
+    <style>
+        :root {
+            --cisco-primary: #10b981;
+            --cisco-secondary: #34d399;
+            --cisco-accent: #6ee7b7;
+            --cisco-dark: #047857;
+            --bg-dark: #090910;
+            --bg-card: #111120;
+            --bg-card-hover: #191930;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: rgba(16, 185, 129, 0.15);
+            --border-hover: rgba(16, 185, 129, 0.4);
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark); color: var(--text-primary);
+            min-height: 100vh; line-height: 1.6;
+        }
+        .lab-container { max-width: 1300px; margin: 0 auto; padding: 1.5rem; }
+        .back-link {
+            display: inline-flex; align-items: center; gap: 6px;
+            color: var(--cisco-primary); text-decoration: none; font-size: 0.85rem;
+            padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border-color);
+            background: rgba(16,185,129,0.05); transition: all 0.2s; margin-bottom: 1rem;
+        }
+        .back-link:hover { color: var(--cisco-secondary); border-color: var(--border-hover); }
+        .lab-header {
+            text-align: center; margin-bottom: 1.5rem; padding: 2rem;
+            background: linear-gradient(135deg, #064e3b 0%, #0a3d2e 50%, #064e3b 100%);
+            border-radius: 16px; border: 1px solid var(--border-color);
+            box-shadow: 0 0 20px rgba(16,185,129,0.15);
+        }
+        .lab-header h1 {
+            font-size: 2rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--cisco-primary), var(--cisco-accent));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-secondary); font-size: 0.85rem; }
+
+        /* Topology */
+        .topology-section {
+            background: var(--bg-card); border-radius: 10px; padding: 1.25rem;
+            border: 1px solid var(--border-color); margin-bottom: 1.5rem;
+        }
+        .topology-section h3 { color: var(--cisco-secondary); font-size: 0.95rem; margin-bottom: 1rem; }
+        .topo-canvas { background: #0a0a14; border-radius: 8px; padding: 20px; border: 1px solid #222; }
+        .topo-svg { width: 100%; height: 220px; }
+        .topo-svg text { font-family: 'Consolas', monospace; }
+        .topo-svg .label { fill: var(--cisco-accent); font-size: 13px; font-weight: bold; }
+        .topo-svg .ip-label { fill: var(--text-secondary); font-size: 10px; }
+        .topo-svg .net-label { fill: var(--warning); font-size: 10px; }
+        .topo-svg .box { fill: #1a1a2e; stroke: var(--cisco-primary); stroke-width: 2; rx: 8; }
+        .topo-svg .link { stroke: #444; stroke-width: 2; }
+        .topo-svg .zone-inside { fill: rgba(34,197,94,0.08); stroke: var(--success); stroke-width: 1; stroke-dasharray: 5,3; rx: 8; }
+        .topo-svg .zone-outside { fill: rgba(239,68,68,0.08); stroke: var(--danger); stroke-width: 1; stroke-dasharray: 5,3; rx: 8; }
+
+        /* NAT Table */
+        .nat-table-section {
+            background: var(--bg-card); border-radius: 10px; padding: 1.25rem;
+            border: 1px solid var(--border-color); margin-top: 1.5rem;
+        }
+        .nat-table-section h3 { color: var(--cisco-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .nat-table {
+            width: 100%; border-collapse: collapse; font-size: 0.8rem; font-family: 'Consolas', monospace;
+        }
+        .nat-table th {
+            background: rgba(16,185,129,0.15); color: var(--cisco-accent); padding: 8px 10px;
+            text-align: left; border-bottom: 1px solid var(--border-color);
+        }
+        .nat-table td {
+            padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); color: var(--text-secondary);
+        }
+        .nat-table tr:hover td { background: rgba(16,185,129,0.05); }
+        .nat-type { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+        .nat-type.static { background: rgba(59,130,246,0.2); color: #60a5fa; }
+        .nat-type.dynamic { background: rgba(245,158,11,0.2); color: #f59e0b; }
+        .nat-type.pat { background: rgba(168,85,247,0.2); color: #a855f7; }
+
+        .test-btn {
+            margin-top: 10px; padding: 8px 20px;
+            background: linear-gradient(135deg, var(--cisco-dark), var(--cisco-primary));
+            border: none; border-radius: 6px; color: #fff; font-weight: 600; cursor: pointer;
+            font-size: 0.85rem; transition: all 0.2s;
+        }
+        .test-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(16,185,129,0.3); }
+
+        .main-layout { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; }
+        @media (max-width: 1000px) { .main-layout { grid-template-columns: 1fr; } }
+
+        /* Terminal */
+        .terminal-wrap {
+            background: #000; border-radius: 10px; overflow: hidden;
+            border: 1px solid rgba(16,185,129,0.3);
+        }
+        .terminal-bar {
+            background: #1a1a2a; padding: 8px 14px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .t-dot { width: 11px; height: 11px; border-radius: 50%; }
+        .t-dot.r { background: #ff5f56; } .t-dot.y { background: #ffbd2e; } .t-dot.g { background: #27ca40; }
+        .terminal-bar span { color: var(--text-muted); font-size: 0.8rem; margin-left: 8px; }
+        .terminal-body {
+            padding: 12px 16px; height: 320px; overflow-y: auto;
+            font-family: 'Consolas','Courier New', monospace; font-size: 0.85rem;
+        }
+        .terminal-body::-webkit-scrollbar { width: 6px; }
+        .terminal-body::-webkit-scrollbar-thumb { background: rgba(16,185,129,0.3); border-radius: 3px; }
+        .t-line { margin-bottom: 1px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; }
+        .t-line.cmd { color: #fff; } .t-line.out { color: #ccc; }
+        .t-line.err { color: #ff5555; } .t-line.ok { color: var(--success); }
+        .t-line.info { color: var(--cisco-primary); }
+        .input-row { display: flex; align-items: center; margin-top: 4px; }
+        .prompt-text { color: var(--cisco-primary); margin-right: 4px; white-space: nowrap; font-weight: bold; }
+        #cliInput {
+            flex: 1; background: transparent; border: none; color: #fff;
+            font-family: inherit; font-size: inherit; outline: none; caret-color: var(--cisco-accent);
+        }
+
+        /* Task Panel */
+        .task-panel {
+            background: var(--bg-card); border-radius: 10px; padding: 1.25rem;
+            border: 1px solid var(--border-color); align-self: start;
+        }
+        .task-panel h3 { color: var(--cisco-secondary); font-size: 1rem; margin-bottom: 1rem; }
+        .task-item {
+            display: flex; align-items: flex-start; gap: 0.6rem;
+            padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.85rem; color: var(--text-secondary);
+        }
+        .task-item:last-child { border-bottom: none; }
+        .task-icon {
+            width: 22px; height: 22px; border-radius: 4px; flex-shrink: 0;
+            border: 2px solid var(--text-muted); display: flex; align-items: center;
+            justify-content: center; margin-top: 1px; transition: all 0.3s;
+        }
+        .task-icon.done { background: var(--success); border-color: var(--success); }
+        .task-icon.done::after { content: ''; display: block; width: 10px; height: 10px; background: url('/assets/images/icons/icon-check.webp') center/contain no-repeat; }
+        .task-item.done .task-text { color: var(--success); text-decoration: line-through; }
+        .progress-wrap { margin-top: 1rem; }
+        .prog-bar { height: 8px; background: rgba(16,185,129,0.1); border-radius: 4px; overflow: hidden; }
+        .prog-fill { height: 100%; background: linear-gradient(90deg, var(--cisco-dark), var(--cisco-primary)); border-radius: 4px; transition: width 0.5s; }
+        .prog-label { text-align: right; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+        .hint-section {
+            background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25);
+            border-radius: 8px; padding: 0.75rem 1rem; margin-top: 1rem; font-size: 0.8rem;
+        }
+        .hint-section strong { color: var(--warning); }
+        .hint-section p { color: var(--text-secondary); margin-top: 0.25rem; }
+        .complete-bar {
+            margin-top: 1.5rem; padding: 1.5rem; background: var(--bg-card);
+            border-radius: 10px; border: 1px solid var(--border-color); text-align: center; display: none;
+        }
+        .complete-bar.show { display: block; }
+        .complete-bar h2 { color: var(--success); margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+<div class="lab-container">
+    <a href="../index.html" class="back-link">
+        <img src="/assets/images/icons/icon-arrow-left.webp" alt="" width="14" height="14"> Back to CCNA Hub
+    </a>
+
+    <header class="lab-header">
+        <h1>NAT & PAT Configuration Lab</h1>
+        <p class="subtitle">Configure static NAT, dynamic NAT, and PAT (NAT Overload) on a border router</p>
+        <div class="lab-meta">
+            <span class="meta-item">75 minutes</span>
+            <span class="meta-item">Intermediate</span>
+            <span class="meta-item">4 Tasks</span>
+        </div>
+    </header>
+
+    <!-- Topology -->
+    <div class="topology-section">
+        <h3><img src="/assets/images/icons/icon-network.webp" alt="" width="16" height="16" style="vertical-align:middle"> Network Topology — NAT Boundary</h3>
+        <div class="topo-canvas">
+            <svg class="topo-svg" viewBox="0 0 740 220">
+                <!-- Zones -->
+                <rect x="10" y="10" width="310" height="200" class="zone-inside"/>
+                <text x="165" y="30" text-anchor="middle" style="fill:var(--success);font-size:11px;font-family:Consolas">INSIDE (Private)</text>
+                <rect x="420" y="10" width="310" height="200" class="zone-outside"/>
+                <text x="575" y="30" text-anchor="middle" style="fill:var(--danger);font-size:11px;font-family:Consolas">OUTSIDE (Public)</text>
+
+                <!-- Internal Hosts -->
+                <rect x="30" y="50" width="130" height="50" class="box"/>
+                <text x="95" y="72" text-anchor="middle" class="label">Server</text>
+                <text x="95" y="90" text-anchor="middle" class="ip-label">192.168.1.10</text>
+
+                <rect x="30" y="120" width="130" height="50" class="box"/>
+                <text x="95" y="142" text-anchor="middle" class="label">LAN Hosts</text>
+                <text x="95" y="160" text-anchor="middle" class="ip-label">192.168.1.0/24</text>
+
+                <!-- Router -->
+                <rect x="320" y="70" width="100" height="80" class="box" style="stroke:var(--cisco-accent);stroke-width:3"/>
+                <text x="370" y="100" text-anchor="middle" class="label">R1</text>
+                <text x="370" y="115" text-anchor="middle" class="ip-label">Border</text>
+                <text x="370" y="130" text-anchor="middle" class="ip-label">Router</text>
+
+                <!-- ISP -->
+                <rect x="530" y="70" width="130" height="50" class="box" style="stroke:var(--danger)"/>
+                <text x="595" y="92" text-anchor="middle" class="label">ISP</text>
+                <text x="595" y="110" text-anchor="middle" class="ip-label">203.0.113.2/30</text>
+
+                <!-- Internet -->
+                <rect x="530" y="140" width="130" height="50" class="box" style="stroke:#64748b"/>
+                <text x="595" y="162" text-anchor="middle" class="label" style="fill:#94a3b8">Internet</text>
+                <text x="595" y="178" text-anchor="middle" class="ip-label">Various</text>
+
+                <!-- Links -->
+                <line x1="160" y1="75" x2="320" y2="95" class="link"/>
+                <line x1="160" y1="145" x2="320" y2="125" class="link"/>
+                <line x1="420" y1="105" x2="530" y2="95" class="link"/>
+                <line x1="595" y1="120" x2="595" y2="140" class="link"/>
+
+                <!-- Labels -->
+                <text x="240" y="80" text-anchor="middle" class="ip-label">Gi0/0 (inside)</text>
+                <text x="240" y="95" text-anchor="middle" class="ip-label">192.168.1.1</text>
+                <text x="475" y="85" text-anchor="middle" class="ip-label">Se0/0 (outside)</text>
+                <text x="475" y="100" text-anchor="middle" class="ip-label">203.0.113.1/30</text>
+            </svg>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <div>
+            <!-- Terminal -->
+            <div class="terminal-wrap">
+                <div class="terminal-bar">
+                    <div class="t-dot r"></div><div class="t-dot y"></div><div class="t-dot g"></div>
+                    <span>R1 Console</span>
+                </div>
+                <div class="terminal-body" id="termBody"></div>
+                <div style="padding: 0 16px 12px;">
+                    <div class="input-row">
+                        <span class="prompt-text" id="cliPrompt">R1#</span>
+                        <input type="text" id="cliInput" autocomplete="off" spellcheck="false" autofocus>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NAT Translation Table -->
+            <div class="nat-table-section">
+                <h3><img src="/assets/images/icons/icon-table.webp" alt="" width="16" height="16" style="vertical-align:middle"> NAT Translation Table</h3>
+                <table class="nat-table">
+                    <thead><tr><th>Type</th><th>Inside Local</th><th>Inside Global</th><th>Outside</th><th>Port</th></tr></thead>
+                    <tbody id="natTableBody">
+                        <tr><td colspan="5" style="text-align:center;color:var(--text-muted)">No translations yet. Configure NAT and test connectivity.</td></tr>
+                    </tbody>
+                </table>
+                <button class="test-btn" onclick="simulateTraffic()">Simulate LAN Traffic (generate PAT entries)</button>
+            </div>
+        </div>
+
+        <div class="task-panel">
+            <h3><img src="/assets/images/icons/icon-list.webp" alt="" width="16" height="16" style="vertical-align:middle"> Lab Tasks</h3>
+            <div id="taskList">
+                <div class="task-item"><div class="task-icon" id="ti0"></div><span class="task-text">Configure static NAT: map server 192.168.1.10 to 203.0.113.10</span></div>
+                <div class="task-item"><div class="task-icon" id="ti1"></div><span class="task-text">Configure PAT (NAT overload) for the entire 192.168.1.0/24 LAN</span></div>
+                <div class="task-item"><div class="task-icon" id="ti2"></div><span class="task-text">Mark Gi0/0 as ip nat inside and Se0/0 as ip nat outside</span></div>
+                <div class="task-item"><div class="task-icon" id="ti3"></div><span class="task-text">Verify translations with show ip nat translations</span></div>
+            </div>
+            <div class="progress-wrap">
+                <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+                <div class="prog-label" id="progLabel">0 / 4 complete</div>
+            </div>
+            <div class="hint-section">
+                <strong><img src="/assets/images/icons/icon-info.webp" alt="" width="14" height="14" style="vertical-align:middle"> Hint</strong>
+                <p id="hintText">Static NAT: <code>ip nat inside source static 192.168.1.10 203.0.113.10</code></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="complete-bar" id="completeBar">
+        <h2><img src="/assets/images/icons/icon-checkmark.webp" alt="" width="24" height="24" style="vertical-align:middle"> Lab Complete</h2>
+        <p>NAT and PAT configuration verified. Static mappings operational. PAT overload translating LAN traffic.</p>
+    </div>
+</div>
+
+<script>
+(function() {
+    const STATE = {
+        hostname: 'R1',
+        mode: 'priv',
+        configIf: '',
+        interfaces: {
+            'GigabitEthernet0/0': { ip: '192.168.1.1', mask: '255.255.255.0', natSide: '' },
+            'Serial0/0/0': { ip: '203.0.113.1', mask: '255.255.255.252', natSide: '' }
+        },
+        staticNAT: [],   // { local, global }
+        patConfig: null,  // { aclNum, outsideIf }
+        acls: {},
+        natTranslations: [],
+        showNatDone: false
+    };
+
+    const MODES = {
+        user: () => STATE.hostname + '>',
+        priv: () => STATE.hostname + '#',
+        config: () => STATE.hostname + '(config)#',
+        'config-if': () => STATE.hostname + '(config-if)#'
+    };
+
+    const tasks = [false, false, false, false];
+    const hints = [
+        'Static NAT: <code>ip nat inside source static 192.168.1.10 203.0.113.10</code>',
+        'Create ACL: <code>access-list 1 permit 192.168.1.0 0.0.0.255</code>, then <code>ip nat inside source list 1 interface Serial0/0/0 overload</code>',
+        'On Gi0/0: <code>ip nat inside</code>. On Se0/0: <code>ip nat outside</code>.',
+        'Run <code>show ip nat translations</code> and <code>show ip nat statistics</code>. Click "Simulate LAN Traffic" to generate PAT entries.'
+    ];
+
+    const $body = document.getElementById('termBody');
+    const $input = document.getElementById('cliInput');
+    const $prompt = document.getElementById('cliPrompt');
+    const $hint = document.getElementById('hintText');
+    $hint.innerHTML = hints[0];
+
+    function out(text, cls) {
+        const d = document.createElement('div');
+        d.className = 't-line ' + (cls || 'out');
+        d.textContent = text;
+        $body.appendChild(d);
+        $body.scrollTop = $body.scrollHeight;
+    }
+
+    function updatePrompt() { $prompt.textContent = MODES[STATE.mode](); }
+
+    function completeTask(idx) {
+        if (tasks[idx]) return;
+        tasks[idx] = true;
+        document.getElementById('ti' + idx).classList.add('done');
+        document.getElementById('ti' + idx).closest('.task-item').classList.add('done');
+        const done = tasks.filter(Boolean).length;
+        document.getElementById('progFill').style.width = (done / tasks.length * 100) + '%';
+        document.getElementById('progLabel').textContent = done + ' / ' + tasks.length + ' complete';
+        out('>> Task ' + (idx + 1) + ' complete!', 'ok');
+        for (let i = 0; i < tasks.length; i++) { if (!tasks[i]) { $hint.innerHTML = hints[i]; break; } }
+        if (done === tasks.length) {
+            document.getElementById('completeBar').classList.add('show');
+            $hint.innerHTML = 'All tasks complete!';
+            if (window.ModuleProgress) ModuleProgress.complete('ccna-nat-config-lab');
+        }
+    }
+
+    function checkTasks() {
+        // Task 0: Static NAT
+        if (STATE.staticNAT.some(s => s.local === '192.168.1.10' && s.global === '203.0.113.10')) completeTask(0);
+        // Task 1: PAT configured
+        if (STATE.patConfig) completeTask(1);
+        // Task 2: Inside/Outside
+        if (STATE.interfaces['GigabitEthernet0/0'].natSide === 'inside' &&
+            STATE.interfaces['Serial0/0/0'].natSide === 'outside') completeTask(2);
+    }
+
+    function renderNatTable() {
+        const tbody = document.getElementById('natTableBody');
+        // Build entries from static + PAT translations
+        const entries = [];
+        STATE.staticNAT.forEach(s => {
+            entries.push({ type: 'static', insLocal: s.local, insGlobal: s.global, outside: '---', port: '---' });
+        });
+        STATE.natTranslations.forEach(t => {
+            entries.push(t);
+        });
+        if (entries.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">No translations yet.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = entries.map(e => {
+            const badge = e.type === 'static' ? '<span class="nat-type static">Static</span>' :
+                          e.type === 'pat' ? '<span class="nat-type pat">PAT</span>' :
+                          '<span class="nat-type dynamic">Dynamic</span>';
+            return '<tr><td>' + badge + '</td><td>' + e.insLocal + '</td><td>' + e.insGlobal + '</td><td>' + e.outside + '</td><td>' + e.port + '</td></tr>';
+        }).join('');
+    }
+
+    window.simulateTraffic = function() {
+        if (!STATE.patConfig) {
+            out('% PAT not configured. Configure NAT overload first.', 'err');
+            return;
+        }
+        if (STATE.interfaces['GigabitEthernet0/0'].natSide !== 'inside' || STATE.interfaces['Serial0/0/0'].natSide !== 'outside') {
+            out('% NAT inside/outside not configured on interfaces.', 'err');
+            return;
+        }
+        // Generate sample PAT entries
+        const hosts = ['192.168.1.20', '192.168.1.35', '192.168.1.42', '192.168.1.55', '192.168.1.101'];
+        const dsts = ['8.8.8.8', '1.1.1.1', '142.250.80.46', '151.101.1.69', '104.16.132.229'];
+        const ports = [49152, 49153, 49154, 49155, 49156];
+        hosts.forEach((h, i) => {
+            STATE.natTranslations.push({
+                type: 'pat',
+                insLocal: h + ':' + ports[i],
+                insGlobal: '203.0.113.1:' + ports[i],
+                outside: dsts[i] + ':443',
+                port: 'tcp ' + ports[i]
+            });
+        });
+        renderNatTable();
+        out('Simulated 5 LAN hosts accessing the internet via PAT.', 'info');
+        // Check task 3 once translations exist and show command done
+        if (STATE.showNatDone) completeTask(3);
+    };
+
+    function resolveIf(raw) {
+        const r = raw.replace(/\s+/g, '').toLowerCase();
+        if (r.includes('serial') || r.startsWith('se') || r.startsWith('s0')) return 'Serial0/0/0';
+        if (r.includes('0/0') && (r.startsWith('gi') || r.startsWith('g'))) return 'GigabitEthernet0/0';
+        return null;
+    }
+
+    function process(raw) {
+        const cmd = raw.trim();
+        if (!cmd) return;
+        out(MODES[STATE.mode]() + ' ' + cmd, 'cmd');
+        const lower = cmd.toLowerCase();
+        const parts = lower.split(/\s+/);
+
+        if (lower === 'exit') {
+            if (STATE.mode === 'config-if') STATE.mode = 'config';
+            else if (STATE.mode === 'config') STATE.mode = 'priv';
+            else if (STATE.mode === 'priv') STATE.mode = 'user';
+            STATE.configIf = '';
+            updatePrompt(); checkTasks(); return;
+        }
+        if (lower === 'end') {
+            STATE.mode = 'priv'; STATE.configIf = '';
+            updatePrompt(); checkTasks(); return;
+        }
+
+        if (STATE.mode === 'user') {
+            if (lower === 'enable') { STATE.mode = 'priv'; updatePrompt(); }
+            else out("% Unknown command", 'err');
+            return;
+        }
+
+        /* Priv */
+        if (STATE.mode === 'priv') {
+            if (lower === 'configure terminal' || lower === 'conf t') {
+                STATE.mode = 'config'; out('Enter configuration commands, one per line.'); updatePrompt();
+            } else if (lower === 'show ip nat translations' || lower === 'sh ip nat trans') {
+                out('Pro  Inside global      Inside local       Outside local      Outside global');
+                STATE.staticNAT.forEach(s => {
+                    out('---  ' + s.global.padEnd(19) + s.local.padEnd(19) + '---'.padEnd(19) + '---');
+                });
+                STATE.natTranslations.forEach(t => {
+                    out('tcp  ' + t.insGlobal.padEnd(19) + t.insLocal.padEnd(19) + t.outside.padEnd(19) + t.outside);
+                });
+                if (STATE.staticNAT.length === 0 && STATE.natTranslations.length === 0) {
+                    out('% No NAT translations.');
+                }
+                STATE.showNatDone = true;
+                if (STATE.natTranslations.length > 0 || STATE.staticNAT.length > 0) completeTask(3);
+            } else if (lower === 'show ip nat statistics' || lower === 'sh ip nat stat') {
+                out('Total active translations: ' + (STATE.staticNAT.length + STATE.natTranslations.length));
+                out('  Static:  ' + STATE.staticNAT.length);
+                out('  Dynamic: ' + STATE.natTranslations.length);
+                out('Outside interfaces:');
+                for (const [n, i] of Object.entries(STATE.interfaces)) {
+                    if (i.natSide === 'outside') out('  ' + n);
+                }
+                out('Inside interfaces:');
+                for (const [n, i] of Object.entries(STATE.interfaces)) {
+                    if (i.natSide === 'inside') out('  ' + n);
+                }
+                out('Hits: ' + (STATE.natTranslations.length * 47) + '  Misses: 0');
+                STATE.showNatDone = true;
+            } else if (lower === 'clear ip nat translation *' || lower === 'clear ip nat trans *') {
+                STATE.natTranslations = [];
+                renderNatTable();
+                out('% NAT translations cleared.', 'ok');
+            } else if (lower === 'show running-config' || lower === 'show run') {
+                out('hostname ' + STATE.hostname);
+                out('!');
+                for (const [n, i] of Object.entries(STATE.interfaces)) {
+                    out('interface ' + n);
+                    out(' ip address ' + i.ip + ' ' + i.mask);
+                    if (i.natSide) out(' ip nat ' + i.natSide);
+                    out(' no shutdown');
+                    out('!');
+                }
+                for (const [num, entries] of Object.entries(STATE.acls)) {
+                    entries.forEach(e => out('access-list ' + num + ' ' + e.action + ' ' + e.source + (e.wildcard ? ' ' + e.wildcard : '')));
+                }
+                STATE.staticNAT.forEach(s => {
+                    out('ip nat inside source static ' + s.local + ' ' + s.global);
+                });
+                if (STATE.patConfig) {
+                    out('ip nat inside source list ' + STATE.patConfig.aclNum + ' interface ' + STATE.patConfig.outsideIf + ' overload');
+                }
+                out('end');
+            } else if (lower === 'show ip interface brief' || lower === 'sh ip int brief') {
+                out('Interface                  IP-Address      OK? Method Status                Protocol');
+                for (const [n, i] of Object.entries(STATE.interfaces)) {
+                    out(n.padEnd(27) + i.ip.padEnd(16) + 'YES manual  up                    up');
+                }
+            } else if (lower.startsWith('copy ')) { out('[OK]', 'ok');
+            } else { out("% Unknown command", 'err'); }
+            checkTasks(); return;
+        }
+
+        /* Config */
+        if (STATE.mode === 'config') {
+            if (lower.startsWith('ip nat inside source static ')) {
+                // ip nat inside source static [local] [global]
+                const m = lower.match(/ip nat inside source static\s+(\S+)\s+(\S+)/);
+                if (m) {
+                    STATE.staticNAT.push({ local: m[1], global: m[2] });
+                    renderNatTable();
+                } else { out('% Syntax: ip nat inside source static [local-ip] [global-ip]', 'err'); }
+            } else if (lower.startsWith('ip nat inside source list ')) {
+                // ip nat inside source list [acl] interface [if] overload
+                const m = lower.match(/ip nat inside source list\s+(\S+)\s+interface\s+(\S+)\s+overload/);
+                if (m) {
+                    const ifName = resolveIf(m[2]);
+                    STATE.patConfig = { aclNum: m[1], outsideIf: ifName || m[2] };
+                    out('% PAT (NAT overload) configured.', 'ok');
+                } else { out('% Syntax: ip nat inside source list [acl#] interface [if] overload', 'err'); }
+            } else if (lower.startsWith('access-list ')) {
+                const m = lower.match(/access-list\s+(\d+)\s+(permit|deny)\s+(.+)/);
+                if (m) {
+                    const num = m[1];
+                    const rest = m[3].split(/\s+/);
+                    if (!STATE.acls[num]) STATE.acls[num] = [];
+                    STATE.acls[num].push({ action: m[2], source: rest[0], wildcard: rest[1] || '' });
+                }
+            } else if (lower.startsWith('interface ') || lower.startsWith('int ')) {
+                const ifRaw = cmd.split(/\s+/).slice(1).join(' ');
+                const ifName = resolveIf(ifRaw);
+                if (ifName) {
+                    STATE.configIf = ifName; STATE.mode = 'config-if'; updatePrompt();
+                } else { out('% Invalid interface', 'err'); }
+            } else if (lower.startsWith('no ip nat ')) {
+                // Remove NAT configs
+                if (lower.includes('static')) {
+                    const m = lower.match(/no ip nat inside source static\s+(\S+)\s+(\S+)/);
+                    if (m) STATE.staticNAT = STATE.staticNAT.filter(s => s.local !== m[1] || s.global !== m[2]);
+                    renderNatTable();
+                } else if (lower.includes('list')) {
+                    STATE.patConfig = null;
+                }
+            } else if (parts[0] === 'hostname' && parts[1]) {
+                STATE.hostname = cmd.split(/\s+/)[1]; updatePrompt();
+            } else { out("% Unknown command", 'err'); }
+            checkTasks(); return;
+        }
+
+        /* Config-if */
+        if (STATE.mode === 'config-if') {
+            const iface = STATE.interfaces[STATE.configIf];
+            if (lower === 'ip nat inside') {
+                iface.natSide = 'inside';
+                out('% ' + STATE.configIf + ' marked as NAT inside.', 'ok');
+            } else if (lower === 'ip nat outside') {
+                iface.natSide = 'outside';
+                out('% ' + STATE.configIf + ' marked as NAT outside.', 'ok');
+            } else if (lower === 'no ip nat inside' || lower === 'no ip nat outside') {
+                iface.natSide = '';
+            } else if (lower === 'no shutdown') {
+                out('%LINK-3-UPDOWN: Interface ' + STATE.configIf + ', changed state to up', 'ok');
+            } else if (lower.startsWith('ip address ')) {
+                out('% Interfaces are pre-configured in this lab.', 'info');
+            } else { out("% Unknown interface command", 'err'); }
+            checkTasks(); return;
+        }
+
+        out("% Unknown command", 'err');
+    }
+
+    $input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { process($input.value); $input.value = ''; }
+    });
+    document.querySelector('.terminal-wrap').addEventListener('click', () => $input.focus());
+
+    out('R1 Border Router Console ready.', 'info');
+    out('Inside: Gi0/0 (192.168.1.1/24) | Outside: Se0/0 (203.0.113.1/30)', 'info');
+    out('Configure static NAT for the server and PAT for the LAN.', 'info');
+    out('', 'out');
+    updatePrompt();
+    renderNatTable();
+})();
+</script>
+</body>
+</html>
