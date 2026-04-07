@@ -581,7 +581,8 @@ window.SignalGuides = {
 
         wiringNotes: '<p><strong>DHT11:</strong> If your DHT11 is on a breakout board (3 pins), it has a built-in pull-up resistor. If it is the raw 4-pin component, add a 10K&Omega; pull-up between Data and VCC.</p>' +
                      '<p><strong>Photoresistor voltage divider:</strong> The photoresistor and 10K&Omega; resistor form a divider. The junction (where they meet) connects to A0. Bright light = high reading, dark = low reading.</p>' +
-                     '<p><strong>HC-SR04:</strong> Trig sends the pulse, Echo receives it. Both are 5V logic, safe for the Mega. Keep the sensor facing away from the breadboard for clear readings.</p>',
+                     '<p><strong>HC-SR04:</strong> Trig sends the pulse, Echo receives it. Both are 5V logic, safe for the Mega. Keep the sensor facing away from the breadboard for clear readings.</p>' +
+                     '<p><strong>Safety:</strong> Always disconnect the USB cable before adding or changing wires. With three sensors and multiple power connections, a misplaced wire can short 5V to GND and damage the Mega or sensors. Power off, wire, verify, then reconnect.</p>',
 
         wiringSvg: '<div class="svg-build-wrap">' +
             '<svg viewBox="0 0 720 440" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
@@ -697,7 +698,7 @@ window.SignalGuides = {
             '<path d="M211,297 C370,297 420,210 605,155" stroke="#a855f7" stroke-width="1.5" fill="none"/>' +
 
             '<!-- Legend -->' +
-            '<rect x="510" y="220" width="170" height="100" rx="6" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.15)" stroke-width="0.5"/>' +
+            '<rect x="510" y="220" width="170" height="116" rx="6" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.15)" stroke-width="0.5"/>' +
             '<text x="520" y="236" fill="#60a5fa" font-size="8" font-weight="600">WIRE LEGEND</text>' +
             '<line x1="520" y1="250" x2="540" y2="250" stroke="#ef4444" stroke-width="2"/>' +
             '<text x="546" y="253" fill="#8b949e" font-size="7">Red = 5V Power</text>' +
@@ -709,6 +710,8 @@ window.SignalGuides = {
             '<text x="546" y="298" fill="#8b949e" font-size="7">Green = A0 (Light)</text>' +
             '<line x1="520" y1="310" x2="540" y2="310" stroke="#f97316" stroke-width="2"/>' +
             '<text x="546" y="313" fill="#8b949e" font-size="7">Orange = D8 (Trig)</text>' +
+            '<line x1="520" y1="325" x2="540" y2="325" stroke="#a855f7" stroke-width="2"/>' +
+            '<text x="546" y="328" fill="#8b949e" font-size="7">Purple = D9 (Echo)</text>' +
 
             '<!-- Signal flow arrows -->' +
             '<text x="385" y="110" text-anchor="middle" fill="#eab308" font-size="7" opacity="0.6">temp + humidity</text>' +
@@ -911,7 +914,7 @@ window.SignalGuides = {
                  '<!-- DHT11 -->' +
                  '<rect x="180" y="32" width="96" height="80" rx="6" fill="#0f1a2e" stroke="#eab308" stroke-width="1.5" data-callout="dht11"/>' +
                  '<text x="228" y="50" text-anchor="middle" fill="#eab308" font-size="7" font-weight="700">DHT11</text>' +
-                 '<text x="228" y="66" text-anchor="middle" fill="#8b949e" font-size="6">1-wire protocol</text>' +
+                 '<text x="228" y="66" text-anchor="middle" fill="#8b949e" font-size="6">single-wire serial</text>' +
                  '<text x="228" y="80" text-anchor="middle" fill="#555" font-size="5.5">Temp + Humidity</text>' +
                  '<text x="228" y="92" text-anchor="middle" fill="#555" font-size="5.5">reads every 2s</text>' +
                  '<!-- Photoresistor -->' +
@@ -933,7 +936,7 @@ window.SignalGuides = {
                 {
                     id: 'dht11',
                     name: 'DHT11 Temperature and Humidity Sensor',
-                    purpose: 'Digital sensor using a proprietary 1-wire protocol. The microcontroller sends a start pulse, then the DHT11 responds with 40 bits of data: 8 bits humidity integer, 8 bits humidity decimal, 8 bits temp integer, 8 bits temp decimal, 8 bits checksum.',
+                    purpose: 'Digital sensor using a custom single-wire serial protocol (not Dallas 1-Wire). The microcontroller sends a start pulse, then the DHT11 responds with 40 bits of data: 8 bits humidity integer, 8 bits humidity decimal, 8 bits temp integer, 8 bits temp decimal, 8 bits checksum.',
                     specs: ['Temp range: 0-50 C (+/-2 C)', 'Humidity: 20-90% RH (+/-5%)', 'Sample rate max 1 Hz', '3-5V supply', 'D7 on Mega']
                 },
                 {
@@ -1898,7 +1901,7 @@ window.SignalGuides = {
                 {
                     id: 'dht11',
                     name: 'DHT11 Sensor (from SG-02)',
-                    purpose: 'Same sensor from SG-02. Provides temperature and humidity for the LCD display pages. The DHT11 uses a separate proprietary 1-wire protocol on D7, completely independent of the I2C bus used by the LCD.',
+                    purpose: 'Same sensor from SG-02. Provides temperature and humidity for the LCD display pages. The DHT11 uses a separate custom single-wire serial protocol (not Dallas 1-Wire) on D7, completely independent of the I2C bus used by the LCD.',
                     specs: ['D7 digital pin', '5V supply', '2-second sample rate', 'Temp +/-2C, Humidity +/-5%']
                 },
                 {
