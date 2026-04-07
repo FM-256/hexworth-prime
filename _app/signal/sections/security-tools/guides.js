@@ -43,7 +43,8 @@ window.SignalGuides['sg-11'] = {
     Buzzer (-) ──────────────────┤ GND              │
                                  └──────────────────┘`,
 
-    wiringNotes: `<p><strong>Important:</strong> The MFRC522 runs on <strong>3.3V only</strong>. Connecting VCC to 5V will damage the module. The Arduino Mega's SPI pins are 50-53 (not 11-13 like the Uno). The IRQ pin is not needed for polled reads.</p>`,
+    wiringNotes: `<p><strong>Important:</strong> The MFRC522 runs on <strong>3.3V only</strong>. Connecting VCC to 5V will damage the module. The Arduino Mega's SPI pins are 50-53 (not 11-13 like the Uno). The IRQ pin is not needed for polled reads.</p>
+    <p><strong>Safety:</strong> Disconnect USB before wiring the RFID module. The MFRC522 is a 3.3V device — a single wrong connection to 5V will destroy it permanently. Wire carefully, verify VCC goes to 3.3V (not 5V), then reconnect.</p>`,
 
     wiringSvg: '<div class="svg-build-wrap">' +
         '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
@@ -2627,7 +2628,8 @@ window.SignalGuides['sg-14'] = {
 
     wiringNotes: `<p>The PIR sensor has 3 pins: VCC (5V), GND, and OUT (digital HIGH when motion detected). The OUT pin goes HIGH for a configurable duration set by the onboard potentiometer (marked "Tx" — turn clockwise for longer hold time).</p>
 <p>There is a second potentiometer on the PIR module (marked "Sx") that controls sensitivity (detection range). Start with both pots at the middle position.</p>
-<p><strong>Warm-up period:</strong> PIR sensors need 30-60 seconds to stabilize after power-on. Your sketch should wait during this period before arming.</p>`,
+<p><strong>Warm-up period:</strong> PIR sensors need 30-60 seconds to stabilize after power-on. Your sketch should wait during this period before arming.</p>
+<p><strong>Safety:</strong> Disconnect USB before wiring the PIR sensor and buzzer. Verify VCC, GND, and signal connections before powering on.</p>`,
 
     wiringSvg: '<div class="svg-build-wrap">' +
         '<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
