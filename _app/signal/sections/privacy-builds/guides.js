@@ -2701,7 +2701,8 @@ enable_killswitch() {
 
 disable_killswitch() {
     echo "[killswitch] Tor is UP — restoring transparent proxy rules"
-    # Restore normal Tor routing rules
+    # Flush appended kill rules and restore normal policy
+    iptables -F OUTPUT
     iptables -P OUTPUT ACCEPT
 }
 
