@@ -840,7 +840,7 @@ window.SignalGuides = {
                 '    The computer sees the Pico as a USB drive.\n' +
                 '    The Pico reads/writes the SD card over SPI.',
 
-        wiringNotes: '<p><strong>SPI (Serial Peripheral Interface):</strong> A 4-wire protocol used by microcontrollers to talk to peripherals. SCK is the clock (the Pico sets the tempo), MOSI carries data from Pico to SD card, MISO carries data back, and CS (Chip Select) tells the SD card "I am talking to you." This is the same protocol used inside commercial USB drives between the controller and NAND flash &mdash; we are just using breakout boards so you can see every wire.</p>' +
+        wiringNotes: '<p><strong>SPI (Serial Peripheral Interface):</strong> A 4-wire protocol used by microcontrollers to talk to peripherals. SCK is the clock (the Pico sets the tempo), MOSI carries data from Pico to SD card, MISO carries data back, and CS (Chip Select) tells the SD card "I am talking to you." This is the same protocol used inside commercial USB drives between the controller and NAND flash &mdash; we are just using breakout boards so you can see every wire.</p><p><strong>Safety:</strong> Disconnect USB before wiring SPI connections. Verify all pin assignments match the code before powering on.</p>' +
                      '<p><strong>Why GP16-19?</strong> These are the default SPI0 pins on the RP2040. You can remap SPI to other pins, but these are the path of least resistance for the firmware we are using.</p>' +
                      '<p><strong>Power:</strong> The 3V3 pin on the Pico provides regulated 3.3V output &mdash; exactly what the SD card needs. Do NOT use VBUS (5V) &mdash; it will damage the SD card.</p>',
 
