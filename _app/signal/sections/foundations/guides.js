@@ -1773,7 +1773,7 @@ window.SignalGuides = {
                '<text x="300" y="60" text-anchor="middle" fill="#4ade80" font-size="7" font-weight="700">LCD 1602</text>' +
                '<rect x="268" y="66" width="64" height="16" rx="2" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>' +
                '<text x="300" y="77" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">0x27</text>' +
-               '<text x="300" y="94" text-anchor="middle" fill="#555" font-size="5.5">A0=0 A1=0 A2=0</text>' +
+               '<text x="300" y="94" text-anchor="middle" fill="#555" font-size="5.5">A0=1 A1=1 A2=1</text>' +
                '<text x="300" y="106" text-anchor="middle" fill="#555" font-size="5.5">PCF8574 expander</text>' +
                '<!-- Device 2: possible 0x3F -->' +
                '<rect x="380" y="42" width="100" height="80" rx="5" fill="#0f1a2e" stroke="#555" stroke-width="1" stroke-dasharray="4,2"/>' +
@@ -1785,7 +1785,7 @@ window.SignalGuides = {
                '<!-- Address decode box -->' +
                '<rect x="30" y="136" width="620" height="36" rx="5" fill="rgba(255,107,53,0.05)" stroke="rgba(255,107,53,0.2)" stroke-width="1"/>' +
                '<text x="40" y="152" fill="#ff6b35" font-size="7" font-weight="700">I2C Address Decode:  </text>' +
-               '<text x="160" y="152" fill="#8b949e" font-size="7">0x27 = 0b0100111  (PCF8574, A0=1, A1=1, A2=0)</text>' +
+               '<text x="160" y="152" fill="#8b949e" font-size="7">0x27 = 0x20+7 = 0b0100111  (PCF8574, A0=1, A1=1, A2=1)</text>' +
                '<text x="40" y="166" fill="#555" font-size="6.5">If your LCD does not respond at 0x27, run the I2C scanner sketch to find its actual address before proceeding.</text>' +
                '</svg>',
 
