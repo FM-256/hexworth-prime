@@ -183,15 +183,21 @@ window.SignalGuides = {
         commonMistakes: [
             {
                 title: 'Charge-Only USB Cable',
-                description: 'Many USB cables only carry power, not data. If the Pico does not appear as RPI-RP2 when BOOTSEL is held, try a different cable. Data cables have 4 internal wires; charge-only cables have 2.'
+                correct: 'Use a USB cable with 4 internal wires (data + power). Verify the Pico appears as RPI-RP2 when BOOTSEL is held before proceeding.',
+                incorrect: 'Using a charge-only USB cable that carries power but not data.',
+                consequence: 'The Pico does not appear as a USB drive when BOOTSEL is held. The device cannot be flashed, and no amount of troubleshooting the firmware or code will fix a cable problem.'
             },
             {
                 title: 'Locked Out of CIRCUITPY',
-                description: 'If boot.py disables the drive and you forgot to wire GP15, hold BOOTSEL and re-flash CircuitPython. This wipes the flash and gives you a clean CIRCUITPY drive.'
+                correct: 'Wire GP15 as a dev-mode safety switch before deploying boot.py with drive-disable logic. This gives you a hardware override to re-enable the drive.',
+                incorrect: 'Deploying boot.py with the CIRCUITPY drive disabled without wiring the GP15 safety switch first.',
+                consequence: 'The drive is inaccessible and you cannot modify code on the device. Recovery requires holding BOOTSEL and re-flashing CircuitPython, which wipes all stored payloads and configuration.'
             },
             {
                 title: 'Wrong Keyboard Layout',
-                description: 'KeyboardLayoutUS sends US English keycodes. If the target has a different layout (UK, DE, FR), characters like @, #, and \\ will be wrong. Use the matching layout library from the CircuitPython bundle.'
+                correct: 'Use the keyboard layout library matching the target system (US, UK, DE, FR, etc.) from the CircuitPython bundle. Verify the layout before deployment.',
+                incorrect: 'Using KeyboardLayoutUS when the target machine has a non-US keyboard layout.',
+                consequence: 'Characters like @, #, and \\ map to different keycodes on non-US layouts. The payload types incorrect characters, breaking commands and revealing the attack to the target user.'
             }
         ]
     },
@@ -336,11 +342,15 @@ window.SignalGuides = {
         commonMistakes: [
             {
                 title: 'LED Wired Backwards',
-                description: 'LEDs are polarized. The long leg is the anode (+, connects to the resistor/GPIO side) and the short leg is the cathode (-, connects to GND). If the LED does not light up, flip it around.'
+                correct: 'Connect the long leg (anode, +) to the resistor/GPIO side and the short leg (cathode, -) to GND. If in doubt, check with a multimeter diode test.',
+                incorrect: 'Inserting the LED with reversed polarity, connecting the cathode to GPIO and anode to GND.',
+                consequence: 'The LED does not light up at all. No damage occurs, but it wastes debugging time if you do not check polarity first.'
             },
             {
                 title: 'Missing Resistors on LEDs',
-                description: 'Without a current-limiting resistor, the LED will draw too much current and can damage the GPIO pin or burn out the LED. Always use 330-ohm resistors.'
+                correct: 'Always place a 330-ohm current-limiting resistor in series with each LED.',
+                incorrect: 'Connecting LEDs directly to GPIO pins without a current-limiting resistor.',
+                consequence: 'The LED draws excessive current, potentially burning out immediately or damaging the GPIO pin on the Pico. The GPIO pin may be permanently destroyed, losing that pin for future use.'
             }
         ]
     },
@@ -543,11 +553,15 @@ window.SignalGuides = {
         commonMistakes: [
             {
                 title: 'Wrong Board Selected in Arduino IDE',
-                description: 'You must select a Deauther ESP8266 board, not a generic ESP8266 board. The deauther boards have modified SDK settings that enable raw frame injection. Generic boards will compile but deauth will not work.'
+                correct: 'Select a Deauther ESP8266 board (not a generic ESP8266 board) in the Arduino IDE board manager. The deauther boards have modified SDK settings that enable raw frame injection.',
+                incorrect: 'Selecting a generic ESP8266 board definition when compiling the deauther firmware.',
+                consequence: 'The firmware compiles and flashes without errors, but deauthentication frames are silently dropped by the SDK. The scanner works but the deauth attack does nothing, with no error messages to indicate why.'
             },
             {
                 title: 'CH340 Driver Missing',
-                description: 'Most NodeMCU boards use the CH340G USB-to-serial chip. If your computer does not recognize the board, install the CH340 driver. Windows and macOS need a manual driver install; Linux usually works out of the box.'
+                correct: 'Install the CH340 USB-to-serial driver before connecting the NodeMCU. Windows and macOS require a manual driver install; Linux usually works out of the box.',
+                incorrect: 'Plugging in the NodeMCU without the CH340G driver installed, expecting the OS to recognize it automatically.',
+                consequence: 'The computer does not recognize the board at all. No serial port appears in the Arduino IDE, and the firmware cannot be flashed. The board appears dead when it is actually a driver issue.'
             }
         ]
     },
@@ -704,11 +718,15 @@ window.SignalGuides = {
         commonMistakes: [
             {
                 title: 'PIO-USB Pin Conflict',
-                description: 'PIO-USB uses GP0 and GP1 by default. If you have anything else wired to these pins, USB host will not work. Keep GP0/GP1 dedicated to the keyboard input.'
+                correct: 'Keep GP0 and GP1 dedicated exclusively to PIO-USB keyboard input. Do not connect any other components to these pins.',
+                incorrect: 'Wiring other components (LEDs, buttons, sensors) to GP0 or GP1 while also using PIO-USB.',
+                consequence: 'USB host communication fails completely. The Pico cannot enumerate the keyboard, and the keylogger captures nothing. The conflict produces no clear error, making it difficult to diagnose.'
             },
             {
                 title: 'Power Issues',
-                description: 'The keyboard draws power through the Pico. Some power-hungry keyboards (backlit, mechanical with RGB) may draw more current than the Pico can supply through PIO-USB. Use a powered USB hub if needed.'
+                correct: 'Test with a low-power keyboard first. For power-hungry keyboards (backlit, mechanical with RGB), use a powered USB hub between the keyboard and the Pico.',
+                incorrect: 'Connecting a high-power keyboard directly to the Pico PIO-USB without considering current draw.',
+                consequence: 'The Pico cannot supply enough current. The keyboard fails to enumerate, behaves erratically, or causes the Pico to brown out and reset, dropping all logged keystrokes.'
             }
         ]
     },
@@ -855,11 +873,15 @@ window.SignalGuides = {
         commonMistakes: [
             {
                 title: 'SPI Bus Contention',
-                description: 'If the W5500 and SD card share SPI but you forget to set separate CS pins, both devices try to talk simultaneously, corrupting data. Double-check that W5500 CS (GPIO5) and SD CS (GPIO4) are on different pins.'
+                correct: 'Assign separate CS pins to each SPI device: W5500 CS on GPIO5 and SD card CS on GPIO4. Verify both CS pins are on different GPIOs before powering on.',
+                incorrect: 'Sharing the same CS pin between the W5500 and SD card, or forgetting to configure separate CS pins.',
+                consequence: 'Both devices respond to SPI commands simultaneously, corrupting data on the bus. PCAP files are filled with garbage, and Ethernet communication drops packets or hangs.'
             },
             {
                 title: 'SD Card Not FAT32',
-                description: 'The Arduino SD library requires FAT32 formatting. Cards larger than 32GB are often formatted as exFAT by default. Reformat the card as FAT32 before use.'
+                correct: 'Format the SD card as FAT32 before use. Cards larger than 32GB must be explicitly reformatted since they ship as exFAT by default.',
+                incorrect: 'Inserting a factory-formatted SD card larger than 32GB without reformatting to FAT32.',
+                consequence: 'The Arduino SD library cannot mount the exFAT filesystem. Packet capture silently fails with no data written, and the device appears to work but produces no output files.'
             }
         ]
     },

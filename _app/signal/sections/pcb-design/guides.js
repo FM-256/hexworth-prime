@@ -164,15 +164,21 @@ window.SignalGuides = {
         commonMistakes: [
             {
                 title: 'Wiring to Pin Tips Instead of Pin Ends',
-                description: 'KiCad wires must connect to the small circle at the end of each pin. Wires that visually touch a symbol body but do not snap to a pin endpoint create no electrical connection. Always zoom in and verify the green dot appears at each junction.'
+                correct: 'Zoom in and snap each wire to the small circle at the end of each pin. Verify the green junction dot appears at every connection point.',
+                incorrect: 'Drawing wires that visually touch the symbol body but do not snap to the pin endpoint.',
+                consequence: 'No electrical connection is created. The schematic looks correct visually but ERC will report unconnected pins, and the netlist will be missing those connections entirely.'
             },
             {
                 title: 'Forgetting PWR_FLAG on Power Nets',
-                description: 'Without PWR_FLAG, KiCad cannot verify that VCC and GND are intentionally driven. ERC will report errors for every component on those nets. Place one PWR_FLAG on VCC and one on GND to resolve all related ERC warnings at once.'
+                correct: 'Place one PWR_FLAG symbol on VCC and one on GND to explicitly tell KiCad these nets are intentionally driven.',
+                incorrect: 'Omitting PWR_FLAG symbols from power nets, assuming KiCad infers them automatically.',
+                consequence: 'ERC reports errors for every component on the VCC and GND nets, flooding the report with false positives and hiding real wiring problems.'
             },
             {
                 title: 'Using the Wrong Footprint Package Size',
-                description: 'Assigning an 0402 footprint to a component you plan to hand-solder is extremely difficult. For hand assembly, use 0805 or larger for passives and DIP/SOIC for ICs. Reserve 0402 and 0201 for reflow-only production boards.'
+                correct: 'Use 0805 or larger for passives and DIP/SOIC for ICs when hand-soldering. Reserve 0402 and 0201 for reflow-only production boards.',
+                incorrect: 'Assigning an 0402 footprint to a component intended for hand assembly.',
+                consequence: 'Hand-soldering 0402 parts is extremely difficult without magnification and fine-tip tools. Components shift, bridge, or tombstone during soldering, leading to rework or scrapped boards.'
             }
         ]
     },
@@ -341,15 +347,21 @@ window.SignalGuides = {
         commonMistakes: [
             {
                 title: 'Right-Angle Trace Bends',
-                description: 'Right-angle (90-degree) bends create acid traps during manufacturing and increase impedance discontinuities. Always use 45-degree bends or curved traces. KiCad defaults to 45-degree routing mode &mdash; do not override it to "free angle" unless you have a specific reason.'
+                correct: 'Use 45-degree bends or curved traces for all routing. Keep KiCad in its default 45-degree routing mode.',
+                incorrect: 'Routing traces with 90-degree (right-angle) bends or overriding KiCad to "free angle" mode without reason.',
+                consequence: 'Right-angle bends create acid traps during etching that can thin or break traces, and introduce impedance discontinuities that degrade signal integrity at higher frequencies.'
             },
             {
                 title: 'Traces Under Components',
-                description: 'Routing signal traces directly under component bodies makes debugging and rework difficult. Route around components when possible, and only route under them on the opposite copper layer with adequate clearance from through-hole pads.'
+                correct: 'Route traces around component bodies when possible. If routing under a component is unavoidable, use the opposite copper layer with adequate clearance from through-hole pads.',
+                incorrect: 'Routing signal traces directly under component bodies on the same layer.',
+                consequence: 'Traces hidden under components make debugging and rework extremely difficult. Probing the trace requires desoldering the component, and rework heat can damage adjacent connections.'
             },
             {
                 title: 'Forgetting to Fill Zones Before DRC',
-                description: 'Zones must be explicitly filled (press B) before running DRC. Unfilled zones will cause DRC to report missing connections even though the zone outline exists. Always fill zones, then run DRC.'
+                correct: 'Always press B to fill all zones before running DRC. Make zone filling a mandatory step in your pre-DRC checklist.',
+                incorrect: 'Running DRC with unfilled zone outlines, assuming KiCad will automatically compute zone fills.',
+                consequence: 'DRC reports false missing-connection errors for every net that should be connected through the zone. The real DRC issues get buried under dozens of spurious warnings.'
             }
         ]
     },
@@ -529,15 +541,21 @@ window.SignalGuides = {
         commonMistakes: [
             {
                 title: 'Zipping the Wrong Files',
-                description: 'Fab houses expect a zip containing only Gerber and drill files. Including the KiCad project file, 3D models, or other files in the zip can confuse the automated upload parser. Create a dedicated output folder and zip only the exported manufacturing files.'
+                correct: 'Create a dedicated output folder for Gerber export and zip only the .gbr and .drl manufacturing files.',
+                incorrect: 'Including the KiCad project file, 3D models, or other non-manufacturing files in the Gerber zip.',
+                consequence: 'The fab house automated upload parser may fail or misinterpret the extra files, causing order rejection or incorrect board fabrication.'
             },
             {
                 title: 'Not Inspecting Gerbers Before Ordering',
-                description: 'Never order boards without viewing the exported Gerbers in a standalone viewer (gerbv, KiCad Gerber Viewer, or the fab house online viewer). The export process can occasionally produce artifacts that were not visible in the PCB editor. Five minutes of inspection saves a week of waiting for defective boards.'
+                correct: 'View exported Gerbers in a standalone viewer (gerbv, KiCad Gerber Viewer, or the fab house online viewer) before placing an order. Five minutes of inspection prevents costly mistakes.',
+                incorrect: 'Ordering boards directly after export without verifying the Gerber files visually.',
+                consequence: 'The export process can produce artifacts not visible in the PCB editor. You wait a week for boards to arrive only to discover missing traces, incorrect drill holes, or corrupted layers.'
             },
             {
                 title: 'Choosing ENIG Finish for a Learning Board',
-                description: 'ENIG (gold) surface finish costs 3-5x more than HASL (tin-lead). For practice boards, HASL is perfectly adequate and much cheaper. Reserve ENIG for boards with fine-pitch components or when you need flat pad surfaces for BGA soldering.'
+                correct: 'Select HASL (tin-lead) surface finish for practice and learning boards. Reserve ENIG for boards with fine-pitch components or BGA pads that require flat surfaces.',
+                incorrect: 'Choosing ENIG (gold) surface finish on prototype or learning boards where it provides no benefit.',
+                consequence: 'ENIG costs 3-5x more than HASL with no functional advantage for standard through-hole or 0805+ SMD work. The extra cost adds up quickly across multiple prototype iterations.'
             }
         ]
     },
@@ -726,15 +744,21 @@ window.SignalGuides = {
         commonMistakes: [
             {
                 title: 'Ignoring the 0.05-inch Header Offset',
-                description: 'The Arduino Uno R3 analog header row is offset by 0.05 inches (1.27mm) from the standard 0.1-inch grid. This is a well-known design quirk from the original Arduino layout. If you place all headers on a uniform grid, the shield will not physically seat on the Arduino.'
+                correct: 'Use the Arduino Uno R3 mechanical drawing or KiCad shield template to place headers with the correct 0.05-inch (1.27mm) offset on the analog header row.',
+                incorrect: 'Placing all headers on a uniform 0.1-inch grid, ignoring the well-known offset quirk from the original Arduino layout.',
+                consequence: 'The shield will not physically seat on the Arduino. The misaligned header pins will not enter the sockets, and the board must be redesigned and re-fabricated.'
             },
             {
                 title: 'Routing Traces Between Header Pads',
-                description: 'The 2.54mm header pitch leaves very little room between pads. Routing traces between header pads with standard clearances is difficult and fragile. Instead, route traces away from headers on a different layer or use wider spacing around connector areas.'
+                correct: 'Route traces away from header areas on a different layer or use wider spacing around connector zones. Keep the area between header pads clear.',
+                incorrect: 'Routing signal traces between the 2.54mm-pitch header pads with standard clearance rules.',
+                consequence: 'The tight spacing between header pads leaves almost no room for traces. Traces may violate clearance rules, become fragile during manufacturing, or short to adjacent pads during soldering.'
             },
             {
                 title: 'No Decoupling Capacitor on the Shield',
-                description: 'Switching loads (motors, relays, buzzers) cause voltage spikes on the power rail that can reset the Arduino. Always place a 100nF ceramic capacitor between 5V and GND on the shield, close to the power header pins.'
+                correct: 'Place a 100nF ceramic capacitor between 5V and GND on the shield, close to the power header pins, to filter voltage spikes from switching loads.',
+                incorrect: 'Omitting decoupling capacitors on the shield, relying on the Arduino board alone for power filtering.',
+                consequence: 'Switching loads (motors, relays, buzzers) cause voltage spikes on the power rail that can reset the Arduino or corrupt serial communication and analog readings.'
             }
         ]
     },
@@ -923,15 +947,21 @@ window.SignalGuides = {
         commonMistakes: [
             {
                 title: 'Charlieplex Wiring Errors',
-                description: 'Charlieplexing N pins supports N*(N-1) LEDs, but each LED must have the correct polarity for its specific pin pair. Swapping anode and cathode assignments means the LED lights on the wrong pattern step. Draw out the full charlieplex truth table before routing.'
+                correct: 'Draw out the full charlieplex truth table before routing. Verify each LED has the correct polarity for its specific pin pair (N pins support N*(N-1) LEDs).',
+                incorrect: 'Swapping anode and cathode assignments when wiring charlieplexed LEDs between pin pairs.',
+                consequence: 'The LED lights on the wrong pattern step. The firmware appears to malfunction because the physical wiring does not match the software truth table, requiring board rework or re-fabrication.'
             },
             {
                 title: 'Lanyard Hole Too Close to Copper',
-                description: 'A lanyard hole drilled through copper traces will break those connections. Keep at least 2mm clearance between the lanyard hole edge and any copper feature. Place the mounting hole footprint first and route traces around it.'
+                correct: 'Place the mounting hole footprint first, maintain at least 2mm clearance between the lanyard hole edge and any copper feature, and route traces around it.',
+                incorrect: 'Drilling a lanyard hole through or adjacent to copper traces without adequate clearance.',
+                consequence: 'The drill breaks copper trace connections, creating open circuits that are invisible from the top side. The badge fails intermittently or completely depending on which traces are severed.'
             },
             {
                 title: 'Badge Too Heavy for a Lanyard',
-                description: 'A CR2032 holder, multiple ICs, and a large board can make the badge uncomfortably heavy. Keep the board under 60mm in the largest dimension and minimize component count. Test the weight with a prototype before ordering 200 boards for a conference.'
+                correct: 'Keep the board under 60mm in the largest dimension and minimize component count. Test the weight with a prototype before ordering large quantities for a conference.',
+                incorrect: 'Adding a large board, CR2032 holder, multiple ICs, and heavy connectors without considering total weight.',
+                consequence: 'The badge becomes uncomfortably heavy on a lanyard, causing neck strain during a multi-day conference. Attendees remove it and the badge loses its purpose as wearable art.'
             }
         ]
     },
@@ -1016,15 +1046,21 @@ window.SignalGuides = {
         commonMistakes: [
             {
                 title: 'Missing CC Pull-Down Resistors',
-                description: 'USB-C requires 5.1k resistors from CC1 and CC2 to GND for a device to receive power. Without these resistors, the host assumes nothing is connected and does not enable VBUS. This is the single most common USB-C breakout board failure.'
+                correct: 'Place 5.1k resistors from CC1 and CC2 to GND. These are mandatory for USB-C power negotiation and must be present on every USB-C device board.',
+                incorrect: 'Omitting the CC pull-down resistors, assuming the USB-C host will provide power automatically.',
+                consequence: 'The host assumes nothing is connected and does not enable VBUS. The board receives zero power. This is the single most common USB-C breakout board failure.'
             },
             {
                 title: 'Power Traces Too Narrow',
-                description: 'USB VBUS can deliver up to 3A at 5V. A 0.25mm trace can only handle ~0.5A before overheating. Use 1mm+ traces for VBUS and GND power paths. The KiCad trace width calculator (Inspect > Board Statistics) helps determine minimum width for your current requirements.'
+                correct: 'Use 1mm+ traces for VBUS and GND power paths. Use the KiCad trace width calculator (Inspect > Board Statistics) to determine minimum width for your current requirements.',
+                incorrect: 'Using default 0.25mm signal traces for USB VBUS and GND power paths.',
+                consequence: 'A 0.25mm trace handles only ~0.5A before overheating. USB VBUS can deliver up to 3A at 5V, causing the trace to overheat, discolor the PCB, or burn through entirely under load.'
             },
             {
                 title: 'No Capacitor on LDO Input',
-                description: 'Linear regulators like the AMS1117 require both input and output capacitors for stability. Missing the input electrolytic capacitor (10uF minimum) causes oscillation, producing noisy or unstable output that can damage sensitive ICs downstream.'
+                correct: 'Place both input and output capacitors on the LDO: at minimum a 10uF electrolytic plus a 100nF ceramic bypass on the input, and equivalent capacitors on the output.',
+                incorrect: 'Omitting the input electrolytic capacitor on a linear regulator like the AMS1117.',
+                consequence: 'The regulator oscillates, producing noisy or unstable output voltage that can damage sensitive ICs downstream or cause erratic microcontroller behavior.'
             }
         ]
     },
@@ -1116,15 +1152,21 @@ window.SignalGuides = {
         commonMistakes: [
             {
                 title: 'Using a Tip That Is Too Large',
-                description: 'A chisel tip designed for through-hole work is too wide for SMD pads. Use a conical tip (0.5mm) or fine chisel tip (1mm) for 0805 and smaller. The tip should be narrower than the pad you are soldering to.'
+                correct: 'Use a conical tip (0.5mm) or fine chisel tip (1mm) for 0805 and smaller components. The tip should be narrower than the pad you are soldering to.',
+                incorrect: 'Using a chisel tip designed for through-hole work on SMD pads.',
+                consequence: 'The oversized tip contacts multiple pads simultaneously, creating solder bridges between adjacent pins and making precise placement impossible.'
             },
             {
                 title: 'Insufficient Flux',
-                description: 'Flux is not optional for SMD work. It cleans oxides, improves wetting, and prevents bridges. Apply liquid or paste flux before every joint. If you are getting bridges or cold joints, the first thing to try is more flux.'
+                correct: 'Apply liquid or paste flux before every SMD joint. When encountering bridges or cold joints, add more flux as the first troubleshooting step.',
+                incorrect: 'Attempting SMD soldering without flux, or applying flux only once and expecting it to last through multiple joints.',
+                consequence: 'Solder will not wet properly to oxidized pads, producing cold joints, solder bridges, and tombstoned components that require time-consuming rework.'
             },
             {
                 title: 'Soldering Iron Temperature Too High',
-                description: 'Setting the iron to 400+ degrees Celsius does not make soldering faster &mdash; it burns flux instantly, damages pads, and causes components to overheat. Use 320-350 degrees Celsius for lead-free solder, 300-320 for leaded. Let the flux do the work, not raw heat.'
+                correct: 'Use 320-350 degrees Celsius for lead-free solder and 300-320 degrees Celsius for leaded. Let the flux do the work, not raw heat.',
+                incorrect: 'Setting the iron to 400+ degrees Celsius thinking higher temperature means faster soldering.',
+                consequence: 'Excessive heat burns flux instantly (eliminating its cleaning action), lifts copper pads from the substrate, and causes thermal damage to components, especially sensitive ICs and LEDs.'
             }
         ]
     },
@@ -1213,15 +1255,21 @@ window.SignalGuides = {
         commonMistakes: [
             {
                 title: 'Input Capacitor Too Small or Missing',
-                description: 'The LM317 can oscillate without adequate input capacitance, especially with long input leads. Place a 100nF ceramic and a 10uF electrolytic directly at the LM317 input pin. The ceramic handles high-frequency noise; the electrolytic handles bulk energy storage.'
+                correct: 'Place a 100nF ceramic and a 10uF electrolytic directly at the LM317 input pin. The ceramic handles high-frequency noise; the electrolytic handles bulk energy storage.',
+                incorrect: 'Omitting the input capacitor or placing an undersized one far from the LM317 input pin, especially with long input leads.',
+                consequence: 'The LM317 oscillates, producing unstable output voltage with ripple and noise that can damage downstream components or cause erratic circuit behavior.'
             },
             {
                 title: 'Power Traces Too Narrow for Load Current',
-                description: 'A 0.25mm trace handles about 0.5A before overheating. For a 1A power supply, use 1mm+ traces for all power paths (input, output, ground). Use the KiCad trace width calculator or the IPC-2221 formula to determine minimum width for your expected current.'
+                correct: 'Use 1mm+ traces for all power paths (input, output, ground) on a 1A supply. Use the KiCad trace width calculator or the IPC-2221 formula to determine minimum width for your expected current.',
+                incorrect: 'Using default 0.25mm signal traces for power paths carrying 1A or more.',
+                consequence: 'A 0.25mm trace handles only ~0.5A before overheating. Under full load the trace acts as a fuse, discoloring the PCB, delaminating copper, or burning through entirely.'
             },
             {
                 title: 'No Heatsink Mounting Area in PCB Layout',
-                description: 'The LM317 TO-220 package needs a heatsink at any significant load. Leave open board area behind the regulator for the heatsink footprint, and add mounting holes for heatsink clips or bolts. Placing components directly behind the regulator blocks heatsink installation.'
+                correct: 'Leave open board area behind the LM317 TO-220 package for the heatsink footprint. Add mounting holes for heatsink clips or bolts during PCB layout.',
+                incorrect: 'Placing components directly behind the regulator, blocking heatsink installation.',
+                consequence: 'The LM317 TO-220 package needs a heatsink at any significant load. Without one, the regulator enters thermal shutdown or is permanently damaged, and the power supply fails under load.'
             }
         ]
     },
@@ -1310,15 +1358,21 @@ window.SignalGuides = {
         commonMistakes: [
             {
                 title: 'Pull-Ups on Every Sensor Module',
-                description: 'Many breakout modules include built-in pull-up resistors. If three modules each have 4.7k pull-ups, the effective pull-up is 1.57k which may overdrive the bus. Use only one set of pull-ups for the entire bus. Cut or desolder the pull-ups on individual modules if they have them built in.'
+                correct: 'Use only one set of pull-up resistors for the entire I2C bus. Cut or desolder the built-in pull-ups on individual breakout modules if they have them.',
+                incorrect: 'Leaving built-in pull-up resistors enabled on every breakout module connected to the same I2C bus.',
+                consequence: 'Three modules with 4.7k pull-ups each create an effective 1.57k pull-up that overdrives the bus, causing signal integrity issues, excessive current draw, and communication errors.'
             },
             {
                 title: 'Mixing 3.3V and 5V I2C Devices',
-                description: 'Connecting a 5V I2C device to a 3.3V bus can damage the 3.3V sensors. Use a bidirectional level shifter (BSS138-based module or dedicated IC like TXB0102) between voltage domains. Never rely on the 5V-tolerant claim of a sensor unless the datasheet explicitly confirms it.'
+                correct: 'Use a bidirectional level shifter (BSS138-based module or dedicated IC like TXB0102) between voltage domains. Verify voltage tolerance in the sensor datasheet before connecting.',
+                incorrect: 'Connecting a 5V I2C device directly to a 3.3V bus without level shifting.',
+                consequence: 'The 5V signals exceed the absolute maximum ratings of the 3.3V sensors, causing permanent damage to the sensor ICs or degraded performance over time.'
             },
             {
                 title: 'Bypass Capacitors Too Far From Sensor VCC Pins',
-                description: 'Decoupling capacitors must be placed within 2mm of each sensor VCC pin to be effective. A capacitor on the other side of the board connected by a long trace adds enough inductance to negate its filtering purpose. Place one 100nF ceramic per sensor, physically adjacent to its power pin.'
+                correct: 'Place one 100nF ceramic capacitor per sensor, physically within 2mm of its VCC power pin.',
+                incorrect: 'Placing decoupling capacitors on the far side of the board or connecting them to the sensor through long traces.',
+                consequence: 'Long traces add enough inductance to negate the capacitor filtering effect. Power supply noise reaches the sensor, causing measurement errors, I2C communication glitches, and unreliable readings.'
             }
         ]
     },
@@ -1411,15 +1465,21 @@ window.SignalGuides = {
         commonMistakes: [
             {
                 title: 'Using Standard Capacitors in the Matching Network',
-                description: 'X7R and Y5V ceramic capacitors lose 50&ndash;90% of their rated capacitance at GHz frequencies. RF matching networks require C0G (NP0) dielectric capacitors which maintain stable capacitance across frequency. Use 0402 C0G capacitors from Murata or Johanson for matching networks.'
+                correct: 'Use C0G (NP0) dielectric capacitors in 0402 package from Murata or Johanson for RF matching networks. C0G maintains stable capacitance across frequency.',
+                incorrect: 'Using X7R or Y5V ceramic capacitors in the RF matching network.',
+                consequence: 'X7R and Y5V capacitors lose 50-90% of their rated capacitance at GHz frequencies, completely detuning the matching network and causing severe impedance mismatch and signal loss.'
             },
             {
                 title: 'Routing Digital Signals Under the RF Trace',
-                description: 'Digital signals crossing under the RF microstrip inject noise directly into the antenna path and disrupt the ground plane return current. Keep all digital routing away from the RF section. Use a physical separation zone of at least 5mm between digital and RF areas of the board.'
+                correct: 'Keep all digital routing away from the RF section. Maintain a physical separation zone of at least 5mm between digital and RF areas of the board.',
+                incorrect: 'Routing digital signal traces under or across the RF microstrip path.',
+                consequence: 'Digital signals inject switching noise directly into the antenna path and create slots in the ground plane that disrupt the RF return current, degrading receiver sensitivity and increasing spurious emissions.'
             },
             {
                 title: 'Ground Via Spacing Too Wide Along RF Path',
-                description: 'Via-stitching along RF traces should be spaced at lambda/20 or closer (approximately 6mm at 2.4 GHz). Wider spacing allows the ground plane to resonate and radiate, degrading signal integrity. Place ground vias in a continuous fence along both sides of the RF microstrip.'
+                correct: 'Place ground vias in a continuous fence along both sides of the RF microstrip, spaced at lambda/20 or closer (approximately 6mm at 2.4 GHz).',
+                incorrect: 'Spacing ground via-stitching too far apart along the RF trace path.',
+                consequence: 'The ground plane between widely-spaced vias resonates and radiates at the operating frequency, degrading signal integrity, increasing insertion loss, and potentially causing the board to fail EMC testing.'
             }
         ]
     }
