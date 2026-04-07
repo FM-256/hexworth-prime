@@ -3670,7 +3670,7 @@ if (Serial.available()) {
            '<defs><pattern id="sg20-sv4-grid" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="none"/><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
            '<rect width="620" height="180" fill="#0d1117" rx="6"/>' +
            '<rect x="6" y="6" width="608" height="168" fill="url(#sg20-sv4-grid)" rx="4"/>' +
-           '<text x="310" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">BASELINE CALIBRATION — EWMA CONVERGENCE</text>' +
+           '<text x="310" y="26" text-anchor="middle" fill="#555" font-size="9" letter-spacing="0.15em">BASELINE CALIBRATION — rolling average CONVERGENCE</text>' +
            // X axis (time)
            '<line x1="50" y1="140" x2="580" y2="140" stroke="#555" stroke-width="1"/>' +
            '<text x="50" y="155" fill="#555" font-size="7">0 min</text>' +
@@ -3684,18 +3684,18 @@ if (Serial.available()) {
            '<text x="44" y="105" text-anchor="end" fill="#555" font-size="7">-75</text>' +
            '<text x="44" y="70" text-anchor="end" fill="#555" font-size="7">-60</text>' +
            '<text x="44" y="44" text-anchor="end" fill="#555" font-size="7">-45</text>' +
-           // Baseline convergence curve (EWMA settling)
+           // Baseline convergence curve (rolling average settling)
            '<polyline points="50,115 80,100 110,92 140,88 170,85 200,83 230,82 260,81 290,81 320,80 350,80 380,80 410,80 440,80 470,80 500,80 530,80 560,80" fill="none" stroke="#22c55e" stroke-width="1.5"/>' +
            // Noisy actual readings
            '<polyline points="50,120 80,90 110,105 140,85 170,95 200,75 230,88 260,78 290,83 320,77 350,82 380,79 410,81 440,78 470,80 500,82 530,79 560,80" fill="none" stroke="#3b82f6" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>' +
            // Stable zone annotation
            '<rect x="380" y="60" width="180" height="55" rx="3" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
            '<text x="470" y="77" text-anchor="middle" fill="#22c55e" font-size="7" font-weight="600">Stable baseline zone</text>' +
-           '<text x="470" y="91" text-anchor="middle" fill="#555" font-size="7">EWMA settled after ~3 min</text>' +
+           '<text x="470" y="91" text-anchor="middle" fill="#555" font-size="7">rolling average settled after ~3 min</text>' +
            '<text x="470" y="105" text-anchor="middle" fill="#555" font-size="7">Ready to detect anomalies</text>' +
            // Legend
            '<rect x="60" y="45" width="10" height="2" fill="#22c55e"/>' +
-           '<text x="76" y="50" fill="#22c55e" font-size="7">EWMA baseline (smoothed)</text>' +
+           '<text x="76" y="50" fill="#22c55e" font-size="7">rolling average baseline (smoothed)</text>' +
            '<rect x="60" y="60" width="10" height="2" fill="#3b82f6"/>' +
            '<text x="76" y="65" fill="#3b82f6" font-size="7">Raw RSSI samples (noisy)</text>' +
            '</svg>'
@@ -3759,7 +3759,7 @@ if (Serial.available()) {
              '<rect x="400" y="50" width="160" height="200" rx="8" fill="#1e2736" stroke="#ef4444" stroke-width="1.5"/>' +
              '<rect x="400" y="50" width="160" height="22" rx="8" fill="rgba(239,68,68,0.12)"/>' +
              '<text x="480" y="66" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="600">Alert Engine</text>' +
-             '<text x="480" y="86" text-anchor="middle" fill="#8b949e" font-size="7">EWMA baseline per channel</text>' +
+             '<text x="480" y="86" text-anchor="middle" fill="#8b949e" font-size="7">rolling average baseline per channel</text>' +
              '<text x="480" y="100" text-anchor="middle" fill="#555" font-size="7">z-score anomaly detection</text>' +
              '<rect x="414" y="112" width="132" height="28" rx="3" fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.2)" stroke-width="0.5"/>' +
              '<text x="480" y="128" text-anchor="middle" fill="#ef4444" font-size="7">JAMMER: 3+ channels</text>' +
@@ -3797,9 +3797,9 @@ if (Serial.available()) {
             },
             {
                 id: 'alert',
-                name: 'Alert Engine (EWMA Baseline)',
-                purpose: 'The brain. Uses Exponentially Weighted Moving Average (EWMA) to learn the baseline energy per channel over time. When 3 or more channels simultaneously exceed the baseline by 15 dB or more, it is a broadband event — the signature of a jammer. Single-channel spikes are treated as normal WiFi congestion.',
-                specs: ['EWMA alpha = 0.1 (slow adaptation)', 'Alert: 3+ channels exceed baseline by 15 dB', 'Congestion: 1-2 channels elevated', 'Threshold adjustable via serial (+/-)', 'Event log stored in SRAM (last 10 events)']
+                name: 'Alert Engine (rolling average Baseline)',
+                purpose: 'The brain. Uses Exponentially Weighted Moving Average (rolling average) to learn the baseline energy per channel over time. When 3 or more channels simultaneously exceed the baseline by 15 dB or more, it is a broadband event — the signature of a jammer. Single-channel spikes are treated as normal WiFi congestion.',
+                specs: ['rolling average window size = 60 samples', 'Alert: 3+ channels exceed baseline by 15 dB', 'Congestion: 1-2 channels elevated', 'Threshold adjustable via serial (+/-)', 'Event log stored in SRAM (last 10 events)']
             }
         ]
     },
@@ -3830,8 +3830,8 @@ if (Serial.available()) {
         },
         {
             title: 'Not waiting for baseline to stabilize before trusting alerts',
-            correct: 'Let the detector run for at least 5 minutes (60 scan cycles) in a normal, undisturbed environment before enabling alerts. The EWMA needs time to converge on the true baseline. Check the serial output — RSSI variance should drop below ±3 dB before you trust the system.',
-            incorrect: 'Powering on the detector and immediately trusting its alerts. On boot, the EWMA baseline starts at 0. For the first 20-30 cycles, the baseline is still converging, and the "normal" thresholds are not representative of the actual environment noise floor.',
+            correct: 'Let the detector run for at least 5 minutes (60 scan cycles) in a normal, undisturbed environment before enabling alerts. The rolling average needs time to converge on the true baseline. Check the serial output — RSSI variance should drop below ±3 dB before you trust the system.',
+            incorrect: 'Powering on the detector and immediately trusting its alerts. On boot, the rolling average baseline starts at 0. For the first 20-30 cycles, the baseline is still converging, and the "normal" thresholds are not representative of the actual environment noise floor.',
             consequence: 'False positives during warm-up and missed detections afterward. If you set the baseline during an unusually noisy period (someone running a large file transfer), the baseline will be elevated — making real jammers harder to detect above the artificially high floor.',
             svgDiff: '<svg viewBox="0 0 540 120" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace;width:100%;max-width:540px">' +
                      '<rect width="540" height="120" fill="#0d1117" rx="6"/>' +
@@ -3839,12 +3839,12 @@ if (Serial.available()) {
                      '<text x="132" y="28" text-anchor="middle" fill="#22c55e" font-size="8" font-weight="700">CORRECT — Warm-up period</text>' +
                      '<text x="132" y="50" text-anchor="middle" fill="#4ade80" font-size="7">Wait 5+ minutes after boot</text>' +
                      '<text x="132" y="65" text-anchor="middle" fill="#8b949e" font-size="7">Verify: serial RSSI variance &lt; 3 dB</text>' +
-                     '<text x="132" y="80" text-anchor="middle" fill="#4ade80" font-size="7">EWMA fully converged</text>' +
+                     '<text x="132" y="80" text-anchor="middle" fill="#4ade80" font-size="7">rolling average fully converged</text>' +
                      '<text x="132" y="95" text-anchor="middle" fill="#22c55e" font-size="7">Alert accuracy: reliable</text>' +
                      '<rect x="285" y="10" width="245" height="100" rx="5" fill="rgba(239,68,68,0.04)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>' +
                      '<text x="407" y="28" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">MISTAKE — Immediate trust</text>' +
                      '<text x="407" y="50" text-anchor="middle" fill="#ef4444" font-size="7">Use alerts immediately on boot</text>' +
-                     '<text x="407" y="65" text-anchor="middle" fill="#8b949e" font-size="7">EWMA baseline = 0 initially</text>' +
+                     '<text x="407" y="65" text-anchor="middle" fill="#8b949e" font-size="7">rolling average baseline = 0 initially</text>' +
                      '<text x="407" y="80" text-anchor="middle" fill="#ef4444" font-size="7">Warm-up spikes = false alarms</text>' +
                      '<text x="407" y="95" text-anchor="middle" fill="#ef4444" font-size="7">Baseline never truly stable</text>' +
                      '</svg>'

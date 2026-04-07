@@ -706,7 +706,7 @@ window.SignalGuides['sg-07'] = {
              '<li><strong>Classic BT detection</strong> -- Put your phone in Bluetooth discoverable mode. It should appear within the next Classic BT scan cycle with its name and "Phone" classification.</li>' +
              '<li><strong>BLE detection</strong> -- BLE devices like fitness trackers, AirPods cases, and smart home sensors should appear automatically since they advertise continuously.</li>' +
              '<li><strong>Deduplication</strong> -- The same device should not appear twice in the report. The MAC address is used as the unique key.</li>' +
-             '<li><strong>RSSI values</strong> -- Nearby devices (within 1 meter) should show RSSI above -50 dBm. Devices across the room should be -60 to -80 dBm.</li>' +
+             '<li><strong>RSSI values</strong> -- Nearby devices (within 1 meter) should show RSSI above -50 dBm. Devices across the room should be -60 to -80 dBm. <strong>Note:</strong> Classic BT RSSI may show 0 dBm for all devices &mdash; this is a known limitation of the ESP32 Arduino BT library. The HCI layer captures RSSI but the <code>BTAdvertisedDevice</code> API does not expose it. BLE RSSI works correctly.</li>' +
              '<li><strong>CSV format</strong> -- The CSV block between <code># CSV_START</code> and <code># CSV_END</code> should be parseable by any spreadsheet application.</li>' +
              '</ul>',
 
