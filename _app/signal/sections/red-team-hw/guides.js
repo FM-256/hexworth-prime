@@ -175,6 +175,11 @@ window.SignalGuides = {
                  '<li><strong>Stealth check:</strong> With <code>boot.py</code> drive-disable active, verify that only a keyboard appears &mdash; no CIRCUITPY drive visible to the target machine.</li>' +
                  '</ul>',
 
+        troubleshooting: '<p><strong>Pico not recognized as RPI-RP2 drive:</strong> Hold BOOTSEL before plugging in and keep it held until the drive appears. If it still does not appear, the USB cable is charge-only (no data lines). Try a different cable &mdash; data cables have 4 internal wires. On Linux, check <code>dmesg | tail</code> for USB enumeration errors; you may need to install the <code>rpi-rp2</code> udev rules.</p>' +
+                         '<p><strong>Keystrokes are garbled or dropped on the target:</strong> The target machine needs time to process each keystroke. Increase <code>time.sleep()</code> delays between keystrokes to 0.05&ndash;0.1 seconds. Older machines and virtual machines are slower to process HID input. Also verify the keyboard layout matches &mdash; <code>KeyboardLayoutUS</code> on a non-US target produces wrong characters for symbols like @, #, and \\.</p>' +
+                         '<p><strong>CircuitPython throws ImportError for adafruit_hid:</strong> The HID library is not installed on the CIRCUITPY drive. Download the CircuitPython bundle matching your CircuitPython version from circuitpython.org, extract it, and copy the <code>adafruit_hid</code> folder into <code>CIRCUITPY/lib/</code>. Do not copy the entire bundle &mdash; only the libraries you need.</p>' +
+                         '<p><strong>Payload executes but the target command fails:</strong> Check whether the target has PowerShell execution policy set to Restricted, or if UAC is blocking the command. Adjust the payload to bypass execution policy with <code>-ep bypass</code> or use <code>cmd.exe</code> instead of PowerShell for simpler commands. Also verify the payload accounts for the correct OS &mdash; Windows key shortcuts differ from macOS Command key shortcuts.</p>',
+
         commonMistakes: [
             {
                 title: 'Charge-Only USB Cable',
@@ -322,6 +327,11 @@ window.SignalGuides = {
                  '<li><strong>ARM test:</strong> Select the Notepad payload (safe test), press ARM. LEDs should flash rapidly, then the payload executes. Solid green indicates completion.</li>' +
                  '<li><strong>Dev mode:</strong> Connect GP15 to GND, plug in the Pico. The CIRCUITPY drive should appear for editing. Disconnect GP15, replug &mdash; only the keyboard should appear.</li>' +
                  '</ul>',
+
+        troubleshooting: '<p><strong>Button presses skip payloads or register multiple times:</strong> Switch bounce is causing multiple triggers per press. Increase the debounce delay in your code to 200&ndash;300ms. Add a hardware debounce capacitor (100nF) across the button terminals for additional filtering. If the problem persists, check for loose breadboard connections that create intermittent contact.</p>' +
+                         '<p><strong>LEDs do not light up or show wrong colors:</strong> Verify LED polarity (long leg = anode, toward GPIO via resistor). Check that each LED has its own 330-ohm current-limiting resistor. If using a common-anode RGB LED instead of three separate LEDs, the wiring logic is inverted &mdash; set pins LOW to turn on, HIGH to turn off.</p>' +
+                         '<p><strong>OS detection returns the wrong OS:</strong> Caps lock timing-based detection is a heuristic and can be unreliable, especially in virtual machines or RDP sessions. Add a manual OS override option: hold SELECT during boot to force a specific OS mode. In practice, reconnaissance before the engagement usually tells you the target OS.</p>' +
+                         '<p><strong>Payloads stored on flash corrupt or disappear:</strong> CircuitPython\'s filesystem can corrupt if the Pico loses power during a write operation. Always eject the CIRCUITPY drive properly before unplugging. If corruption occurs, hold BOOTSEL, reflash CircuitPython, and recopy your payload files from your backup.</p>',
 
         commonMistakes: [
             {
@@ -524,6 +534,12 @@ window.SignalGuides = {
                  '<li><strong>OLED (if wired):</strong> The display should show the Spacehuhn logo on boot, then the main menu. Navigate with buttons to verify all three work.</li>' +
                  '</ul>',
 
+        troubleshooting: '<p><strong>Deauth attack has no effect on target devices:</strong> The target access point may have 802.11w (Protected Management Frames / PMF) enabled. WPA3 mandates PMF, and many WPA2 APs enable it by default. PMF cryptographically signs management frames, making forged deauth frames ignored by the client. This is working-as-intended security &mdash; your deauther correctly demonstrates that PMF stops the attack. Test against your own AP with PMF disabled to verify the tool works.</p>' +
+                         '<p><strong>ESP8266 enters a boot loop after flashing:</strong> Flash size mismatch. In Arduino IDE, set Flash Size to "4M (3M SPIFFS)" for NodeMCU boards or "1M (512K SPIFFS)" for D1 Mini boards. The wrong setting causes the filesystem to overwrite the firmware, triggering a watchdog reset on every boot. Re-flash with the correct setting.</p>' +
+                         '<p><strong>Web interface at 192.168.4.1 does not load:</strong> Your phone or laptop may be connected to the deauther\'s WiFi but routing traffic through a mobile data connection. On Android, go to WiFi settings and select "Use this network" or forget other networks temporarily. On iOS, disable cellular data while testing. Some browsers also redirect to HTTPS automatically &mdash; make sure you use <code>http://192.168.4.1</code> explicitly.</p>' +
+                         '<p><strong>OLED display stays blank:</strong> Verify I2C wiring: SDA to D2 (GPIO4), SCL to D1 (GPIO5) on NodeMCU. The SSD1306 OLED has I2C address 0x3C or 0x3D &mdash; check the back of the module for the address jumper. Also verify the deauther firmware was compiled with OLED support enabled (it is a compile-time option in the config).</p>' +
+                         '<p><strong>Scan finds no networks:</strong> The ESP8266 antenna is small and has limited range. Move within 5 meters of your test AP. If using a D1 Mini, the PCB antenna is weaker than a NodeMCU with an external antenna connector. For better range, use a NodeMCU with a U.FL connector and attach a 2.4 GHz external antenna.</p>',
+
         commonMistakes: [
             {
                 title: 'Wrong Board Selected in Arduino IDE',
@@ -680,6 +696,11 @@ window.SignalGuides = {
                  '<li><strong>Stealth test:</strong> Check Device Manager on the target machine. Only one keyboard should appear &mdash; not two keyboards or an extra USB hub.</li>' +
                  '</ul>',
 
+        troubleshooting: '<p><strong>PIO-USB host does not enumerate the keyboard:</strong> The PIO-USB library requires specific pin pairs (GP0/GP1 by default) and precise timing. Verify no other code is using these pins. Check that the PIO-USB library version matches your CircuitPython version &mdash; mismatches cause silent enumeration failure. If the keyboard is USB 2.0 High Speed, it may not be supported by PIO-USB (which only handles Low Speed and Full Speed). Try a basic USB 1.1 keyboard first.</p>' +
+                         '<p><strong>Keystrokes pass through but are not logged:</strong> The HID report parsing may be missing the keyboard report descriptor. Different keyboards use different HID report formats. Check that your code parses the standard 8-byte keyboard report (modifier byte, reserved byte, 6 key bytes). Non-standard keyboards (multimedia, gaming) may use vendor-specific report formats that need custom parsing.</p>' +
+                         '<p><strong>Logged characters do not match what was typed:</strong> The keylogger captures HID scancodes, not ASCII characters. The scancode-to-character mapping depends on the keyboard layout. Verify your conversion table matches the target keyboard layout (US QWERTY, UK, DE, etc.). Shift-modified characters require checking the modifier byte (bit 1 = left shift, bit 5 = right shift) before mapping.</p>' +
+                         '<p><strong>Target detects two keyboards in Device Manager:</strong> The Pico is exposing its own HID interface in addition to passing through the real keyboard. Configure <code>boot.py</code> to disable the Pico\'s default HID device and only expose a single composite device that mirrors the connected keyboard\'s descriptors. This requires custom USB descriptor configuration.</p>',
+
         commonMistakes: [
             {
                 title: 'PIO-USB Pin Conflict',
@@ -825,6 +846,11 @@ window.SignalGuides = {
                  '<li><strong>Channel hopping:</strong> Monitor the serial output. You should see channel changes every 2 seconds and the packet count increasing.</li>' +
                  '<li><strong>Dashboard:</strong> Connect to the PacketSniff AP, open 192.168.4.1 in a browser. Verify start/stop controls work and packet count updates.</li>' +
                  '</ul>',
+
+        troubleshooting: '<p><strong>ESP32 promiscuous mode captures 0 packets:</strong> Verify that <code>esp_wifi_set_promiscuous(true)</code> is called after WiFi initialization completes. The ESP32 must be in station mode (not AP mode) for promiscuous capture to work. If running the web dashboard AP simultaneously, you need two WiFi interfaces &mdash; the ESP32 supports this but requires careful configuration of the primary and secondary interfaces.</p>' +
+                         '<p><strong>W5500 Ethernet module does not get a link:</strong> Check the SPI wiring: MOSI (GPIO23), MISO (GPIO19), SCK (GPIO18), CS (GPIO5). Verify the Ethernet cable is connected to an active port. The W5500 link LED should illuminate when a cable is connected &mdash; if it does not, the SPI initialization failed. Test SPI communication first by reading the W5500 version register (should return 0x04).</p>' +
+                         '<p><strong>PCAP files are corrupt in Wireshark:</strong> The PCAP global header (24 bytes) must be written before any packet records. Verify the magic number is 0xA1B2C3D4 (microsecond resolution) or 0xA1B23C4D (nanosecond). Each packet record needs a 16-byte header with timestamp and length fields. If the SD card ran out of space mid-write, the last packet record may be truncated &mdash; Wireshark will report the error but still parse the valid packets before it.</p>' +
+                         '<p><strong>Channel hopping misses traffic on specific channels:</strong> If you hop too fast (under 100ms per channel), the ESP32 may not complete its receiver reconfiguration before moving on. Increase the dwell time to 500ms&ndash;2 seconds per channel. For targeted capture, lock to a specific channel where your target AP operates (check with <code>iw dev wlan0 info</code> from a laptop) instead of hopping.</p>',
 
         commonMistakes: [
             {
@@ -1007,6 +1033,11 @@ window.SignalGuides = {
 
         testing: '<p><strong>Test with known devices to calibrate your detector:</strong></p>' +
                  '<ol><li>Plug in a basic USB charging cable &mdash; expect "No obvious anomalies" and LED stays on (safe)</li><li>Plug in a USB keyboard &mdash; expect HID class flag (correct &mdash; keyboards are legitimate HID devices, but the same flag on a simple cable is not)</li><li>Plug in a Digispark (ATTiny85 dev board) &mdash; expect HID class and vendor-specific class flags and SUSPICIOUS verdict</li><li>Plug in a USB hub &mdash; expect composite device flag and multiple interfaces</li></ol>',
+
+        troubleshooting: '<p><strong>Companion script throws "Access Denied" or "Permission Error":</strong> USB descriptor access requires elevated privileges. On Linux, run with <code>sudo</code> or add a udev rule for the target VID/PID. On Windows, run the terminal as Administrator. On macOS, <code>pyusb</code> needs <code>libusb</code> installed via Homebrew (<code>brew install libusb</code>).</p>' +
+                         '<p><strong>Pico serial connection not detected by companion script:</strong> The Pico must be running CircuitPython and connected via USB while the companion script runs. Verify the Pico appears as a serial device: <code>ls /dev/ttyACM*</code> on Linux or check Device Manager on Windows. If multiple serial devices exist, update the <code>find_pico()</code> function to match your specific Pico\'s description string.</p>' +
+                         '<p><strong>False positives on legitimate devices:</strong> Some legitimate USB devices (webcams, audio interfaces, multifunction printers) expose multiple interfaces and composite descriptors that trigger suspicious flags. Build a whitelist of known-good device VID/PIDs from your organization\'s hardware inventory and exclude them from the anomaly check. The tool is designed to flag anomalies for human review, not to make final judgments.</p>' +
+                         '<p><strong>Pico LED indicator gives wrong verdict:</strong> If the LED shows safe for a device you know is suspicious (or vice versa), the descriptor parsing thresholds may need tuning. The Pico-side analysis has limited memory and parses a hex-encoded descriptor string &mdash; verify the companion script is sending the complete descriptor and that the Pico code parses all interface class bytes, not just the first one.</p>',
 
         challenges: '<p><strong>Extend the detector:</strong></p>' +
                     '<ul><li>Add an SSD1306 OLED display (I2C: SDA=GP4, SCL=GP5) for standalone pass/fail display without a PC or serial terminal</li><li>Maintain a local SQLite database on the PC side of all scanned cable fingerprints for trend analysis across an organization</li><li>Add a BLE notification capability (Pico W) that sends a phone alert when a suspicious cable is detected</li><li>Integrate into a CI/CD security pipeline that automatically scans USB cables in a supply chain audit process</li></ul>'
