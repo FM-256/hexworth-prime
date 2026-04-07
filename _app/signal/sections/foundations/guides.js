@@ -1322,7 +1322,7 @@ window.SignalGuides = {
                '<text x="75" y="84" text-anchor="middle" fill="#8b949e" font-size="6">Serial.println()</text>' +
                '<rect x="32" y="94" width="86" height="14" rx="2" fill="rgba(34,197,94,0.1)" stroke="rgba(34,197,94,0.2)" stroke-width="0.5"/>' +
                '<text x="75" y="104" text-anchor="middle" fill="#4ade80" font-size="5.5">DATA,1,23.5,45.0,512</text>' +
-               '<text x="75" y="134" text-anchor="middle" fill="#555" font-size="5.5">TX pin (D0)</text>' +
+               '<text x="75" y="134" text-anchor="middle" fill="#555" font-size="5.5">TX=D1, RX=D0</text>' +
                '<text x="75" y="146" text-anchor="middle" fill="#555" font-size="5.5">USB CDC</text>' +
                '<text x="75" y="158" text-anchor="middle" fill="#555" font-size="5.5">virtual COM</text>' +
                '<!-- Arrow -->' +
