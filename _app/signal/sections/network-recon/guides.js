@@ -1929,7 +1929,8 @@ window.SignalGuides['sg-10'] = {
                  '<li><strong>LED</strong> on <strong>GPIO 2</strong> through a 220 ohm current-limiting resistor. GPIO 2 is also the built-in LED on most ESP32 DevKit boards, so you get both the external and on-board LED.</li>' +
                  '<li><strong>Piezo buzzer</strong> on <strong>GPIO 4</strong>. Use an <strong>active buzzer</strong> (has built-in oscillator). If using a passive buzzer, you will need to generate a tone with <code>tone()</code> or PWM.</li>' +
                  '</ul>' +
-                 '<p>Both components share the GND bus on the breadboard. The ESP32 DevKit provides multiple GND pins on both sides of the board.</p>',
+                 '<p>Both components share the GND bus on the breadboard. The ESP32 DevKit provides multiple GND pins on both sides of the board.</p>' +
+                 '<p><strong>Safety:</strong> Disconnect the USB cable before wiring the LED and buzzer. A misplaced wire on a powered ESP32 can damage GPIO pins. Wire first, verify connections, then reconnect.</p>',
 
     wiringSvg: '<div class="svg-build-wrap">' +
         '<svg viewBox="0 0 720 420" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
