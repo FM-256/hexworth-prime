@@ -829,7 +829,7 @@ window.SignalGuides = {
                '<text x="304" y="52" fill="#eab308" font-size="7" font-weight="700">BRIGHT LIGHT</text>' +
                '<text x="304" y="65" fill="#8b949e" font-size="6.5">LDR resistance drops to ~1K</text>' +
                '<text x="304" y="78" fill="#8b949e" font-size="6.5">Vout = 5V x 10K / (1K+10K)</text>' +
-               '<text x="304" y="91" fill="#eab308" font-size="6.5">Vout = 4.5V  -->  analogRead ~921</text>' +
+               '<text x="304" y="91" fill="#eab308" font-size="6.5">Vout = ~4.5V  -->  analogRead ~921</text>' +
                '<!-- Math callout — dark -->' +
                '<rect x="494" y="36" width="176" height="70" rx="5" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.3)" stroke-width="1"/>' +
                '<text x="504" y="52" fill="#60a5fa" font-size="7" font-weight="700">DARK</text>' +
