@@ -61,6 +61,15 @@ const BoxEngine = {
             this.save();
         }
 
+        // Lazy-load HatRating.js for box rating after completion
+        if (typeof HatRating === 'undefined') {
+            const hatScript = document.createElement('script');
+            const beScript = document.querySelector('script[src*="BoxEngine"]');
+            hatScript.src = beScript ? new URL('HatRating.js', beScript.src).href : '/arena/engine/HatRating.js';
+            hatScript.onerror = () => console.warn('[ARENA] HatRating.js failed to load — ratings disabled');
+            document.head.appendChild(hatScript);
+        }
+
         // Pre-compute hashed flag values for secure comparison
         this._flagHashes = [];
         this._computeFlagHashes().catch(e => console.error('[ARENA] Flag hash computation failed:', e));
@@ -672,6 +681,10 @@ const BoxEngine = {
 
         document.getElementById('completionClose').addEventListener('click', () => {
             overlay.classList.remove('active');
+            // Show hat rating widget after completion
+            if (typeof HatRating !== 'undefined' && this.config.registryId) {
+                HatRating.show(this.config.registryId);
+            }
             // Show post-challenge survey after completion
             if (!this.state.postSurvey) {
                 this._showPostSurvey();
