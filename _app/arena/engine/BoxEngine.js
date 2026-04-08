@@ -1338,7 +1338,8 @@ const BoxEngine = {
         return text.replace(/\{\{FLAG:(\w+)\}\}/g, function(match, id) {
             var cached = self.getDeliveredFlag(id);
             if (cached) return cached;
-            // Trigger async fetch — once delivered, replace all placeholders in terminal output
+
+            // Trigger async fetch from server
             if (!self._flagFetchPending) self._flagFetchPending = {};
             if (!self._flagFetchPending[id]) {
                 self._flagFetchPending[id] = true;
@@ -1351,6 +1352,12 @@ const BoxEngine = {
                             termOutput.innerHTML = termOutput.innerHTML
                                 .replace(/\[FLAG LOADING\.\.\.\]/g, '<span style="color:#2ecc71;font-weight:bold;">' + flagText + '</span>')
                                 .replace(/\[FLAG PENDING - Complete the challenge\]/g, '<span style="color:#2ecc71;font-weight:bold;">' + flagText + '</span>');
+                        }
+                        // Also replace in browser webapp output
+                        var webappOutput = document.querySelector('.webapp [data-results]');
+                        if (webappOutput) {
+                            webappOutput.innerHTML = webappOutput.innerHTML
+                                .replace(/\[FLAG LOADING\.\.\.\]/g, '<span style="color:#2ecc71;font-weight:bold;">' + flagText + '</span>');
                         }
                     }
                 }).catch(function() { delete self._flagFetchPending[id]; });

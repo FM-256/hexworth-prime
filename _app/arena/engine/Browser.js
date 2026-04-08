@@ -243,6 +243,10 @@ class BrowserInstance {
             rawHtml = pageDef.html || '';
         }
         this._currentSource = rawHtml;
+        // Resolve {{FLAG:id}} tokens if BoxEngine is available
+        if (this.engine && this.engine.resolveFlagTokens) {
+            rawHtml = this.engine.resolveFlagTokens(rawHtml);
+        }
         wrapper.innerHTML = rawHtml;
 
         this.pageEl.appendChild(wrapper);
@@ -318,7 +322,11 @@ class BrowserInstance {
     }
 
     _handleFormSubmission(pageDef, formData, wrapper) {
-        const resultHtml = pageDef.formHandler(formData, this.engine);
+        let resultHtml = pageDef.formHandler(formData, this.engine);
+        // Resolve {{FLAG:id}} tokens
+        if (this.engine && this.engine.resolveFlagTokens) {
+            resultHtml = this.engine.resolveFlagTokens(resultHtml);
+        }
         const resultsArea = wrapper.querySelector('[data-results]');
         if (resultsArea) {
             resultsArea.innerHTML = resultHtml;
