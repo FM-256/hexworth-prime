@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GATEWAY — Operation Blackwire</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-radar.webp">
+    <link rel="stylesheet" href="../../engine/arena.css">
+</head>
+<body>
+<h1 class="visually-hidden">Operation Blackwire — GATEWAY Device</h1>
+<div id="arena"></div>
+
+<script src="../../../components/FirebaseAuth.js"></script>
+<script src="../../firebase-init.js"></script>
+<script src="../../engine/CoOpSync.js"></script>
+<script src="../../engine/CoOpLobby.js"></script>
+<script src="../../engine/CoOpUI.js"></script>
+<script src="../../engine/BoxEngine.js"></script>
+<script src="../../engine/Terminal.js"></script>
+<script src="../../engine/Browser.js"></script>
+<script src="../../engine/BriefingPage.js"></script>
+<script src="../../engine/C2Terminal.js"></script>
+<script src="config.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   GATEWAY DEVICE — Flags 1 & 2
+   Corporate perimeter firewall/proxy server
+   Flag 1: C2 Domain Identification (DNS log analysis)
+   Flag 2: Malicious Certificate Thumbprint (TLS log analysis)
+   ═══════════════════════════════════════════════════════════════ */
+
+const GatewayConfig = (() => {
+
+    const S = BlackwireConfig._scenario;
+
+    /* ── Seeded PRNG (deterministic per session) ────────── */
+    let _seed = 42;
+    function _seededRandom() {
+        _seed = (_seed * 16807 + 0) % 2147483647;
+        return (_seed - 1) / 2147483646;
+    }
+    function _seededInt(max) { return Math.floor(_seededRandom() * max); }
+
+    /* ── DNS Log Generation ─────────────────────────────── */
+
+    function _generateDnsLog() {
+        const legitimateDomains = [
+            'login.microsoftonline.com', 'outlook.office365.com', 'graph.microsoft.com',
+            'www.google.com', 'fonts.googleapis.com', 'ajax.googleapis.com',
+            'one.one.one.one', 'dns.cloudflare.com',
+            'slack-msgs.com', 'edgeapi.slack.com',
+            'github.com', 'api.github.com', 'raw.githubusercontent.com',
+            'zoom.us', 'us02web.zoom.us',
+            'cdn.meridian-dynamics.com', 'intranet.meridian-dynamics.com',
+            'mail.meridian-dynamics.com', 'vpn.meridian-dynamics.com',
+            'updates.microsoft.com', 'download.windowsupdate.com',
+            'time.windows.com', 'ocsp.digicert.com',
+            'crl.pki.goog', 'accounts.google.com',
+            'safebrowsing.googleapis.com', 'connectivitycheck.gstatic.com'
+        ];
+
+        const internalIPs = [
+            '192.168.10.10', '192.168.10.12', '192.168.10.15', '192.168.10.20',
+            '192.168.10.25', '192.168.10.30', '192.168.10.35', '192.168.10.40',
+            '192.168.10.42', '192.168.10.45', '192.168.10.50', '192.168.10.55',
+            '192.168.10.60', '192.168.10.100', '192.168.10.101', '192.168.10.200'
+        ];
+
+        const lines = [];
+        const baseTime = new Date('2026-03-15T00:00:00');
+
+        // Generate 72 hours of logs
+        for (let hour = 0; hour < 72; hour++) {
+            // Legitimate traffic — variable density by hour
+            const isBusinessHours = (hour % 24) >= 8 && (hour % 24) <= 18;
+            const queriesThisHour = isBusinessHours ? 40 + Math.floor(_seededRandom() * 30) : 8 + Math.floor(_seededRandom() * 12);
+
+            for (let q = 0; q < queriesThisHour; q++) {
+                const t = new Date(baseTime.getTime() + hour * 3600000 + Math.floor(_seededRandom() * 3600000));
+                const ip = internalIPs[Math.floor(_seededRandom() * internalIPs.length)];
+                const domain = legitimateDomains[Math.floor(_seededRandom() * legitimateDomains.length)];
+                const type = _seededRandom() > 0.85 ? 'AAAA' : 'A';
+                lines.push({ t, text: `[${_fmtTime(t)}] QUERY ${ip} -> ${domain} ${type}` });
+            }
+
+            // C2 beacons — every 3 minutes, from compromised host only
+            for (let m = 0; m < 60; m += 3) {
+                const jitter = Math.floor(_seededRandom() * 6) - 3;  // +/- 3 seconds
+                const t = new Date(baseTime.getTime() + hour * 3600000 + (m * 60 + jitter) * 1000);
+                lines.push({
+                    t,
+                    text: `[${_fmtTime(t)}] QUERY ${S.compromisedIP} -> ${S.c2Domain} A`
+                });
+            }
+        }
+
+        // Sort by timestamp
+        lines.sort((a, b) => a.t - b.t);
+        return lines.map(l => l.text).join('\n');
+    }
+
+    /* ── TLS Log Generation ─────────────────────────────── */
+
+    function _generateTlsLog() {
+        const legitimateCerts = [
+            { dest: '20.190.159.0:443',  cn: 'CN=login.microsoftonline.com', issuer: 'CN=DigiCert Cloud Services CA-1, O=DigiCert Inc', serial: '0x0A4F2B8C', sha: 'b8f1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1', selfsigned: 'NO' },
+            { dest: '142.250.80.46:443', cn: 'CN=*.google.com', issuer: 'CN=GTS CA 1C3, O=Google Trust Services', serial: '0x3D7E2F1A', sha: 'c9e2d3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2', selfsigned: 'NO' },
+            { dest: '44.238.78.192:443', cn: 'CN=*.slack-msgs.com', issuer: 'CN=Amazon RSA 2048 M01, O=Amazon', serial: '0x5F9A8B7C', sha: 'd0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1', selfsigned: 'NO' },
+            { dest: '140.82.121.3:443',  cn: 'CN=github.com', issuer: 'CN=DigiCert TLS Hybrid ECC SHA384 2020 CA1', serial: '0x1C3D4E5F', sha: 'e1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2', selfsigned: 'NO' },
+            { dest: '10.10.1.5:443',     cn: 'CN=intranet.meridian-dynamics.com', issuer: 'CN=Meridian Dynamics Internal CA', serial: '0x00A1B2C3', sha: 'f2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3', selfsigned: 'NO' },
+            { dest: '10.10.1.10:8443',   cn: 'CN=dev-jenkins.internal', issuer: 'CN=dev-jenkins.internal', serial: '0x00000001', sha: 'a1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2', selfsigned: 'YES' }
+        ];
+
+        const lines = [];
+        const baseTime = new Date('2026-03-15T00:00:00');
+
+        for (let hour = 0; hour < 72; hour++) {
+            // Legitimate TLS connections
+            const connCount = 5 + Math.floor(_seededRandom() * 10);
+            for (let c = 0; c < connCount; c++) {
+                const t = new Date(baseTime.getTime() + hour * 3600000 + Math.floor(_seededRandom() * 3600000));
+                const cert = legitimateCerts[Math.floor(_seededRandom() * legitimateCerts.length)];
+                const srcIP = '192.168.10.' + (10 + Math.floor(_seededRandom() * 50));
+                lines.push({
+                    t,
+                    text: `[${_fmtTime(t)}] TLS ${srcIP} -> ${cert.dest}\n  Subject: ${cert.cn}\n  Issuer:  ${cert.issuer}\n  Serial:  ${cert.serial}\n  SHA256:  ${cert.sha}\n  Valid:   2025-06-01 to 2026-06-01\n  SELF-SIGNED: ${cert.selfsigned}`
+                });
+            }
+
+            // C2 TLS connections — from compromised host to C2 IP, every 3 minutes
+            for (let m = 0; m < 60; m += 3) {
+                const jitter = Math.floor(_seededRandom() * 4);
+                const t = new Date(baseTime.getTime() + hour * 3600000 + (m * 60 + jitter) * 1000);
+                lines.push({
+                    t,
+                    text: `[${_fmtTime(t)}] TLS ${S.compromisedIP} -> ${S.c2ServerIP}:${S.c2Port}\n  Subject: ${S.certSubject}\n  Issuer:  ${S.certSubject}\n  Serial:  ${S.certSerial}\n  SHA256:  ${S.certThumbprint}\n  Valid:   2026-03-01 to 2027-03-01\n  SELF-SIGNED: YES`
+                });
+            }
+        }
+
+        lines.sort((a, b) => a.t - b.t);
+        return lines.map(l => l.text).join('\n\n');
+    }
+
+    /* ── Helper: format timestamp ───────────────────────── */
+
+    function _fmtTime(d) {
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+
+    /* ── Flag validation (Phase 1: local) ───────────────── */
+
+    function _validateFlag(flagStr) {
+        const val = flagStr.replace(/^FLAG\{/i, '').replace(/\}$/, '').trim();
+        if (val.toLowerCase() === S.c2Domain.toLowerCase()) {
+            return { correct: true, flagId: 'f1', points: 100 };
+        }
+        if (val.toLowerCase() === S.certThumbprint.toLowerCase()) {
+            return { correct: true, flagId: 'f2', points: 100 };
+        }
+        return { correct: false };
+    }
+
+    /* ── Build Config ───────────────────────────────────── */
+
+    const dnsLog = _generateDnsLog();
+    const tlsLog = _generateTlsLog();
+
+    return {
+        title: 'Operation Blackwire',
+        subtitle: 'GATEWAY — Corporate Perimeter Firewall',
+        difficulty: 'Expert',
+        accent: '#10b981',
+        storageKey: 'hexworth_ctf_ops05_gw',
+        registryId: 'ops-05-operation-blackwire',
+        trackerKey: 'ctf_ops05_gw',
+
+        flags: [
+            { id: 'f1', points: 100 },
+            { id: 'f2', points: 100 }
+        ],
+
+        scoring: {
+            base: 0,
+            hintPenalty: -25,
+            wrongFlagPenalty: -10,
+            speedBonus: { threshold: 1800000, points: 50 }
+        },
+
+        hints: [
+            { id: 'h1', text: BlackwireConfig.hints.f1, cost: 25, penalty: 25, forFlag: 'f1' },
+            { id: 'h2', text: BlackwireConfig.hints.f2, cost: 25, penalty: 25, forFlag: 'f2' }
+        ],
+
+        phases: [
+            {
+                id: 'dns-analysis',
+                name: 'DNS Log Analysis',
+                icon: '',
+                description: 'Analyze DNS query logs to identify anomalous C2 communication patterns.',
+                requiredFlags: ['f1'],
+                mitre: ['T1071.001', 'T1568.002'],
+                unlocks: ['tls-analysis'],
+                locked: false
+            },
+            {
+                id: 'tls-analysis',
+                name: 'TLS Certificate Analysis',
+                icon: '',
+                description: 'Examine TLS connection logs to identify malicious certificates.',
+                requiredFlags: ['f2'],
+                mitre: ['T1573.002'],
+                unlocks: [],
+                locked: true
+            }
+        ],
+
+        boot: {
+            biosLines: [
+                'Meridian Dynamics Gateway Appliance v4.2.1',
+                'FortiOS 7.4.1 build1234',
+                'CPU: Intel Xeon E-2388G @ 3.20GHz',
+                'RAM: 32768 MB DDR4 ECC',
+                'NIC0: 10GbE SFP+ (WAN) ... LINK UP',
+                'NIC1: 10GbE SFP+ (LAN) ... LINK UP',
+                'NIC2: 1GbE RJ45 (MGMT) ... LINK UP',
+                'Threat Intelligence DB: v2026.03.14-2200',
+                'IPS signatures loaded: 48,291',
+                'SSL inspection engine: ACTIVE',
+                'Initializing log subsystem...',
+                'Mounting /var/log/dns ... OK',
+                'Mounting /var/log/tls ... OK',
+                'Mounting /var/log/firewall ... OK'
+            ],
+            grubEntries: ['FortiOS 7.4.1 (primary)', 'FortiOS 7.2.8 (backup)', 'Recovery Shell'],
+            loginUser: 'analyst'
+        },
+
+        desktop: {
+            icons: [
+                { id: 'terminal', label: 'Terminal',  icon: '', app: 'terminal' },
+                { id: 'notes',    label: 'Notes',     icon: '', app: 'notes' },
+                { id: 'hints',    label: 'Hints',     icon: '', app: 'hints' }
+            ]
+        },
+
+        terminal: {
+            user: 'analyst',
+            hostname: 'gw-meridian-01',
+            startDir: '/home/analyst',
+            welcome: 'Meridian Dynamics Gateway — Forensic Access Mode\nType "help" for available commands.\nLog directories: /var/log/dns/, /var/log/tls/, /var/log/firewall/'
+        },
+
+        filesystem: {
+            '/': {
+                type: 'dir',
+                children: {
+                    'home': {
+                        type: 'dir',
+                        children: {
+                            'analyst': {
+                                type: 'dir',
+                                children: {
+                                    'README.txt': {
+                                        type: 'file',
+                                        content: 'MERIDIAN DYNAMICS — INCIDENT RESPONSE\n======================================\n\nYou have forensic read-only access to the gateway appliance.\nDNS query logs and TLS connection logs are available.\n\nObjectives:\n1. Identify the C2 communication domain\n2. Extract the malicious certificate thumbprint\n\nLog locations:\n  /var/log/dns/queries.log    — 72 hours of DNS queries\n  /var/log/tls/connections.log — 72 hours of TLS handshakes\n  /var/log/firewall/traffic.log — Firewall session logs\n\nTips:\n  - C2 beacons have predictable timing patterns\n  - Legitimate services use trusted CAs\n  - grep, sort, uniq, awk, and wc are your friends\n\nSubmit flags via the C2 terminal (bottom-right).'
+                                    },
+                                    'tools': {
+                                        type: 'dir',
+                                        children: {
+                                            'freq_analysis.sh': {
+                                                type: 'file',
+                                                content: '#!/bin/bash\n# DNS frequency analysis helper\n# Usage: ./freq_analysis.sh <logfile>\necho "Analyzing DNS query frequency..."\necho "Top 20 queried domains:"\nawk \'{print $5}\' "$1" | sort | uniq -c | sort -rn | head -20\necho "\\nDone."'
+                                            },
+                                            'cert_check.sh': {
+                                                type: 'file',
+                                                content: '#!/bin/bash\n# TLS certificate anomaly detector\n# Usage: cat /var/log/tls/connections.log | grep "SELF-SIGNED: YES"\n#\n# Then correlate the self-signed cert IPs with DNS findings.\n# Look for certificates where the Issuer matches the Subject\n# (self-signed) AND connects to a suspicious destination.\n#\n# Key indicators:\n#   - SELF-SIGNED: YES\n#   - Subject claims to be a trusted vendor but is self-signed\n#   - Destination IP matches C2 infrastructure'
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    'var': {
+                        type: 'dir',
+                        children: {
+                            'log': {
+                                type: 'dir',
+                                children: {
+                                    'dns': {
+                                        type: 'dir',
+                                        children: {
+                                            'queries.log': {
+                                                type: 'file',
+                                                content: dnsLog
+                                            }
+                                        }
+                                    },
+                                    'tls': {
+                                        type: 'dir',
+                                        children: {
+                                            'connections.log': {
+                                                type: 'file',
+                                                content: tlsLog
+                                            }
+                                        }
+                                    },
+                                    'firewall': {
+                                        type: 'dir',
+                                        children: {
+                                            'traffic.log': {
+                                                type: 'file',
+                                                content: _generateFirewallLog()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+
+        commands: {
+            'grep': function(args, term, engine) {
+                if (args.length < 2) return 'Usage: grep [pattern] [file]';
+                const pattern = args[0].replace(/^["']|["']$/g, '');
+                const filePath = args.slice(1).join(' ').replace(/^["']|["']$/g, '');
+
+                // Handle piped input or file
+                let content = '';
+                const resolved = term._resolvePath ? term._resolvePath(filePath) : filePath;
+                const file = _getFile(engine.config.filesystem, resolved);
+                if (!file || file.type !== 'file') return 'grep: ' + filePath + ': No such file';
+                content = file.content;
+
+                // Handle common grep flags
+                let invert = false;
+                let caseInsensitive = false;
+                let countOnly = false;
+                let showLineNumbers = false;
+                let beforeContext = 0;
+                let afterContext = 0;
+
+                // Parse flags from pattern position if it starts with -
+                let actualPattern = pattern;
+                let actualArgs = args.slice(1);
+
+                if (pattern.startsWith('-')) {
+                    const flags = pattern.substring(1);
+                    if (flags.includes('v')) invert = true;
+                    if (flags.includes('i')) caseInsensitive = true;
+                    if (flags.includes('c')) countOnly = true;
+                    if (flags.includes('n')) showLineNumbers = true;
+                    actualPattern = args[1] ? args[1].replace(/^["']|["']$/g, '') : '';
+                    actualArgs = args.slice(2);
+
+                    // Re-resolve file
+                    const fp2 = actualArgs.join(' ').replace(/^["']|["']$/g, '');
+                    const res2 = term._resolvePath ? term._resolvePath(fp2) : fp2;
+                    const f2 = _getFile(engine.config.filesystem, res2);
+                    if (f2 && f2.type === 'file') content = f2.content;
+                }
+
+                try {
+                    const regex = new RegExp(actualPattern.replace(/\\\|/g, '|').replace(/\\./g, '.'), caseInsensitive ? 'i' : '');
+                    const lines = content.split('\n');
+                    const matched = [];
+                    lines.forEach((line, i) => {
+                        const match = regex.test(line);
+                        if (invert ? !match : match) {
+                            if (showLineNumbers) {
+                                matched.push((i + 1) + ':' + line);
+                            } else {
+                                matched.push(line);
+                            }
+                        }
+                    });
+                    if (countOnly) return String(matched.length);
+                    if (matched.length === 0) return '(no matches)';
+                    if (matched.length > 200) return matched.slice(0, 200).join('\n') + '\n... (' + matched.length + ' total matches, showing first 200)';
+                    return matched.join('\n');
+                } catch (e) {
+                    return 'grep: invalid pattern';
+                }
+            },
+
+            'sort': function(args, term, engine) {
+                // Read from pipe or show usage
+                if (term._pipeData) {
+                    const lines = term._pipeData.split('\n').filter(l => l.trim());
+                    const flagStr = args.join(' ');
+                    const reverse = /-(rn|nr|r)\b/.test(flagStr);
+                    const numeric = /-(rn|nr|n)\b/.test(flagStr);
+                    if (numeric) {
+                        lines.sort((a, b) => {
+                            const na = parseInt(a.trim()) || 0;
+                            const nb = parseInt(b.trim()) || 0;
+                            return reverse ? nb - na : na - nb;
+                        });
+                    } else {
+                        lines.sort();
+                        if (reverse) lines.reverse();
+                    }
+                    return lines.join('\n');
+                }
+                return 'sort: missing input (use with pipe: command | sort)';
+            },
+
+            'uniq': function(args, term) {
+                if (term._pipeData) {
+                    const lines = term._pipeData.split('\n');
+                    if (args.includes('-c')) {
+                        const counts = {};
+                        lines.forEach(l => { const k = l.trim(); if (k) counts[k] = (counts[k] || 0) + 1; });
+                        return Object.entries(counts).map(([k, v]) => '  ' + String(v).padStart(6) + ' ' + k).join('\n');
+                    }
+                    return [...new Set(lines)].join('\n');
+                }
+                return 'uniq: missing input';
+            },
+
+            'head': function(args, term, engine) {
+                let n = 10;
+                let content = '';
+                if (args[0] === '-n' && args[1]) { n = parseInt(args[1]) || 10; args = args.slice(2); }
+                else if (args[0] && args[0].match(/^-\d+$/)) { n = parseInt(args[0].substring(1)); args = args.slice(1); }
+
+                if (term._pipeData) {
+                    content = term._pipeData;
+                } else if (args[0]) {
+                    const resolved = term._resolvePath ? term._resolvePath(args[0]) : args[0];
+                    const file = _getFile(engine.config.filesystem, resolved);
+                    if (!file || file.type !== 'file') return 'head: ' + args[0] + ': No such file';
+                    content = file.content;
+                } else {
+                    return 'Usage: head [-n N] [file]';
+                }
+                return content.split('\n').slice(0, n).join('\n');
+            },
+
+            'tail': function(args, term, engine) {
+                let n = 10;
+                let content = '';
+                if (args[0] === '-n' && args[1]) { n = parseInt(args[1]) || 10; args = args.slice(2); }
+                else if (args[0] && args[0].match(/^-\d+$/)) { n = parseInt(args[0].substring(1)); args = args.slice(1); }
+
+                if (term._pipeData) {
+                    content = term._pipeData;
+                } else if (args[0]) {
+                    const resolved = term._resolvePath ? term._resolvePath(args[0]) : args[0];
+                    const file = _getFile(engine.config.filesystem, resolved);
+                    if (!file || file.type !== 'file') return 'tail: ' + args[0] + ': No such file';
+                    content = file.content;
+                } else {
+                    return 'Usage: tail [-n N] [file]';
+                }
+                const lines = content.split('\n');
+                return lines.slice(Math.max(0, lines.length - n)).join('\n');
+            },
+
+            'wc': function(args, term, engine) {
+                let content = '';
+                if (term._pipeData) {
+                    content = term._pipeData;
+                } else if (args[0] && !args[0].startsWith('-')) {
+                    const resolved = term._resolvePath ? term._resolvePath(args[0]) : args[0];
+                    const file = _getFile(engine.config.filesystem, resolved);
+                    if (!file || file.type !== 'file') return 'wc: ' + args[0] + ': No such file';
+                    content = file.content;
+                }
+                const lines = content.split('\n').length;
+                const words = content.split(/\s+/).filter(w => w).length;
+                const chars = content.length;
+                if (args.includes('-l')) return '  ' + lines;
+                return '  ' + lines + '  ' + words + '  ' + chars;
+            },
+
+            'awk': function(args, term) {
+                if (!term._pipeData) return 'awk: missing input';
+                const prog = args[0] ? args[0].replace(/^['"]|['"]$/g, '') : '';
+                // Simple field extraction: {print $N}
+                const printMatch = prog.match(/\{print\s+\\?\$(\d+)\}/);
+                if (printMatch) {
+                    const fieldNum = parseInt(printMatch[1]) - 1;
+                    return term._pipeData.split('\n')
+                        .map(line => {
+                            const fields = line.trim().split(/\s+/);
+                            return fields[fieldNum] || '';
+                        })
+                        .filter(l => l)
+                        .join('\n');
+                }
+                return 'awk: only simple {print $N} supported in this environment';
+            },
+
+            'cut': function(args, term) {
+                if (!term._pipeData) return 'cut: missing input';
+                let delim = '\t';
+                let fields = [];
+                for (let i = 0; i < args.length; i++) {
+                    if (args[i] === '-d' && args[i+1]) { delim = args[i+1].replace(/^['"]|['"]$/g, ''); i++; }
+                    if (args[i] === '-f' && args[i+1]) { fields = args[i+1].split(',').map(Number); i++; }
+                }
+                return term._pipeData.split('\n').map(line => {
+                    const parts = line.split(delim);
+                    return fields.map(f => parts[f-1] || '').join(delim);
+                }).join('\n');
+            },
+
+            'file': function(args) {
+                if (!args[0]) return 'Usage: file [path]';
+                if (args[0].includes('.log')) return args[0] + ': ASCII text, with very long lines';
+                if (args[0].includes('.sh')) return args[0] + ': Bourne-Again shell script, ASCII text executable';
+                return args[0] + ': regular file';
+            },
+
+            'strings': function(args, term, engine) {
+                if (!args[0]) return 'Usage: strings [file]';
+                const resolved = term._resolvePath ? term._resolvePath(args[0]) : args[0];
+                const file = _getFile(engine.config.filesystem, resolved);
+                if (!file || file.type !== 'file') return 'strings: ' + args[0] + ': No such file';
+                return file.content.split('\n').filter(l => l.trim().length > 3).join('\n');
+            },
+
+            'nslookup': function(args) {
+                if (!args[0]) return 'Usage: nslookup [domain]';
+                const domain = args[0];
+                if (domain === S.c2Domain) {
+                    return 'Server:\t\t192.168.10.1\nAddress:\t192.168.10.1#53\n\nNon-authoritative answer:\nName:\t' + domain + '\nAddress: ' + S.c2ServerIP;
+                }
+                return 'Server:\t\t192.168.10.1\nAddress:\t192.168.10.1#53\n\n** server can\'t find ' + domain + ': NXDOMAIN';
+            },
+
+            'dig': function(args) {
+                if (!args[0]) return 'Usage: dig [domain]';
+                const domain = args[0];
+                if (domain === S.c2Domain) {
+                    return '; <<>> DiG 9.18.18 <<>> ' + domain + '\n;; ANSWER SECTION:\n' + domain + '.\t300\tIN\tA\t' + S.c2ServerIP + '\n\n;; Query time: 12 msec\n;; SERVER: 192.168.10.1#53';
+                }
+                return '; <<>> DiG 9.18.18 <<>> ' + domain + '\n;; status: NXDOMAIN\n;; Query time: 8 msec';
+            },
+
+            'whois': function(args) {
+                if (!args[0]) return 'Usage: whois [domain/ip]';
+                const target = args[0];
+                if (target === S.c2Domain || target === S.c2ServerIP) {
+                    return 'Domain: ' + S.c2Domain + '\nRegistrar: PrivacyGuard LLC\nRegistered: 2026-01-26\nExpires: 2027-01-26\nRegistrant: REDACTED FOR PRIVACY\nRegistrant Country: MD\nName Server: ns1.privacyguard.xyz\nName Server: ns2.privacyguard.xyz\n\nNetRange: 45.77.128.0 - 45.77.131.255\nNetName: VULTR-45-77-128\nOrgName: Choopa LLC (Vultr)\nCountry: US';
+                }
+                return 'No match for "' + target + '"';
+            },
+
+            'submit': function(args, term, engine) {
+                const flag = args.join(' ');
+                if (!flag) return 'Usage: submit FLAG{...}';
+                return 'Use the C2 terminal to submit flags: click the radar icon (bottom-right) and type /flag ' + flag;
+            }
+        },
+
+        lore: BlackwireConfig.lore,
+
+        certObjectives: BlackwireConfig.certObjectives,
+
+        /* Flag validation callback for C2Terminal */
+        _validateFlag: _validateFlag
+    };
+
+    /* ── Filesystem traversal helper ────────────────────── */
+
+    function _getFile(fs, path) {
+        if (!fs || !path) return null;
+        const parts = path.split('/').filter(p => p);
+        let node = fs['/'];
+        for (const part of parts) {
+            if (!node || node.type !== 'dir' || !node.children || !node.children[part]) return null;
+            node = node.children[part];
+        }
+        return node;
+    }
+
+    /* ── Firewall log ───────────────────────────────────── */
+
+    function _generateFirewallLog() {
+        const lines = [];
+        const baseTime = new Date('2026-03-15T00:00:00');
+        const protos = ['TCP', 'UDP', 'TCP', 'TCP'];
+        const actions = ['ALLOW', 'ALLOW', 'ALLOW', 'DENY'];
+
+        for (let hour = 0; hour < 72; hour++) {
+            const count = 10 + Math.floor(_seededRandom() * 15);
+            for (let i = 0; i < count; i++) {
+                const t = new Date(baseTime.getTime() + hour * 3600000 + Math.floor(_seededRandom() * 3600000));
+                const srcIP = '192.168.10.' + (10 + Math.floor(_seededRandom() * 50));
+                const dstIP = _seededRandom() > 0.3 ?
+                    [20, 142, 44, 140, 52][Math.floor(_seededRandom() * 5)] + '.' + Math.floor(_seededRandom() * 255) + '.' + Math.floor(_seededRandom() * 255) + '.' + Math.floor(_seededRandom() * 255) :
+                    '10.10.1.' + Math.floor(_seededRandom() * 20);
+                const proto = protos[Math.floor(_seededRandom() * protos.length)];
+                const port = [80, 443, 443, 443, 8080, 53, 25, 993][Math.floor(_seededRandom() * 8)];
+                const action = _seededRandom() > 0.1 ? 'ALLOW' : 'DENY';
+                lines.push(`[${_fmtTime(t)}] ${action} ${proto} ${srcIP}:${40000 + Math.floor(_seededRandom() * 20000)} -> ${dstIP}:${port} bytes=${Math.floor(_seededRandom() * 5000) + 100}`);
+            }
+            // C2 traffic — always allowed (the firewall doesn't know it's malicious)
+            for (let m = 0; m < 60; m += 3) {
+                const t = new Date(baseTime.getTime() + hour * 3600000 + m * 60000);
+                lines.push(`[${_fmtTime(t)}] ALLOW TCP ${S.compromisedIP}:${40000 + Math.floor(_seededRandom() * 20000)} -> ${S.c2ServerIP}:${S.c2Port} bytes=${200 + Math.floor(_seededRandom() * 800)}`);
+            }
+        }
+        lines.sort();
+        return lines.join('\n');
+    }
+
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   BOOT SEQUENCE
+   ═══════════════════════════════════════════════════════════════ */
+
+// Initialize C2 Terminal widget
+C2Terminal.init({
+    operationId:  'blackwire',
+    storageKey:   'hexworth_c2_blackwire',
+    handler:      { callsign: 'HANDLER' },
+    student:      { callsign: 'OPERATIVE' },
+    narrative:    BlackwireConfig.narrative,
+    devices:      BlackwireConfig.devices,
+    flags:        BlackwireConfig.flags,
+    hints:        BlackwireConfig.hints,
+    scoring:      BlackwireConfig.scoring,
+    onFlagSubmit: function(flagStr, found) {
+        // Check for duplicate
+        const result = GatewayConfig._validateFlag(flagStr);
+        if (result.correct && found.includes(result.flagId)) {
+            return { duplicate: true };
+        }
+        return result;
+    },
+    onDeviceUnlock: function(deviceId) {
+        // In multi-page mode this would navigate; for now just notify
+        C2Terminal.handlerMessage('Device ' + deviceId.toUpperCase() + ' is now accessible.');
+    }
+});
+
+// Show briefing, then boot BoxEngine
+BriefingPage.show(GatewayConfig, function() {
+    BoxEngine.init(GatewayConfig);
+});
+</script>
+</body>
+</html>

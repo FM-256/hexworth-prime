@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DATABASE — Operation Blackwire</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-database.webp">
+    <link rel="stylesheet" href="../../engine/arena.css">
+</head>
+<body>
+<h1 class="visually-hidden">Operation Blackwire — DATABASE Device</h1>
+<div id="arena"></div>
+
+<script src="../../../components/FirebaseAuth.js"></script>
+<script src="../../firebase-init.js"></script>
+<script src="../../engine/CoOpSync.js"></script>
+<script src="../../engine/CoOpLobby.js"></script>
+<script src="../../engine/CoOpUI.js"></script>
+<script src="../../engine/BoxEngine.js"></script>
+<script src="../../engine/Terminal.js"></script>
+<script src="../../engine/Browser.js"></script>
+<script src="../../engine/BriefingPage.js"></script>
+<script src="../../engine/C2Terminal.js"></script>
+<script src="config.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   DATABASE DEVICE — Flags 8, 9, 10
+   PostgreSQL database with partially exfiltrated data
+   Flag  8: Exfiltration Manifest (JOIN across staging tables)
+   Flag  9: Hidden Encryption Key (stored procedure comment)
+   Flag 10: Crown Jewels Decryption (AES decrypt hex blob)
+   ═══════════════════════════════════════════════════════════════ */
+
+const DatabaseConfig = (() => {
+
+    const S = BlackwireConfig._scenario;
+
+    /* ── Database Schema ────────────────────────────────── */
+
+    const _db = {
+        /* PUBLIC schema */
+        'public.employees': {
+            columns: ['id', 'name', 'email', 'department', 'badge_id', 'hire_date'],
+            rows: [
+                [1, 'Sarah Mitchell', 's.mitchell@meridian-dynamics.com', 'Engineering', 'MRD-1001', '2019-03-15'],
+                [2, 'David Park', 'd.park@meridian-dynamics.com', 'Engineering', 'MRD-1042', '2020-06-22'],
+                [3, 'Lisa Chen', 'l.chen@meridian-dynamics.com', 'Finance', 'MRD-2103', '2018-11-08'],
+                [4, 'James Chen', 'j.chen@meridian-dynamics.com', 'Facilities', 'MRD-2847', '2021-01-10'],
+                [5, 'Rachel Torres', 'r.torres@meridian-dynamics.com', 'IT Security', 'MRD-3201', '2017-07-19'],
+                [6, 'Michael Ross', 'm.ross@meridian-dynamics.com', 'Engineering', 'MRD-1088', '2022-02-14'],
+                [7, 'Amanda Wright', 'a.wright@meridian-dynamics.com', 'HR', 'MRD-4010', '2019-09-30'],
+                [8, 'Kevin Nakamura', 'k.nakamura@meridian-dynamics.com', 'IT Infrastructure', 'MRD-3305', '2020-04-12'],
+                [9, 'Emily Watson', 'e.watson@meridian-dynamics.com', 'Executive', 'MRD-5001', '2015-01-05'],
+                [10, 'Carlos Mendez', 'c.mendez@meridian-dynamics.com', 'Engineering', 'MRD-1120', '2023-08-21'],
+                [11, 'Jennifer Liu', 'j.liu@meridian-dynamics.com', 'Legal', 'MRD-6001', '2018-03-17'],
+                [12, 'Robert Kim', 'r.kim@meridian-dynamics.com', 'R&D', 'MRD-1205', '2016-11-02']
+            ]
+        },
+
+        /* HR schema */
+        'hr.employees': {
+            columns: ['employee_id', 'employee_name', 'department', 'badge_id', 'clearance_level', 'access_zones'],
+            rows: [
+                [1, 'Sarah Mitchell', 'Engineering', 'MRD-1001', 'SECRET', 'ENG-LAB,OFFICE-2F'],
+                [2, 'David Park', 'Engineering', 'MRD-1042', 'SECRET', 'ENG-LAB,OFFICE-2F'],
+                [3, 'Lisa Chen', 'Finance', 'MRD-2103', 'CONFIDENTIAL', 'OFFICE-3F'],
+                [4, 'James Chen', 'Facilities', 'MRD-2847', 'UNCLASSIFIED', 'MAINTENANCE,HVAC-CTRL,LOBBY'],
+                [5, 'Rachel Torres', 'IT Security', 'MRD-3201', 'TOP SECRET', 'SERVER-ROOM-01,SOC,ALL-FLOORS'],
+                [6, 'Michael Ross', 'Engineering', 'MRD-1088', 'SECRET', 'ENG-LAB,OFFICE-2F'],
+                [7, 'Amanda Wright', 'HR', 'MRD-4010', 'CONFIDENTIAL', 'OFFICE-3F,HR-SUITE'],
+                [8, 'Kevin Nakamura', 'IT Infrastructure', 'MRD-3305', 'SECRET', 'SERVER-ROOM-01,NETWORK-CLOSET'],
+                [9, 'Emily Watson', 'Executive', 'MRD-5001', 'TOP SECRET/SCI', 'ALL-ACCESS'],
+                [10, 'Carlos Mendez', 'Engineering', 'MRD-1120', 'SECRET', 'ENG-LAB,OFFICE-2F'],
+                [11, 'Jennifer Liu', 'Legal', 'MRD-6001', 'SECRET', 'OFFICE-4F,LEGAL-SUITE'],
+                [12, 'Robert Kim', 'R&D', 'MRD-1205', 'TOP SECRET', 'R&D-LAB,SERVER-ROOM-01']
+            ]
+        },
+
+        /* STAGING schema — APT exfiltration infrastructure */
+        'staging.exfil_manifest': {
+            columns: ['manifest_id', 'batch_id', 'target_table', 'target_schema', 'priority'],
+            rows: [
+                [1, 'BW-001', 'employees', 'hr', 'LOW'],
+                [2, 'BW-002', 'classified', 'projects', 'CRITICAL'],
+                [3, 'BW-003', 'contracts', 'projects', 'HIGH'],
+                [4, 'BW-004', 'access_logs', 'security', 'MEDIUM'],
+                [5, 'BW-005', 'credentials', 'auth', 'HIGH'],
+                [6, 'BW-006', 'network_map', 'infrastructure', 'MEDIUM'],
+                [7, 'BW-007', 'satellite_specs', 'projects', 'CRITICAL']
+            ]
+        },
+        'staging.exfil_log': {
+            columns: ['log_id', 'batch_id', 'records_sent', 'bytes_transferred', 'timestamp', 'status'],
+            rows: [
+                [1, 'BW-001', 247, 184320, '2026-03-12 01:15:00', 'COMPLETE'],
+                [2, 'BW-002', 12, 2457600, '2026-03-12 01:22:00', 'COMPLETE'],
+                [3, 'BW-003', 89, 892416, '2026-03-12 02:05:00', 'COMPLETE'],
+                [4, 'BW-004', 1543, 3145728, '2026-03-13 01:10:00', 'COMPLETE'],
+                [5, 'BW-005', 34, 45056, '2026-03-13 01:18:00', 'COMPLETE'],
+                [6, 'BW-006', 8, 16384, '2026-03-13 01:20:00', 'COMPLETE'],
+                [7, 'BW-007', 914, 47185920, '2026-03-14 02:30:00', 'COMPLETE']
+            ]
+        },
+        'staging.exfil_queue': {
+            columns: ['queue_id', 'batch_id', 'table_name', 'row_range', 'status'],
+            rows: [
+                [1, 'BW-001', 'hr.employees', '1-247', 'SENT'],
+                [2, 'BW-002', 'projects.classified', '1-12', 'SENT'],
+                [3, 'BW-003', 'projects.contracts', '1-89', 'SENT'],
+                [4, 'BW-004', 'security.access_logs', '1-1543', 'SENT'],
+                [5, 'BW-005', 'auth.credentials', '1-34', 'SENT'],
+                [6, 'BW-006', 'infrastructure.network_map', '1-8', 'SENT'],
+                [7, 'BW-007', 'projects.satellite_specs', '1-914', 'SENT'],
+                [8, 'BW-008', 'projects.field_radios', '1-156', 'QUEUED'],
+                [9, 'BW-009', 'projects.gps_augmentation', '1-78', 'QUEUED']
+            ]
+        },
+
+        /* PROJECTS schema */
+        'projects.classified': {
+            columns: ['id', 'project_name', 'data_encrypted'],
+            rows: [
+                [1, 'REDACTED', '7a6f3e8c1d4b2a9f8e7c6d5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5']
+            ]
+        },
+        'projects.contracts': {
+            columns: ['id', 'contract_number', 'vendor', 'value', 'classification'],
+            rows: [
+                [1, 'MD-2024-001', 'Raytheon Technologies', 4500000, 'SECRET'],
+                [2, 'MD-2024-015', 'Northrop Grumman', 12800000, 'TOP SECRET'],
+                [3, 'MD-2024-023', 'L3Harris Technologies', 3200000, 'SECRET'],
+                [4, 'MD-2025-002', 'General Dynamics', 8900000, 'TOP SECRET/SCI'],
+                [5, 'MD-2025-008', 'BAE Systems', 2100000, 'CONFIDENTIAL']
+            ]
+        },
+
+        /* Stored procedures */
+        '_procedures': {
+            'cleanup_temp_data': {
+                schema: 'public',
+                language: 'plpgsql',
+                returns: 'void',
+                source: `-- Maintenance procedure: runs nightly at 02:00
+-- Last updated: 2026-02-28
+-- Key: ${S.encryptionKey}
+-- Do not modify without DBA approval
+BEGIN
+    DELETE FROM temp_reports WHERE created_at < NOW() - INTERVAL '30 days';
+    DELETE FROM temp_exports WHERE created_at < NOW() - INTERVAL '7 days';
+    DELETE FROM session_cache WHERE last_access < NOW() - INTERVAL '24 hours';
+    VACUUM ANALYZE temp_reports;
+    VACUUM ANALYZE temp_exports;
+    RAISE NOTICE 'Temp cleanup complete: % rows removed',
+        (SELECT count(*) FROM pg_stat_user_tables WHERE n_dead_tup > 0);
+END;`
+            },
+            'generate_report': {
+                schema: 'public',
+                language: 'plpgsql',
+                returns: 'TABLE(report_date date, total_projects int, active_contracts int)',
+                source: `BEGIN
+    RETURN QUERY
+    SELECT CURRENT_DATE,
+           (SELECT count(*) FROM projects.classified)::int,
+           (SELECT count(*) FROM projects.contracts WHERE classification != 'ARCHIVED')::int;
+END;`
+            },
+            'rotate_credentials': {
+                schema: 'auth',
+                language: 'plpgsql',
+                returns: 'void',
+                source: `-- Credential rotation — runs weekly
+-- Contact: k.nakamura@meridian-dynamics.com
+BEGIN
+    UPDATE auth.credentials
+    SET password_hash = crypt(gen_random_uuid()::text, gen_salt('bf', 12)),
+        rotated_at = NOW()
+    WHERE rotated_at < NOW() - INTERVAL '90 days';
+    RAISE NOTICE 'Credentials rotated successfully';
+END;`
+            }
+        }
+    };
+
+    // Pre-compute the total exfiltrated records
+    const _exfilTotal = _db['staging.exfil_log'].rows.reduce((sum, row) => sum + row[2], 0);
+
+    /* ── SQL Parser ─────────────────────────────────────── */
+
+    function _executeSql(query) {
+        const q = query.trim().replace(/;$/, '').trim();
+        const qUp = q.toUpperCase();
+
+        // \dt — list tables
+        if (q === '\\dt' || q === '\\dt+') {
+            return _formatTable(
+                ['Schema', 'Name', 'Type', 'Owner'],
+                [
+                    ['public', 'employees', 'table', 'postgres'],
+                    ['hr', 'employees', 'table', 'postgres'],
+                    ['projects', 'classified', 'table', 'postgres'],
+                    ['projects', 'contracts', 'table', 'postgres'],
+                    ['staging', 'exfil_manifest', 'table', 'postgres'],
+                    ['staging', 'exfil_log', 'table', 'postgres'],
+                    ['staging', 'exfil_queue', 'table', 'postgres']
+                ]
+            );
+        }
+
+        // \dn — list schemas
+        if (q === '\\dn') {
+            return _formatTable(
+                ['Name', 'Owner'],
+                [
+                    ['public', 'postgres'],
+                    ['hr', 'postgres'],
+                    ['projects', 'postgres'],
+                    ['staging', 'postgres'],
+                    ['auth', 'postgres'],
+                    ['security', 'postgres'],
+                    ['infrastructure', 'postgres']
+                ]
+            );
+        }
+
+        // \df — list functions
+        if (q === '\\df' || q === '\\df+') {
+            const funcs = Object.entries(_db._procedures).map(([name, proc]) => [
+                proc.schema, name, proc.returns, proc.language
+            ]);
+            return _formatTable(['Schema', 'Name', 'Result', 'Language'], funcs);
+        }
+
+        // \sf — show function source
+        if (q.startsWith('\\sf ') || q.startsWith('\\sf\t')) {
+            const funcName = q.substring(3).trim();
+            const proc = _db._procedures[funcName];
+            if (!proc) return 'ERROR: function "' + funcName + '" does not exist';
+            return 'CREATE OR REPLACE FUNCTION ' + proc.schema + '.' + funcName + '()\n' +
+                   ' RETURNS ' + proc.returns + '\n' +
+                   ' LANGUAGE ' + proc.language + '\nAS $$\n' +
+                   proc.source + '\n$$;';
+        }
+
+        // \d [table] — describe table
+        if (q.startsWith('\\d ') || q.startsWith('\\d\t')) {
+            const tableName = q.substring(2).trim();
+            const table = _findTable(tableName);
+            if (!table) return 'Did not find any relation named "' + tableName + '".';
+            return _formatTable(
+                ['Column', 'Type', 'Nullable'],
+                table.columns.map(c => [c, _inferType(c), 'YES'])
+            );
+        }
+
+        // SELECT queries
+        if (qUp.startsWith('SELECT')) {
+            return _handleSelect(q);
+        }
+
+        // SHOW / SET
+        if (qUp.startsWith('SHOW')) {
+            if (qUp.includes('SEARCH_PATH')) return ' search_path\n--------------\n public';
+            if (qUp.includes('SERVER_VERSION')) return ' server_version\n-----------------\n 15.4';
+            return 'ERROR: unrecognized configuration parameter';
+        }
+
+        // Help
+        if (q === '\\?' || q === '\\help' || q === 'help') {
+            return 'PostgreSQL Commands:\n' +
+                   '  \\dt          List all tables\n' +
+                   '  \\dn          List schemas\n' +
+                   '  \\d [table]   Describe table columns\n' +
+                   '  \\df          List stored procedures/functions\n' +
+                   '  \\sf [func]   Show function source code\n' +
+                   '  SELECT ...   Execute SQL query\n' +
+                   '  \\?           Show this help';
+        }
+
+        return 'ERROR: syntax error at or near "' + q.split(' ')[0] + '"';
+    }
+
+    /* ── SELECT Handler ─────────────────────────────────── */
+
+    function _handleSelect(query) {
+        const q = query.replace(/;$/, '').trim();
+        const qUp = q.toUpperCase();
+
+        // SUM(records_sent) — Flag 8 answer
+        if (qUp.includes('SUM') && qUp.includes('RECORDS_SENT')) {
+            return _formatTable(['sum'], [[_exfilTotal]]);
+        }
+
+        // COUNT(*) variants
+        if (qUp.includes('COUNT(*)') || qUp.includes('COUNT(1)')) {
+            const table = _extractTableName(qUp);
+            if (table) {
+                const t = _findTable(table);
+                if (t) return _formatTable(['count'], [[t.rows.length]]);
+            }
+        }
+
+        // prosrc — reading function source (Flag 9 path)
+        if (qUp.includes('PROSRC') && qUp.includes('PG_PROC')) {
+            const nameMatch = q.match(/proname\s*=\s*'([^']+)'/i);
+            if (nameMatch && _db._procedures[nameMatch[1]]) {
+                return _formatTable(['prosrc'], [[_db._procedures[nameMatch[1]].source]]);
+            }
+            return '(0 rows)';
+        }
+
+        // information_schema.routines
+        if (qUp.includes('INFORMATION_SCHEMA.ROUTINES')) {
+            const funcs = Object.entries(_db._procedures).map(([name]) => [name]);
+            return _formatTable(['routine_name'], funcs);
+        }
+
+        // information_schema.columns
+        if (qUp.includes('INFORMATION_SCHEMA.COLUMNS')) {
+            const tableMatch = q.match(/table_name\s*=\s*'([^']+)'/i);
+            if (tableMatch) {
+                const t = _findTable(tableMatch[1]);
+                if (t) return _formatTable(['column_name', 'data_type'], t.columns.map(c => [c, _inferType(c)]));
+            }
+        }
+
+        // information_schema.tables
+        if (qUp.includes('INFORMATION_SCHEMA.TABLES')) {
+            const tables = Object.keys(_db).filter(k => !k.startsWith('_')).map(k => {
+                const parts = k.split('.');
+                return [parts[0], parts[1]];
+            });
+            return _formatTable(['table_schema', 'table_name'], tables);
+        }
+
+        // JOINs across staging tables — Flag 8 path
+        if (qUp.includes('JOIN') && (qUp.includes('EXFIL_MANIFEST') || qUp.includes('EXFIL_LOG'))) {
+            // Return joined result
+            const rows = _db['staging.exfil_manifest'].rows.map(mRow => {
+                const logRow = _db['staging.exfil_log'].rows.find(l => l[1] === mRow[1]);
+                if (logRow) {
+                    return [mRow[1], mRow[2], mRow[3], logRow[2], logRow[4], logRow[5]];
+                }
+                return [mRow[1], mRow[2], mRow[3], 0, 'N/A', 'PENDING'];
+            });
+            return _formatTable(
+                ['batch_id', 'target_table', 'target_schema', 'records_sent', 'timestamp', 'status'],
+                rows
+            );
+        }
+
+        // decrypt() — Flag 10 path
+        if (qUp.includes('DECRYPT') || qUp.includes('CONVERT_FROM')) {
+            // Check if they're using the right key
+            if (q.includes(S.encryptionKey)) {
+                return _formatTable(
+                    ['convert_from'],
+                    [['Classified Project Codename: ' + S.projectCodename + '\nDescription: Defense satellite communication protocol specifications\nClassification: TOP SECRET/SCI\nProject Lead: COL. R. Thompson, USSF']]
+                );
+            }
+            return 'ERROR: decryption failed — invalid key or corrupted data';
+        }
+
+        // decode() only — show hex info
+        if (qUp.includes('DECODE') && qUp.includes("'HEX'") && !qUp.includes('DECRYPT')) {
+            return _formatTable(['decode'], [['\\x7a6f3e8c1d4b2a9f8e7c6d5b4a3f2e1d...  (binary data, 64 bytes)']]);
+        }
+
+        // Generic SELECT * FROM [table]
+        const fromMatch = qUp.match(/FROM\s+([\w.]+)/);
+        if (fromMatch) {
+            const tableName = fromMatch[1].toLowerCase();
+            const table = _findTable(tableName);
+            if (!table) return 'ERROR: relation "' + tableName + '" does not exist';
+
+            let rows = table.rows;
+
+            // WHERE clause filtering
+            const whereMatch = q.match(/WHERE\s+(.+?)(?:ORDER|LIMIT|GROUP|$)/i);
+            if (whereMatch) {
+                const cond = whereMatch[1].trim();
+                rows = _filterRows(table, rows, cond);
+            }
+
+            // ORDER BY
+            const orderMatch = qUp.match(/ORDER\s+BY\s+([\w.]+)(?:\s+(ASC|DESC))?/);
+            if (orderMatch) {
+                const colName = orderMatch[1].toLowerCase();
+                const colIdx = table.columns.indexOf(colName);
+                const desc = orderMatch[2] === 'DESC';
+                if (colIdx >= 0) {
+                    rows = [...rows].sort((a, b) => {
+                        if (desc) return a[colIdx] > b[colIdx] ? -1 : 1;
+                        return a[colIdx] > b[colIdx] ? 1 : -1;
+                    });
+                }
+            }
+
+            // LIMIT
+            const limitMatch = qUp.match(/LIMIT\s+(\d+)/);
+            if (limitMatch) rows = rows.slice(0, parseInt(limitMatch[1]));
+
+            // Column selection
+            let selectedCols = table.columns;
+            const selectPart = q.substring(6, qUp.indexOf('FROM')).trim();
+            if (selectPart !== '*') {
+                selectedCols = selectPart.split(',').map(c => c.trim().split('.').pop().toLowerCase());
+                rows = rows.map(row => {
+                    return selectedCols.map(col => {
+                        const idx = table.columns.indexOf(col);
+                        return idx >= 0 ? row[idx] : 'NULL';
+                    });
+                });
+            }
+
+            if (rows.length === 0) return '(0 rows)';
+            return _formatTable(selectedCols, rows);
+        }
+
+        return 'ERROR: cannot parse query';
+    }
+
+    /* ── Table lookup helper ────────────────────────────── */
+
+    function _findTable(name) {
+        const n = name.toLowerCase().replace(/['"]/g, '');
+        // Direct match
+        if (_db[n]) return _db[n];
+        // Try with common schema prefixes
+        for (const key of Object.keys(_db)) {
+            if (key.endsWith('.' + n)) return _db[key];
+        }
+        return null;
+    }
+
+    function _extractTableName(qUp) {
+        const m = qUp.match(/FROM\s+([\w.]+)/);
+        return m ? m[1].toLowerCase() : null;
+    }
+
+    /* ── WHERE filter (basic) ───────────────────────────── */
+
+    function _filterRows(table, rows, cond) {
+        // String equality: badge_id = 'MRD-2847'
+        const eqMatch = cond.match(/([\w.]+)\s*=\s*'([^']+)'/i);
+        if (eqMatch) {
+            const colIdx = table.columns.indexOf(eqMatch[1].toLowerCase());
+            if (colIdx >= 0) {
+                return rows.filter(r => String(r[colIdx]).toLowerCase() === eqMatch[2].toLowerCase());
+            }
+        }
+        // Numeric equality: id = 5
+        const numMatch = cond.match(/([\w.]+)\s*=\s*(\d+)/i);
+        if (numMatch) {
+            const colIdx = table.columns.indexOf(numMatch[1].toLowerCase());
+            if (colIdx >= 0) {
+                return rows.filter(r => Number(r[colIdx]) === Number(numMatch[2]));
+            }
+        }
+        // LIKE
+        const likeMatch = cond.match(/([\w.]+)\s+LIKE\s+'([^']+)'/i);
+        if (likeMatch) {
+            const colIdx = table.columns.indexOf(likeMatch[1].toLowerCase());
+            if (colIdx >= 0) {
+                const pattern = likeMatch[2].replace(/%/g, '.*');
+                const regex = new RegExp('^' + pattern + '$', 'i');
+                return rows.filter(r => regex.test(String(r[colIdx])));
+            }
+        }
+        return rows;
+    }
+
+    /* ── Output formatting ──────────────────────────────── */
+
+    function _formatTable(columns, rows) {
+        if (!rows || rows.length === 0) return '(0 rows)';
+
+        // Calculate column widths
+        const widths = columns.map((col, i) => {
+            const dataWidths = rows.map(r => String(r[i] !== undefined ? r[i] : 'NULL').length);
+            return Math.max(col.length, ...dataWidths);
+        });
+
+        // Header
+        const header = columns.map((col, i) => col.padEnd(widths[i])).join(' | ');
+        const separator = widths.map(w => '-'.repeat(w)).join('-+-');
+
+        // Rows
+        const dataLines = rows.map(row =>
+            columns.map((_, i) => String(row[i] !== undefined ? row[i] : 'NULL').padEnd(widths[i])).join(' | ')
+        );
+
+        return ' ' + header + '\n-' + separator + '-\n ' + dataLines.join('\n ') + '\n(' + rows.length + ' rows)';
+    }
+
+    function _inferType(colName) {
+        const c = colName.toLowerCase();
+        if (c === 'id' || c.endsWith('_id') || c === 'employee_id' || c === 'log_id' || c === 'manifest_id' || c === 'queue_id') return 'integer';
+        if (c.includes('date') || c.includes('timestamp') || c.includes('time')) return 'timestamp';
+        if (c.includes('value') || c.includes('bytes') || c.includes('records') || c.includes('count')) return 'integer';
+        if (c.includes('encrypted') || c.includes('hash')) return 'text';
+        return 'varchar(255)';
+    }
+
+    /* ── Flag validation ────────────────────────────────── */
+
+    function _validateFlag(flagStr) {
+        const val = flagStr.replace(/^FLAG\{/i, '').replace(/\}$/, '').trim();
+
+        // Flag 8 — Exfiltration total
+        if (val === String(_exfilTotal)) {
+            return { correct: true, flagId: 'f8', points: 100 };
+        }
+
+        // Flag 9 — Encryption key
+        if (val.toLowerCase() === S.encryptionKey.toLowerCase()) {
+            return { correct: true, flagId: 'f9', points: 100 };
+        }
+
+        // Flag 10 — Project codename (accept with or without "PROJECT" prefix)
+        const cleanVal = val.toUpperCase().replace(/^PROJECT\s+/, '');
+        if (cleanVal === S.projectCodename) {
+            return { correct: true, flagId: 'f10', points: 100 };
+        }
+
+        return { correct: false };
+    }
+
+    /* ── BoxEngine Config ───────────────────────────────── */
+
+    return {
+        title: 'Operation Blackwire',
+        subtitle: 'DATABASE — PostgreSQL Forensic Access',
+        difficulty: 'Expert',
+        accent: '#10b981',
+        storageKey: 'hexworth_ctf_ops05_db',
+        registryId: 'ops-05-operation-blackwire',
+        trackerKey: 'ctf_ops05_db',
+
+        flags: [
+            { id: 'f8', points: 100 },
+            { id: 'f9', points: 100 },
+            { id: 'f10', points: 100 }
+        ],
+
+        scoring: {
+            base: 0,
+            hintPenalty: -25,
+            wrongFlagPenalty: -10,
+            speedBonus: { threshold: 2700000, points: 50 }
+        },
+
+        hints: [
+            { id: 'h8',  text: BlackwireConfig.hints.f8,  cost: 25, penalty: 25, forFlag: 'f8' },
+            { id: 'h9',  text: BlackwireConfig.hints.f9,  cost: 25, penalty: 25, forFlag: 'f9' },
+            { id: 'h10', text: BlackwireConfig.hints.f10, cost: 25, penalty: 25, forFlag: 'f10' }
+        ],
+
+        phases: [
+            {
+                id: 'reconnaissance',
+                name: 'Database Reconnaissance',
+                icon: '',
+                description: 'Map the database schemas, tables, and stored procedures.',
+                requiredFlags: [],
+                mitre: ['T1005'],
+                unlocks: ['exfil-analysis'],
+                locked: false
+            },
+            {
+                id: 'exfil-analysis',
+                name: 'Exfiltration Analysis',
+                icon: '',
+                description: 'Reconstruct the exfiltration manifest from staging tables.',
+                requiredFlags: ['f8'],
+                mitre: ['T1074.002'],
+                unlocks: ['key-recovery'],
+                locked: true
+            },
+            {
+                id: 'key-recovery',
+                name: 'Key Recovery',
+                icon: '',
+                description: 'Find the encryption key hidden in the database code.',
+                requiredFlags: ['f9'],
+                mitre: ['T1027'],
+                unlocks: ['decryption'],
+                locked: true
+            },
+            {
+                id: 'decryption',
+                name: 'Crown Jewels Decryption',
+                icon: '',
+                description: 'Decrypt the classified project data using the recovered key.',
+                requiredFlags: ['f10'],
+                mitre: ['T1041'],
+                unlocks: [],
+                locked: true
+            }
+        ],
+
+        boot: {
+            biosLines: [
+                'PostgreSQL 15.4 on x86_64-pc-linux-gnu',
+                'Server: db-meridian-01.internal (10.10.2.50)',
+                'Database: meridian_corp',
+                'Schemas: public, hr, projects, staging, auth, security, infrastructure',
+                'Extensions: pgcrypto, pg_stat_statements, uuid-ossp',
+                'Connecting as: ir_analyst (read-only forensic access)',
+                'SSL: on (TLS 1.3)',
+                'Loading schema metadata...',
+                'Ready for queries.'
+            ],
+            grubEntries: ['PostgreSQL 15.4', 'Recovery Console'],
+            loginUser: 'ir_analyst'
+        },
+
+        desktop: {
+            icons: [
+                { id: 'terminal', label: 'SQL Terminal', icon: '', app: 'terminal' },
+                { id: 'notes',    label: 'Notes',       icon: '', app: 'notes' },
+                { id: 'hints',    label: 'Hints',       icon: '', app: 'hints' }
+            ]
+        },
+
+        terminal: {
+            user: 'ir_analyst',
+            hostname: 'db-meridian-01',
+            startDir: 'meridian_corp',
+            welcome: 'PostgreSQL 15.4 — Forensic Read-Only Access\nDatabase: meridian_corp\nType \\? for help, \\dt for tables, \\df for functions.'
+        },
+
+        filesystem: {
+            '/': {
+                type: 'dir',
+                children: {
+                    'home': {
+                        type: 'dir',
+                        children: {
+                            'ir_analyst': {
+                                type: 'dir',
+                                children: {
+                                    'README.txt': {
+                                        type: 'file',
+                                        content: 'DATABASE FORENSIC ACCESS\n========================\n\nYou have read-only access to the Meridian Dynamics corporate database.\n\nObjectives:\n1. Reconstruct the data exfiltration manifest (staging schema)\n2. Find the encryption key hidden in the database\n3. Decrypt the classified project data\n\nUseful commands:\n  \\dt          List all tables\n  \\dn          List schemas\n  \\df          List stored procedures\n  \\sf [func]   Show function source code\n  \\d [table]   Describe table structure\n  SELECT ...   Run SQL queries\n\nTip: The staging schema was created by the attackers.\nTip: Not all secrets are stored in tables.\n\nSubmit flags via the C2 terminal (bottom-right).'
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+
+        commands: {
+            // Override all commands to route through SQL parser
+            'select': function(args, term, engine) {
+                return _executeSql('SELECT ' + args.join(' '));
+            },
+            'SELECT': function(args, term, engine) {
+                return _executeSql('SELECT ' + args.join(' '));
+            },
+
+            // Backslash commands
+            '\\dt':  function() { return _executeSql('\\dt'); },
+            '\\dt+': function() { return _executeSql('\\dt+'); },
+            '\\dn':  function() { return _executeSql('\\dn'); },
+            '\\df':  function() { return _executeSql('\\df'); },
+            '\\df+': function() { return _executeSql('\\df+'); },
+            '\\?':   function() { return _executeSql('\\?'); },
+            '\\sf':  function(args) { return _executeSql('\\sf ' + args.join(' ')); },
+            '\\d':   function(args) { return _executeSql('\\d ' + args.join(' ')); },
+
+            'show': function(args) { return _executeSql('SHOW ' + args.join(' ')); },
+            'SHOW': function(args) { return _executeSql('SHOW ' + args.join(' ')); },
+
+            'submit': function(args) {
+                const flag = args.join(' ');
+                if (!flag) return 'Usage: submit FLAG{...}';
+                return 'Use the C2 terminal to submit flags: click the radar icon (bottom-right) and type /flag ' + flag;
+            }
+        },
+
+        lore: BlackwireConfig.lore,
+        certObjectives: BlackwireConfig.certObjectives,
+        _validateFlag: _validateFlag
+    };
+
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   BOOT SEQUENCE
+   ═══════════════════════════════════════════════════════════════ */
+
+// Initialize C2 Terminal widget (shared state with gateway)
+C2Terminal.init({
+    operationId:  'blackwire',
+    storageKey:   'hexworth_c2_blackwire',
+    handler:      { callsign: 'HANDLER' },
+    student:      { callsign: 'OPERATIVE' },
+    narrative:    BlackwireConfig.narrative,
+    devices:      BlackwireConfig.devices,
+    flags:        BlackwireConfig.flags,
+    hints:        BlackwireConfig.hints,
+    scoring:      BlackwireConfig.scoring,
+    onFlagSubmit: function(flagStr, found) {
+        // Try database flags first, then gateway flags
+        const dbResult = DatabaseConfig._validateFlag(flagStr);
+        if (dbResult.correct) {
+            if (found.includes(dbResult.flagId)) return { duplicate: true };
+            return dbResult;
+        }
+        // Also accept gateway flags submitted from here
+        const val = flagStr.replace(/^FLAG\{/i, '').replace(/\}$/, '').trim();
+        const S = BlackwireConfig._scenario;
+        if (val.toLowerCase() === S.c2Domain.toLowerCase()) {
+            if (found.includes('f1')) return { duplicate: true };
+            return { correct: true, flagId: 'f1', points: 100 };
+        }
+        if (val.toLowerCase() === S.certThumbprint.toLowerCase()) {
+            if (found.includes('f2')) return { duplicate: true };
+            return { correct: true, flagId: 'f2', points: 100 };
+        }
+        return { correct: false };
+    },
+    onDeviceUnlock: function(deviceId) {
+        C2Terminal.handlerMessage('Device ' + deviceId.toUpperCase() + ' is now accessible.');
+    }
+});
+
+// Show briefing, then boot BoxEngine
+BriefingPage.show(DatabaseConfig, function() {
+    BoxEngine.init(DatabaseConfig);
+});
+</script>
+</body>
+</html>
