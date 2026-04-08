@@ -651,4 +651,82 @@ window.SignalGuides = {
         ]
     }
 
+},
+
+    // ========================================================================
+    // SG-98: Network Adapter Impersonation (USB RNDIS/ECM)
+    // ========================================================================
+    'sg-98': {
+        intro: '<p>The ESP32-S3 can present as a USB network adapter to any computer it plugs into. The host operating system sees a new Ethernet interface, assigns it an IP via DHCP (served by the ESP32-S3), and begins routing traffic through it. This gives the device the ability to intercept, modify, or redirect network traffic.</p>' +
+               '<p>This is how devices like the LAN Turtle and PoisonTap work. The host trusts USB network adapters implicitly &mdash; no driver installation is needed on modern operating systems.</p>' +
+               '<p>In this project you will make the T-Display-S3 appear as a network adapter, serve DHCP, intercept DNS queries, and understand how to detect and defend against USB network impersonation.</p>',
+
+        wiring: '    No external wiring required.\n    T-Display-S3 only.\n    USB-C connection to target machine.',
+
+        wiringNotes: '<p><strong>No external wiring.</strong> The USB connection carries both the network data and power.</p>' +
+                     '<p><strong>Authorization:</strong> USB network impersonation intercepts traffic. Only use on systems you own or have explicit written authorization to test. This technique can capture credentials, session tokens, and sensitive data in transit.</p>' +
+                     '<p><strong>Safety:</strong> This device modifies the target machine network routing. Always test on an isolated system first. Incorrect DHCP configuration can disrupt the target network connectivity.</p>',
+
+        wiringSvg: '',
+
+        steps: [
+            {
+                title: 'USB RNDIS Network Adapter Setup',
+                content: '<p>RNDIS (Remote Network Driver Interface Specification) is a Microsoft protocol that allows USB devices to present as network adapters. Windows supports it natively. Linux and macOS use CDC-ECM (Communications Device Class &mdash; Ethernet Control Model) which is the open standard equivalent.</p>' +
+                         '<p>The ESP32-S3 TinyUSB stack supports both RNDIS and CDC-ECM. We configure it to present as a USB Ethernet adapter.</p>',
+                code: '#include "USB.h"\n#include <TFT_eSPI.h>\n\nTFT_eSPI tft = TFT_eSPI();\n\n// Note: RNDIS/ECM implementation requires the TinyUSB net driver\n// which is available in the ESP-IDF framework (not Arduino by default).\n// For Arduino, use the ESP32-S3 RNDIS library or ESP-IDF directly.\n\n// Conceptual flow:\n// 1. ESP32-S3 presents as USB network adapter (RNDIS class)\n// 2. Host sees new Ethernet interface\n// 3. ESP32-S3 serves DHCP: assigns IP to host interface\n// 4. ESP32-S3 becomes the default gateway for that interface\n// 5. All DNS queries route through the ESP32-S3\n// 6. ESP32-S3 can respond with spoofed DNS or proxy traffic\n\n// DHCP Server configuration\nconst char* DEVICE_IP = "172.16.0.1";\nconst char* HOST_IP   = "172.16.0.2";\nconst char* SUBNET    = "255.255.255.0";\nconst char* DNS       = "172.16.0.1";  // ESP32 IS the DNS server\n\nvoid setup() {\n    tft.init();\n    tft.setRotation(1);\n    pinMode(TFT_BL, OUTPUT);\n    digitalWrite(TFT_BL, HIGH);\n    tft.fillScreen(TFT_BLACK);\n    \n    tft.setTextColor(TFT_RED, TFT_BLACK);\n    tft.setTextSize(2);\n    tft.setCursor(10, 10);\n    tft.println("NET IMPLANT");\n    tft.setTextSize(1);\n    tft.setTextColor(TFT_CYAN, TFT_BLACK);\n    tft.setCursor(10, 50);\n    tft.printf("Device IP: %s\\n", DEVICE_IP);\n    tft.printf("Host IP:   %s\\n", HOST_IP);\n    tft.printf("Gateway:   %s (this device)\\n", DEVICE_IP);\n    tft.printf("DNS:       %s (this device)\\n", DNS);\n    tft.println("");\n    tft.setTextColor(TFT_YELLOW, TFT_BLACK);\n    tft.println("Status: Waiting for host...");\n    \n    // Initialize USB RNDIS\n    // Implementation depends on framework choice\n    // See ESP-IDF tinyusb_net example\n}',
+                language: 'C++',
+                tip: '<strong>172.16.0.0/24</strong> is used to avoid conflicting with common home networks (192.168.x.x) or VPN ranges (10.x.x.x). The ESP32-S3 assigns itself as both the gateway and DNS server &mdash; this means ALL DNS queries from the host interface route through the device.'
+            },
+            {
+                title: 'DNS Interception',
+                content: '<p>As the DNS server for the USB network interface, the ESP32-S3 can respond to DNS queries with any IP address. This is the foundation of phishing attacks via USB &mdash; redirect login pages to a captive portal hosted on the device itself.</p>',
+                code: '// Simplified DNS responder concept\n// Listens on UDP port 53 on the USB network interface\n// Responds to all queries with the device IP (captive portal)\n\n#include <WiFi.h>  // For UDP\n#include <WiFiUdp.h>\n\nWiFiUDP dnsServer;\nint dnsQueryCount = 0;\n\nvoid startDNS() {\n    dnsServer.begin(53);\n}\n\nvoid handleDNS() {\n    int packetSize = dnsServer.parsePacket();\n    if (packetSize == 0) return;\n    \n    uint8_t buffer[512];\n    dnsServer.read(buffer, 512);\n    \n    // Extract queried domain name (for logging)\n    String domain = parseDNSQuery(buffer, packetSize);\n    dnsQueryCount++;\n    \n    // Log to display\n    tft.setCursor(10, 120);\n    tft.setTextColor(TFT_GREEN, TFT_BLACK);\n    tft.printf("DNS #%d: %s    \\n", dnsQueryCount, domain.c_str());\n    \n    // Respond with our own IP for ALL queries\n    // This redirects everything to our captive portal\n    sendDNSResponse(buffer, packetSize, DEVICE_IP);\n}\n\nString parseDNSQuery(uint8_t* buf, int len) {\n    // DNS query domain starts at byte 12\n    String domain = "";\n    int pos = 12;\n    while (pos < len && buf[pos] != 0) {\n        int labelLen = buf[pos];\n        pos++;\n        for (int i = 0; i < labelLen && pos < len; i++) {\n            domain += (char)buf[pos];\n            pos++;\n        }\n        if (buf[pos] != 0) domain += ".";\n    }\n    return domain;\n}',
+                language: 'C++',
+                tip: '<strong>Every website the host visits</strong> first makes a DNS query. By controlling DNS, you control where the host connects. Even HTTPS cannot protect against DNS redirection at the initial connection &mdash; the user sees a legitimate-looking domain but connects to the wrong IP. This is why DNS-over-HTTPS (DoH) and DNSSEC are critical defenses.'
+            },
+            {
+                title: 'Detection and Defense',
+                content: '<p>USB network adapter impersonation is one of the most dangerous USB attacks because it is silent and persistent. Here is how to detect and defend:</p>' +
+                         '<ul>' +
+                         '<li><strong>New interface alerts:</strong> Monitor for new network interfaces appearing. On Linux: <code>ip monitor link</code>. On Windows: WMI event subscription for network adapter changes.</li>' +
+                         '<li><strong>DHCP logging:</strong> Log all DHCP lease events. A USB network adapter assigns a DHCP lease from a non-standard range (172.16.0.x instead of your corporate 10.x.x.x).</li>' +
+                         '<li><strong>DNS verification:</strong> Compare DNS responses from the new interface against a known-good DNS server. If they differ, the interface is hijacking DNS.</li>' +
+                         '<li><strong>USB device class inspection:</strong> USB network adapters have interface class 0x02 (Communications) or 0xE0 (Wireless). Alert when a newly plugged USB device registers these classes.</li>' +
+                         '<li><strong>Group Policy:</strong> Disable USB network adapters via Windows Group Policy. Only allow pre-approved NICs by VID/PID.</li>' +
+                         '</ul>',
+                code: '# Linux: Monitor for new network interfaces in real time\nip monitor link\n\n# Linux: Detect USB network adapters\nlsusb -v 2>/dev/null | grep -B5 "bInterfaceClass.*2\\|bInterfaceClass.*Communications"\n\n# Windows PowerShell: Alert on new network adapters\nRegister-WmiEvent -Query "SELECT * FROM __InstanceCreationEvent WITHIN 2 WHERE TargetInstance ISA \'Win32_NetworkAdapter\'" -Action {\n    Write-Warning "NEW NETWORK ADAPTER: $($Event.SourceEventArgs.NewEvent.TargetInstance.Name)"\n}',
+                language: 'Bash',
+                tip: '<strong>The core defense:</strong> treat USB ports as untrusted network interfaces. Any USB device can claim to be a network adapter. Corporate security policies should monitor for and block unexpected USB network interfaces just as they block rogue WiFi access points.'
+            }
+        ],
+
+        testing: '<p>Verify:</p>' +
+                 '<ul>' +
+                 '<li><strong>Network adapter appears:</strong> Plug the device in and check for a new network interface on the host (ipconfig / ip addr).</li>' +
+                 '<li><strong>DHCP lease received:</strong> The new interface gets IP 172.16.0.2 from the ESP32-S3 DHCP server.</li>' +
+                 '<li><strong>DNS interception:</strong> Open a browser on the host. The display should show DNS queries being logged.</li>' +
+                 '<li><strong>Detection:</strong> Run the detection commands on the host and verify you can identify the rogue interface.</li>' +
+                 '</ul>',
+
+        troubleshooting: '<ul>' +
+                         '<li><strong>Host does not see a network adapter:</strong> RNDIS support varies by OS. Windows requires RNDIS drivers (built-in on Win 10+). Linux and macOS use CDC-ECM. Try switching between RNDIS and ECM class in your configuration.</li>' +
+                         '<li><strong>DHCP not assigning IP:</strong> Make sure the DHCP server starts after the USB interface is fully initialized. Add a delay after USB.begin() before starting network services.</li>' +
+                         '<li><strong>DNS queries not appearing:</strong> The host may be using DoH (DNS-over-HTTPS) which bypasses traditional DNS on port 53. Chrome, Firefox, and Edge all support DoH. This is actually a valid defense against this attack.</li>' +
+                         '<li><strong>Host loses internet after plugging in:</strong> The new interface may take priority over the existing connection. Set the USB interface metric higher so the host prefers its existing connection for internet.</li>' +
+                         '</ul>',
+
+        challenges: '<p><strong>Challenge 1: Captive Portal</strong> &mdash; Host a web server on the ESP32-S3 that serves a fake login page. When the host browser gets DNS-redirected, they see a convincing login form. Log submitted credentials to SPIFFS. This demonstrates why credential phishing is so effective.</p>' +
+                    '<p><strong>Challenge 2: Selective DNS Spoofing</strong> &mdash; Only spoof specific domains (e.g., redirect "update.microsoft.com" to your device) while passing all other DNS queries to the real DNS server via WiFi. This is more stealthy than blanket redirection.</p>' +
+                    '<p><strong>Challenge 3: Traffic Logging</strong> &mdash; Log all HTTP requests (domain, path, user-agent) passing through the USB interface. Display a real-time traffic dashboard on the TFT showing which sites the host is visiting.</p>',
+
+        stepVisuals: {},
+        componentCallouts: { svg: '', components: [{ id: 't-display-s3', name: 'LILYGO T-Display-S3', purpose: 'ESP32-S3 presents as USB network adapter (RNDIS/CDC-ECM). Serves DHCP and DNS to the host. The host routes traffic through the device.', specs: ['USB RNDIS/CDC-ECM', 'DHCP server', 'DNS server on port 53', 'WiFi for upstream'] }] },
+        commonMistakes: [
+            { title: 'Disrupting Production Network Connectivity', correct: 'Test on an isolated machine with no critical network connections. Set the USB interface metric high so it does not override the primary network connection.', incorrect: 'Plugging into a production machine that relies on its network connection for active work, backups, or monitoring.', consequence: 'The USB interface takes routing priority. The machine loses its real network connection. Active file transfers, VPN sessions, and monitoring all drop. Users blame "the network" and IT spends hours troubleshooting.' },
+            { title: 'Using a Common Subnet That Conflicts', correct: 'Use an uncommon subnet like 172.16.0.0/24 or 169.254.x.x to avoid conflicting with the host existing network configuration.', incorrect: 'Using 192.168.1.0/24 which is the default for most home routers, or 10.0.0.0/24 which is common in corporate networks.', consequence: 'IP address conflict. The host has two interfaces on the same subnet, causing routing confusion. Some traffic goes to the real network, some to the USB device, and the host cannot reach either reliably.' },
+            { title: 'Forgetting That DoH Bypasses Port 53 DNS', correct: 'Understand that modern browsers use DNS-over-HTTPS by default, which encrypts DNS queries inside HTTPS (port 443) and sends them directly to a cloud DNS resolver. Your port 53 DNS server never sees these queries.', incorrect: 'Assuming that controlling port 53 DNS gives you complete DNS control over the host.', consequence: 'The attack silently fails for any application using DoH. Chrome, Firefox, and Edge all default to DoH in recent versions. Only legacy applications and system-level queries (Windows DNS Client) use port 53.' }
+        ]
+    }
+
 };
