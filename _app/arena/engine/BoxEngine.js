@@ -484,6 +484,36 @@ const BoxEngine = {
         location.reload();
     },
 
+    _confirmReset() {
+        // Build a confirmation dialog
+        const existing = document.getElementById('resetConfirmOverlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'resetConfirmOverlay';
+        overlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:12000;';
+        overlay.innerHTML = `
+            <div style="background:#0d1117;border:1px solid #e74c3c;border-radius:8px;padding:24px 28px;max-width:360px;width:90%;text-align:center;font-family:'Courier New',monospace;">
+                <div style="margin-bottom:12px;">
+                    <img src="/assets/images/icons/icon-warning.webp" alt="" width="32" height="32">
+                </div>
+                <div style="color:#e74c3c;font-size:1rem;font-weight:bold;margin-bottom:8px;">Reset Box?</div>
+                <div style="color:#9ca3af;font-size:0.78rem;line-height:1.5;margin-bottom:20px;">
+                    This will erase all progress, flags, hints, and score for this box. You will start from scratch.
+                </div>
+                <div style="display:flex;gap:10px;justify-content:center;">
+                    <button id="resetConfirmYes" style="background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3);border-radius:6px;padding:8px 20px;font-family:inherit;font-size:0.78rem;font-weight:bold;cursor:pointer;">Reset</button>
+                    <button id="resetConfirmNo" style="background:none;color:#6b7280;border:1px solid #1e293b;border-radius:6px;padding:8px 20px;font-family:inherit;font-size:0.78rem;cursor:pointer;">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        document.getElementById('resetConfirmYes').addEventListener('click', () => this.reset());
+        document.getElementById('resetConfirmNo').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    },
+
     // ────────────────────────────────────────────────
     // DOM CONSTRUCTION
     // ────────────────────────────────────────────────
@@ -518,6 +548,9 @@ const BoxEngine = {
         taskbar.innerHTML = `
             <div class="taskbar-left">
                 <span class="taskbar-box-name">${this._escHtml(this.config.title || 'CTF Arena')}</span>
+                <button class="taskbar-reset-btn" id="taskbarResetBtn" title="Reset box progress" aria-label="Reset box">
+                    <img src="/assets/images/icons/icon-refresh.webp" alt="" width="14" height="14" style="vertical-align:middle;opacity:0.6;">
+                </button>
             </div>
             <div class="taskbar-center" id="taskbarCenter" role="group" aria-label="Open windows"></div>
             <div class="taskbar-right">
@@ -552,6 +585,7 @@ const BoxEngine = {
         // Taskbar events
         document.getElementById('taskbarScore').addEventListener('click', () => this._toggleScoreDetail());
         document.getElementById('taskbarFlagBtn').addEventListener('click', () => this._openFlagModal());
+        document.getElementById('taskbarResetBtn').addEventListener('click', () => this._confirmReset());
 
         // Clock
         this._startClock();
