@@ -378,4 +378,112 @@ window.SignalGuides = {
         ]
     }
 
+},
+
+    // ========================================================================
+    // SG-95: WiFi Recon Scanner with Display UI
+    // ========================================================================
+    'sg-95': {
+        intro: '<p>Turn the T-Display-S3 into a portable WiFi reconnaissance tool. The built-in WiFi radio scans all 2.4GHz channels, and the TFT display shows a real-time list of discovered networks with signal strength, channel, and encryption type &mdash; color-coded for quick assessment.</p>' +
+               '<p>Unlike SG-06 (which used the ESP32 CYD), this version runs on the S3 with its smaller 170x320 display, requiring a tighter UI layout. You will build a scrollable list view, a detail view for individual networks, and a channel utilization histogram.</p>' +
+               '<p>This is a passive reconnaissance tool &mdash; it only listens, it does not transmit or connect. Passive scanning is legal in all jurisdictions.</p>',
+
+        wiring: '    No external wiring required.\n    T-Display-S3 only.\n    WiFi uses the onboard PCB antenna.',
+
+        wiringNotes: '<p><strong>No external wiring.</strong> The ESP32-S3 WiFi antenna is integrated on the T-Display-S3 PCB.</p>' +
+                     '<p><strong>Legal note:</strong> Passive WiFi scanning (receive-only) is legal. You are only reading publicly broadcast beacon frames that every WiFi access point transmits 10 times per second. This is the same data your phone sees when you look at available networks.</p>' +
+                     '<p><strong>Safety:</strong> This tool shows network names, signal strength, and encryption types. It does not capture traffic, passwords, or data. It is equivalent to running <code>iwlist scan</code> on Linux or viewing available networks on your phone.</p>',
+
+        wiringSvg: '',
+
+        steps: [
+            {
+                title: 'WiFi Scanner Core',
+                content: '<p>The ESP32-S3 WiFi library provides <code>WiFi.scanNetworks()</code> which performs a full channel sweep and returns all visible access points. We scan in station mode without connecting to anything.</p>',
+                code: '#include <TFT_eSPI.h>\n#include <WiFi.h>\n\nTFT_eSPI tft = TFT_eSPI();\n\nstruct Network {\n    String ssid;\n    int32_t rssi;\n    uint8_t channel;\n    uint8_t encType;\n    uint8_t bssid[6];\n    bool hidden;\n};\n\nNetwork networks[64];\nint networkCount = 0;\n\nvoid scanNetworks() {\n    WiFi.mode(WIFI_STA);\n    WiFi.disconnect();\n    delay(100);\n    \n    int found = WiFi.scanNetworks(false, true);  // sync, show hidden\n    networkCount = min(found, 64);\n    \n    for (int i = 0; i < networkCount; i++) {\n        networks[i].ssid = WiFi.SSID(i);\n        networks[i].rssi = WiFi.RSSI(i);\n        networks[i].channel = WiFi.channel(i);\n        networks[i].encType = WiFi.encryptionType(i);\n        networks[i].hidden = (WiFi.SSID(i).length() == 0);\n        memcpy(networks[i].bssid, WiFi.BSSID(i), 6);\n    }\n    \n    // Sort by signal strength (strongest first)\n    for (int i = 0; i < networkCount - 1; i++) {\n        for (int j = i + 1; j < networkCount; j++) {\n            if (networks[j].rssi > networks[i].rssi) {\n                Network temp = networks[i];\n                networks[i] = networks[j];\n                networks[j] = temp;\n            }\n        }\n    }\n    WiFi.scanDelete();\n}',
+                language: 'C++',
+                tip: '<strong>WiFi.scanNetworks(false, true)</strong> &mdash; first param is async (false = block until done), second is show_hidden (true = include hidden SSIDs). Hidden networks broadcast beacon frames with an empty SSID field but are still discoverable by their BSSID.'
+            },
+            {
+                title: 'Display List View',
+                content: '<p>Render the network list on the 170x320 TFT with color-coded signal strength bars and encryption indicators. The small screen fits about 8 networks at a time with scrolling.</p>',
+                code: 'int scrollOffset = 0;\nconst int VISIBLE_ROWS = 8;\nconst int ROW_HEIGHT = 18;\n\nuint16_t rssiColor(int32_t rssi) {\n    if (rssi > -50) return 0x07E0;  // Green: excellent\n    if (rssi > -65) return 0x07FF;  // Cyan: good\n    if (rssi > -75) return 0xFFE0;  // Yellow: fair\n    if (rssi > -85) return 0xFDA0;  // Orange: weak\n    return 0xF800;                   // Red: very weak\n}\n\nconst char* encLabel(uint8_t enc) {\n    switch (enc) {\n        case WIFI_AUTH_OPEN: return "OPEN";\n        case WIFI_AUTH_WEP: return "WEP";\n        case WIFI_AUTH_WPA_PSK: return "WPA";\n        case WIFI_AUTH_WPA2_PSK: return "WPA2";\n        case WIFI_AUTH_WPA_WPA2_PSK: return "WPA/2";\n        case WIFI_AUTH_WPA2_ENTERPRISE: return "ENT";\n        case WIFI_AUTH_WPA3_PSK: return "WPA3";\n        default: return "???";\n    }\n}\n\nvoid drawNetworkList() {\n    tft.fillScreen(TFT_BLACK);\n    \n    // Header\n    tft.setTextColor(TFT_CYAN, TFT_BLACK);\n    tft.setTextSize(1);\n    tft.setCursor(5, 2);\n    tft.printf("WIFI RECON  %d networks  CH scan", networkCount);\n    tft.drawLine(0, 12, 320, 12, 0x2104);  // Dim separator\n    \n    // Network rows\n    for (int i = 0; i < VISIBLE_ROWS && (i + scrollOffset) < networkCount; i++) {\n        int idx = i + scrollOffset;\n        Network &n = networks[idx];\n        int y = 16 + i * ROW_HEIGHT;\n        \n        // Signal bar\n        int barWidth = map(constrain(n.rssi, -100, -30), -100, -30, 2, 30);\n        tft.fillRect(2, y + 2, barWidth, 12, rssiColor(n.rssi));\n        \n        // SSID\n        tft.setTextColor(TFT_WHITE, TFT_BLACK);\n        tft.setCursor(36, y + 3);\n        String displaySSID = n.hidden ? "(hidden)" : n.ssid;\n        if (displaySSID.length() > 18) displaySSID = displaySSID.substring(0, 18) + "..";\n        tft.print(displaySSID);\n        \n        // Channel + Encryption\n        tft.setTextColor(0x8410, TFT_BLACK);\n        tft.setCursor(230, y + 3);\n        tft.printf("CH%2d %s", n.channel, encLabel(n.encType));\n        \n        // RSSI value\n        tft.setTextColor(rssiColor(n.rssi), TFT_BLACK);\n        tft.setCursor(290, y + 3);\n        tft.printf("%d", n.rssi);\n    }\n    \n    // Scroll indicator\n    if (networkCount > VISIBLE_ROWS) {\n        int barH = max(10, (VISIBLE_ROWS * 144) / networkCount);\n        int barY = 16 + (scrollOffset * 144) / networkCount;\n        tft.fillRect(317, barY, 3, barH, 0x4208);\n    }\n}',
+                language: 'C++',
+                tip: null
+            },
+            {
+                title: 'Channel Histogram View',
+                content: '<p>Switch to a channel utilization view showing how many networks are on each channel. This helps identify congestion and find the quietest channel &mdash; useful for both offense (finding targets) and defense (optimizing your own network).</p>',
+                code: 'void drawChannelHistogram() {\n    tft.fillScreen(TFT_BLACK);\n    \n    // Count networks per channel\n    int channelCount[14] = {0};\n    for (int i = 0; i < networkCount; i++) {\n        if (networks[i].channel >= 1 && networks[i].channel <= 13) {\n            channelCount[networks[i].channel]++;\n        }\n    }\n    \n    // Find max for scaling\n    int maxCount = 1;\n    for (int ch = 1; ch <= 13; ch++) {\n        if (channelCount[ch] > maxCount) maxCount = channelCount[ch];\n    }\n    \n    // Header\n    tft.setTextColor(TFT_CYAN, TFT_BLACK);\n    tft.setCursor(5, 2);\n    tft.printf("CHANNEL MAP  %d networks", networkCount);\n    \n    // Draw bars\n    int barWidth = 20;\n    int maxBarHeight = 100;\n    for (int ch = 1; ch <= 13; ch++) {\n        int x = 10 + (ch - 1) * 23;\n        int barH = (channelCount[ch] * maxBarHeight) / maxCount;\n        int y = 130 - barH;\n        \n        // Color: non-overlapping channels (1,6,11) in green, others yellow\n        uint16_t color = (ch == 1 || ch == 6 || ch == 11) ? 0x07E0 : 0xFFE0;\n        \n        if (barH > 0) {\n            tft.fillRect(x, y, barWidth, barH, color);\n        }\n        \n        // Channel label\n        tft.setTextColor(0x8410, TFT_BLACK);\n        tft.setCursor(x + 4, 135);\n        tft.printf("%d", ch);\n        \n        // Count label\n        if (channelCount[ch] > 0) {\n            tft.setTextColor(TFT_WHITE, TFT_BLACK);\n            tft.setCursor(x + 4, y - 10);\n            tft.printf("%d", channelCount[ch]);\n        }\n    }\n    \n    // Legend\n    tft.setTextColor(0x07E0, TFT_BLACK);\n    tft.setCursor(5, 150);\n    tft.print("Green=non-overlapping (1,6,11)");\n    tft.setTextColor(0xFFE0, TFT_BLACK);\n    tft.setCursor(5, 162);\n    tft.print("Yellow=overlapping channels");\n}',
+                language: 'C++',
+                tip: '<strong>Channels 1, 6, and 11</strong> are the only non-overlapping 2.4GHz channels. In a well-designed network, all APs use only these three. If you see networks on channels 2-5 or 7-10, they are causing co-channel interference with their neighbors.'
+            },
+            {
+                title: 'Auto-Scan Loop with View Toggle',
+                content: '<p>Combine everything: auto-scan every 10 seconds, toggle between list view and channel histogram with the BOOT button, scroll the list with the USER button.</p>',
+                code: 'enum View { VIEW_LIST, VIEW_CHANNELS };\nView currentView = VIEW_LIST;\nunsigned long lastScan = 0;\nconst unsigned long SCAN_INTERVAL = 10000;\n\nvoid setup() {\n    Serial.begin(115200);\n    tft.init();\n    tft.setRotation(1);\n    pinMode(TFT_BL, OUTPUT);\n    digitalWrite(TFT_BL, HIGH);\n    pinMode(0, INPUT_PULLUP);   // BOOT\n    pinMode(14, INPUT_PULLUP);  // USER\n    \n    tft.fillScreen(TFT_BLACK);\n    tft.setTextColor(TFT_CYAN, TFT_BLACK);\n    tft.setCursor(20, 60);\n    tft.setTextSize(2);\n    tft.println("WIFI RECON");\n    tft.setTextSize(1);\n    tft.setCursor(20, 90);\n    tft.println("Scanning...");\n    \n    scanNetworks();\n    drawNetworkList();\n}\n\nvoid loop() {\n    // Auto-scan\n    if (millis() - lastScan > SCAN_INTERVAL) {\n        scanNetworks();\n        if (currentView == VIEW_LIST) drawNetworkList();\n        else drawChannelHistogram();\n        lastScan = millis();\n    }\n    \n    // BOOT: toggle view\n    if (digitalRead(0) == LOW) {\n        currentView = (currentView == VIEW_LIST) ? VIEW_CHANNELS : VIEW_LIST;\n        if (currentView == VIEW_LIST) drawNetworkList();\n        else drawChannelHistogram();\n        delay(300);\n    }\n    \n    // USER: scroll (list view only)\n    if (digitalRead(14) == LOW && currentView == VIEW_LIST) {\n        scrollOffset += VISIBLE_ROWS;\n        if (scrollOffset >= networkCount) scrollOffset = 0;\n        drawNetworkList();\n        delay(300);\n    }\n}',
+                language: 'C++',
+                tip: '<strong>10-second scan interval</strong> is a good balance between freshness and radio activity. Faster scanning is possible but generates more RF traffic and drains battery faster if running on LiPo.'
+            }
+        ],
+
+        testing: '<p>Verify:</p>' +
+                 '<ul>' +
+                 '<li><strong>Network detection:</strong> The list should show your own WiFi network and neighbors. Compare count with your phone WiFi list.</li>' +
+                 '<li><strong>Signal color coding:</strong> Nearby APs should be green/cyan, distant ones yellow/red.</li>' +
+                 '<li><strong>Hidden networks:</strong> Any hidden networks appear as "(hidden)" with their channel and BSSID still visible.</li>' +
+                 '<li><strong>Channel histogram:</strong> Most networks should cluster on channels 1, 6, and 11.</li>' +
+                 '<li><strong>Scrolling:</strong> USER button scrolls through the list if more than 8 networks found.</li>' +
+                 '<li><strong>View toggle:</strong> BOOT button switches between list and histogram.</li>' +
+                 '<li><strong>Auto-refresh:</strong> Networks update every 10 seconds without button press.</li>' +
+                 '</ul>',
+
+        troubleshooting: '<ul>' +
+                         '<li><strong>Zero networks found:</strong> Make sure <code>WiFi.mode(WIFI_STA)</code> is called before scanning. The radio must be in station mode to perform scans.</li>' +
+                         '<li><strong>Only finding a few networks:</strong> The PCB antenna on the T-Display-S3 has limited range compared to external antennas. Move closer to known APs to verify detection.</li>' +
+                         '<li><strong>Display flickers during scan:</strong> <code>WiFi.scanNetworks()</code> blocks for 2-5 seconds. Consider using async scanning (<code>WiFi.scanNetworks(true)</code>) to keep the display responsive.</li>' +
+                         '<li><strong>Channel 14 networks not shown:</strong> Channel 14 is only legal in Japan. The ESP32 may not scan it by default depending on region settings.</li>' +
+                         '<li><strong>Crash or watchdog reset:</strong> If you have too many networks (dense urban area), reduce the array size or add bounds checking on the sort loop.</li>' +
+                         '</ul>',
+
+        challenges: '<p><strong>Challenge 1: Vendor OUI Lookup</strong> &mdash; Use the first 3 bytes of each BSSID to identify the access point manufacturer (Cisco, Ubiquiti, TP-Link, etc.). Store an OUI lookup table in SPIFFS and display the vendor name next to each network.</p>' +
+                    '<p><strong>Challenge 2: Signal Strength Over Time</strong> &mdash; Track RSSI for a selected network across multiple scans. Draw a line graph showing signal strength over the last 60 seconds. This is useful for finding the physical location of an AP by walking toward stronger signal.</p>' +
+                    '<p><strong>Challenge 3: Rogue AP Detection</strong> &mdash; Compare the current scan against a baseline (saved to SPIFFS). Alert when a new SSID appears that was not in the baseline &mdash; this could be a rogue AP or evil twin. Display new networks in red.</p>',
+
+        stepVisuals: {},
+
+        componentCallouts: {
+            svg: '',
+            components: [
+                {
+                    id: 't-display-s3',
+                    name: 'LILYGO T-Display-S3 (from SG-93)',
+                    purpose: 'The ESP32-S3 WiFi radio scans 2.4GHz channels for beacon frames. The TFT display shows network list and channel histogram. No external antenna needed for indoor scanning.',
+                    specs: ['WiFi 802.11 b/g/n', '2.4GHz only (no 5GHz)', 'PCB antenna', 'Passive scanning only']
+                }
+            ]
+        },
+
+        commonMistakes: [
+            {
+                title: 'Forgetting WiFi.scanDelete() After Processing',
+                correct: 'Call <code>WiFi.scanDelete()</code> after copying scan results to your own array. This frees the memory allocated by the scan.',
+                incorrect: 'Repeatedly calling <code>WiFi.scanNetworks()</code> without deleting previous results.',
+                consequence: 'Memory leak. After 10-20 scans, the ESP32-S3 runs out of heap memory and crashes with a watchdog reset. The device reboots mid-operation.'
+            },
+            {
+                title: 'Scanning in AP Mode',
+                correct: 'Set <code>WiFi.mode(WIFI_STA)</code> before scanning. Station mode allows the radio to scan all channels.',
+                incorrect: 'Trying to scan while the ESP32-S3 is in AP mode (hosting its own network). Or not setting any mode.',
+                consequence: 'Scan returns 0 networks or fails silently. The radio cannot scan while it is busy serving clients on a single channel.'
+            },
+            {
+                title: 'Confusing Passive Scanning with Active Attacks',
+                correct: 'Passive WiFi scanning only receives broadcast beacon frames. It is the same as your phone showing available networks. It is legal and non-intrusive.',
+                incorrect: 'Assuming that a WiFi scanner is the same as a WiFi attack tool. Scanning does not send deauth frames, does not intercept traffic, and does not connect to networks.',
+                consequence: 'Misunderstanding the legal and ethical boundaries. Passive scanning is reconnaissance. Active attacks (deauth, injection, spoofing) are separate techniques with different legal implications.'
+            }
+        ]
+    }
+
 };
