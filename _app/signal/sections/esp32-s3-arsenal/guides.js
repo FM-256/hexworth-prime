@@ -729,4 +729,75 @@ window.SignalGuides = {
         ]
     }
 
+},
+
+    // ========================================================================
+    // SG-99: WiFi Deauthentication Analysis & Detection
+    // ========================================================================
+    'sg-99': {
+        intro: '<p>802.11 deauthentication frames are management frames that disconnect clients from an access point. Because legacy WiFi standards (pre-802.11w) do not authenticate management frames, any device can forge deauth frames and disconnect anyone from any network. Understanding this technique is essential for building wireless intrusion detection systems.</p>' +
+               '<p>This project has two modes: an analysis mode that demonstrates how deauthentication works at the frame level, and a detection mode that monitors for deauth attacks in real time. The display shows a visual dashboard of wireless security status.</p>' +
+               '<p>The emphasis is on detection and defense. Building effective wireless IDS requires understanding the technique you are detecting.</p>',
+
+        wiring: '    No external wiring required.\n    T-Display-S3 with onboard WiFi antenna.',
+
+        wiringNotes: '<p><strong>No external wiring.</strong> The ESP32-S3 WiFi radio operates in promiscuous mode to capture raw 802.11 frames.</p>' +
+                     '<p><strong>Legal notice:</strong> Sending deauthentication frames is prohibited by FCC regulations in the United States (47 CFR Part 15) and equivalent regulations in most countries. The analysis mode in this project is for educational understanding in a controlled lab environment only. The detection mode is legal and encouraged for defensive monitoring.</p>' +
+                     '<p><strong>Safety:</strong> Detection mode is passive and legal &mdash; it only receives and analyzes frames. Analysis mode involves frame transmission and must only be used in an isolated RF environment (Faraday cage or shielded lab) with no other devices affected.</p>',
+
+        wiringSvg: '',
+
+        steps: [
+            {
+                title: 'Understanding 802.11 Deauthentication Frames',
+                content: '<p>A deauthentication frame is an 802.11 management frame (type 0, subtype 12) that tells a client "you have been disconnected." The frame contains: source MAC (spoofed as the AP), destination MAC (target client or broadcast FF:FF:FF:FF:FF:FF), and a reason code.</p>' +
+                         '<p>The frame is 26 bytes total: 24 bytes MAC header + 2 bytes reason code. No encryption, no authentication, no verification. Any radio that can transmit on 2.4GHz can send one.</p>',
+                code: '// 802.11 Deauthentication Frame Structure\n// This is the raw frame format (educational reference)\n\ntypedef struct {\n    // Frame Control (2 bytes)\n    uint16_t frame_control;   // Type=0 (Mgmt), Subtype=12 (Deauth)\n    \n    // Duration (2 bytes)\n    uint16_t duration;\n    \n    // Address fields (18 bytes)\n    uint8_t  addr1[6];        // Destination (target client or broadcast)\n    uint8_t  addr2[6];        // Source (spoofed as the AP BSSID)\n    uint8_t  addr3[6];        // BSSID (same as addr2)\n    \n    // Sequence Control (2 bytes)\n    uint16_t seq_ctrl;\n    \n    // Reason Code (2 bytes)\n    uint16_t reason;          // 1=Unspecified, 6=Class2, 7=Class3\n} __attribute__((packed)) deauth_frame_t;\n// Total: 26 bytes\n\n// Common reason codes:\n// 1  - Unspecified reason\n// 2  - Previous authentication no longer valid  \n// 3  - Station leaving (or has left) IBSS or ESS\n// 6  - Class 2 frame received from nonauthenticated\n// 7  - Class 3 frame received from nonassociated\n// 8  - Station leaving (disassociated)\n\n// Why this works:\n// 802.11 management frames are NOT encrypted\n// 802.11 management frames are NOT authenticated\n// Any radio can forge a deauth with any source MAC\n// The client trusts the frame because it appears to come from its AP',
+                language: 'C++',
+                tip: '<strong>802.11w (PMF - Protected Management Frames)</strong> fixes this vulnerability by authenticating management frames. WPA3 requires PMF. But most networks still run WPA2 without PMF, leaving them vulnerable. Upgrading to WPA3 or enabling PMF on WPA2 is the definitive defense.'
+            },
+            {
+                title: 'Detection Mode — Passive Deauth Monitor',
+                content: '<p>Put the ESP32-S3 WiFi radio in promiscuous mode and monitor for deauthentication and disassociation frames. This is a wireless IDS (Intrusion Detection System) function &mdash; completely passive and legal.</p>',
+                code: '#include <WiFi.h>\n#include <TFT_eSPI.h>\n#include "esp_wifi.h"\n\nTFT_eSPI tft = TFT_eSPI();\n\nvolatile int deauthCount = 0;\nvolatile int disassocCount = 0;\nvolatile unsigned long lastDeauthTime = 0;\nuint8_t lastAttackerMAC[6] = {0};\nuint8_t lastTargetMAC[6] = {0};\n\n// Promiscuous mode callback\nvoid IRAM_ATTR snifferCallback(void* buf, wifi_promiscuous_pkt_type_t type) {\n    if (type != WIFI_PKT_MGMT) return;\n    \n    const wifi_promiscuous_pkt_t* pkt = (wifi_promiscuous_pkt_t*)buf;\n    const uint8_t* frame = pkt->payload;\n    \n    uint16_t frameCtrl = frame[0] | (frame[1] << 8);\n    uint8_t frameType = (frameCtrl >> 2) & 0x03;\n    uint8_t frameSub  = (frameCtrl >> 4) & 0x0F;\n    \n    if (frameType != 0) return;  // Not a management frame\n    \n    // Subtype 12 = Deauthentication, Subtype 10 = Disassociation\n    if (frameSub == 12) {\n        deauthCount++;\n        lastDeauthTime = millis();\n        memcpy(lastAttackerMAC, frame + 10, 6);  // Source MAC (addr2)\n        memcpy(lastTargetMAC, frame + 4, 6);     // Destination (addr1)\n    } else if (frameSub == 10) {\n        disassocCount++;\n    }\n}\n\nvoid startDetector() {\n    WiFi.mode(WIFI_STA);\n    WiFi.disconnect();\n    \n    esp_wifi_set_promiscuous(true);\n    esp_wifi_set_promiscuous_rx_cb(snifferCallback);\n    \n    // Scan all channels (rotate every 500ms)\n    // Or lock to a specific channel to monitor one AP\n}\n\nvoid drawDetectorDashboard() {\n    tft.fillScreen(TFT_BLACK);\n    \n    tft.setTextColor(TFT_CYAN, TFT_BLACK);\n    tft.setTextSize(2);\n    tft.setCursor(10, 5);\n    tft.println("DEAUTH DETECTOR");\n    \n    tft.setTextSize(1);\n    \n    // Status indicator\n    bool underAttack = (millis() - lastDeauthTime < 10000) && deauthCount > 5;\n    if (underAttack) {\n        tft.setTextColor(TFT_RED, TFT_BLACK);\n        tft.setCursor(10, 40);\n        tft.println("!! DEAUTH ATTACK DETECTED !!");\n    } else {\n        tft.setTextColor(TFT_GREEN, TFT_BLACK);\n        tft.setCursor(10, 40);\n        tft.println("Status: Monitoring (no attack)");\n    }\n    \n    // Stats\n    tft.setTextColor(TFT_WHITE, TFT_BLACK);\n    tft.setCursor(10, 60);\n    tft.printf("Deauth frames:  %d\\n", deauthCount);\n    tft.printf("Disassoc frames: %d\\n", disassocCount);\n    \n    // Last attacker info\n    if (deauthCount > 0) {\n        tft.setCursor(10, 90);\n        tft.setTextColor(TFT_RED, TFT_BLACK);\n        tft.printf("Attacker MAC: %02X:%02X:%02X:%02X:%02X:%02X\\n",\n            lastAttackerMAC[0], lastAttackerMAC[1], lastAttackerMAC[2],\n            lastAttackerMAC[3], lastAttackerMAC[4], lastAttackerMAC[5]);\n        tft.printf("Target MAC:   %02X:%02X:%02X:%02X:%02X:%02X\\n",\n            lastTargetMAC[0], lastTargetMAC[1], lastTargetMAC[2],\n            lastTargetMAC[3], lastTargetMAC[4], lastTargetMAC[5]);\n        \n        // Broadcast target = attack on entire network\n        bool isBroadcast = true;\n        for (int i = 0; i < 6; i++) {\n            if (lastTargetMAC[i] != 0xFF) { isBroadcast = false; break; }\n        }\n        tft.setCursor(10, 120);\n        tft.printf("Target type:  %s\\n", isBroadcast ? "BROADCAST (all clients)" : "TARGETED (single client)");\n    }\n    \n    tft.setTextColor(0x8410, TFT_BLACK);\n    tft.setCursor(10, 145);\n    tft.println("Defense: Enable WPA3 or 802.11w (PMF)");\n}',
+                language: 'C++',
+                tip: '<strong>This detector is a real security tool.</strong> Deploy it near your access point and it will alert you if someone is running a deauth attack on your network. The same technique is used by commercial WIDS solutions from Cisco, Aruba, and Fortinet.'
+            },
+            {
+                title: 'Channel Hopping for Full Coverage',
+                content: '<p>To detect attacks on any channel, the detector must hop across all 2.4GHz channels. This is the same technique used by commercial wireless IDS sensors.</p>',
+                code: 'int currentChannel = 1;\nunsigned long lastChannelHop = 0;\nconst int CHANNEL_HOP_INTERVAL = 500;  // ms per channel\n\nvoid hopChannel() {\n    if (millis() - lastChannelHop > CHANNEL_HOP_INTERVAL) {\n        currentChannel++;\n        if (currentChannel > 13) currentChannel = 1;\n        esp_wifi_set_channel(currentChannel, WIFI_SECOND_CHAN_NONE);\n        lastChannelHop = millis();\n    }\n}\n\nvoid loop() {\n    hopChannel();\n    \n    // Update display every second\n    static unsigned long lastUpdate = 0;\n    if (millis() - lastUpdate > 1000) {\n        drawDetectorDashboard();\n        \n        // Show current channel\n        tft.setTextColor(0x8410, TFT_BLACK);\n        tft.setCursor(250, 5);\n        tft.printf("CH:%d ", currentChannel);\n        \n        lastUpdate = millis();\n    }\n}',
+                language: 'C++',
+                tip: '<strong>500ms per channel x 13 channels = 6.5 second full scan cycle.</strong> This means a short burst of deauth frames on a single channel might be missed. Commercial WIDS sensors use multiple radios &mdash; one per channel &mdash; for continuous monitoring. The trade-off is cost vs coverage.'
+            }
+        ],
+
+        testing: '<p>Verify:</p>' +
+                 '<ul>' +
+                 '<li><strong>Detection mode:</strong> The display shows "Monitoring (no attack)" when no deauth frames are seen.</li>' +
+                 '<li><strong>Channel hopping:</strong> The channel indicator cycles through 1-13 on the display.</li>' +
+                 '<li><strong>Frame counting:</strong> Even in normal environments, you may see occasional deauth frames (1-5 per minute) from legitimate AP management events. This is normal.</li>' +
+                 '<li><strong>Alert threshold:</strong> More than 5 deauth frames in 10 seconds triggers the attack alert. This distinguishes attacks from normal operations.</li>' +
+                 '</ul>',
+
+        troubleshooting: '<ul>' +
+                         '<li><strong>No frames captured at all:</strong> Verify promiscuous mode is enabled with <code>esp_wifi_set_promiscuous(true)</code>. The WiFi must be in STA mode first.</li>' +
+                         '<li><strong>Only seeing frames on one channel:</strong> Make sure the channel hopping loop is running in <code>loop()</code>. If it is stuck on one channel, you only monitor 1/13th of the spectrum.</li>' +
+                         '<li><strong>False positives (attack detected when none):</strong> Some APs send deauth frames when clients roam or when the AP reboots. Increase the threshold from 5 to 10+ frames to reduce false alarms.</li>' +
+                         '<li><strong>IRAM_ATTR callback crashes:</strong> Keep the promiscuous callback minimal. Do not call TFT or Serial functions from inside IRAM. Only update volatile variables and process them in loop().</li>' +
+                         '</ul>',
+
+        challenges: '<p><strong>Challenge 1: Attack Source Triangulation</strong> &mdash; Deploy two or more detectors at different locations. Compare RSSI values for the attacker MAC across detectors to estimate the physical location of the attacker. Display a relative direction indicator on the TFT.</p>' +
+                    '<p><strong>Challenge 2: Historical Log</strong> &mdash; Log all deauth events (timestamp, attacker MAC, target MAC, channel, RSSI) to SPIFFS in CSV format. After an incident, export the log for forensic analysis of who was attacked and for how long.</p>' +
+                    '<p><strong>Challenge 3: Automated Defense Notification</strong> &mdash; When an attack is detected, use the ESP32-S3 WiFi (in STA mode, switching from promiscuous) to send an alert to a webhook (Slack, Discord, email API). This creates a real-time security operations notification pipeline.</p>',
+
+        stepVisuals: {},
+        componentCallouts: { svg: '', components: [{ id: 't-display-s3', name: 'LILYGO T-Display-S3', purpose: 'ESP32-S3 WiFi in promiscuous mode captures raw 802.11 management frames. TFT displays real-time deauth attack dashboard. Channel hopping provides full-spectrum coverage.', specs: ['Promiscuous mode capture', '802.11 frame parsing', 'Channel 1-13 hopping', '500ms hop interval'] }] },
+        commonMistakes: [
+            { title: 'Sending Deauth Frames Outside a Controlled Lab', correct: 'Only transmit deauthentication frames in a shielded lab environment (Faraday cage) where no other networks or devices are affected. Document authorization before any transmission testing.', incorrect: 'Sending deauth frames in a classroom, office, or home environment where other networks and devices are within range.', consequence: 'You disconnect everyone on the target network from their WiFi. This disrupts work, drops video calls, kills file transfers, and may trigger incident response. It also violates FCC Part 15 regulations and could result in legal action.' },
+            { title: 'Confusing Detection with Prevention', correct: 'This detector identifies attacks in progress and alerts. It does not prevent or stop the attack. Prevention requires upgrading to WPA3 or enabling 802.11w PMF on the access point.', incorrect: 'Assuming that detecting a deauth attack means the attack is stopped. The detector only monitors &mdash; the attack continues until the attacker stops or PMF is enabled.', consequence: 'False sense of security. Students believe they are protected when they are only monitored. Detection without response is visibility without defense.' },
+            { title: 'Running Detection and Transmission on the Same Radio', correct: 'The ESP32-S3 has one 2.4GHz radio. It can either be in promiscuous receive mode (detection) or transmit mode (analysis). Not both simultaneously.', incorrect: 'Trying to monitor for deauth attacks while also generating test frames on the same device.', consequence: 'The radio mode switches conflict. Either detection stops working during transmission, or transmission fails because the radio is in receive mode. Use two separate devices for simultaneous red team / blue team testing.' }
+        ]
+    }
+
 };
