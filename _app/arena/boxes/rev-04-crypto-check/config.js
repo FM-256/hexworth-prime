@@ -216,7 +216,7 @@ const Rev04Config = {
         },
         {
             id: 'hint3',
-            text: 'Write: python3 -c "enc=[0x32,0x34,0x08,0x2d,0x07,0x1f,0x39,0x2a,0x2c,0x3a]; print(\\'\\'.join(chr((b-i)^0x5A) for i,b in enumerate(enc)))"',
+            text: "Write: python3 -c \"enc=[0x32,0x34,0x08,0x2d,0x07,0x1f,0x39,0x2a,0x2c,0x3a]; print(''.join(chr((b-i)^0x5A) for i,b in enumerate(enc)))\"",
             cost: 50,
             penalty: -50
         },

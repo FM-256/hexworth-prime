@@ -185,7 +185,7 @@ const Crypto01Config = {
         e: 17,
         phi: 3120,
         d: 2753,
-        ciphertext: [2790, 2## , 1430, 2000, 2325, 809, 2790, 99, 2186, 2936, 311, 2412, 809, 2790, 2325, 0065, 1430],
+        ciphertext: [2790, 2329, 1430, 2000, 2325, 809, 2790, 99, 2186, 2936, 311, 2412, 809, 2790, 2325, 641, 1430],
         ciphertextHex: '0ae6 0919 0596 07d0 0915 0329 0ae6 0063 088a 0b78 0137 096c 0329 0ae6 0915 0281 0596',
         publicKeyPem: '-----BEGIN PUBLIC KEY-----\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC... [SIMULATED]\nModulus (N): 3233\nExponent (e): 17\n-----END PUBLIC KEY-----'
     },

@@ -210,7 +210,7 @@ const Rev01Config = {
         },
         {
             id: 'hint4',
-            text: 'Run: python3 -c "import sys; data=[0x3b,0x3b,0x06,0x2c,0x03,0x1a,0x36,0x27,0x27,0x32]; print(\\'\\'.join(chr(b^0x42) for b in data))" to decode the root flag.',
+            text: "Run: python3 -c \"import sys; data=[0x3b,0x3b,0x06,0x2c,0x03,0x1a,0x36,0x27,0x27,0x32]; print(''.join(chr(b^0x42) for b in data))\" to decode the root flag.",
             cost: 75,
             penalty: -75
         }
