@@ -912,7 +912,9 @@ Content-Type: text/html
 }
 
 [!] The coordinate_range is the reconstructed training snippet.
-[!] Submit this as Flag 1 (user.txt).`;
+
+[+] TRAINING DATA RECONSTRUCTED — User flag earned:
+{{FLAG:user}}`;
             }
 
             // Running refine.py
@@ -939,7 +941,9 @@ Content-Type: text/html
 [!] Topographical Secret extracted:
     Syndicate facility at 37.421900, -122.084000
 
-[!] This is Flag 2 data — submit via the Submit Flag panel.
+[+] TOPOGRAPHICAL SECRET EXTRACTED — Root flag earned:
+{{FLAG:root}}
+
 [+] facility_coords.json written.
 
 === TOPOGRAPHICAL SECRET ===

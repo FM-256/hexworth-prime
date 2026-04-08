@@ -743,7 +743,10 @@ memory_corrupt.raw: SPECTR3_AGENT_ID=spectr3_v0id
 memory_corrupt.raw: spectr3_implant
 logs/syslog: Jan 10 09:21:50 aether-core kernel: [SPECTR3] module loaded (hidden)
 
-[!] "spectr3_v0id" found in 4 of 4 artifact sources — HIGH CONFIDENCE attacker ID`;
+[!] "spectr3_v0id" found in 4 of 4 artifact sources — HIGH CONFIDENCE attacker ID
+
+[+] ATTACKER IDENTIFIED — User flag earned:
+{{FLAG:user}}`;
             }
 
             if (pattern.includes('OVERRIDE') || pattern.includes('override') || pattern.toLowerCase().includes('frag')) {
@@ -783,7 +786,7 @@ logs/auth.log: [FALSE POSITIVE INJECTED] Jan 10 09:22:01 sshd[99998]: Failed pas
             if (code.includes('hex') || code.includes('decode') || code.includes('unhexlify') || code.includes('fromhex')) {
                 if (code.includes('4d454c54444f574e5f434f44455f4f564552524944455f3732') ||
                     (code.includes('4d454c54') && code.includes('444f574e'))) {
-                    return 'MELTDOWN_CODE_OVERRIDE_72';
+                    return 'MELTDOWN_CODE_OVERRIDE_72\n\n[+] OVERRIDE CODE RECONSTRUCTED — Root flag earned:\n{{FLAG:root}}';
                 }
                 if (code.includes('4d454c54')) return 'MELT';
                 if (code.includes('444f574e')) return 'DOWN';
