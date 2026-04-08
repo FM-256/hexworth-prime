@@ -926,7 +926,7 @@ Finished`;
             }
 
             // Regular curl to AR-NEXUS-01 web
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (!url) return 'curl: try \'curl --help\' for more information';
 
             if (url.includes('10.7.0.1')) {

@@ -812,7 +812,7 @@ sda2            748.00    35890.00      9012.00         0.00  358901234    90123
         },
 
         'curl': function(args) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (!url) return 'curl: try \'curl --help\' for more information';
             if (url.includes('10.10.14.5') && url.includes('chronicle')) {
                 return '<html><head><title>Chronicle Archive — Admin Panel</title></head>\n<body>\n<h1>Chronicle Archive</h1>\n<div class="alert">CRITICAL: Table timeline_events is crashed</div>\n<div class="alert">WARNING: 47 slow queries in last hour</div>\n</body></html>';

@@ -780,7 +780,7 @@ CH4 CO TEMP SEISMIC`;
         },
 
         'curl': function(args) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (!url) return 'curl: try \'curl --help\' for more information';
             if (url.includes('10.10.77.1') && url.includes('sensor')) {
                 return `{"status":"offline","device":"SENSOR-MONITOR-01","lastSeen":"4h 23m ago","error":"no valid telemetry"}`;

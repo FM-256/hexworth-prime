@@ -486,7 +486,7 @@ Name Server: ${d.nameservers[1]}`;
         },
 
         'curl': function(args) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (!url) return 'curl: try \'curl --help\' for more information';
             if (url.includes('dev.nexagen') || url.includes('203.45.67.15')) {
                 return `<html><head><title>Jenkins CI</title></head><body>\n<h1>Jenkins CI — NexaGen DevOps</h1>\n<p>Build Status: Last build #247 — SUCCESS</p>\n<pre>Console Output:\n[INFO] Building nexagen-platform v2.4.1\n[INFO] Running tests...\n[INFO] Flag verification: {{FLAG:user}}\n[INFO] Build complete.</pre>\n</body></html>`;

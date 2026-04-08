@@ -725,7 +725,7 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
 
         'curl': function(args, term, engine) {
             const fullCmd = args.join(' ');
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
 
             // Stream endpoint probe
             if (url.includes('9001') || fullCmd.includes('stream')) {

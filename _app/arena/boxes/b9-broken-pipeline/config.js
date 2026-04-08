@@ -897,7 +897,7 @@ tcp    LISTEN  0       128     0.0.0.0:8080          0.0.0.0:*`;
         },
 
         'curl': function(args) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (!url) return 'curl: try \'curl --help\' for more information';
             if (url.includes('nexus.crimson-dawn.internal')) {
                 return 'curl: (6) Could not resolve host: nexus.crimson-dawn.internal\n(DNS: NXDOMAIN — old Nexus server decommissioned)';

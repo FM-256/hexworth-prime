@@ -826,7 +826,7 @@ postgres:x:26:26:PostgreSQL Server:/var/lib/pgsql:/bin/bash`;
             }
 
             // Regular curl to web server
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (!url) return 'curl: try \'curl --help\' for more information';
 
             if (url.includes('192.168.1.100')) {

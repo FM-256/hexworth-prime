@@ -780,7 +780,7 @@ ERROR 404: Not Found.`;
         },
 
         'curl': function(args, term, engine) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
 
             if (url.includes('drone_commander.bin') && url.includes('10.0.13.5')) {
                 C17Config._binaryAcquired = true;

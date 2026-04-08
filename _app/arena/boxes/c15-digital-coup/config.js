@@ -895,7 +895,7 @@ Finished`;
 
         'curl': function(args, term, engine) {
             const fullCmd = args.join(' ');
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
 
             // ── RCE via libcore-trust /api/v1/process?cmd= ──────────────────
             if (fullCmd.includes('/api/v1/process') && fullCmd.includes('cmd=')) {

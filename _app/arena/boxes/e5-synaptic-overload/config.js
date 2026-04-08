@@ -837,7 +837,7 @@ Finished`;
             }
 
             // Regular GET to CCN-NEXUS
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (!url) return 'curl: try \'curl --help\' or \'man curl\' for more information';
 
             if (url.includes('10.11.0.1')) {

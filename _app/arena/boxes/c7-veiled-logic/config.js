@@ -635,7 +635,7 @@ cipherspeak         100%[===================>] 144.00K   512KB/s   in 0.3s
         },
 
         'curl': function(args) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (!url) return 'curl: try \'curl --help\' for more information';
 
             if (url.includes('10.13.37.1:8080') && url.includes('cipherspeak')) {

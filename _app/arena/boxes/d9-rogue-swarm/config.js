@@ -868,7 +868,7 @@ Sent 1 packets.
         },
 
         'curl': function(args, term, engine) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (!url) return 'curl: try \'curl --help\' for more information';
 
             if (url.includes('172.16.88.1')) {

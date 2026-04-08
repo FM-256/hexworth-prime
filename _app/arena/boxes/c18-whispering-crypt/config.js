@@ -1077,7 +1077,7 @@ rtt min/avg/max/mdev = 2.98/3.06/3.12/0.059 ms`;
 
         // ── wget / curl (artifact downloads) ────────────────────────────────
         'wget': function(args) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (url.includes('10.50.0.1')) {
                 return `--2026-03-20 07:14:33--  ${url}
 Connecting to 10.50.0.1:80... connected.
@@ -1089,7 +1089,7 @@ No download necessary.`;
         },
 
         'curl': function(args) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (!url) return 'curl: try \'curl --help\' for more information';
             if (url.includes('10.50.0.1')) {
                 if (url.includes('/algorithm_spec.txt')) {

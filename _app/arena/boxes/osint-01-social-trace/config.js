@@ -487,7 +487,7 @@ cybershield-llc.com.    3600    IN    TXT  "v=spf1 include:_spf.google.com ~all"
         },
 
         'curl': function(args) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (!url) return 'curl: try \'curl --help\' for more information';
 
             if (url.includes('api.github.com/users/darkphantom99')) {

@@ -979,7 +979,7 @@ LISTEN   0        128      0.0.0.0:22           0.0.0.0:*`;
         // curl — QKD-HUB-01 management API access
         'curl': function(args, term, engine) {
             const fullCmd = args.join(' ');
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (!url) return 'curl: try \'curl --help\' for more information';
 
             // QKD management interface

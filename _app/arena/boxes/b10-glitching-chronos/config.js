@@ -1045,7 +1045,7 @@ Swap:          8.0Gi          0B       8.0Gi`;
         },
 
         'curl': function(args) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (!url) return 'curl: try \'curl --help\' for more information';
             if (url.includes('localhost:9090') || url.includes('10.10.14.5:9090')) {
                 if (url.includes('/verify') || url.includes('/fixed')) {

@@ -1386,7 +1386,7 @@ rtt min/avg/max/mdev = 3.9/4.1/4.2/0.12 ms`;
         'curl': function(args) {
             if (C9Config._context !== 'attacker') {
                 // Outbound from target — Cerberus blocks external
-                const url = args.find(a => !a.startsWith('-')) || '';
+                const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
                 if (!url.startsWith('http://10.') && !url.startsWith('http://172.')) {
                     return C9Config._cerberusCheck('net_suspect', url) || 'curl: (7) Failed to connect: Network unreachable';
                 }

@@ -818,7 +818,7 @@ tcp    LISTEN  0       511     172.19.0.3:6379       0.0.0.0:*`;
         },
 
         'curl': function(args) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (!url) return 'curl: try \'curl --help\' for more information';
             if (url.includes('localhost') || url.includes('10.10.14.5') || url.includes('127.0.0.1')) {
                 if (url.includes('/status')) {

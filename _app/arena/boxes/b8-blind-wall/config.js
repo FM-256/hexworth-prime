@@ -602,7 +602,7 @@ NOTE: VPN tunnel is UP (10.8.0.x assigned) but forwarded traffic is being DROPPE
         },
 
         'curl': function(args) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (!url) return 'curl: try \'curl --help\' for more information';
             if (url.includes('192.168.10.50') && url.includes('verification')) {
                 return `Citadel Defense Perimeter — Verification Complete

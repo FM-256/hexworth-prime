@@ -832,7 +832,7 @@ Date:   Mon Jun 15 08:00:00 2025
         },
 
         'curl': function(args) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (url.includes('localhost:9000') || url.includes('aether-guard')) {
                 return `{"compliance_status":"FAIL","non_compliant":2,"remediation_status":"FAILING","lambda_errors":12}`;
             }

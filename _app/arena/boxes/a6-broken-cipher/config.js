@@ -841,7 +841,7 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
 
         // ── curl — fetch cipher vault pages ──
         'curl': function(args, term, engine) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (!url) return 'curl: try \'curl --help\' for more information';
 
             if (url.includes('10.10.14.16')) {

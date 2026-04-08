@@ -378,7 +378,7 @@ const Osint04Config = {
 
     commands: {
         'curl': function(args) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (!url) return 'curl: try \'curl --help\' for more information';
             if (url.includes('securemail.onion') || url.includes('z3r0c00l')) {
                 return 'curl: (7) Failed to connect: Tor circuit not established.\nHint: Evidence has already been collected. Check /home/kali/evidence/';

@@ -671,7 +671,7 @@ Nmap done: 1 IP address (1 host up) scanned in 1.02 seconds`;
         },
 
         'curl': function(args) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (url.includes('localhost:8080') || url.includes('compliance')) {
                 return `{"compliance_status":"FAIL","rules_loaded":3,"rules_required":7,"missing":["shadow_access","passwd_access","sudo_commands","perm_changes"],"conflicts":["deny_chmod"]}`;
             }

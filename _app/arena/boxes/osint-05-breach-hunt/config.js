@@ -503,7 +503,7 @@ Cracked: r.chen@meridian-health.org => password`;
         },
 
         'curl': function(args) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (!url) return 'curl: try \'curl --help\' for more information';
             return `curl: (7) Failed to connect: Connection refused`;
         }

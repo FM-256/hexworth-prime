@@ -706,7 +706,7 @@ Agent data collection: RUNNING (local buffer mode)
         },
 
         'curl': function(args) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (url.includes('169.254.169.254')) {
                 if (url.includes('iam')) {
                     return 'SkyWatchAgentProfile';

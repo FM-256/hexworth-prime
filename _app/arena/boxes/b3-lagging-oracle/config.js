@@ -646,7 +646,7 @@ Version: '8.0.35'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306
         },
 
         'curl': function(args, term, engine) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (!url) return 'curl: try \'curl --help\' for more information';
 
             if (url.includes('10.10.20.5') && url.includes('performance_report')) {

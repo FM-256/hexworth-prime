@@ -670,7 +670,7 @@ File is no longer world-readable.`;
         },
 
         'curl': function(args) {
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (url.includes('localhost:8443') || url.includes('security')) {
                 return `{"baseline_status":"FAIL","findings":6,"critical":3,"high":2,"medium":1}`;
             }

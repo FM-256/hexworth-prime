@@ -1056,7 +1056,7 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
             }
 
             // Basic GET requests
-            const url = args.find(a => !a.startsWith('-')) || '';
+            const url = args.find(a => /^https?:\/\//.test(a)) || args.filter(a => !a.startsWith('-')).pop() || '';
             if (!url) return 'curl: try \'curl --help\' or \'curl --manual\' for more information';
 
             if (url.includes('10.0.50.4:8443') || url.includes('10.0.50.4')) {
