@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CaseBoard — Operation Blind Spot</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-table.webp">
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        .cb-layout { display: flex; gap: 0; min-height: calc(100vh - 50px); }
+        .cb-sidebar { width: 280px; background: var(--ow-surface); border-right: 1px solid var(--ow-border); overflow-y: auto; padding: 12px; flex-shrink: 0; }
+        .cb-main { flex: 1; padding: 16px; overflow-y: auto; }
+        .cb-section-title { font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ow-text-dim); padding: 8px 0 6px; border-bottom: 1px solid var(--ow-border); margin-bottom: 8px; }
+        .cb-evidence-mini { padding: 8px 10px; border-radius: 4px; margin-bottom: 4px; font-size: 0.68rem; cursor: pointer; border: 1px solid var(--ow-border); transition: border-color 0.15s; display: flex; justify-content: space-between; align-items: center; }
+        .cb-evidence-mini:hover { border-color: var(--ow-border-bright); }
+        .cb-evidence-mini .cb-src { font-size: 0.55rem; padding: 1px 4px; border-radius: 2px; }
+
+        /* Connection cards */
+        .cb-connections { display: grid; grid-template-columns: 1fr; gap: 10px; }
+        .cb-conn { background: var(--ow-surface); border: 1px solid var(--ow-border); border-radius: 8px; padding: 14px; }
+        .cb-conn.found { border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.04); }
+        .cb-conn.locked { opacity: 0.4; }
+        .cb-conn-label { font-size: 0.78rem; font-weight: bold; color: var(--ow-text-bright); margin-bottom: 6px; }
+        .cb-conn-desc { font-size: 0.7rem; color: var(--ow-text-dim); margin-bottom: 8px; }
+        .cb-conn-evidence { display: flex; gap: 6px; flex-wrap: wrap; }
+        .cb-conn-ev-tag { font-size: 0.6rem; padding: 2px 6px; border-radius: 3px; background: var(--ow-surface-2); border: 1px solid var(--ow-border); color: var(--ow-text-dim); }
+        .cb-conn-ev-tag.has { background: rgba(34,197,94,0.12); color: #86efac; border-color: rgba(34,197,94,0.3); }
+        .cb-conn-btn { padding: 6px 12px; font-size: 0.68rem; background: rgba(34,197,94,0.12); color: var(--ow-green); border: 1px solid rgba(34,197,94,0.3); border-radius: 4px; cursor: pointer; font-family: var(--ow-font); margin-top: 8px; }
+        .cb-conn-btn:hover { background: rgba(34,197,94,0.2); }
+        .cb-conn-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* Progress */
+        .cb-progress { background: var(--ow-surface); border: 1px solid var(--ow-border); border-radius: 8px; padding: 16px; margin-bottom: 16px; text-align: center; }
+        .cb-progress-count { font-size: 2rem; font-weight: bold; color: var(--ow-accent); }
+        .cb-progress-label { font-size: 0.7rem; color: var(--ow-text-dim); }
+    </style>
+</head>
+<body>
+<h1 class="visually-hidden">Operation Blind Spot — CaseBoard</h1>
+
+<script src="../../engine/OpenWorldEngine.js"></script>
+<script src="config-shared.js"></script>
+<script>
+    BlindSpotConfig.activePage = 'caseboard';
+    const engine = new OpenWorldEngine(BlindSpotConfig);
+    engine.init();
+</script>
+
+<div class="cb-layout">
+    <!-- Sidebar: Pinned Evidence -->
+    <div class="cb-sidebar">
+        <div class="cb-section-title">Pinned Evidence</div>
+        <div id="pinnedList"></div>
+        <div id="pinnedEmpty" style="color:var(--ow-text-dim);font-size:0.7rem;padding:10px;text-align:center;">
+            No evidence pinned yet. Visit devices to find and pin evidence.
+        </div>
+    </div>
+
+    <!-- Main: Connections -->
+    <div class="cb-main">
+        <div class="cb-progress">
+            <div class="cb-progress-count" id="connProgress">0 / 9</div>
+            <div class="cb-progress-label">Key Connections Identified</div>
+            <div class="ow-progress-bar" style="max-width:300px;margin:8px auto;">
+                <div class="ow-progress-fill" id="connBar" style="width:0%"></div>
+            </div>
+        </div>
+
+        <div class="cb-section-title">Key Connections</div>
+        <div class="cb-connections" id="connList"></div>
+    </div>
+</div>
+
+<script>
+/* ── Connection Definitions ──────────────────────── */
+var CONNECTIONS = [
+    { id: 'conn-single', label: 'Single Dispatcher: All 47 Loads on Thompson Shifts', desc: 'Every re-brokered load was dispatched during K. Thompson\'s shift. No other dispatcher has any affected loads.', requires: ['dp-thompson-shifts', 'dp-notify-deleted'], requireLabels: ['Thompson Shifts', 'Notifications Deleted'] },
+    { id: 'conn-typosquat', label: 'Typosquat Email: nfp-carriers.com Mimics nfp-partners.com', desc: 'Thompson used a typosquat domain (nfp-carriers.com) to send fake rate confirmations to the shell carriers.', requires: ['em-typosquat', 'dp-thompson-shifts'], requireLabels: ['Typosquat Domain', 'Thompson Shifts'] },
+    { id: 'conn-shells', label: 'Shell Network: 6 Carriers with Sequential MC Numbers', desc: '6 carriers registered in 27 days with sequential MC numbers and the same registered agent at a virtual office.', requires: ['cr-6-shells', 'cr-same-agent'], requireLabels: ['Sequential MC#s', 'Same Agent'] },
+    { id: 'conn-factoring', label: 'Factoring Concentration: All Invoices Through QuickFund', desc: 'All 6 shell carriers assigned every invoice to QuickFund Capital — a factoring company with no other clients.', requires: ['fn-quickfund', 'cr-6-shells'], requireLabels: ['QuickFund Invoices', 'Shell Carriers'] },
+    { id: 'conn-ownership', label: 'QuickFund Ownership: Traces to Thompson Spouse', desc: 'QuickFund Capital bank account traces to L. Thompson, K. Thompson\'s spouse. Same address, joint bank account.', requires: ['fn-quickfund-owner', 'fn-quickfund'], requireLabels: ['QuickFund Owner', 'QuickFund Invoices'] },
+    { id: 'conn-external', label: 'External Posting: Loads Posted from Thompson Hotspot', desc: '47 loads appeared on DAT 5-15 min after internal posting, all from Thompson\'s personal mobile hotspot IP.', requires: ['lb-dat-hotspot', 'lb-timing'], requireLabels: ['Hotspot IP', 'Post Timing'] },
+    { id: 'conn-suppress', label: 'Complaint Suppression: Thompson Closed All Complaints', desc: 'All 12 "wrong carrier" complaints were handled by Thompson alone — marked resolved without shipper approval.', requires: ['em-complaints', 'dp-thompson-shifts'], requireLabels: ['Complaints Handled', 'Thompson Shifts'] },
+    { id: 'conn-notify', label: 'Notification Deleted: Real Carrier Never Notified', desc: 'Thompson deleted dispatch notifications to legitimate carriers within 2 minutes, then notified shell carriers instead.', requires: ['dp-notify-deleted', 'em-typosquat'], requireLabels: ['Deleted Notifications', 'Typosquat Domain'] },
+    { id: 'conn-pipeline', label: 'Full Pipeline: Intercept -> Shell Carrier -> Factoring -> Spouse', desc: 'Complete fraud pipeline: Thompson intercepts load, routes to shell carrier, invoices through QuickFund, money flows to spouse.', requires: ['dp-thompson-shifts', 'fn-quickfund-owner'], requireLabels: ['Thompson Shifts', 'QuickFund Owner'] }
+];
+
+function renderPinned() {
+    var pinned = engine.state.pinnedEvidence;
+    var list = document.getElementById('pinnedList');
+    var empty = document.getElementById('pinnedEmpty');
+
+    if (pinned.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
+    empty.style.display = 'none';
+
+    var srcColors = {
+        dispatch: 'ow-src-workstation',
+        email: 'ow-src-email',
+        carrier: 'ow-src-badge',
+        financial: 'ow-src-siem',
+        loadboard: 'ow-src-hr'
+    };
+
+    list.innerHTML = pinned.map(function(ev) {
+        var cls = srcColors[ev.source] || '';
+        return '<div class="cb-evidence-mini">' +
+            '<span>' + engine._esc(ev.title) + '</span>' +
+            '<span class="cb-src ' + cls + '">' + (ev.source || '').toUpperCase() + '</span>' +
+        '</div>';
+    }).join('');
+}
+
+function renderConnections() {
+    var found = engine.state.connections.map(function(c) { return c.id; });
+    var pinned = engine.state.pinnedEvidence.map(function(e) { return e.id; });
+
+    var visible = CONNECTIONS.filter(function(conn) {
+        if (found.includes(conn.id)) return true;
+        return conn.requires.every(function(r) { return pinned.includes(r); });
+    });
+
+    if (visible.length === 0) {
+        document.getElementById('connList').innerHTML =
+            '<div class="ow-card" style="text-align:center;padding:40px 20px;">' +
+                '<img src="/assets/images/icons/icon-radar.webp" alt="" width="28" height="28" style="opacity:0.3;margin-bottom:8px;display:block;margin:0 auto 8px;">' +
+                '<div style="color:var(--ow-text-dim);font-size:0.78rem;">No connections discovered yet.</div>' +
+                '<div style="color:var(--ow-text-dim);font-size:0.68rem;margin-top:6px;">Pin related evidence from different devices. When two pieces of evidence are connected, a pattern will appear here.</div>' +
+            '</div>';
+    } else {
+        document.getElementById('connList').innerHTML = visible.map(function(conn) {
+            var isFound = found.includes(conn.id);
+            return '<div class="cb-conn' + (isFound ? ' found' : '') + '">' +
+                '<div class="cb-conn-label">' +
+                    (isFound ? '<img src="/assets/images/icons/icon-checkmark.webp" alt="" width="14" height="14" style="vertical-align:middle;margin-right:4px;">' : '<img src="/assets/images/icons/icon-warning.webp" alt="" width="14" height="14" style="vertical-align:middle;margin-right:4px;opacity:0.6;">') +
+                    engine._esc(conn.label) +
+                '</div>' +
+                '<div class="cb-conn-desc">' + engine._esc(conn.desc) + '</div>' +
+                '<div class="cb-conn-evidence">' +
+                    conn.requires.map(function(r, i) { return '<span class="cb-conn-ev-tag has">' + conn.requireLabels[i] + '</span>'; }).join('') +
+                '</div>' +
+                (isFound ? '<div style="color:var(--ow-green);font-size:0.7rem;margin-top:6px;font-weight:bold;">CONNECTION CONFIRMED</div>' :
+                 '<button class="cb-conn-btn" onclick="makeConnection(\'' + conn.id + '\')">Confirm Connection</button>') +
+            '</div>';
+        }).join('');
+    }
+
+    document.getElementById('connProgress').textContent = found.length + ' / 9';
+    document.getElementById('connBar').style.width = (found.length / 9 * 100) + '%';
+}
+
+function makeConnection(connId) {
+    var conn = CONNECTIONS.find(function(c) { return c.id === connId; });
+    if (!conn) return;
+    var configConn = BlindSpotConfig.connections.find(function(c) { return c.id === connId; });
+    if (configConn) {
+        engine.addConnection(configConn);
+    }
+    renderConnections();
+}
+
+renderPinned();
+renderConnections();
+
+window.onOpenWorldStateChange = function() {
+    renderPinned();
+    renderConnections();
+};
+</script>
+
+</body>
+</html>
