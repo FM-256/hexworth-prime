@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CTF Challenge Board — Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-scales.webp">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        :root {
+            --bg: #08080f;
+            --surface: #0e0e18;
+            --surface-2: #141420;
+            --border: rgba(168,85,247,0.2);
+            --border-dim: rgba(255,255,255,0.05);
+            --accent: #a855f7;
+            --accent-bright: #c084fc;
+            --green: #22c55e;
+            --red: #ef4444;
+            --gold: #f1c40f;
+            --warning: #f59e0b;
+            --blue: #3b82f6;
+            --text: #c0c0d0;
+            --text-dim: #555568;
+            --text-bright: #e8e8f0;
+            --font: 'Share Tech Mono', 'Courier New', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ── Top Bar ── */
+        .board-topbar {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 20px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+        .board-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--accent-bright);
+            letter-spacing: 1px;
+        }
+        .board-timer {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--accent-bright);
+            letter-spacing: 2px;
+            font-family: 'Courier New', monospace;
+        }
+        .board-timer.warning { color: var(--red); }
+        .board-team-badge {
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+        .board-score {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--gold);
+        }
+        .board-links {
+            margin-left: auto;
+            display: flex;
+            gap: 8px;
+        }
+        .board-links a {
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 0.78rem;
+            padding: 5px 12px;
+            border: 1px solid var(--border-dim);
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .board-links a:hover { color: var(--accent); border-color: var(--border); }
+
+        /* ── View Toggle ── */
+        .board-view-toggle {
+            display: flex;
+            gap: 2px;
+            background: var(--surface);
+            border-radius: 6px;
+            padding: 2px;
+            border: 1px solid var(--border-dim);
+        }
+        .board-view-btn {
+            padding: 6px 16px;
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            font-family: var(--font);
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+            letter-spacing: 0.5px;
+        }
+        .board-view-btn.active {
+            background: var(--accent);
+            color: #fff;
+        }
+        .board-view-btn:hover:not(.active) { color: var(--text); }
+
+        /* ── Content Area ── */
+        .board-content {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* ================================================
+           JEOPARDY VIEW
+           ================================================ */
+        .jeopardy-grid {
+            display: grid;
+            gap: 6px;
+            overflow-x: auto;
+        }
+        .jeopardy-header {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--accent-bright);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-align: center;
+            padding: 10px 8px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+        .jeopardy-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px 8px;
+            background: var(--surface);
+            border: 1px solid var(--border-dim);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--accent-bright);
+            min-height: 60px;
+        }
+        .jeopardy-cell:hover {
+            border-color: var(--accent);
+            background: var(--surface-2);
+            transform: scale(1.02);
+        }
+        .jeopardy-cell.solved {
+            background: rgba(34,197,94,0.08);
+            border-color: rgba(34,197,94,0.3);
+            color: var(--green);
+            cursor: default;
+        }
+        .jeopardy-cell.solved::after {
+            content: ' \2713';
+            font-size: 0.9rem;
+        }
+        .jeopardy-cell.empty {
+            visibility: hidden;
+        }
+
+        /* ================================================
+           BOX VIEW
+           ================================================ */
+        .box-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 14px;
+        }
+        .box-card {
+            background: var(--surface);
+            border: 1px solid var(--border-dim);
+            border-radius: 10px;
+            padding: 18px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        .box-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(168,85,247,0.1);
+        }
+        .box-card.solved {
+            border-color: rgba(34,197,94,0.3);
+        }
+        .box-card.solved::before {
+            content: 'SOLVED';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 3px;
+            background: rgba(34,197,94,0.15);
+            color: var(--green);
+            letter-spacing: 0.5px;
+        }
+        .box-difficulty-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+        }
+        .box-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .box-cat {
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .box-cat-web      { background: rgba(59,130,246,0.18);  color: #3b82f6; }
+        .box-cat-crypto    { background: rgba(168,85,247,0.18);  color: #a855f7; }
+        .box-cat-pwn       { background: rgba(239,68,68,0.18);   color: #ef4444; }
+        .box-cat-forensics { background: rgba(34,197,94,0.18);   color: #22c55e; }
+        .box-cat-reverse   { background: rgba(249,115,22,0.18);  color: #f97316; }
+        .box-cat-network   { background: rgba(6,182,212,0.18);   color: #06b6d4; }
+        .box-cat-misc      { background: rgba(148,163,184,0.18); color: #94a3b8; }
+        .box-points {
+            margin-left: auto;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--accent-bright);
+        }
+        .box-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-bright);
+            margin-bottom: 6px;
+        }
+        .box-desc {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .box-footer {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            font-size: 0.72rem;
+            color: var(--text-dim);
+        }
+
+        /* ================================================
+           CHALLENGE MODAL
+           ================================================ */
+        .ch-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.75);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .ch-modal-overlay.open { display: flex; }
+        .ch-modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 24px;
+        }
+        .ch-modal-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .ch-modal-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-bright);
+            flex: 1;
+        }
+        .ch-modal-pts {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--accent-bright);
+        }
+        .ch-modal-close {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+        .ch-modal-close:hover { color: var(--text); }
+        .ch-modal-cat {
+            display: inline-block;
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+        .ch-modal-desc {
+            font-size: 0.85rem;
+            color: var(--text);
+            line-height: 1.7;
+            margin-bottom: 16px;
+            white-space: pre-wrap;
+        }
+        .ch-modal-solves {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-bottom: 16px;
+        }
+        .ch-modal-hints {
+            margin-bottom: 16px;
+        }
+        .ch-hint-btn {
+            display: inline-block;
+            font-size: 0.75rem;
+            padding: 4px 12px;
+            border: 1px solid var(--border-dim);
+            border-radius: 4px;
+            background: transparent;
+            color: var(--warning);
+            cursor: pointer;
+            font-family: var(--font);
+            margin-right: 6px;
+            margin-bottom: 4px;
+            transition: all 0.2s;
+        }
+        .ch-hint-btn:hover { border-color: var(--warning); }
+        .ch-hint-text {
+            font-size: 0.8rem;
+            color: var(--warning);
+            margin-top: 6px;
+            padding: 8px 12px;
+            background: rgba(245,158,11,0.08);
+            border-radius: 4px;
+            display: none;
+        }
+        .ch-hint-text.revealed { display: block; }
+
+        /* Flag input */
+        .ch-flag-row {
+            display: flex;
+            gap: 8px;
+        }
+        .ch-flag-input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid var(--border-dim);
+            border-radius: 6px;
+            background: var(--bg);
+            color: var(--text-bright);
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .ch-flag-input:focus { border-color: var(--accent); }
+        .ch-flag-input::placeholder { color: var(--text-dim); }
+        .ch-flag-submit {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            background: var(--accent);
+            color: #fff;
+            font-family: var(--font);
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .ch-flag-submit:hover { background: var(--accent-bright); }
+        .ch-flag-submit:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .ch-flag-result {
+            margin-top: 10px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            min-height: 20px;
+        }
+        .ch-flag-result.correct { color: var(--green); }
+        .ch-flag-result.wrong { color: var(--red); }
+        .ch-flag-result.error { color: var(--warning); }
+
+        .ch-modal-solved-banner {
+            padding: 10px 14px;
+            background: rgba(34,197,94,0.1);
+            border: 1px solid rgba(34,197,94,0.25);
+            border-radius: 6px;
+            color: var(--green);
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-align: center;
+        }
+
+        /* ── Loading / Auth ── */
+        .board-loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-dim);
+        }
+        .board-auth-banner {
+            text-align: center;
+            padding: 30px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .board-auth-btn {
+            display: inline-block;
+            background: var(--accent);
+            color: #fff;
+            padding: 10px 24px;
+            border: none;
+            border-radius: 6px;
+            font-family: var(--font);
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        /* ── Toast ── */
+        .board-toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 24px;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 200;
+            pointer-events: none;
+        }
+        .board-toast.show { opacity: 1; }
+        .board-toast.success { background: rgba(34,197,94,0.2); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+        .board-toast.error { background: rgba(239,68,68,0.2); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+    </style>
+</head>
+<body>
+
+    <!-- Top Bar -->
+    <div class="board-topbar" id="boardTopbar">
+        <span class="board-title" id="boardTitle">CTF</span>
+        <span class="board-timer" id="boardTimer"></span>
+        <span class="board-team-badge" id="boardTeamBadge" style="display:none;"></span>
+        <span class="board-score" id="boardScore"></span>
+        <span class="board-view-toggle" id="boardStyleBadge" style="padding:4px 12px; border-radius:4px; font-size:0.72rem; font-weight:700; letter-spacing:0.5px; background:rgba(168,85,247,0.15); color:var(--accent-bright);"></span>
+        <div class="board-links">
+            <a id="linkPodium" href="#" target="_blank">Podium</a>
+            <a id="linkLobby" href="#" target="_blank">Lobby</a>
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="board-content" id="boardContent">
+        <div class="board-loading">Loading challenge board...</div>
+    </div>
+
+    <!-- Challenge Modal -->
+    <div class="ch-modal-overlay" id="chModalOverlay" onclick="if(event.target===this)closeModal()">
+        <div class="ch-modal" id="chModal"></div>
+    </div>
+
+    <!-- Toast -->
+    <div class="board-toast" id="boardToast"></div>
+
+    <!-- Firebase SDK -->
+    <script src="/__/firebase/10.12.2/firebase-app-compat.js"></script>
+    <script src="/__/firebase/10.12.2/firebase-auth-compat.js"></script>
+    <script src="/__/firebase/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="/__/firebase/10.12.2/firebase-functions-compat.js"></script>
+    <script src="/__/firebase/init.js"></script>
+
+    <script>
+    (function() {
+        'use strict';
+
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        const functions = firebase.functions();
+        const params = new URLSearchParams(window.location.search);
+        const tournamentId = params.get('id');
+
+        // State
+        let currentUser = null;
+        let myTeamId = null;
+        let myTeamData = null;
+        let tournament = null;
+        let challenges = [];  // { id, title, category, points, currentPoints, description, solveCount, hints, visible }
+        let currentView = 'jeopardy';  // set by tournament.boardStyle
+        let submitting = false;
+
+        if (!tournamentId) {
+            document.getElementById('boardContent').innerHTML =
+                '<div class="board-loading" style="color:#ef4444;">No tournament ID. Use ?id=TOURNAMENT_ID</div>';
+            return;
+        }
+
+        // Links
+        document.getElementById('linkPodium').href = '/arena/tournament-podium.html?id=' + tournamentId;
+        document.getElementById('linkLobby').href = '/arena/tournament-lobby.html?id=' + tournamentId;
+
+        // ── Toast ──
+        function toast(msg, type) {
+            const el = document.getElementById('boardToast');
+            el.textContent = msg;
+            el.className = 'board-toast show ' + (type || 'success');
+            setTimeout(() => { el.className = 'board-toast'; }, 3000);
+        }
+
+        // ── Auth ──
+        auth.onAuthStateChanged(async (user) => {
+            currentUser = user;
+            if (user) {
+                await loadData();
+            } else {
+                renderAuthPrompt();
+            }
+        });
+
+        window.boardSignIn = function() {
+            auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e => {
+                toast('Sign-in failed: ' + e.message, 'error');
+            });
+        };
+
+        function renderAuthPrompt() {
+            document.getElementById('boardContent').innerHTML =
+                '<div class="board-auth-banner">' +
+                '<div style="font-size:1rem; color:var(--text-bright); font-weight:700; margin-bottom:8px;">Sign in to access challenges</div>' +
+                '<div style="font-size:0.82rem; color:var(--text-dim);">You need a Hexworth account to participate</div>' +
+                '<button class="board-auth-btn" onclick="boardSignIn()">Sign In with Google</button>' +
+                '</div>';
+        }
+
+        // ── Load Data ──
+        async function loadData() {
+            try {
+                // Tournament
+                const tSnap = await db.collection('tournaments').doc(tournamentId).get();
+                if (!tSnap.exists) {
+                    document.getElementById('boardContent').innerHTML =
+                        '<div class="board-loading" style="color:#ef4444;">Tournament not found.</div>';
+                    return;
+                }
+                tournament = tSnap.data();
+                document.getElementById('boardTitle').textContent = tournament.name || 'CTF';
+                document.title = (tournament.name || 'CTF Board') + ' — Hexworth Prime';
+
+                // Board style set by admin at creation
+                currentView = tournament.boardStyle || 'jeopardy';
+                const styleBadge = document.getElementById('boardStyleBadge');
+                styleBadge.textContent = currentView === 'box' ? 'BOX MODE' : 'JEOPARDY MODE';
+
+                // Find user's team
+                const teamsSnap = await db.collection('tournaments').doc(tournamentId)
+                    .collection('teams').get();
+                myTeamId = null;
+                myTeamData = null;
+                teamsSnap.forEach(d => {
+                    const data = d.data();
+                    if (data.members && data.members.includes(currentUser.uid)) {
+                        myTeamId = d.id;
+                        myTeamData = data;
+                    }
+                });
+
+                if (!myTeamId) {
+                    document.getElementById('boardContent').innerHTML =
+                        '<div class="board-auth-banner">' +
+                        '<div style="font-size:1rem; color:var(--warning); font-weight:700; margin-bottom:8px;">You are not on a team</div>' +
+                        '<div style="font-size:0.82rem; color:var(--text-dim); margin-bottom:12px;">Join a team from the lobby before accessing challenges</div>' +
+                        '<a href="/arena/tournament-lobby.html?id=' + tournamentId + '" style="color:var(--accent); font-size:0.85rem;">Go to Lobby</a>' +
+                        '</div>';
+                    return;
+                }
+
+                // Show team badge
+                const badge = document.getElementById('boardTeamBadge');
+                badge.style.display = 'inline-block';
+                badge.style.background = (myTeamData.color || 'var(--accent)') + '30';
+                badge.style.color = myTeamData.color || 'var(--accent)';
+                badge.textContent = myTeamData.name || myTeamId;
+
+                document.getElementById('boardScore').textContent = (myTeamData.score || 0) + ' pts';
+
+                // Load challenges
+                const chSnap = await db.collection('tournaments').doc(tournamentId)
+                    .collection('challenges').orderBy('order').get();
+                challenges = [];
+                chSnap.forEach(d => {
+                    const c = d.data();
+                    challenges.push({
+                        id: d.id,
+                        title: c.title,
+                        category: c.category || 'misc',
+                        points: c.points || 0,
+                        currentPoints: c.currentPoints || c.points || 0,
+                        description: c.description || '',
+                        solveCount: c.solveCount || 0,
+                        hints: c.hints || [],
+                        boxId: c.boxId || null,
+                        visible: c.visible !== false
+                    });
+                });
+
+                // Timer
+                startTimer();
+
+                // Render
+                renderBoard();
+
+                // Real-time team score updates
+                db.collection('tournaments').doc(tournamentId)
+                    .collection('teams').doc(myTeamId)
+                    .onSnapshot(snap => {
+                        if (!snap.exists) return;
+                        myTeamData = snap.data();
+                        document.getElementById('boardScore').textContent = (myTeamData.score || 0) + ' pts';
+                    });
+
+            } catch (e) {
+                document.getElementById('boardContent').innerHTML =
+                    '<div class="board-loading" style="color:#ef4444;">Error: ' + escHtml(e.message) + '</div>';
+            }
+        }
+
+        // ── Timer ──
+        let timerInterval = null;
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            const el = document.getElementById('boardTimer');
+
+            if (tournament.status !== 'active' && tournament.status !== 'frozen') {
+                el.textContent = tournament.status === 'ended' ? 'ENDED' : '';
+                return;
+            }
+            if (!tournament.startTime) { el.textContent = ''; return; }
+
+            const startMs = tournament.startTime.toDate ? tournament.startTime.toDate().getTime() : tournament.startTime;
+            const endMs = startMs + (tournament.duration || 120) * 60000;
+
+            timerInterval = setInterval(() => {
+                const rem = endMs - Date.now();
+                if (rem <= 0) {
+                    el.textContent = '00:00:00';
+                    el.className = 'board-timer warning';
+                    clearInterval(timerInterval);
+                    return;
+                }
+                const h = Math.floor(rem / 3600000);
+                const m = Math.floor((rem % 3600000) / 60000);
+                const s = Math.floor((rem % 60000) / 1000);
+                el.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+                el.className = rem < 300000 ? 'board-timer warning' : 'board-timer';
+            }, 1000);
+        }
+
+        // Board style is set by the tournament admin at creation time.
+        // Participants see whichever mode was chosen (jeopardy or box).
+
+        // ── Render Board ──
+        function renderBoard() {
+            const content = document.getElementById('boardContent');
+            const solvedSet = new Set(myTeamData.solves || []);
+            const visibleChallenges = challenges.filter(c => c.visible);
+
+            if (currentView === 'jeopardy') {
+                renderJeopardy(content, visibleChallenges, solvedSet);
+            } else {
+                renderBox(content, visibleChallenges, solvedSet);
+            }
+        }
+
+        // ── Jeopardy View ──
+        function renderJeopardy(container, chs, solvedSet) {
+            // Group by category
+            const categories = {};
+            chs.forEach(ch => {
+                if (!categories[ch.category]) categories[ch.category] = [];
+                categories[ch.category].push(ch);
+            });
+
+            const catNames = Object.keys(categories);
+            // Sort each category's challenges by points
+            catNames.forEach(cat => {
+                categories[cat].sort((a, b) => a.points - b.points);
+            });
+
+            const maxRows = Math.max(...catNames.map(c => categories[c].length));
+            const cols = catNames.length;
+
+            let html = '<div class="jeopardy-grid" style="grid-template-columns:repeat(' + cols + ',1fr);">';
+
+            // Header row
+            catNames.forEach(cat => {
+                html += '<div class="jeopardy-header">' + escHtml(cat) + '</div>';
+            });
+
+            // Challenge rows
+            for (let r = 0; r < maxRows; r++) {
+                catNames.forEach(cat => {
+                    const ch = categories[cat][r];
+                    if (!ch) {
+                        html += '<div class="jeopardy-cell empty"></div>';
+                    } else {
+                        const solved = solvedSet.has(ch.id);
+                        html += '<div class="jeopardy-cell' + (solved ? ' solved' : '') + '" onclick="openChallenge(\'' + ch.id + '\')">';
+                        html += ch.currentPoints;
+                        html += '</div>';
+                    }
+                });
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // ── Box View ──
+        function renderBox(container, chs, solvedSet) {
+            // Color map for difficulty bar
+            const diffColors = { 0: '#22c55e', 100: '#22c55e', 200: '#3b82f6', 300: '#f59e0b', 400: '#ef4444', 500: '#ef4444' };
+            function getDiffColor(pts) {
+                if (pts <= 100) return '#22c55e';
+                if (pts <= 200) return '#3b82f6';
+                if (pts <= 300) return '#f59e0b';
+                return '#ef4444';
+            }
+
+            let html = '<div class="box-grid">';
+            chs.forEach(ch => {
+                const solved = solvedSet.has(ch.id);
+                const color = getDiffColor(ch.points);
+
+                html += '<div class="box-card' + (solved ? ' solved' : '') + '" onclick="openChallenge(\'' + ch.id + '\')">';
+                html += '<div class="box-header">';
+                html += '<span class="box-cat box-cat-' + ch.category + '">' + escHtml(ch.category) + '</span>';
+                html += '<span class="box-points">' + ch.currentPoints + ' pts</span>';
+                html += '</div>';
+                html += '<div class="box-title">' + escHtml(ch.title) + '</div>';
+                html += '<div class="box-desc">' + escHtml(ch.description) + '</div>';
+                html += '<div class="box-footer">';
+                html += '<span>' + ch.solveCount + ' solve' + (ch.solveCount !== 1 ? 's' : '') + '</span>';
+                if (ch.hints.length > 0) html += '<span>' + ch.hints.length + ' hint' + (ch.hints.length !== 1 ? 's' : '') + '</span>';
+                if (ch.boxId) html += '<span style="color:var(--accent-bright);">&#9654; Interactive</span>';
+                html += '</div>';
+                html += '<div class="box-difficulty-bar" style="background:' + color + ';"></div>';
+                html += '</div>';
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // ── Challenge Modal ──
+        window.openChallenge = function(chId) {
+            const ch = challenges.find(c => c.id === chId);
+            if (!ch) return;
+
+            const solved = myTeamData.solves && myTeamData.solves.includes(chId);
+            const modal = document.getElementById('chModal');
+            const catClass = 'box-cat-' + ch.category;
+
+            let html = '';
+
+            // Header
+            html += '<div class="ch-modal-header">';
+            html += '<div class="ch-modal-title">' + escHtml(ch.title) + '</div>';
+            html += '<div class="ch-modal-pts">' + ch.currentPoints + ' pts</div>';
+            html += '<button class="ch-modal-close" onclick="closeModal()">&times;</button>';
+            html += '</div>';
+
+            // Category
+            html += '<span class="ch-modal-cat ' + catClass + '">' + escHtml(ch.category) + '</span>';
+
+            // Description
+            html += '<div class="ch-modal-desc">' + escHtml(ch.description) + '</div>';
+
+            // Launch Box button (if linked to an arena box)
+            if (ch.boxId) {
+                html += '<a href="/arena/boxes/' + ch.boxId + '/index.html" target="_blank" rel="noopener" ';
+                html += 'style="display:inline-flex; align-items:center; gap:8px; padding:10px 20px; ';
+                html += 'background:linear-gradient(135deg, rgba(168,85,247,0.15), rgba(239,68,68,0.15)); ';
+                html += 'border:1px solid var(--border); border-radius:8px; color:var(--text-bright); ';
+                html += 'text-decoration:none; font-size:0.85rem; font-weight:700; font-family:var(--font); ';
+                html += 'margin-bottom:16px; transition:all 0.2s;" ';
+                html += 'onmouseover="this.style.borderColor=\'var(--accent)\'" ';
+                html += 'onmouseout="this.style.borderColor=\'var(--border)\'">';
+                html += '<span style="font-size:1.1rem;">&#9654;</span> Launch Box: ' + escHtml(ch.title);
+                html += '</a>';
+            }
+
+            // Solve count
+            html += '<div class="ch-modal-solves">' + ch.solveCount + ' team' + (ch.solveCount !== 1 ? 's have' : ' has') + ' solved this challenge</div>';
+
+            // Hints
+            if (ch.hints.length > 0) {
+                html += '<div class="ch-modal-hints">';
+                ch.hints.forEach((hint, i) => {
+                    html += '<button class="ch-hint-btn" onclick="revealHint(this,' + i + ')" data-idx="' + i + '">Hint ' + (i + 1) + ' (-' + hint.cost + ' pts)</button>';
+                    html += '<div class="ch-hint-text" id="hintText' + i + '">' + escHtml(hint.text) + '</div>';
+                });
+                html += '</div>';
+            }
+
+            // Flag input or solved banner
+            if (solved) {
+                html += '<div class="ch-modal-solved-banner">Your team solved this challenge!</div>';
+            } else if (tournament.status === 'active' || tournament.status === 'frozen') {
+                html += '<div class="ch-flag-row">';
+                html += '<input type="text" class="ch-flag-input" id="flagInput" placeholder="HEX{your_flag_here}" onkeydown="if(event.key===\'Enter\')submitFlag(\'' + chId + '\')">';
+                html += '<button class="ch-flag-submit" id="flagSubmitBtn" onclick="submitFlag(\'' + chId + '\')">Submit</button>';
+                html += '</div>';
+                html += '<div class="ch-flag-result" id="flagResult"></div>';
+            } else {
+                html += '<div style="color:var(--text-dim); font-size:0.82rem;">Tournament is not accepting submissions.</div>';
+            }
+
+            modal.innerHTML = html;
+            document.getElementById('chModalOverlay').classList.add('open');
+
+            // Auto-focus flag input
+            setTimeout(() => {
+                const inp = document.getElementById('flagInput');
+                if (inp) inp.focus();
+            }, 100);
+        };
+
+        window.closeModal = function() {
+            document.getElementById('chModalOverlay').classList.remove('open');
+        };
+
+        // Close modal with Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // ── Reveal Hint ──
+        window.revealHint = function(btn, idx) {
+            const hintEl = document.getElementById('hintText' + idx);
+            if (hintEl.classList.contains('revealed')) return;
+
+            const ch = challenges.find(c => {
+                const h = c.hints[idx];
+                return h !== undefined;
+            });
+
+            if (!confirm('Reveal this hint? It will cost your team points.')) return;
+
+            hintEl.classList.add('revealed');
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'default';
+        };
+
+        // ── Submit Flag ──
+        window.submitFlag = async function(chId) {
+            if (submitting) return;
+            const input = document.getElementById('flagInput');
+            const resultEl = document.getElementById('flagResult');
+            const btn = document.getElementById('flagSubmitBtn');
+            const flag = input.value.trim();
+
+            if (!flag) {
+                resultEl.className = 'ch-flag-result error';
+                resultEl.textContent = 'Enter a flag.';
+                return;
+            }
+
+            submitting = true;
+            btn.disabled = true;
+            btn.textContent = 'Checking...';
+            resultEl.textContent = '';
+
+            try {
+                const ctfSubmit = functions.httpsCallable('ctfSubmitFlag');
+                const result = await ctfSubmit({
+                    tournamentId: tournamentId,
+                    challengeId: chId,
+                    flag: flag
+                });
+
+                const data = result.data;
+                if (data.correct) {
+                    resultEl.className = 'ch-flag-result correct';
+                    resultEl.textContent = data.message;
+                    toast(data.message, 'success');
+
+                    // Update local state
+                    if (!myTeamData.solves) myTeamData.solves = [];
+                    myTeamData.solves.push(chId);
+
+                    // Update challenge solve count locally
+                    const ch = challenges.find(c => c.id === chId);
+                    if (ch) ch.solveCount++;
+
+                    // Re-render board behind modal after a moment
+                    setTimeout(() => {
+                        renderBoard();
+                        closeModal();
+                    }, 1500);
+                } else {
+                    resultEl.className = 'ch-flag-result wrong';
+                    resultEl.textContent = data.message;
+                    input.value = '';
+                    input.focus();
+                }
+            } catch (e) {
+                const msg = e.message || 'Submission failed.';
+                resultEl.className = 'ch-flag-result error';
+                resultEl.textContent = msg;
+            } finally {
+                submitting = false;
+                btn.disabled = false;
+                btn.textContent = 'Submit';
+            }
+        };
+
+        // ── Utility ──
+        function escHtml(str) {
+            const d = document.createElement('div');
+            d.textContent = str || '';
+            return d.innerHTML;
+        }
+    })();
+    </script>
+</body>
+</html>

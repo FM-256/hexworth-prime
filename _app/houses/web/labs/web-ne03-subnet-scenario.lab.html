@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NE-03 Subnet Scenario Lab | Web House</title>
+    <style>
+        :root {
+            --cyan: #06b6d4;
+            --cyan-light: #22d3ee;
+            --cyan-glow: rgba(6, 182, 212, 0.3);
+            --cyan-dim: rgba(6, 182, 212, 0.12);
+            --bg-primary: #090910;
+            --bg-secondary: #10101a;
+            --bg-tertiary: #181824;
+            --bg-card: #12121e;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --border: #1e293b;
+            --green: #22c55e;
+            --red: #ef4444;
+            --amber: #f59e0b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .lab-container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .back-link {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            color: var(--cyan); text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+        .back-link:hover { color: var(--cyan-light); transform: translateX(-5px); }
+
+        .lab-header {
+            text-align: center; margin-bottom: 2rem; padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+            border-radius: 16px; border: 1px solid var(--cyan);
+            box-shadow: 0 0 30px var(--cyan-glow);
+        }
+        .lab-header h1 {
+            font-size: 1.8rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--cyan), var(--cyan-light));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 0.95rem; }
+        .lab-header .meta {
+            display: flex; gap: 1.5rem; justify-content: center;
+            margin-top: 0.75rem; font-size: 0.85rem; color: var(--text-secondary);
+        }
+        .lab-header .meta span {
+            background: var(--bg-primary);
+            padding: 4px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+
+        .scenario-brief {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--amber);
+            border-radius: 0 12px 12px 0;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 2rem;
+            font-size: 0.92rem;
+            color: var(--text-secondary);
+        }
+        .scenario-brief strong { color: var(--amber); }
+
+        .progress-bar-wrap {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 2rem;
+            display: flex; align-items: center; gap: 1rem;
+        }
+        .progress-bar-wrap label {
+            font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap;
+        }
+        .progress-track {
+            flex: 1; height: 8px; background: var(--bg-primary);
+            border-radius: 4px; overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%; width: 0%; background: linear-gradient(90deg, var(--cyan), var(--cyan-light));
+            border-radius: 4px; transition: width 0.5s ease;
+        }
+        .progress-text { font-size: 0.85rem; color: var(--cyan); font-weight: 600; min-width: 40px; text-align: right; }
+
+        /* Step cards */
+        .step-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            transition: border-color 0.3s ease;
+        }
+        .step-card.active { border-color: var(--cyan); box-shadow: 0 0 20px var(--cyan-dim); }
+        .step-card.completed { border-color: var(--green); }
+        .step-card.locked { opacity: 0.5; pointer-events: none; }
+
+        .step-header {
+            display: flex; align-items: center; gap: 1rem;
+            padding: 1rem 1.5rem;
+            background: var(--bg-tertiary);
+            cursor: pointer;
+            user-select: none;
+        }
+        .step-number {
+            width: 32px; height: 32px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.85rem;
+            background: var(--bg-primary); border: 2px solid var(--border);
+            color: var(--text-secondary); flex-shrink: 0;
+        }
+        .step-card.active .step-number { border-color: var(--cyan); color: var(--cyan); }
+        .step-card.completed .step-number { border-color: var(--green); color: var(--green); background: rgba(34,197,94,0.1); }
+        .step-title { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); }
+        .step-status {
+            margin-left: auto; font-size: 0.75rem; padding: 3px 10px;
+            border-radius: 4px; font-weight: 600;
+        }
+        .step-card.completed .step-status { background: rgba(34,197,94,0.15); color: var(--green); }
+        .step-card.active .step-status { background: var(--cyan-dim); color: var(--cyan); }
+
+        .step-body { padding: 1.5rem; display: none; }
+        .step-card.active .step-body,
+        .step-card.completed .step-body { display: block; }
+
+        /* Evidence panels */
+        .evidence-panel {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.25rem;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            color: var(--cyan-light);
+            overflow-x: auto;
+            white-space: pre;
+        }
+        .evidence-label {
+            display: inline-block;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            background: var(--bg-tertiary);
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .question-block {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-top: 0.5rem;
+        }
+        .question-block p {
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .answer-group { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end; }
+
+        .answer-group select,
+        .answer-group input[type="text"] {
+            flex: 1; min-width: 200px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.6rem 0.9rem;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .answer-group select:focus,
+        .answer-group input[type="text"]:focus { border-color: var(--cyan); }
+
+        .answer-group select option { background: var(--bg-primary); color: var(--text-primary); }
+
+        .btn-verify {
+            background: linear-gradient(135deg, var(--cyan), #0891b2);
+            color: #000; font-weight: 700;
+            border: none; padding: 0.6rem 1.4rem;
+            border-radius: 6px; cursor: pointer;
+            font-size: 0.85rem; white-space: nowrap;
+            transition: all 0.3s ease;
+        }
+        .btn-verify:hover { transform: translateY(-1px); box-shadow: 0 4px 12px var(--cyan-glow); }
+        .btn-verify:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .btn-hint {
+            background: none; border: 1px solid var(--border);
+            color: var(--text-secondary); padding: 0.6rem 1rem;
+            border-radius: 6px; cursor: pointer;
+            font-size: 0.82rem; white-space: nowrap;
+            transition: all 0.3s;
+        }
+        .btn-hint:hover { border-color: var(--amber); color: var(--amber); }
+
+        .feedback {
+            margin-top: 0.75rem;
+            padding: 0.6rem 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            display: none;
+        }
+        .feedback.correct {
+            display: block;
+            background: rgba(34,197,94,0.1);
+            border: 1px solid rgba(34,197,94,0.3);
+            color: var(--green);
+        }
+        .feedback.incorrect {
+            display: block;
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: var(--red);
+        }
+
+        .hint-box {
+            margin-top: 0.75rem;
+            padding: 0.6rem 1rem;
+            background: rgba(245,158,11,0.08);
+            border: 1px solid rgba(245,158,11,0.2);
+            border-radius: 6px;
+            color: var(--amber);
+            font-size: 0.82rem;
+            display: none;
+        }
+
+        .explanation {
+            margin-top: 0.75rem;
+            padding: 0.75rem 1rem;
+            background: rgba(6,182,212,0.06);
+            border-left: 3px solid var(--cyan);
+            border-radius: 0 6px 6px 0;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            display: none;
+        }
+        .step-card.completed .explanation { display: block; }
+
+        .completion-banner {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+            background: linear-gradient(135deg, rgba(34,197,94,0.1), rgba(6,182,212,0.1));
+            border: 1px solid var(--green);
+            border-radius: 12px;
+            margin-top: 2rem;
+        }
+        .completion-banner h2 {
+            color: var(--green); font-size: 1.4rem; margin-bottom: 0.5rem;
+        }
+        .completion-banner p { color: var(--text-secondary); font-size: 0.92rem; }
+        .completion-banner .score {
+            font-size: 2rem; font-weight: 800; color: var(--cyan);
+            margin: 0.75rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .lab-container { padding: 1rem; }
+            .lab-header h1 { font-size: 1.3rem; }
+            .answer-group { flex-direction: column; }
+            .answer-group select,
+            .answer-group input[type="text"] { min-width: unset; }
+        }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <div class="nav-links">
+            <a href="../network-plus/index.html" class="back-link">&#x2190; Network+ Hub</a>
+            <a href="../index.html" class="back-link">&#x2190; Web House</a>
+        </div>
+
+        <div class="lab-header">
+            <h1>NE-03: Post-Merger Subnet Conflict Resolution</h1>
+            <p class="subtitle">Scenario Lab -- Corporate Network Integration</p>
+            <div class="meta">
+                <span>8 Steps</span>
+                <span>35 min</span>
+                <span>Scenario Lab</span>
+            </div>
+        </div>
+
+        <div class="scenario-brief">
+            <strong>SCENARIO:</strong> Meridian Corp has completed its acquisition of Beacon Systems.
+            Both companies operated their own 10.10.x.x networks independently. Now that the merger
+            is complete and the networks are being interconnected, you've been called in to audit the
+            combined infrastructure. Initial reports indicate overlapping subnets, mismatched masks,
+            DHCP scopes bleeding across boundaries, and several hosts that have lost connectivity.
+            Your job: walk through each piece of evidence, identify the addressing conflict, and
+            document the corrected scheme.
+        </div>
+
+        <div class="progress-bar-wrap">
+            <label>Lab Progress</label>
+            <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-text" id="progressText">0 / 8</div>
+        </div>
+
+        <div id="stepsContainer"></div>
+
+        <div class="completion-banner" id="completionBanner">
+            <h2>Lab Complete -- Network Remediation Documented</h2>
+            <div class="score" id="finalScore"></div>
+            <p>You identified all 8 subnet addressing conflicts in the merged Meridian-Beacon network.
+            The corrected addressing scheme is ready for implementation.</p>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        var STEPS = [
+            {
+                title: 'Overlapping Subnets Between Core Routers',
+                evidenceLabel: 'Router Configs -- Core-R1 (Meridian) & Core-R2 (Beacon)',
+                evidence:
+'Core-R1 (Meridian HQ Router)\n' +
+'  interface GigabitEthernet0/0\n' +
+'    ip address 10.10.0.1 255.255.254.0\n' +
+'    description "HQ-LAN -- Meridian"\n' +
+'    no shutdown\n\n' +
+'Core-R2 (Beacon HQ Router)\n' +
+'  interface GigabitEthernet0/0\n' +
+'    ip address 10.10.1.1 255.255.255.0\n' +
+'    description "HQ-LAN -- Beacon"\n' +
+'    no shutdown',
+                question: 'Why do these two subnets overlap?',
+                type: 'select',
+                options: [
+                    '-- Select --',
+                    'Both routers use the same IP address',
+                    'The /23 mask on Core-R1 includes the entire 10.10.1.x range used by Core-R2',
+                    'The /24 mask is too small for the network',
+                    'The interfaces are both on GigabitEthernet0/0'
+                ],
+                correct: 1,
+                explanation: 'A /23 (255.255.254.0) on 10.10.0.0 covers 10.10.0.0 through 10.10.1.255. That means Beacon\'s 10.10.1.0/24 sits entirely inside Meridian\'s /23. Any host in the 10.10.1.x range belongs to both subnets from the routing table\'s perspective, causing ambiguous forwarding.',
+                hint: 'Calculate the range of a /23 starting at 10.10.0.0. How many third-octet values does it span?'
+            },
+            {
+                title: 'Subnet Mask Mismatch -- Server vs Router',
+                evidenceLabel: 'IP Configuration -- File Server FS-01 & Distribution Router DR-01',
+                evidence:
+'FS-01 (File Server):\n' +
+'  IPv4 Address . . . . . : 10.10.4.100\n' +
+'  Subnet Mask  . . . . . : 255.255.255.0   (/24)\n' +
+'  Default Gateway . . . . : 10.10.4.1\n\n' +
+'DR-01 (Distribution Router) -- interface Gi0/1:\n' +
+'  ip address 10.10.4.1 255.255.255.128     (/25)\n' +
+'  description "Server-VLAN"',
+                question: 'What is the mismatch and what is the consequence?',
+                type: 'select',
+                options: [
+                    '-- Select --',
+                    'The server and router have different IP addresses',
+                    'The server uses /24 and the router uses /25 -- the server thinks .128-.254 are local, but the router disagrees',
+                    'The gateway address is wrong on the server',
+                    'Both devices need to use /23 instead'
+                ],
+                correct: 1,
+                explanation: 'The server\'s /24 mask means it considers 10.10.4.0 - 10.10.4.255 as its local subnet. The router\'s /25 mask means it only considers 10.10.4.0 - 10.10.4.127 as local. When the server tries to reach 10.10.4.200, it sends an ARP (thinks it\'s local), while the router would route that address to a different subnet. This mask mismatch causes intermittent connectivity failures for hosts in the .128-.254 range.',
+                hint: 'Compare the host range of /24 vs /25. Where do they diverge? What happens when the server tries to reach 10.10.4.200?'
+            },
+            {
+                title: 'DHCP Scope Crossing Subnet Boundary',
+                evidenceLabel: 'DHCP Server Configuration -- Scope "MergedLAN"',
+                evidence:
+'DHCP Scope: MergedLAN\n' +
+'  Start Address . . . . : 10.10.2.1\n' +
+'  End Address  . . . . . : 10.10.3.50\n' +
+'  Subnet Mask  . . . . . : 255.255.255.0   (/24)\n' +
+'  Default Gateway . . . . : 10.10.2.1\n' +
+'  Lease Duration . . . . : 8 hours\n\n' +
+'Active Leases:\n' +
+'  10.10.2.14   PC-ACCT-01    00:1A:2B:...\n' +
+'  10.10.2.201  PC-HR-03      00:1A:2C:...\n' +
+'  10.10.3.12   PC-MKT-07     00:1A:2D:...\n' +
+'  10.10.3.44   PRINTER-FL2   00:1A:2E:...',
+                question: 'What is wrong with this DHCP scope?',
+                type: 'select',
+                options: [
+                    '-- Select --',
+                    'The lease duration is too short',
+                    'The scope range crosses from the 10.10.2.0/24 subnet into 10.10.3.0/24',
+                    'The gateway IP is the same as the start address',
+                    'There are too many active leases'
+                ],
+                correct: 1,
+                explanation: 'With a /24 mask, the subnet is 10.10.2.0 - 10.10.2.255. But the scope\'s end address (10.10.3.50) is in a completely different subnet. Clients that receive addresses in the 10.10.3.x range will have the wrong gateway (10.10.2.1 is not in their subnet) and will be unable to communicate. Additionally, the gateway and start address are the same (10.10.2.1), which is also a problem -- the gateway IP should be excluded from the pool.',
+                hint: 'If the subnet mask is /24, what is the valid host range for the 10.10.2.0 network? Does 10.10.3.x fall in that range?'
+            },
+            {
+                title: 'Workstation with Gateway in Wrong Subnet',
+                evidenceLabel: 'ipconfig /all -- Workstation WS-22 (Branch Office)',
+                evidence:
+'Ethernet adapter Local Area Connection:\n\n' +
+'  Connection-specific DNS Suffix : beacon.local\n' +
+'  IPv4 Address . . . . . : 10.10.2.45\n' +
+'  Subnet Mask  . . . . . : 255.255.255.0   (/24)\n' +
+'  Default Gateway . . . . : 10.10.3.1\n\n' +
+'C:\\> ping 10.10.3.1\n' +
+'  Request timed out.\n' +
+'  Request timed out.\n' +
+'  Request timed out.\n\n' +
+'C:\\> ping 10.10.2.1\n' +
+'  Reply from 10.10.2.1: bytes=32 time<1ms TTL=255',
+                question: 'Why can this workstation not reach its default gateway?',
+                type: 'select',
+                options: [
+                    '-- Select --',
+                    'The DNS suffix is wrong',
+                    'The NIC is disabled',
+                    'The gateway 10.10.3.1 is not in the workstation\'s subnet (10.10.2.0/24)',
+                    'The ping TTL is too high'
+                ],
+                correct: 2,
+                explanation: 'The workstation is on 10.10.2.0/24 (10.10.2.1 - 10.10.2.254). Its configured gateway, 10.10.3.1, is in a different subnet (10.10.3.0/24). The workstation will ARP for the gateway MAC address, but since 10.10.3.1 is not on the local segment, no ARP reply comes back. The workstation can reach other 10.10.2.x hosts (proven by the successful ping to 10.10.2.1) but cannot route to any external network.',
+                hint: 'Check: is the gateway address within the host range defined by the workstation\'s IP and mask?'
+            },
+            {
+                title: 'Router Interface Using Broadcast Address',
+                evidenceLabel: 'Router BR-01 Interface Config & ARP Table',
+                evidence:
+'BR-01 (Branch Router):\n' +
+'  interface GigabitEthernet0/2\n' +
+'    ip address 10.10.5.255 255.255.255.0\n' +
+'    description "Branch-Office-VLAN50"\n' +
+'    no shutdown\n\n' +
+'BR-01# show ip interface brief\n' +
+'Interface          IP-Address    Status    Protocol\n' +
+'Gi0/0              10.10.0.2     up        up\n' +
+'Gi0/1              10.10.4.1     up        up\n' +
+'Gi0/2              10.10.5.255   up        down',
+                question: 'Why is Gi0/2 showing "up/down" and what is the addressing problem?',
+                type: 'select',
+                options: [
+                    '-- Select --',
+                    'The interface cable is unplugged',
+                    'The IP 10.10.5.255 is the broadcast address for 10.10.5.0/24 and cannot be assigned to a host',
+                    'VLAN50 does not exist on the switch',
+                    'The description string is too long'
+                ],
+                correct: 1,
+                explanation: 'For the 10.10.5.0/24 subnet, the broadcast address is 10.10.5.255. This address is reserved for directed broadcasts and cannot be assigned to any interface. Most routers will reject this or mark the protocol as down because the address conflicts with the subnet\'s broadcast. The correct address for this gateway would be something like 10.10.5.1.',
+                hint: 'What is the broadcast address for the 10.10.5.0/24 subnet? Can any device use that address as a unicast IP?'
+            },
+            {
+                title: 'Insufficient Address Space for Growth',
+                evidenceLabel: 'Branch Office Capacity Report -- Site B3',
+                evidence:
+'Site B3 -- Subnet Assignment:\n' +
+'  Network  . . . . : 10.10.6.0 /26\n' +
+'  Usable Range  . . : 10.10.6.1 - 10.10.6.62\n' +
+'  Usable Hosts . . : 62\n' +
+'  Broadcast . . . . : 10.10.6.63\n\n' +
+'Current Allocation:\n' +
+'  Workstations  . . : 48\n' +
+'  Printers . . . . : 6\n' +
+'  IP Phones  . . . : 4\n' +
+'  Network Infra . . : 2 (router + switch mgmt)\n' +
+'  ----------------------------\n' +
+'  Total Used . . . : 60 of 62\n\n' +
+'Planned Expansion (Q2):\n' +
+'  New hires . . . . : 15 workstations\n' +
+'  IoT sensors . . . : 8',
+                question: 'Is the current /26 sufficient? What should it be changed to?',
+                type: 'select',
+                options: [
+                    '-- Select --',
+                    'Yes, /26 is fine -- just remove old leases',
+                    '/26 has 62 usable, but with 60 used and 23 more needed, upgrade to /25 (126 usable hosts)',
+                    'Change to /27 for tighter security',
+                    'Change to /24 -- always use the largest subnet possible'
+                ],
+                correct: 1,
+                explanation: 'A /26 provides 62 usable addresses. With 60 currently in use and 23 more planned, the site needs 83 addresses minimum. A /25 gives 126 usable hosts (2^7 - 2 = 126), which accommodates the current 60 plus the 23 new devices with room for further growth. A /24 (254 usable) would work but wastes address space. The right answer balances capacity against conservation -- /25 is the practical choice.',
+                hint: 'Calculate: current devices + planned devices = total needed. Then find the smallest prefix that covers it. /26 = 62, /25 = 126, /24 = 254.'
+            },
+            {
+                title: 'Default Route with Broadcast Next-Hop',
+                evidenceLabel: 'Routing Table -- Branch Router BR-02',
+                evidence:
+'BR-02# show ip route\n' +
+'Gateway of last resort is 10.10.7.255 to network 0.0.0.0\n\n' +
+'C    10.10.7.0/24 is directly connected, Gi0/0\n' +
+'S*   0.0.0.0/0 [1/0] via 10.10.7.255\n\n' +
+'BR-02# ping 8.8.8.8\n' +
+'  Type escape sequence to abort.\n' +
+'  Sending 5, 100-byte ICMP Echos to 8.8.8.8:\n' +
+'  .....\n' +
+'  Success rate is 0 percent (0/5)\n\n' +
+'BR-02# show arp\n' +
+'Protocol  Address     Age  Hardware Addr   Type  Interface\n' +
+'Internet  10.10.7.1    12  0050.7f3e.0001  ARPA  Gi0/0\n' +
+'Internet  10.10.7.255   -  ffff.ffff.ffff  ARPA  Gi0/0',
+                question: 'Why does the default route fail to forward traffic?',
+                type: 'select',
+                options: [
+                    '-- Select --',
+                    'The static route has the wrong administrative distance',
+                    'The next-hop 10.10.7.255 is the broadcast address -- packets cannot be unicast-forwarded to a broadcast',
+                    'The interface Gi0/0 is down',
+                    'The ARP table is full'
+                ],
+                correct: 1,
+                explanation: 'The default route\'s next-hop is 10.10.7.255, which is the broadcast address for 10.10.7.0/24. The ARP table confirms it resolves to ffff.ffff.ffff (broadcast MAC). Packets destined for the internet are being "forwarded" to the broadcast address, which means they\'re broadcast onto the local segment instead of sent to an upstream router. The correct next-hop should be the upstream router\'s interface IP, such as 10.10.7.1.',
+                hint: 'Look at the ARP table. What MAC address does 10.10.7.255 resolve to? Can a router forward a packet to that kind of address?'
+            },
+            {
+                title: 'DNS Server with No Gateway',
+                evidenceLabel: 'Network Config -- DNS Server DNS-01',
+                evidence:
+'DNS-01 (Internal DNS / Resolver):\n' +
+'  IPv4 Address . . . . . : 10.10.8.53\n' +
+'  Subnet Mask  . . . . . : 255.255.255.0\n' +
+'  Default Gateway . . . . : 0.0.0.0\n\n' +
+'DNS-01# nslookup google.com\n' +
+'  Server:    10.10.8.53\n' +
+'  Address:   10.10.8.53#53\n\n' +
+'  ** server can\'t find google.com: SERVFAIL\n\n' +
+'DNS-01# ping 10.10.8.1\n' +
+'  Reply from 10.10.8.1: bytes=32 time<1ms TTL=255\n\n' +
+'DNS-01# ping 8.8.8.8\n' +
+'  PING 8.8.8.8: Network is unreachable\n\n' +
+'DNS-01# netstat -rn\n' +
+'Destination    Gateway     Genmask         Iface\n' +
+'10.10.8.0      0.0.0.0     255.255.255.0   eth0\n' +
+'--- no default route ---',
+                question: 'Why can the DNS server resolve local names but not internet domains?',
+                type: 'select',
+                options: [
+                    '-- Select --',
+                    'The DNS port 53 is blocked by the firewall',
+                    'The server has no default gateway (0.0.0.0) so it cannot reach external DNS forwarders or root servers',
+                    'The subnet mask is wrong',
+                    'The DNS service is not running'
+                ],
+                correct: 1,
+                explanation: 'The DNS server\'s gateway is 0.0.0.0, which means "no gateway configured." Its routing table confirms there is no default route. The server can reach anything on 10.10.8.0/24 (the local ping to 10.10.8.1 works), but any traffic destined outside that subnet -- including queries to root servers or upstream forwarders like 8.8.8.8 -- has no path to leave. The fix is to set the gateway to 10.10.8.1 (the router interface that can ping successfully).',
+                hint: 'Look at the netstat output. Is there a default route? What happens when DNS-01 tries to forward a query to an external root server?'
+            }
+        ];
+
+        var completedSteps = {};
+        var attempts = {};
+        var totalSteps = STEPS.length;
+
+        function buildSteps() {
+            var container = document.getElementById('stepsContainer');
+            var html = '';
+
+            for (var i = 0; i < STEPS.length; i++) {
+                var step = STEPS[i];
+                var num = i + 1;
+                var stateClass = i === 0 ? 'active' : 'locked';
+                var statusLabel = i === 0 ? 'Current' : 'Locked';
+
+                html += '<div class="step-card ' + stateClass + '" id="step-' + num + '" data-step="' + num + '">';
+                html += '<div class="step-header" onclick="toggleStep(' + num + ')">';
+                html += '<div class="step-number">' + num + '</div>';
+                html += '<div class="step-title">Step ' + num + ': ' + step.title + '</div>';
+                html += '<span class="step-status" id="status-' + num + '">' + statusLabel + '</span>';
+                html += '</div>';
+                html += '<div class="step-body">';
+
+                html += '<div class="evidence-label">' + step.evidenceLabel + '</div>';
+                html += '<div class="evidence-panel">' + escapeHtml(step.evidence) + '</div>';
+
+                html += '<div class="question-block">';
+                html += '<p>' + step.question + '</p>';
+                html += '<div class="answer-group">';
+
+                if (step.type === 'select') {
+                    html += '<select id="answer-' + num + '">';
+                    for (var j = 0; j < step.options.length; j++) {
+                        html += '<option value="' + j + '">' + escapeHtml(step.options[j]) + '</option>';
+                    }
+                    html += '</select>';
+                } else {
+                    html += '<input type="text" id="answer-' + num + '" placeholder="' + (step.placeholder || 'Type your answer...') + '">';
+                }
+
+                html += '<button class="btn-verify" id="verify-' + num + '" onclick="verifyStep(' + num + ')">Verify</button>';
+                html += '<button class="btn-hint" onclick="showHint(' + num + ')">Hint</button>';
+                html += '</div>';
+
+                html += '<div class="hint-box" id="hint-' + num + '">' + step.hint + '</div>';
+                html += '<div class="feedback" id="feedback-' + num + '"></div>';
+                html += '<div class="explanation" id="explanation-' + num + '">' + step.explanation + '</div>';
+                html += '</div>';
+
+                html += '</div>';
+                html += '</div>';
+            }
+
+            container.innerHTML = html;
+        }
+
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        window.toggleStep = function(num) {
+            var card = document.getElementById('step-' + num);
+            if (card.classList.contains('locked')) return;
+            if (card.classList.contains('completed')) {
+                var body = card.querySelector('.step-body');
+                body.style.display = body.style.display === 'none' ? 'block' : '';
+            }
+        };
+
+        window.showHint = function(num) {
+            var hintBox = document.getElementById('hint-' + num);
+            hintBox.style.display = hintBox.style.display === 'block' ? 'none' : 'block';
+        };
+
+        window.verifyStep = function(num) {
+            var step = STEPS[num - 1];
+            var feedbackEl = document.getElementById('feedback-' + num);
+            var card = document.getElementById('step-' + num);
+
+            if (completedSteps[num]) return;
+
+            if (!attempts[num]) attempts[num] = 0;
+            attempts[num]++;
+
+            var isCorrect = false;
+
+            if (step.type === 'select') {
+                var selectEl = document.getElementById('answer-' + num);
+                var selectedVal = parseInt(selectEl.value, 10);
+                isCorrect = selectedVal === step.correct;
+            } else {
+                var inputEl = document.getElementById('answer-' + num);
+                var userAnswer = inputEl.value.trim().toLowerCase();
+                isCorrect = step.correctValues.some(function(v) {
+                    return userAnswer.indexOf(v) !== -1;
+                });
+            }
+
+            if (isCorrect) {
+                feedbackEl.className = 'feedback correct';
+                feedbackEl.textContent = 'Correct! Issue identified.';
+
+                completedSteps[num] = true;
+                card.classList.remove('active');
+                card.classList.add('completed');
+
+                var statusEl = document.getElementById('status-' + num);
+                statusEl.textContent = attempts[num] === 1 ? 'First Try' : 'Solved';
+
+                var verifyBtn = document.getElementById('verify-' + num);
+                verifyBtn.disabled = true;
+                verifyBtn.textContent = 'Verified';
+
+                updateProgress();
+                unlockNext(num);
+
+                if (typeof ModuleProgress !== 'undefined' && ModuleProgress.update) {
+                    ModuleProgress.update('web-ne03-subnet-scenario', num, totalSteps);
+                }
+            } else {
+                feedbackEl.className = 'feedback incorrect';
+                if (attempts[num] >= 3) {
+                    feedbackEl.textContent = 'Not quite. Re-read the evidence carefully. The hint may help.';
+                    var hintBox = document.getElementById('hint-' + num);
+                    hintBox.style.display = 'block';
+                } else {
+                    feedbackEl.textContent = 'Incorrect -- review the evidence and try again. (Attempt ' + attempts[num] + '/3 before hint auto-shows)';
+                }
+            }
+        };
+
+        function unlockNext(currentNum) {
+            var nextNum = currentNum + 1;
+            if (nextNum > totalSteps) {
+                showCompletion();
+                return;
+            }
+            var nextCard = document.getElementById('step-' + nextNum);
+            if (nextCard) {
+                nextCard.classList.remove('locked');
+                nextCard.classList.add('active');
+                var statusEl = document.getElementById('status-' + nextNum);
+                statusEl.textContent = 'Current';
+
+                setTimeout(function() {
+                    nextCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300);
+            }
+        }
+
+        function updateProgress() {
+            var done = Object.keys(completedSteps).length;
+            var pct = Math.round((done / totalSteps) * 100);
+            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('progressText').textContent = done + ' / ' + totalSteps;
+        }
+
+        function showCompletion() {
+            var firstTryCount = 0;
+            for (var key in completedSteps) {
+                if (attempts[key] === 1) firstTryCount++;
+            }
+
+            var banner = document.getElementById('completionBanner');
+            var scoreEl = document.getElementById('finalScore');
+            scoreEl.textContent = firstTryCount + ' / ' + totalSteps + ' first-try';
+            banner.style.display = 'block';
+
+            setTimeout(function() {
+                banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 400);
+
+            if (typeof ModuleProgress !== 'undefined' && ModuleProgress.complete) {
+                ModuleProgress.complete('web-ne03-subnet-scenario');
+            }
+        }
+
+        buildSteps();
+    })();
+    </script>
+<script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

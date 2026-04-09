@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="/components/TenantRouter.js"></script>
+    <script src="/components/TenantShell.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading...</title>
+    <style>
+    .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+        :root {
+            --brand-primary:   #f59e0b;
+            --brand-secondary: #d97706;
+            --brand-bg:        #0f0f17;
+            --brand-surface:   #1a1a25;
+            --brand-surface2:  #22222f;
+            --brand-text:      #e8e4df;
+            --brand-text-sub:  #9a9490;
+            --brand-border:    rgba(245,158,11,0.15);
+            --brand-font:      Inter, system-ui, -apple-system, sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--brand-font);
+            background: var(--brand-bg);
+            color: var(--brand-text);
+            min-height: 100vh;
+        }
+
+        /* ── Loading screen ── */
+        #tenant-loader {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--brand-bg);
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+        #tenant-loader.fade-out { opacity: 0; pointer-events: none; }
+
+        .loader-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(245,158,11,0.2);
+            border-top-color: var(--brand-primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loader-text  { color: var(--brand-text-sub); font-size: 0.85rem; }
+        .loader-error { color: #ef4444; font-size: 0.85rem; margin-top: 10px; display: none; }
+
+        /* ── Dashboard wrapper ── */
+        #tenant-app {
+            display: none;
+            min-height: 100vh;
+        }
+
+        /* ── Header ── */
+        .acad-header {
+            background: var(--brand-surface);
+            border-bottom: 1px solid var(--brand-border);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 56px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+
+        .acad-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .acad-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: rgba(245,158,11,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .acad-logo img {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+        }
+
+        .acad-header-name {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--brand-text);
+        }
+
+        .acad-header-center {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--brand-primary);
+            text-align: center;
+        }
+
+        .acad-header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .acad-sign-out {
+            background: none;
+            border: 1px solid var(--brand-border);
+            color: var(--brand-text-sub);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .acad-sign-out:hover { border-color: var(--brand-primary); color: var(--brand-primary); }
+
+        /* ── Welcome banner ── */
+        .acad-welcome {
+            max-width: 960px;
+            margin: 32px auto 0;
+            padding: 0 24px;
+        }
+
+        .acad-welcome h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--brand-text);
+            margin-bottom: 4px;
+        }
+
+        .acad-welcome h1 span { color: var(--brand-primary); }
+
+        .acad-welcome p {
+            color: var(--brand-text-sub);
+            font-size: 0.9rem;
+        }
+
+        /* ── Card grid ── */
+        .acad-grid {
+            max-width: 960px;
+            margin: 28px auto;
+            padding: 0 24px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 18px;
+        }
+
+        .acad-card {
+            background: var(--brand-surface);
+            border: 1px solid var(--brand-border);
+            border-radius: 14px;
+            padding: 24px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            text-decoration: none;
+            color: var(--brand-text);
+            transition: transform 0.2s, border-color 0.25s, box-shadow 0.25s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .acad-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 14px;
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(245,158,11,0.3), transparent 60%);
+            mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            mask-composite: exclude;
+            -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            -webkit-mask-composite: xor;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+
+        .acad-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(245,158,11,0.35);
+            box-shadow: 0 8px 24px rgba(245,158,11,0.08);
+        }
+        .acad-card:hover::before { opacity: 1; }
+
+        .acad-card-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            background: rgba(245,158,11,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 14px;
+        }
+
+        .acad-card-icon img {
+            width: 30px;
+            height: 30px;
+            object-fit: contain;
+        }
+
+        .acad-card-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .acad-card-desc {
+            font-size: 0.8rem;
+            color: var(--brand-text-sub);
+            margin-bottom: 12px;
+        }
+
+        .acad-card-progress {
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255,255,255,0.06);
+            margin-top: auto;
+        }
+
+        /* ── Manage Assignments ── */
+        .acad-manage {
+            max-width: 960px;
+            margin: 8px auto 40px;
+            padding: 0 24px;
+            text-align: center;
+        }
+
+        .acad-manage a {
+            display: inline-block;
+            padding: 10px 24px;
+            border: 1px solid var(--brand-border);
+            border-radius: 8px;
+            color: var(--brand-primary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .acad-manage a:hover {
+            background: rgba(245,158,11,0.08);
+            border-color: var(--brand-primary);
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 600px) {
+            .acad-header { padding: 0 14px; }
+            .acad-header-center { display: none; }
+            .acad-welcome { padding: 0 14px; }
+            .acad-welcome h1 { font-size: 1.3rem; }
+            .acad-grid { padding: 0 14px; grid-template-columns: 1fr; }
+            .acad-manage { padding: 0 14px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── Loading Screen ── -->
+    <div id="tenant-loader">
+        <div class="loader-spinner"></div>
+        <div class="loader-text" id="loader-text">Connecting...</div>
+        <div class="loader-error" id="loader-error"></div>
+    </div>
+
+    <!-- ── Dashboard ── -->
+    <div id="tenant-app">
+        <!-- Header -->
+        <header class="acad-header">
+            <div class="acad-header-left">
+                <div class="acad-logo" id="brand-logo-wrap">
+                    <img id="brand-logo-img" src="/assets/images/icons/icon-books.webp" alt="">
+                </div>
+                <span class="acad-header-name" id="header-name"></span>
+            </div>
+            <div class="acad-header-center" id="brand-name"></div>
+            <div class="acad-header-right">
+                <button class="acad-sign-out" onclick="if(typeof firebase!=='undefined'){firebase.auth().signOut()}location.href='/'" aria-label="Sign out">Sign Out</button>
+            </div>
+        </header>
+
+        <!-- Welcome banner -->
+        <div class="acad-welcome">
+            <h1>Welcome back, <span id="welcome-name">learner</span></h1>
+            <p id="welcome-tagline">Your learning journey continues.</p>
+        </div>
+
+        <!-- Card grid -->
+        <div class="acad-grid" id="card-grid"></div>
+
+        <!-- Manage Assignments -->
+        <div class="acad-manage">
+            <a href="/tenant/instructor.html">Manage Assignments</a>
+        </div>
+    </div>
+
+    <script>
+    /**
+     * Dashboard Academy Variant
+     * Warm educational theme with amber/gold accent.
+     */
+    (async function() {
+        var loaderText  = document.getElementById('loader-text');
+        var loaderError = document.getElementById('loader-error');
+
+        try {
+            /* ── Step 1: Extract tenant slug ── */
+            var slug = new URLSearchParams(window.location.search).get('slug');
+            if (!slug) {
+                var pathMatch = window.location.pathname.match(/\/t\/([^\/]+)/);
+                if (pathMatch) { slug = pathMatch[1]; }
+            }
+            if (!slug) {
+                throw new Error('No tenant specified. Add ?slug=your-tenant to the URL.');
+            }
+
+            loaderText.textContent = 'Loading ' + slug + '...';
+
+            /* ── Step 2: Fetch tenant config ── */
+            var response = await fetch('https://us-central1-hexworth-prime.cloudfunctions.net/getTenantConfig?slug=' + encodeURIComponent(slug));
+            if (!response.ok) {
+                var errData = await response.json().catch(function() { return {}; });
+                throw new Error(errData.error || 'Tenant not found (HTTP ' + response.status + ')');
+            }
+            var config = await response.json();
+
+            if (config.status !== 'active') {
+                throw new Error('This training environment is currently inactive.');
+            }
+
+            /* ── Step 3: Store tenant context ── */
+            /* Store full tenant config — instructor page needs adminUids, licensing, etc. */
+            sessionStorage.setItem('hexworth_tenant', JSON.stringify(config));
+
+            /* Register Tenant Service Worker */
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/tenant-sw.js', { scope: '/' }).then(function(reg) {
+                    var sw = reg.installing || reg.waiting || reg.active;
+                    if (sw) sw.postMessage({ type: 'TENANT_ACTIVATE' });
+                    if (reg.active) reg.active.postMessage({ type: 'TENANT_ACTIVATE' });
+                }).catch(function() {});
+            }
+
+            loaderText.textContent = 'Applying configuration...';
+
+            /* ── Step 4: Apply branding ── */
+            var b    = config.branding;
+            var root = document.documentElement;
+            root.style.setProperty('--brand-primary',   b.primaryColor   || '#f59e0b');
+            root.style.setProperty('--brand-secondary', b.secondaryColor || '#d97706');
+
+            document.title = (b.platformName || config.name) + ' -- Academy';
+
+            document.getElementById('brand-name').textContent = escapeText(b.platformName || config.name);
+            document.getElementById('header-name').textContent = escapeText(b.platformName || config.name);
+            document.getElementById('welcome-tagline').textContent = escapeText(b.tagline || 'Your learning journey continues.');
+
+            /* Logo */
+            if (b.logo) {
+                var logoImg = document.getElementById('brand-logo-img');
+                logoImg.src = b.logo;
+                logoImg.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+                document.getElementById('brand-logo-wrap').style.background = 'transparent';
+            }
+
+            /* Welcome name from Firebase Auth */
+            if (typeof firebase !== 'undefined' && firebase.auth) {
+                var user = firebase.auth().currentUser;
+                if (user && user.displayName) {
+                    document.getElementById('welcome-name').textContent = escapeText(user.displayName.split(' ')[0]);
+                }
+            }
+
+            /* ── Step 5: Render tiles ── */
+            var features = (config.licensing && config.licensing.contentAccess && config.licensing.contentAccess.features) || {};
+            renderCards(features, config);
+
+            /* ── Step 6: Reveal dashboard ── */
+            var loader = document.getElementById('tenant-loader');
+            loader.classList.add('fade-out');
+            setTimeout(function() { loader.remove(); }, 500);
+            document.getElementById('tenant-app').style.display = 'block';
+
+        } catch (err) {
+            loaderText.textContent    = 'Connection failed';
+            loaderError.textContent   = err.message;
+            loaderError.style.display = 'block';
+        }
+    })();
+
+    function renderCards(features, config) {
+        var items = [];
+
+        /* Feature-gated tiles */
+        if (features.trainingRange) {
+            items.push({ name: 'Training Range', desc: 'CTF Arena', icon: '/assets/images/icons/icon-target.webp', href: '/arena/' });
+        }
+        if (features.vsMode) {
+            items.push({ name: 'VS Mode', desc: 'Live Red vs Blue', icon: '/assets/images/icons/icon-swords.webp', href: '/arena/boxes/ops-01-operation-shadowgate/' });
+        }
+        if (features.wiresharkHub) {
+            items.push({ name: 'Wireshark Hub', desc: 'Packet Analysis', icon: '/assets/images/icons/icon-magnifier.webp', href: '/wireshark/' });
+        }
+        if (features.forensicsHub) {
+            items.push({ name: 'Forensics Hub', desc: 'Digital Forensics', icon: '/assets/images/icons/icon-detective.webp', href: '/forensics/' });
+        }
+        if (features.bugHunting) {
+            items.push({ name: 'Bug Hunting Dojo', desc: 'Vulnerability Research', icon: '/assets/images/icons/icon-syringe.webp', href: '/dark-arts/vault/dojo/' });
+        }
+
+        /* Licensed courses */
+        var COURSE_MAP = {
+            'network-plus': { name: 'CompTIA Network+', desc: 'N10-009', icon: '/assets/images/icons/icon-globe.webp', href: '/lobby.html' },
+            'cyberops':     { name: 'CyberOps', desc: '200-201', icon: '/assets/images/icons/icon-shield.webp', href: '/lobby.html' },
+            'aplus-core1':  { name: 'CompTIA A+ Core 1', desc: '220-1101', icon: '/assets/images/icons/icon-wrench.webp', href: '/lobby.html' },
+            'aplus-core2':  { name: 'CompTIA A+ Core 2', desc: '220-1102', icon: '/assets/images/icons/icon-wrench.webp', href: '/lobby.html' },
+            'md-100':       { name: 'MD-100', desc: 'Windows Client', icon: '/assets/images/icons/icon-terminal.webp', href: '/lobby.html' },
+            'md-101':       { name: 'MD-101', desc: 'Windows Devices', icon: '/assets/images/icons/icon-terminal.webp', href: '/lobby.html' },
+            'feh':          { name: 'FEH', desc: 'Forensics & Ethical Hacking', icon: '/assets/images/icons/icon-magnifier.webp', href: '/lobby.html' },
+            'python-hub':   { name: 'Python Programming', desc: 'Python Hub', icon: '/assets/images/icons/icon-terminal.webp', href: '/lobby.html' }, /* Python Hub course */
+            'python-for-it': { name: 'Python for IT', desc: 'COP1034C', icon: '/assets/images/icons/icon-terminal.webp', href: '/lobby.html' } /* Python for IT course */
+        };
+
+        var courses = (config.licensing && config.licensing.contentAccess && config.licensing.contentAccess.courses) || [];
+        courses.forEach(function(courseId) {
+            var c = COURSE_MAP[courseId];
+            if (c) items.push(c);
+        });
+
+        /* All Courses feature */
+        if (features.allCourses) {
+            items.push({ name: 'All Courses', desc: 'Browse full curriculum', icon: '/assets/images/icons/icon-books.webp', href: '/dashboard.html' });
+        }
+
+        var container = document.getElementById('card-grid');
+        container.innerHTML = items.map(function(item) {
+            return '<a class="acad-card" href="' + item.href + '">'
+                 + '<div class="acad-card-icon"><img src="' + item.icon + '" alt=""></div>'
+                 + '<div class="acad-card-name">' + escapeText(item.name) + '</div>'
+                 + '<div class="acad-card-desc">' + escapeText(item.desc) + '</div>'
+                 + '<div class="acad-card-progress"></div>'
+                 + '</a>';
+        }).join('');
+    }
+
+    function escapeText(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+    </script>
+    <script src="tenant-data.js"></script>
+    <script>
+    (function() {
+        var checkConfig = setInterval(function() {
+            var raw = sessionStorage.getItem('hexworth_tenant');
+            if (raw) {
+                clearInterval(checkConfig);
+                try {
+                    var data = JSON.parse(raw);
+                    if (typeof TenantData !== 'undefined') TenantData.init(data);
+                } catch (e) {
+                    console.error('[TenantData] Config parse error:', e);
+                }
+            }
+        }, 100);
+        setTimeout(function() { clearInterval(checkConfig); }, 15000);
+    })();
+    </script>
+
+</body>
+</html>

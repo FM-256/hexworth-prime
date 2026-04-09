@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CaseBoard — Operation Paper Trail</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-table.webp">
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        .cb-layout { display: flex; gap: 0; min-height: calc(100vh - 50px); }
+        .cb-sidebar { width: 280px; background: var(--ow-surface); border-right: 1px solid var(--ow-border); overflow-y: auto; padding: 12px; flex-shrink: 0; }
+        .cb-main { flex: 1; padding: 16px; overflow-y: auto; }
+        .cb-section-title { font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ow-text-dim); padding: 8px 0 6px; border-bottom: 1px solid var(--ow-border); margin-bottom: 8px; }
+        .cb-evidence-mini { padding: 8px 10px; border-radius: 4px; margin-bottom: 4px; font-size: 0.68rem; cursor: pointer; border: 1px solid var(--ow-border); transition: border-color 0.15s; display: flex; justify-content: space-between; align-items: center; }
+        .cb-evidence-mini:hover { border-color: var(--ow-border-bright); }
+        .cb-evidence-mini .cb-src { font-size: 0.55rem; padding: 1px 4px; border-radius: 2px; }
+
+        /* Connection cards */
+        .cb-connections { display: grid; grid-template-columns: 1fr; gap: 10px; }
+        .cb-conn { background: var(--ow-surface); border: 1px solid var(--ow-border); border-radius: 8px; padding: 14px; }
+        .cb-conn.found { border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.04); }
+        .cb-conn.locked { opacity: 0.4; }
+        .cb-conn-label { font-size: 0.78rem; font-weight: bold; color: var(--ow-text-bright); margin-bottom: 6px; }
+        .cb-conn-desc { font-size: 0.7rem; color: var(--ow-text-dim); margin-bottom: 8px; }
+        .cb-conn-evidence { display: flex; gap: 6px; flex-wrap: wrap; }
+        .cb-conn-ev-tag { font-size: 0.6rem; padding: 2px 6px; border-radius: 3px; background: var(--ow-surface-2); border: 1px solid var(--ow-border); color: var(--ow-text-dim); }
+        .cb-conn-ev-tag.has { background: rgba(34,197,94,0.12); color: #86efac; border-color: rgba(34,197,94,0.3); }
+        .cb-conn-btn { padding: 6px 12px; font-size: 0.68rem; background: rgba(34,197,94,0.12); color: var(--ow-green); border: 1px solid rgba(34,197,94,0.3); border-radius: 4px; cursor: pointer; font-family: var(--ow-font); margin-top: 8px; }
+        .cb-conn-btn:hover { background: rgba(34,197,94,0.2); }
+        .cb-conn-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* Progress */
+        .cb-progress { background: var(--ow-surface); border: 1px solid var(--ow-border); border-radius: 8px; padding: 16px; margin-bottom: 16px; text-align: center; }
+        .cb-progress-count { font-size: 2rem; font-weight: bold; color: var(--ow-accent); }
+        .cb-progress-label { font-size: 0.7rem; color: var(--ow-text-dim); }
+    </style>
+</head>
+<body>
+<h1 class="visually-hidden">Operation Paper Trail — CaseBoard</h1>
+
+<script src="../../engine/OpenWorldEngine.js"></script>
+<script src="config-shared.js"></script>
+<script>
+    PaperTrailConfig.activePage = 'caseboard';
+    const engine = new OpenWorldEngine(PaperTrailConfig);
+    engine.init();
+</script>
+
+<div class="cb-layout">
+    <!-- Sidebar: Pinned Evidence -->
+    <div class="cb-sidebar">
+        <div class="cb-section-title">Pinned Evidence</div>
+        <div id="pinnedList"></div>
+        <div id="pinnedEmpty" style="color:var(--ow-text-dim);font-size:0.7rem;padding:10px;text-align:center;">
+            No evidence pinned yet. Visit devices to find and pin evidence.
+        </div>
+    </div>
+
+    <!-- Main: Connections -->
+    <div class="cb-main">
+        <div class="cb-progress">
+            <div class="cb-progress-count" id="connProgress">0 / 8</div>
+            <div class="cb-progress-label">Key Connections Identified</div>
+            <div class="ow-progress-bar" style="max-width:300px;margin:8px auto;">
+                <div class="ow-progress-fill" id="connBar" style="width:0%"></div>
+            </div>
+        </div>
+
+        <div class="cb-section-title">Key Connections</div>
+        <div class="cb-connections" id="connList"></div>
+    </div>
+</div>
+
+<script>
+/* ── Connection Definitions ──────────────────────── */
+var TOTAL_CONNECTIONS = 8;
+var CONNECTIONS = [
+    { id: 'conn-compromise', label: 'Email Compromise', desc: 'Romanian IP login (Jan 30) led to auto-forward rule creation (Feb 1). The attacker accessed Reeves\' mailbox from Bucharest 2 days before the forwarding rule appeared.', requires: ['em-romania-login', 'em-inbox-rule'], requireLabels: ['Romanian IP Login', 'Auto-Forward Rule'] },
+    { id: 'conn-forward', label: 'Forward Interception', desc: 'The auto-forward rule sent every rate confirmation to the phantom carrier 10-30 minutes before the dispatcher manually forwarded to the real carrier.', requires: ['em-forward-timing', 'em-inbox-rule'], requireLabels: ['Forward Timing Gap', 'Auto-Forward Rule'] },
+    { id: 'conn-phantom', label: 'Phantom Carrier Identity', desc: 'Atlas Express LLC registered 45 days ago with a cloned MC number from defunct Atlas Freight Inc. Shell company designed for this single scheme.', requires: ['cr-atlas-clone', 'cr-atlas-registered'], requireLabels: ['Cloned MC Number', 'New Registration'] },
+    { id: 'conn-insurance', label: 'Insurance Fraud', desc: 'Atlas Express filed a forged ACORD certificate with a fake agent, fake policy number, and VoIP phone number. No real insurance coverage exists.', requires: ['cr-fake-insurance', 'cr-atlas-clone'], requireLabels: ['Forged ACORD', 'Cloned MC'] },
+    { id: 'conn-financial', label: 'Pre-Planned Financial Infrastructure', desc: 'Wells Fargo account opened Jan 28 — 2 days before the email compromise. The financial pipeline was set up before the attack began.', requires: ['fn-bank-account', 'em-romania-login'], requireLabels: ['Bank Account (Jan 28)', 'Email Compromise (Jan 30)'] },
+    { id: 'conn-no-market', label: 'Zero Market Activity', desc: 'Atlas Express placed zero bids on DAT/Truckstop. All 12 loads came exclusively through the compromised email forward channel.', requires: ['lb-zero-bids', 'em-forward-timing'], requireLabels: ['Zero Load Board Bids', 'Forward Timing'] },
+    { id: 'conn-bol', label: 'BOL Document Fraud', desc: 'Phantom carrier BOLs had identical load numbers and seal numbers as legitimate BOLs, but different driver names and truck numbers. All data came from intercepted emails.', requires: ['dc-bol-comparison', 'cr-atlas-clone'], requireLabels: ['BOL Comparison', 'Phantom Carrier'] },
+    { id: 'conn-cashout', label: 'Rapid Cash-Out Pipeline', desc: 'Every invoice factored through QuikPay Capital within 24 hours at 95% advance. Cash moved from bank account to factoring company in rapid cycle.', requires: ['fn-factoring', 'fn-bank-account'], requireLabels: ['QuikPay Factoring', 'Bank Account'] }
+];
+
+function renderPinned() {
+    var pinned = engine.state.pinnedEvidence;
+    var list = document.getElementById('pinnedList');
+    var empty = document.getElementById('pinnedEmpty');
+
+    if (pinned.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
+    empty.style.display = 'none';
+
+    var srcColors = {
+        email: 'ow-src-email',
+        carrier: 'ow-src-workstation',
+        loadboard: 'ow-src-siem',
+        financial: 'ow-src-badge',
+        docs: 'ow-src-hr'
+    };
+
+    list.innerHTML = pinned.map(function(ev) {
+        var cls = srcColors[ev.source] || '';
+        return '<div class="cb-evidence-mini">' +
+            '<span>' + engine._esc(ev.title) + '</span>' +
+            '<span class="cb-src ' + cls + '">' + (ev.source || '').toUpperCase() + '</span>' +
+        '</div>';
+    }).join('');
+}
+
+function renderConnections() {
+    var found = engine.state.connections.map(function(c) { return c.id; });
+    var pinned = engine.state.pinnedEvidence.map(function(e) { return e.id; });
+
+    // Only show connections where BOTH required evidence items are pinned (or already confirmed)
+    var visible = CONNECTIONS.filter(function(conn) {
+        if (found.indexOf(conn.id) !== -1) return true; // Already confirmed
+        return conn.requires.every(function(r) { return pinned.indexOf(r) !== -1; }); // Both pieces pinned
+    });
+
+    if (visible.length === 0) {
+        document.getElementById('connList').innerHTML =
+            '<div class="ow-card" style="text-align:center;padding:40px 20px;">' +
+                '<img src="/assets/images/icons/icon-radar.webp" alt="" width="28" height="28" style="opacity:0.3;margin-bottom:8px;display:block;margin:0 auto 8px;">' +
+                '<div style="color:var(--ow-text-dim);font-size:0.78rem;">No connections discovered yet.</div>' +
+                '<div style="color:var(--ow-text-dim);font-size:0.68rem;margin-top:6px;">Pin related evidence from different devices. When two pieces of evidence are connected, a pattern will appear here.</div>' +
+            '</div>';
+    } else {
+        document.getElementById('connList').innerHTML = visible.map(function(conn) {
+            var isFound = found.indexOf(conn.id) !== -1;
+            return '<div class="cb-conn' + (isFound ? ' found' : '') + '">' +
+                '<div class="cb-conn-label">' +
+                    (isFound ? '<img src="/assets/images/icons/icon-checkmark.webp" alt="" width="14" height="14" style="vertical-align:middle;margin-right:4px;">' : '<img src="/assets/images/icons/icon-warning.webp" alt="" width="14" height="14" style="vertical-align:middle;margin-right:4px;opacity:0.6;">') +
+                    engine._esc(conn.label) +
+                '</div>' +
+                '<div class="cb-conn-desc">' + engine._esc(conn.desc) + '</div>' +
+                '<div class="cb-conn-evidence">' +
+                    conn.requires.map(function(r, i) { return '<span class="cb-conn-ev-tag has">' + conn.requireLabels[i] + '</span>'; }).join('') +
+                '</div>' +
+                (isFound ? '<div style="color:var(--ow-green);font-size:0.7rem;margin-top:6px;font-weight:bold;">CONNECTION CONFIRMED</div>' :
+                 '<button class="cb-conn-btn" onclick="makeConnection(\'' + conn.id + '\')">Confirm Connection</button>') +
+            '</div>';
+        }).join('');
+    }
+
+    // Update progress
+    document.getElementById('connProgress').textContent = found.length + ' / ' + TOTAL_CONNECTIONS;
+    document.getElementById('connBar').style.width = (found.length / TOTAL_CONNECTIONS * 100) + '%';
+}
+
+function makeConnection(connId) {
+    var conn = CONNECTIONS.find(function(c) { return c.id === connId; });
+    if (!conn) return;
+    var configConn = PaperTrailConfig.connections.find(function(c) { return c.id === connId; });
+    if (configConn) {
+        engine.addConnection(configConn);
+    }
+    renderConnections();
+}
+
+// Initial render
+renderPinned();
+renderConnections();
+
+// Cross-page sync
+window.onOpenWorldStateChange = function() {
+    renderPinned();
+    renderConnections();
+};
+</script>
+
+</body>
+</html>
