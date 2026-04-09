@@ -145,11 +145,11 @@ const F14Config = {
 
     desktop: {
         icons: [
-            { id: 'terminal', label: 'Terminal', icon: '/assets/images/icons/icon-terminal.webp', app: 'terminal' },
-            { id: 'browser',  label: 'Firefox',  icon: '/assets/images/icons/icon-globe.webp', app: 'browser' },
-            { id: 'notes',    label: 'Notes',    icon: '/assets/images/icons/icon-book.webp', app: 'notes' },
-            { id: 'hints',    label: 'Hints',    icon: '/assets/images/icons/icon-lightbulb.webp', app: 'hints' },
-            { id: 'flags',    label: 'Submit Flag', icon: '/assets/images/icons/icon-flag.webp', app: 'flags' }
+            { id: 'terminal', label: 'Terminal', icon: '<img src="/assets/images/icons/icon-terminal.webp" alt="" width="32" height="32" style="display:block;margin:0 auto;">', app: 'terminal' },
+            { id: 'browser',  label: 'Firefox',  icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" width="32" height="32" style="display:block;margin:0 auto;">', app: 'browser' },
+            { id: 'notes',    label: 'Notes',    icon: '<img src="/assets/images/icons/icon-clipboard.webp" alt="" width="32" height="32" style="display:block;margin:0 auto;">', app: 'notes' },
+            { id: 'hints',    label: 'Hints',    icon: '<img src="/assets/images/icons/icon-info.webp" alt="" width="32" height="32" style="display:block;margin:0 auto;">', app: 'hints' },
+            { id: 'flags',    label: 'Submit Flag', icon: '<img src="/assets/images/icons/icon-flag.webp" alt="" width="32" height="32" style="display:block;margin:0 auto;">', app: 'flags' }
         ]
     },
 
