@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network TAP — Operation Glass House</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-radar.webp">
+    <link rel="stylesheet" href="shared.css">
+</head>
+<body>
+<h1 class="visually-hidden">Operation Glass House — Network TAP Analysis</h1>
+
+<script src="../../engine/OpenWorldEngine.js"></script>
+<script src="config-shared.js"></script>
+<script>
+    GlassHouseConfig.activePage = 'network';
+    const engine = new OpenWorldEngine(GlassHouseConfig);
+    engine.init();
+</script>
+
+<div class="ow-content">
+    <div class="ow-section-label">Network TAP Analysis — Full Packet Capture Review</div>
+
+    <div class="ow-briefing" style="border-left-color:var(--ow-green);">
+        <strong>TAP Deployment:</strong> Full duplex network TAP deployed on core switch (Cisco Catalyst 9300) for 14 days.
+        Capture covers all VLANs including IT (VLAN 10), R&D (VLAN 20), BMS/OT (VLAN 30), and guest (VLAN 40).
+    </div>
+
+    <!-- Key Finding: No Network Exfiltration -->
+    <div class="ow-card" style="margin-bottom:16px;">
+        <div class="ow-card-title"><img src="/assets/images/icons/icon-checkmark.webp" alt="" width="18" height="18"> Network Exfiltration Analysis — CLEAN</div>
+        <div class="ow-log" style="margin-top:10px;font-size:0.65rem;">OUTBOUND DATA TRANSFER ANALYSIS (14-day capture):
+
+Source              | Dest Category        | Volume    | Protocol | Assessment
+--------------------+----------------------+-----------+----------+-----------
+All endpoints       | Microsoft 365        | 12.4 GB   | HTTPS    | Normal (email, Teams, OneDrive)
+All endpoints       | Windows Update       | 8.1 GB    | HTTPS    | Normal (Patch Tuesday)
+All endpoints       | CrowdStrike Cloud    | 890 MB    | HTTPS    | Normal (EDR telemetry)
+R&D workstations    | GitHub Enterprise    | 2.1 GB    | HTTPS    | Normal (code push/pull)
+Dr. Vasquez WS      | Encrypted USB backup | 4.7 GB    | Local    | AES-256, policy-compliant
+All endpoints       | DNS (external)       | 340 MB    | DNS      | Normal query volume
+
+<span class="highlight">COVERT CHANNEL ANALYSIS:
+DNS tunneling:     NOT DETECTED (no anomalous query patterns)
+ICMP tunneling:    NOT DETECTED
+HTTP/S beaconing:  NOT DETECTED (no periodic patterns to unknown hosts)
+Steganography:     NOT DETECTED (no image uploads to external services)
+Email exfil:       NOT DETECTED (DLP scans all outbound email)</span>
+
+CONCLUSION: Zero evidence of data exfiltration via the IP network.</div>
+        <div style="margin-top:8px;cursor:pointer;font-size:0.65rem;color:var(--ow-accent);" onclick="pin('net-no-exfil')">[Pin: No Network Exfiltration Detected]</div>
+    </div>
+
+    <!-- BACnet Protocol Traffic -->
+    <div class="ow-card" style="margin-bottom:16px;">
+        <div class="ow-card-title"><img src="/assets/images/icons/icon-warning.webp" alt="" width="18" height="18"> BACnet/IP Protocol Traffic — VLAN 30 (BMS/OT)</div>
+        <div class="ow-log" style="margin-top:10px;font-size:0.65rem;">BACNET PROTOCOL ANALYSIS (VLAN 30 — Building Management):
+
+Normal Traffic Pattern:
+  BMS Server (10.10.30.1) -> All Controllers: ReadProperty (temperature, humidity, fan status)
+  Frequency: Every 60 seconds per zone controller
+  Volume: ~2 MB/day
+  This is the standard SCADA polling pattern.
+
+<span class="highlight">ANOMALOUS TRAFFIC DETECTED:</span>
+
+Source: 10.10.5.78 (Facilities workstation — Marcus Cole)
+  -> Destination: 10.10.30.3 (AHU-03, Zone 3 R&D Lab controller)
+  -> Protocol: BACnet WriteProperty
+  -> Object: Analog-Output:1 (Fan Speed Override)
+  -> Frequency: Every 250ms during active sessions
+  -> Sessions detected: 14 (over 6 weeks, always between 01:00-04:00 AM)
+
+Source IP 10.10.5.78 is on VLAN 10 (IT), NOT VLAN 30 (BMS).
+Inter-VLAN routing allowed this traffic — but it should not originate
+from a workstation. Only BMS Server (10.10.30.1) should send
+WriteProperty commands to zone controllers.
+
+Sample BACnet WriteProperty Commands (Session Feb 28, 01:15-03:42 AM):
+  01:15:00.042 | WriteProperty AHU-03 AO:1 = 72 (fan speed %)
+  01:15:00.292 | WriteProperty AHU-03 AO:1 = 28 (fan speed %)
+  01:15:00.542 | WriteProperty AHU-03 AO:1 = 72 (fan speed %)
+  01:15:00.792 | WriteProperty AHU-03 AO:1 = 28 (fan speed %)
+  01:15:01.042 | WriteProperty AHU-03 AO:1 = 72 (fan speed %)
+  01:15:01.292 | WriteProperty AHU-03 AO:1 = 28 (fan speed %)
+  ... (pattern continues for 2+ hours per session)
+
+Fan speed oscillates between 28% and 72% at 250ms intervals.
+This is a BINARY MODULATION pattern: high=1, low=0.
+At 4 values per second, this channel transmits ~0.5 bytes/second.
+Over a 2-hour session: ~3.6 KB of data.</span>
+
+14 sessions x ~3.6 KB = ~50 KB total capacity.
+A compressed research document (gt-7742.pdf) is 47 KB.</div>
+        <div style="margin-top:8px;cursor:pointer;font-size:0.65rem;color:var(--ow-accent);" onclick="pin('net-bacnet-cmds')">[Pin: Unauthorized BACnet Write Commands]</div>
+    </div>
+
+    <!-- Normal BMS traffic for noise -->
+    <div class="ow-card">
+        <div class="ow-card-title"><img src="/assets/images/icons/icon-info.webp" alt="" width="18" height="18"> VLAN Summary — 14-Day Capture</div>
+        <table class="ow-table" style="margin-top:10px;">
+            <thead><tr><th>VLAN</th><th>Name</th><th>Hosts</th><th>Volume</th><th>Anomalies</th></tr></thead>
+            <tbody>
+                <tr><td>10</td><td>Corporate IT</td><td>48</td><td>28.4 GB</td><td style="color:var(--ow-green);">None</td></tr>
+                <tr><td>20</td><td>R&D (Isolated)</td><td>12</td><td>6.8 GB</td><td style="color:var(--ow-green);">None</td></tr>
+                <tr><td>30</td><td>BMS / OT</td><td>9</td><td>420 MB</td><td style="color:var(--ow-accent);">Unauthorized BACnet writes from VLAN 10</td></tr>
+                <tr><td>40</td><td>Guest WiFi</td><td>var</td><td>1.2 GB</td><td style="color:var(--ow-green);">None</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function pin(evidenceId) {
+    if (!evidenceId || engine.isEvidencePinned(evidenceId)) return;
+    var ev = GlassHouseConfig.evidence[evidenceId];
+    if (ev) { engine.pinEvidence({ id: evidenceId, ...ev }); engine.openFile(evidenceId); }
+}
+</script>
+</body>
+</html>

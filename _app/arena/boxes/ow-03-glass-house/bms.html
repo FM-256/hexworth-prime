@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Building Management System — Operation Glass House</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-circuit.webp">
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        .bms-zone { background: var(--ow-surface); border: 1px solid var(--ow-border); border-radius: 6px; padding: 14px; transition: border-color 0.2s; }
+        .bms-zone:hover { border-color: var(--ow-border-bright); }
+        .bms-zone.anomaly { border-color: rgba(220,38,38,0.4); background: rgba(220,38,38,0.03); }
+        .bms-zone-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .bms-zone-name { font-size: 0.8rem; font-weight: bold; color: var(--ow-text-bright); }
+        .bms-zone-status { font-size: 0.55rem; padding: 2px 6px; border-radius: 3px; }
+        .bms-metric { display: flex; justify-content: space-between; padding: 3px 0; font-size: 0.7rem; }
+        .bms-metric-label { color: var(--ow-text-dim); }
+        .bms-metric-value { color: var(--ow-text); font-family: Consolas, monospace; }
+        .bms-fan-graph { height: 60px; background: #060610; border-radius: 4px; margin: 8px 0; position: relative; overflow: hidden; }
+        .bms-fan-line { position: absolute; bottom: 0; left: 0; right: 0; height: 100%; }
+        .bms-fw-table td { font-family: Consolas, monospace; font-size: 0.65rem; }
+    </style>
+</head>
+<body>
+<h1 class="visually-hidden">Operation Glass House — Building Management System</h1>
+
+<script src="../../engine/OpenWorldEngine.js"></script>
+<script src="config-shared.js"></script>
+<script>
+    GlassHouseConfig.activePage = 'bms';
+    const engine = new OpenWorldEngine(GlassHouseConfig);
+    engine.init();
+</script>
+
+<div class="ow-content">
+    <div class="ow-section-label">Siemens Desigo CC — Building Management System</div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:20px;">
+        <div style="background:#060610;border-radius:4px;padding:8px 10px;text-align:center;"><span style="color:var(--ow-text-dim);font-size:0.6rem;">Zones Online</span><br><span style="font-size:1.2rem;font-weight:bold;color:var(--ow-green);">8/8</span></div>
+        <div style="background:#060610;border-radius:4px;padding:8px 10px;text-align:center;"><span style="color:var(--ow-text-dim);font-size:0.6rem;">Avg Temp</span><br><span style="font-size:1.2rem;font-weight:bold;">71.4 F</span></div>
+        <div style="background:#060610;border-radius:4px;padding:8px 10px;text-align:center;"><span style="color:var(--ow-text-dim);font-size:0.6rem;">Energy (kWh)</span><br><span style="font-size:1.2rem;font-weight:bold;">2,847</span></div>
+        <div style="background:#060610;border-radius:4px;padding:8px 10px;text-align:center;"><span style="color:var(--ow-text-dim);font-size:0.6rem;">Alerts</span><br><span style="font-size:1.2rem;font-weight:bold;color:var(--ow-accent);">1</span></div>
+    </div>
+
+    <!-- Zone Grid -->
+    <div class="ow-section-label">HVAC Zone Status</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:20px;" id="zoneGrid"></div>
+
+    <!-- Firmware Integrity -->
+    <div class="ow-section-label" style="margin-top:20px;">Controller Firmware Integrity</div>
+    <div class="ow-card">
+        <table class="ow-table bms-fw-table">
+            <thead><tr><th>Zone</th><th>Controller</th><th>Firmware</th><th>SHA256 Hash</th><th>Last Updated</th><th>Status</th></tr></thead>
+            <tbody id="fwTable"></tbody>
+        </table>
+        <div style="margin-top:8px;cursor:pointer;font-size:0.65rem;color:var(--ow-accent);" onclick="pin('bms-firmware-hash')">[Pin Firmware Mismatch as Evidence]</div>
+    </div>
+</div>
+
+<script>
+var ZONES = [
+    { id: 1, name: 'Zone 1 — Lobby / Reception', temp: 72.1, setpoint: 72, humidity: 45, fanSpeed: 45, fanPattern: 'steady', status: 'normal' },
+    { id: 2, name: 'Zone 2 — Engineering (Floor 2)', temp: 70.8, setpoint: 71, humidity: 42, fanSpeed: 50, fanPattern: 'steady', status: 'normal' },
+    { id: 3, name: 'Zone 3 — R&D Laboratory', temp: 68.2, setpoint: 68, humidity: 38, fanSpeed: 55, fanPattern: 'ANOMALOUS', status: 'anomaly', evidenceId: 'bms-zone3-anomaly' },
+    { id: 4, name: 'Zone 4 — Executive Suite', temp: 73.0, setpoint: 73, humidity: 44, fanSpeed: 40, fanPattern: 'steady', status: 'normal' },
+    { id: 5, name: 'Zone 5 — Cafeteria', temp: 71.5, setpoint: 72, humidity: 48, fanSpeed: 35, fanPattern: 'steady', status: 'normal' },
+    { id: 6, name: 'Zone 6 — Server Room', temp: 64.0, setpoint: 64, humidity: 35, fanSpeed: 80, fanPattern: 'steady', status: 'normal' },
+    { id: 7, name: 'Zone 7 — Conference Rooms', temp: 71.2, setpoint: 71, humidity: 43, fanSpeed: 30, fanPattern: 'steady', status: 'normal' },
+    { id: 8, name: 'Zone 8 — Warehouse / Storage', temp: 69.0, setpoint: 70, humidity: 50, fanSpeed: 25, fanPattern: 'steady', status: 'normal' }
+];
+
+var FW_DATA = [
+    { zone: 1, ctrl: 'AHU-01', fw: 'v3.2.1', hash: 'a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2...', updated: '2025-11-15 09:00', status: 'OK' },
+    { zone: 2, ctrl: 'AHU-02', fw: 'v3.2.1', hash: 'a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2...', updated: '2025-11-15 09:00', status: 'OK' },
+    { zone: 3, ctrl: 'AHU-03', fw: 'v3.2.1', hash: 'f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9...', updated: '2026-02-15 02:32', status: 'MISMATCH', evidenceId: 'bms-firmware-hash' },
+    { zone: 4, ctrl: 'AHU-04', fw: 'v3.2.1', hash: 'a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2...', updated: '2025-11-15 09:00', status: 'OK' },
+    { zone: 5, ctrl: 'AHU-05', fw: 'v3.2.1', hash: 'a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2...', updated: '2025-11-15 09:00', status: 'OK' },
+    { zone: 6, ctrl: 'AHU-06', fw: 'v3.2.1', hash: 'a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2...', updated: '2025-11-15 09:00', status: 'OK' },
+    { zone: 7, ctrl: 'AHU-07', fw: 'v3.2.1', hash: 'a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2...', updated: '2025-11-15 09:00', status: 'OK' },
+    { zone: 8, ctrl: 'AHU-08', fw: 'v3.2.1', hash: 'a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2...', updated: '2025-11-15 09:00', status: 'OK' }
+];
+
+// Render zone cards
+document.getElementById('zoneGrid').innerHTML = ZONES.map(function(z) {
+    var cls = z.status === 'anomaly' ? 'bms-zone anomaly' : 'bms-zone';
+    var statusStyle = z.status === 'anomaly' ? 'background:rgba(220,38,38,0.15);color:#fca5a5;' : 'background:rgba(34,197,94,0.15);color:#86efac;';
+    var statusText = z.status === 'anomaly' ? 'ANOMALY' : 'NORMAL';
+
+    // Generate fan speed graph (SVG)
+    var graphSvg = '';
+    if (z.fanPattern === 'ANOMALOUS') {
+        // Show modulating pattern (square wave-like)
+        var points = [];
+        for (var i = 0; i < 60; i++) {
+            var bit = Math.floor(i / 4) % 2; // 8-bit pattern simulation
+            var y = bit === 1 ? 15 : 45;
+            y += (Math.random() * 4 - 2); // small noise
+            points.push((i * 4.67) + ',' + y);
+        }
+        graphSvg = '<svg viewBox="0 0 280 60" style="width:100%;height:60px;"><polyline points="' + points.join(' ') + '" fill="none" stroke="#ef4444" stroke-width="1.5" opacity="0.8"/><text x="140" y="56" fill="#ef4444" font-size="8" text-anchor="middle">MICRO-OSCILLATION PATTERN DETECTED</text></svg>';
+    } else {
+        // Steady line with minor noise
+        var points = [];
+        for (var i = 0; i < 60; i++) {
+            var y = 30 + (Math.random() * 6 - 3);
+            points.push((i * 4.67) + ',' + y);
+        }
+        graphSvg = '<svg viewBox="0 0 280 60" style="width:100%;height:60px;"><polyline points="' + points.join(' ') + '" fill="none" stroke="#10b981" stroke-width="1" opacity="0.5"/></svg>';
+    }
+
+    return '<div class="' + cls + '"' + (z.evidenceId ? ' onclick="pin(\'' + z.evidenceId + '\')" style="cursor:pointer;"' : '') + '>' +
+        '<div class="bms-zone-header">' +
+            '<span class="bms-zone-name">' + z.name + '</span>' +
+            '<span class="bms-zone-status" style="' + statusStyle + '">' + statusText + '</span>' +
+        '</div>' +
+        '<div class="bms-metric"><span class="bms-metric-label">Temperature</span><span class="bms-metric-value">' + z.temp + ' F (set: ' + z.setpoint + ')</span></div>' +
+        '<div class="bms-metric"><span class="bms-metric-label">Humidity</span><span class="bms-metric-value">' + z.humidity + '%</span></div>' +
+        '<div class="bms-metric"><span class="bms-metric-label">Fan Speed</span><span class="bms-metric-value">' + z.fanSpeed + '% (' + z.fanPattern + ')</span></div>' +
+        '<div class="bms-fan-graph">' + graphSvg + '</div>' +
+        (z.evidenceId ? '<div style="font-size:0.6rem;color:var(--ow-accent);">[Click to pin]</div>' : '') +
+    '</div>';
+}).join('');
+
+// Render firmware table
+document.getElementById('fwTable').innerHTML = FW_DATA.map(function(fw) {
+    var hashColor = fw.status === 'MISMATCH' ? 'color:var(--ow-accent);font-weight:bold;' : '';
+    var statusColor = fw.status === 'MISMATCH' ? 'color:var(--ow-accent);font-weight:bold;' : 'color:var(--ow-green);';
+    var updatedColor = fw.status === 'MISMATCH' ? 'color:var(--ow-accent);' : '';
+    var onclick = fw.evidenceId ? ' onclick="pin(\'' + fw.evidenceId + '\')" style="cursor:pointer;"' : '';
+    return '<tr' + onclick + '><td>Zone ' + fw.zone + '</td><td>' + fw.ctrl + '</td><td>' + fw.fw + '</td><td style="' + hashColor + '">' + fw.hash + '</td><td style="' + updatedColor + '">' + fw.updated + '</td><td style="' + statusColor + '">' + fw.status + '</td></tr>';
+}).join('');
+
+function pin(evidenceId) {
+    if (!evidenceId || engine.isEvidencePinned(evidenceId)) return;
+    var ev = GlassHouseConfig.evidence[evidenceId];
+    if (ev) { engine.pinEvidence({ id: evidenceId, ...ev }); engine.openFile(evidenceId); }
+}
+</script>
+
+</body>
+</html>
