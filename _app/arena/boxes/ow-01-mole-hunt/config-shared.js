@@ -81,25 +81,13 @@ const MoleHuntConfig = {
         correctAnswer: 200
     },
 
-    answers: [
-        'david park dns tunneling',
-        'david park dns tunnel',
-        'dns tunneling david park',
-        'dns tunnel david park',
-        'david park dns exfiltration',
-        'david park dns txt exfiltration'
-    ],
-    answerKeywords: [
-        'david',
-        'park',
-        ['dns', 'tunnel', 'exfiltration']
-    ],
-    nearMiss: [
-        { match: ['david'], hint: 'Right suspect. But how did the data actually leave the network? The USB was a decoy \u2014 look at the SIEM for the real channel.' },
-        { match: 'dns', hint: 'You found the exfiltration method. Now \u2014 whose workstation was the DNS tunnel source?' },
-        { match: ['sarah', 'chen'], hint: 'Sarah is the fall guy. The evidence against her was planted. Look at who actually had access when the data moved.' },
-        { match: 'usb', hint: 'The USB contained marketing materials \u2014 not classified data. The real exfiltration used a different channel entirely.' }
-    ],
+    // Flags are server-side only (Firestore flag_registry/ow-01-mole-hunt)
+    // Flag IDs mapped to connections that reveal them:
+    flagConnections: {
+        'conn-dns-source': 'insider',     // Confirms David is the insider -> FLAG 1
+        'conn-real-payload': 'exfil',     // Confirms DNS tunnel is the method -> FLAG 2
+        'conn-visitor-broker': 'handler'  // Confirms Victor is the handler -> FLAG 3
+    },
 
     triggers: {
         threats: [

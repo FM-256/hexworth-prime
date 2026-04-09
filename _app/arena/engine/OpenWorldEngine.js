@@ -314,6 +314,81 @@ class OpenWorldEngine {
         this.addScore(this.cfg.scoring?.connection || 25, 'Connection: ' + conn.label);
         this.save();
         this.checkTriggers();
+
+        // Check if this connection triggers a flag delivery
+        if (this.cfg.flagConnections && this.cfg.flagConnections[conn.id]) {
+            var flagId = this.cfg.flagConnections[conn.id];
+            this.requestFlag(flagId).then(function(flagText) {
+                if (flagText && conn._onFlagDelivered) {
+                    conn._onFlagDelivered(flagText);
+                }
+            }).catch(function() {});
+        }
+    }
+
+    /**
+     * Request a flag from the server via deliverFlag Cloud Function.
+     * Returns the FLAG{xxxxx} text for display to the student.
+     */
+    async requestFlag(flagId) {
+        var boxId = this.cfg.registryId;
+        if (!boxId || !flagId) return null;
+
+        // Return cached if already delivered
+        if (this.state.deliveredFlags && this.state.deliveredFlags[flagId]) {
+            return this.state.deliveredFlags[flagId];
+        }
+
+        try {
+            if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()) {
+                var result = await FirebaseAuth.callFunction('deliverFlag', { boxId: boxId, flagId: flagId });
+                var data = result.data || result;
+                if (data.flagText) {
+                    if (!this.state.deliveredFlags) this.state.deliveredFlags = {};
+                    this.state.deliveredFlags[flagId] = data.flagText;
+                    this.save();
+                    return data.flagText;
+                }
+            }
+        } catch (e) {
+            console.warn('[OW] Flag delivery failed:', e.message);
+        }
+        return null;
+    }
+
+    /**
+     * Submit a FLAG{xxxxx} string for server-side validation.
+     */
+    async submitFlag(flagStr) {
+        var boxId = this.cfg.registryId;
+        if (!boxId || !flagStr) return { correct: false };
+
+        try {
+            if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()) {
+                var result = await FirebaseAuth.callFunction('validateFlag', {
+                    boxId: boxId,
+                    submission: flagStr
+                });
+                var data = result.data || result;
+                if (data.correct) {
+                    this.addScore(this.cfg.scoring?.correctAnswer || 200, 'Flag captured: ' + data.flagId);
+                    if (!this.state.flagsSubmitted) this.state.flagsSubmitted = [];
+                    this.state.flagsSubmitted.push(data.flagId);
+                    this.save();
+
+                    // Check if all flags submitted
+                    var totalFlags = this.cfg.flagConnections ? Object.keys(this.cfg.flagConnections).length : 0;
+                    if (this.state.flagsSubmitted.length >= totalFlags) {
+                        this.complete();
+                    }
+                    return { correct: true, flagId: data.flagId, score: this.state.score };
+                }
+                return { correct: false };
+            }
+        } catch (e) {
+            console.warn('[OW] Flag validation failed:', e.message);
+        }
+        return { correct: false, error: 'Not authenticated. Sign in to submit flags.' };
     }
 
     /* ══════════════════════════════════════════════════════
@@ -360,57 +435,26 @@ class OpenWorldEngine {
     }
 
     /* ══════════════════════════════════════════════════════
-       ANSWER VALIDATION
+       FLAG SUBMISSION (server-side validation)
+       ══════════════════════════════════════════════════════
+       submitFlag() is defined above in the CONNECTIONS section.
+       It calls validateFlag Cloud Function for server-side check.
+
+       Legacy submitAnswer() kept for backward compatibility but
+       now redirects to submitFlag() for FLAG{} strings.
        ══════════════════════════════════════════════════════ */
 
-    normalizeAnswer(answer) {
-        return answer.toLowerCase()
-            .replace(/[ıİ]/g, 'i').replace(/[öÖ]/g, 'o').replace(/[üÜ]/g, 'u')
-            .replace(/[çÇ]/g, 'c').replace(/[şŞ]/g, 's').replace(/[ğĞ]/g, 'g')
-            .replace(/[^a-z0-9\s]/g, '')
-            .trim().replace(/\s+/g, ' ');
-    }
-
-    checkAnswer(answer) {
-        const normalized = this.normalizeAnswer(answer);
-        const answers = this.cfg.answers || [];
-
-        // Exact match
-        if (answers.includes(normalized)) return { correct: true };
-
-        // Flexible match — check if all required keywords are present
-        if (this.cfg.answerKeywords) {
-            const allPresent = this.cfg.answerKeywords.every(kw =>
-                Array.isArray(kw) ? kw.some(alt => normalized.includes(alt)) : normalized.includes(kw)
-            );
-            if (allPresent) return { correct: true };
-        }
-
-        // Near-miss hints
-        if (this.cfg.nearMiss) {
-            for (const nm of this.cfg.nearMiss) {
-                const hasKeyword = Array.isArray(nm.match)
-                    ? nm.match.some(m => normalized.includes(m))
-                    : normalized.includes(nm.match);
-                if (hasKeyword) return { correct: false, hint: nm.hint };
-            }
-        }
-
-        return { correct: false };
-    }
-
     submitAnswer(answer) {
-        const result = this.checkAnswer(answer);
-        if (result.correct) {
-            this.addScore(this.cfg.scoring?.correctAnswer || 200, 'Correct answer');
-            this.state.finalAnswer = answer;
-            this.complete();
-            return { correct: true, score: this.state.score };
+        // If it looks like a flag, validate server-side
+        if (answer && /^FLAG\{.+\}$/i.test(answer.trim())) {
+            return this.submitFlag(answer.trim());
         }
-        this.state.wrongAnswers++;
-        this.addScore(this.cfg.scoring?.wrongAnswer || -50, 'Wrong answer');
-        this.save();
-        return { correct: false, score: this.state.score, attempts: this.state.wrongAnswers, hint: result.hint };
+        // Not a flag format — tell the student to submit FLAG{} strings
+        return Promise.resolve({
+            correct: false,
+            hint: 'Submit FLAG{xxxxx} strings found during the investigation. Discover flags by confirming connections on the CaseBoard.',
+            score: this.state.score
+        });
     }
 
     /* ══════════════════════════════════════════════════════

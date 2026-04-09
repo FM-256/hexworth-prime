@@ -124,19 +124,18 @@
         </div>
     </div>
 
-    <!-- Final Submission -->
+    <!-- Flag Submission -->
     <div style="margin-top:30px;">
-        <div class="ow-section-label">Final Submission</div>
+        <div class="ow-section-label">Flag Submission</div>
         <div class="ow-submit-panel" id="submitPanel">
-            <div id="submitLock" style="color:var(--ow-text-dim);font-size:0.8rem;margin-bottom:12px;">
-                <img src="/assets/images/icons/icon-lock.webp" alt="" width="14" height="14" style="vertical-align:middle;opacity:0.5">
-                Make at least 5 connections on the CaseBoard to unlock submission.
+            <div style="color:var(--ow-text-dim);font-size:0.78rem;margin-bottom:12px;">
+                Discover flags by confirming key connections on the CaseBoard. Each confirmed connection may reveal a FLAG{xxxxx} string. Submit flags below.
             </div>
-            <div id="submitForm" style="display:none;">
-                <div style="color:var(--ow-text-bright);font-size:0.85rem;margin-bottom:8px;">Who is the real insider and how did they exfiltrate data?</div>
-                <input type="text" class="ow-submit-input" id="answerInput" placeholder="e.g. [name] [method]" autocomplete="off">
+            <div id="flagsFound" style="margin-bottom:12px;"></div>
+            <div>
+                <input type="text" class="ow-submit-input" id="answerInput" placeholder="FLAG{xxxxx}" autocomplete="off" spellcheck="false">
                 <br>
-                <button class="ow-btn ow-btn-primary" id="submitBtn">Submit Answer</button>
+                <button class="ow-btn ow-btn-primary" id="submitBtn">Submit Flag</button>
                 <div id="submitFeedback" style="margin-top:12px;font-size:0.78rem;"></div>
             </div>
         </div>
@@ -169,22 +168,40 @@
     // Cross-page state sync
     window.onOpenWorldStateChange = function() { updateProgress(); };
 
-    // Submit handler
-    document.getElementById('submitBtn').addEventListener('click', function() {
-        const answer = document.getElementById('answerInput').value.trim();
-        if (!answer) return;
-        const result = engine.submitAnswer(answer);
+    // Flag submit handler (async — server-side validation)
+    document.getElementById('submitBtn').addEventListener('click', async function() {
+        const flag = document.getElementById('answerInput').value.trim();
+        if (!flag) return;
         const fb = document.getElementById('submitFeedback');
-        if (result.correct) {
-            fb.innerHTML = '<span style="color:var(--ow-green);font-weight:bold;">CORRECT. Investigation complete. Score: ' + result.score + '</span>';
-            updateProgress();
-        } else {
-            let msg = '<span style="color:var(--ow-accent);">Incorrect.</span>';
-            if (result.hint) msg += ' <span style="color:var(--ow-amber);">' + engine._esc(result.hint) + '</span>';
-            msg += ' <span style="color:var(--ow-text-dim);">(Attempt ' + result.attempts + ', -50 pts)</span>';
-            fb.innerHTML = msg;
+        fb.innerHTML = '<span style="color:var(--ow-text-dim);">Validating...</span>';
+        try {
+            const result = await engine.submitAnswer(flag);
+            if (result.correct) {
+                fb.innerHTML = '<span style="color:var(--ow-green);font-weight:bold;">FLAG ACCEPTED: ' + result.flagId + ' [+200 pts]</span>';
+                document.getElementById('answerInput').value = '';
+                updateProgress();
+                updateFlagsFound();
+            } else {
+                var msg = '<span style="color:var(--ow-accent);">Invalid flag.</span>';
+                if (result.hint) msg += ' <span style="color:var(--ow-amber);">' + engine._esc(result.hint) + '</span>';
+                if (result.error) msg += ' <span style="color:var(--ow-amber);">' + engine._esc(result.error) + '</span>';
+                fb.innerHTML = msg;
+            }
+        } catch (e) {
+            fb.innerHTML = '<span style="color:var(--ow-accent);">Error: ' + e.message + '</span>';
         }
     });
+
+    function updateFlagsFound() {
+        var submitted = engine.state.flagsSubmitted || [];
+        var total = engine.cfg.flagConnections ? Object.keys(engine.cfg.flagConnections).length : 0;
+        var html = '<div style="font-size:0.7rem;color:var(--ow-text-dim);margin-bottom:4px;">Flags: ' + submitted.length + ' / ' + total + '</div>';
+        submitted.forEach(function(fid) {
+            html += '<div style="color:var(--ow-green);font-size:0.72rem;margin:2px 0;"><img src="/assets/images/icons/icon-checkmark.webp" alt="" width="12" height="12" style="vertical-align:middle;"> ' + fid + '</div>';
+        });
+        document.getElementById('flagsFound').innerHTML = html;
+    }
+    updateFlagsFound();
 
     document.getElementById('answerInput').addEventListener('keydown', function(e) {
         if (e.key === 'Enter') document.getElementById('submitBtn').click();
