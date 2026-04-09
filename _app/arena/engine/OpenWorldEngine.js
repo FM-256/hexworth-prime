@@ -211,6 +211,8 @@ class OpenWorldEngine {
         this._clockInterval = setInterval(() => this.tickClock(), 1000);
     }
 
+    _lastTriggerCheck = 0;
+
     tickClock() {
         const gt = this.getInGameTime();
         const el = document.getElementById('ow-clock-time');
@@ -222,6 +224,13 @@ class OpenWorldEngine {
         // Apply day/night class to body
         document.body.classList.remove('ow-nighttime', 'ow-twilight', 'ow-daytime');
         document.body.classList.add(cel.cls);
+
+        // Check triggers every 5 seconds (not every tick to avoid burst)
+        const now = Date.now();
+        if (now - this._lastTriggerCheck > 5000) {
+            this._lastTriggerCheck = now;
+            this.checkTriggers();
+        }
     }
 
     /* ══════════════════════════════════════════════════════

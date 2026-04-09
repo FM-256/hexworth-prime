@@ -45,7 +45,7 @@ const MoleHuntConfig = {
         'bd-david-late':    { title: 'David Park \u2014 Late Hours', detail: 'After-hours access 14 times in past month. Enters 21:00-22:00, exits 01:00-02:00.', source: 'badge', category: 'physical' },
         'bd-visitor-log':   { title: 'Visitor Log \u2014 "Victor Park"', detail: 'David\'s "cousin" visited Feb 20 and Mar 5. Badge photo matches known espionage broker.', source: 'badge', category: 'people' },
         'bd-david-server':  { title: 'David \u2014 No Server Room Access', detail: 'David\'s badge has never swiped at SERVER-ROOM-01.', source: 'badge', category: 'physical' },
-        'si-dlp-alert':     { title: 'DLP Alert \u2014 40GB USB Copy', detail: 'DLP-2024-0312: 40GB copied to USB on WS-ENG-042 (Sarah\'s machine) at 23:47.', source: 'siem', category: 'digital' },
+        'si-dlp-alert':     { title: 'DLP Alert \u2014 40GB USB Copy', detail: 'DLP-2026-0312: 40GB copied to USB on WS-ENG-042 (Sarah\'s machine) at 23:47.', source: 'siem', category: 'digital' },
         'si-dns-tunnel':    { title: 'DNS Tunneling \u2014 David\'s WS', detail: 'IDS Alert: DNS tunneling from WS-ENG-078 (David Park) to ns1.apex-consult.xyz. 14 days. ~38GB exfiltrated.', source: 'siem', category: 'digital' },
         'si-dns-domain':    { title: 'DNS Tunnel Domain Analysis', detail: 'ns1.apex-consult.xyz registered Feb 25 via PrivacyGuard proxy. Not a real Apex Defense domain.', source: 'siem', category: 'digital' },
         'si-login-sarah':   { title: 'Login Events \u2014 Sarah Chen', detail: 'Last login: 08:01. Last logoff: 18:12. No logins between 18:12 and USB event at 23:47.', source: 'siem', category: 'digital' },
@@ -65,7 +65,7 @@ const MoleHuntConfig = {
         { id: 'conn-badge-clone', label: 'Badge Clone: Sarah\'s badge used while her car was gone', from: 'bd-sarah-clone', to: 'bd-parking-exit' },
         { id: 'conn-dns-source', label: 'DNS Tunnel Source: David\'s workstation, not Sarah\'s', from: 'si-dns-tunnel', to: 'si-dlp-alert' },
         { id: 'conn-visitor-broker', label: 'Visitor Match: David\'s "cousin" = espionage broker', from: 'bd-visitor-log', to: 'hr-david-contact' },
-        { id: 'conn-timeline', label: 'Timeline: DNS tunneling started 2 weeks before USB copy', from: 'si-dns-tunnel', to: 'si-dlp-alert' },
+        { id: 'conn-timeline', label: 'Timeline: DNS tunneling started 2 weeks before USB copy', from: 'si-dns-tunnel', to: 'si-rdp-david' },
         { id: 'conn-payment', label: 'Financial: David\'s crypto wallet received payment after exfil', from: 'em-david-crypto', to: 'si-dns-tunnel' },
         { id: 'conn-planted', label: 'Planted Evidence: Browser history injected on Sarah\'s machine', from: 'ws-ts-mismatch', to: 'ws-deleted-batch' },
         { id: 'conn-real-payload', label: 'Real Payload: DNS tunnel carried data, USB was dummy', from: 'si-usb-decoy', to: 'si-dns-tunnel' }
@@ -86,17 +86,19 @@ const MoleHuntConfig = {
         'david park dns tunnel',
         'dns tunneling david park',
         'dns tunnel david park',
-        'david park'
+        'david park dns exfiltration',
+        'david park dns txt exfiltration'
     ],
     answerKeywords: [
-        ['david', 'park'],
-        ['dns', 'tunnel']
+        'david',
+        'park',
+        ['dns', 'tunnel', 'exfiltration']
     ],
     nearMiss: [
-        { match: ['sarah', 'chen'], hint: 'Sarah is the fall guy. Look deeper \u2014 who actually had access when the data moved?' },
-        { match: 'dns', hint: 'You found the exfiltration method. Now \u2014 whose workstation was the source?' },
-        { match: ['david'], hint: 'Right suspect. But how did the data leave the network? The USB was a decoy.' },
-        { match: 'usb', hint: 'The USB contained marketing materials \u2014 not classified data. The real exfiltration used a different channel.' }
+        { match: ['david'], hint: 'Right suspect. But how did the data actually leave the network? The USB was a decoy \u2014 look at the SIEM for the real channel.' },
+        { match: 'dns', hint: 'You found the exfiltration method. Now \u2014 whose workstation was the DNS tunnel source?' },
+        { match: ['sarah', 'chen'], hint: 'Sarah is the fall guy. The evidence against her was planted. Look at who actually had access when the data moved.' },
+        { match: 'usb', hint: 'The USB contained marketing materials \u2014 not classified data. The real exfiltration used a different channel entirely.' }
     ],
 
     triggers: {
