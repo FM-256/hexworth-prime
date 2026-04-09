@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIEM — Operation Mole Hunt</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-radar.webp">
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        .si-search { display: flex; gap: 8px; margin-bottom: 16px; }
+        .si-search input { flex: 1; padding: 8px 12px; background: #060610; border: 1px solid var(--ow-border-bright); border-radius: 4px; color: var(--ow-text); font-family: var(--ow-font); font-size: 0.78rem; outline: none; }
+        .si-search input:focus { border-color: var(--ow-siem); }
+        .si-search button { padding: 8px 16px; background: rgba(239,68,68,0.12); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); border-radius: 4px; font-family: var(--ow-font); font-size: 0.75rem; cursor: pointer; }
+        .si-alert { background: var(--ow-surface); border: 1px solid var(--ow-border); border-radius: 6px; padding: 14px; margin-bottom: 10px; cursor: pointer; transition: border-color 0.2s; }
+        .si-alert:hover { border-color: var(--ow-border-bright); }
+        .si-alert.critical { border-left: 3px solid var(--ow-accent); }
+        .si-alert.high { border-left: 3px solid var(--ow-amber); }
+        .si-alert.medium { border-left: 3px solid var(--ow-blue); }
+        .si-alert.info { border-left: 3px solid var(--ow-text-dim); }
+        .si-alert-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .si-alert-title { font-size: 0.78rem; font-weight: bold; color: var(--ow-text-bright); }
+        .si-alert-sev { font-size: 0.6rem; padding: 2px 6px; border-radius: 3px; font-weight: bold; letter-spacing: 0.05em; }
+        .si-alert-body { font-size: 0.72rem; color: var(--ow-text-dim); line-height: 1.5; }
+        .si-alert-time { font-size: 0.6rem; color: var(--ow-text-dim); margin-top: 6px; }
+    </style>
+</head>
+<body>
+<h1 class="visually-hidden">Operation Mole Hunt — SIEM Dashboard</h1>
+
+<script src="../../engine/OpenWorldEngine.js"></script>
+<script src="config-shared.js"></script>
+<script>
+    MoleHuntConfig.activePage = 'siem';
+    const engine = new OpenWorldEngine(MoleHuntConfig);
+    engine.init();
+</script>
+
+<div class="ow-content">
+    <div class="ow-section-label">Security Information & Event Management</div>
+
+    <div class="si-search">
+        <input type="text" id="siemSearch" placeholder="Search alerts... (e.g. DNS, DLP, USB, RDP, sarah, david)" autocomplete="off">
+        <button onclick="searchAlerts()">Search</button>
+    </div>
+
+    <div id="alertList"></div>
+</div>
+
+<script>
+const ALERTS = [
+    { id: 'si-dlp-alert', severity: 'critical', sevLabel: 'CRITICAL', sevColor: 'background:rgba(220,38,38,0.15);color:#fca5a5;', title: 'DLP-2026-0312: Large Volume USB Data Copy', time: '2026-03-12 23:47:33', evidenceId: 'si-dlp-alert',
+      body: 'Source: WS-ENG-042 (Sarah Chen)<br>Device: SanDisk Cruzer Blade 64GB (Serial: 4C530001...)<br>Volume: 42,949,672,960 bytes (40 GB)<br>Duration: 5m 16s<br>Classification: ITAR-CONTROLLED files detected in transfer<br><br>Action: Alert generated. Endpoint quarantine pending review.' },
+
+    { id: 'si-dns-tunnel', severity: 'critical', sevLabel: 'CRITICAL', sevColor: 'background:rgba(220,38,38,0.15);color:#fca5a5;', title: 'IDS-2026-0312: Sustained DNS Tunneling Detected', time: '2026-03-12 (ongoing since Feb 27)', evidenceId: 'si-dns-tunnel',
+      body: 'Source: WS-ENG-078 (<strong>David Park</strong>)<br>Destination: ns1.apex-consult.xyz (45.77.129.88)<br>Protocol: DNS TXT record exfiltration<br>Duration: 14 days (Feb 27 — Mar 12)<br>Estimated volume: ~38 GB<br>Beacon interval: Every 30 seconds<br>Encoding: Base64 in TXT query/response<br><br><strong>This workstation has been sending encoded data via DNS for two weeks.</strong>' },
+
+    { id: 'si-dns-domain', severity: 'high', sevLabel: 'HIGH', sevColor: 'background:rgba(245,158,11,0.15);color:#fcd34d;', title: 'THREAT-INTEL: Suspicious DNS Destination Domain', time: '2026-03-12 (analyzed)', evidenceId: 'si-dns-domain',
+      body: 'Domain: ns1.apex-consult.xyz<br>Registered: Feb 25, 2026 via PrivacyGuard LLC (Moldova proxy)<br>Registrant: REDACTED<br>Resolves to: 45.77.129.88 (Vultr VPS, US)<br>WHOIS age: 15 days<br><br><strong>NOT affiliated with Apex Defense Solutions</strong> (legitimate company uses apex-defense.com).<br>Domain name designed to mimic a real vendor to evade casual inspection.' },
+
+    { id: 'si-rdp-david', severity: 'critical', sevLabel: 'CRITICAL', sevColor: 'background:rgba(220,38,38,0.15);color:#fca5a5;', title: 'LATERAL-001: Cross-Workstation RDP Session', time: '2026-03-12 23:25:41', evidenceId: 'si-rdp-david',
+      body: 'Source: WS-ENG-078 (David Park) — 10.10.14.78<br>Destination: WS-ENG-042 (Sarah Chen) — 10.10.14.42<br>Protocol: RDP (3389/tcp)<br>Session duration: 52 minutes (23:25 — 00:17)<br>Authentication: eng-david-park (Type 10 — Remote Interactive)<br><br><strong>David Park remotely accessed Sarah Chen\'s workstation.</strong> All USB and browser activity during this window was initiated from David\'s RDP session.' },
+
+    { id: 'si-login-sarah', severity: 'high', sevLabel: 'HIGH', sevColor: 'background:rgba(245,158,11,0.15);color:#fcd34d;', title: 'SESSION-GAP: No Active Session During DLP Event', time: '2026-03-12 18:12 — 23:25', evidenceId: 'si-login-sarah',
+      body: 'User: eng-sarah-chen<br>Last interactive logon: 08:01 (Event 4624, Type 2)<br>Last logoff: 18:12 (Event 4634)<br><br><strong>No login events for Sarah between 18:12 and the USB copy at 23:47.</strong><br>Next logon on WS-ENG-042: eng-david-park at 23:25 (Type 10, RDP).<br><br>Conclusion: Sarah was not logged in when the DLP event triggered.' },
+
+    { id: 'si-usb-decoy', severity: 'medium', sevLabel: 'MEDIUM', sevColor: 'background:rgba(59,130,246,0.15);color:#93c5fd;', title: 'FORENSICS: USB Contents Analyzed — No Classified Data', time: '2026-03-13 (analysis complete)', evidenceId: 'si-usb-decoy',
+      body: 'USB device recovered from evidence locker.<br>Contents: 40 GB total<br>- /marketing/ (28 GB) — Press releases, stock photos, brochures<br>- /presentations/ (8 GB) — Public investor deck, trade show materials<br>- /templates/ (4 GB) — Corporate letterhead, email templates<br><br><strong>ZERO classified documents found.</strong><br>No ITAR-controlled materials. No Project AURORA files.<br>No schematics, protocols, or technical specifications.<br><br>The USB copy was all publicly available marketing material.' },
+
+    { id: 'rh-vpn-usage', severity: 'info', sevLabel: 'INFO', sevColor: 'background:rgba(107,114,128,0.15);color:#9ca3af;', title: 'VPN-LOG: Sarah Chen After-Hours VPN Sessions', time: 'Past 30 days', evidenceId: 'rh-vpn-usage',
+      body: 'User: eng-sarah-chen<br>VPN sessions after 18:00: 8 occurrences<br><br>All sessions correlated with Git commit activity:<br>- Feb 15 (20:30-22:15): 3 commits to aurora-sat-comm branch<br>- Feb 18 (19:00-20:45): Code review comments on PR #1847<br>- Feb 22 (21:00-23:30): Hotfix for production build<br>- [5 more similar entries]<br><br><strong>All after-hours VPN usage is legitimate work activity.</strong>' },
+
+    { id: 'rh-david-gaming', severity: 'info', sevLabel: 'INFO', sevColor: 'background:rgba(107,114,128,0.15);color:#9ca3af;', title: 'POLICY: David Park — Unauthorized Software', time: 'Past 30 days', evidenceId: 'rh-david-gaming',
+      body: 'User: eng-david-park (WS-ENG-078)<br>Application: Steam Client (v1702329895)<br>Detected: 6 instances after 19:00<br><br>This is a policy violation (unauthorized software on company hardware) but is <strong>not related to the data exfiltration investigation.</strong><br><br>Forwarded to HR for separate action.' }
+];
+
+function renderAlerts(filter) {
+    const filtered = filter ? ALERTS.filter(a => {
+        const search = filter.toLowerCase();
+        return a.title.toLowerCase().includes(search) ||
+               a.body.toLowerCase().includes(search) ||
+               a.id.toLowerCase().includes(search);
+    }) : ALERTS;
+
+    document.getElementById('alertList').innerHTML = filtered.map(a => {
+        const isPinned = a.evidenceId && engine.isEvidencePinned(a.evidenceId);
+        return '<div class="si-alert ' + a.severity + '" onclick="pinAlert(\'' + a.evidenceId + '\')">' +
+            '<div class="si-alert-header">' +
+                '<div class="si-alert-title">' + a.title + '</div>' +
+                '<span class="si-alert-sev" style="' + a.sevColor + '">' + a.sevLabel + '</span>' +
+            '</div>' +
+            '<div class="si-alert-body">' + a.body + '</div>' +
+            '<div class="si-alert-time">' + a.time +
+                (a.evidenceId ? ' &mdash; <span style="color:' + (isPinned ? 'var(--ow-green)' : 'var(--ow-accent)') + '">' + (isPinned ? 'PINNED' : 'Click to pin') + '</span>' : '') +
+            '</div>' +
+        '</div>';
+    }).join('') || '<div style="padding:30px;text-align:center;color:var(--ow-text-dim);">No alerts match your search.</div>';
+}
+
+function searchAlerts() {
+    const q = document.getElementById('siemSearch').value.trim();
+    renderAlerts(q || null);
+}
+
+document.getElementById('siemSearch').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') searchAlerts();
+});
+
+function pinAlert(evidenceId) {
+    if (!evidenceId || engine.isEvidencePinned(evidenceId)) return;
+    const ev = MoleHuntConfig.evidence[evidenceId];
+    if (ev) {
+        engine.pinEvidence({ id: evidenceId, ...ev });
+        engine.openFile(evidenceId);
+        renderAlerts(document.getElementById('siemSearch').value.trim() || null);
+    }
+}
+
+renderAlerts();
+</script>
+
+</body>
+</html>
