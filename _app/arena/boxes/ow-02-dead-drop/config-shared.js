@@ -80,23 +80,12 @@ const DeadDropConfig = {
         correctAnswer: 200
     },
 
-    answers: [
-        'marcus weber reentrancy',
-        'marcus weber reentrancy attack',
-        'reentrancy marcus weber',
-        'marcus webb reentrancy',
-        'marcus weber',
-    ],
-    answerKeywords: [
-        ['marcus', 'weber', 'webb'],
-        ['reentrancy', 'reentrant']
-    ],
-    nearMiss: [
-        { match: ['marcus'], hint: 'Right suspect. But what was the specific exploit technique? Look at the smart contract code.' },
-        { match: ['reentrancy', 'reentrant'], hint: 'Correct exploit type. Now who introduced it and signed off on it?' },
-        { match: 'flash', hint: 'The community speculated flash loans, but the attacker used their own ETH. Look at the actual attack transaction.' },
-        { match: 'tornado', hint: 'Tornado Cash was the mixing step, not the exploit. What vulnerability was exploited in VaultGuard\'s code?' }
-    ],
+    // Flags server-side only (Firestore flag_registry/ow-02-dead-drop)
+    flagConnections: {
+        'conn-exploit': 'exploit',        // Reentrancy identified -> FLAG 1
+        'conn-mixer-timing': 'fundflow',  // Fund flow traced -> FLAG 2
+        'conn-identity': 'attacker'       // Attacker unmasked -> FLAG 3
+    },
 
     triggers: {
         threats: [
