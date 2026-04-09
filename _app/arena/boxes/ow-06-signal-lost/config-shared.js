@@ -56,23 +56,12 @@ const SignalLostConfig = {
 
     scoring: { pinEvidence: 15, pinRedHerring: -5, recoverFile: 10, connection: 25, hintPenalty: -30, wrongAnswer: -50, correctAnswer: 200 },
 
-    answers: [
-        'cyber hijack firmware exploit',
-        'firmware exploit cyber hijack',
-        'cyber hijack',
-        'firmware exploit gps spoofing',
-        'sat comm firmware exploit'
-    ],
-    answerKeywords: [
-        ['cyber', 'hijack', 'firmware', 'exploit'],
-        ['specter', 'brigade']
-    ],
-    nearMiss: [
-        { match: ['sam', 'missile', 'shot'], hint: 'No debris field, no fragmentation, controlled descent. This was not a kinetic engagement.' },
-        { match: ['mechanical', 'engine'], hint: 'Telemetry shows no mechanical failures. The aircraft was healthy. Something external took control.' },
-        { match: ['firmware', 'exploit'], hint: 'Right attack vector. The unpatched sat-comm module was exploited. But who did it and how?' },
-        { match: ['gps', 'spoof'], hint: 'GPS spoofing was part of the attack but not the root cause. What enabled the spoofing? The sat-comm takeover.' }
-    ],
+    // Flags server-side only (Firestore flag_registry/ow-06-signal-lost)
+    flagConnections: {
+        'conn-cyber-hijack': 'cause',
+        'conn-landing': 'location',
+        'conn-attribution': 'unit'
+    },
 
     triggers: {
         threats: [],

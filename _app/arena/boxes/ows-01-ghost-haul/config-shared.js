@@ -53,16 +53,14 @@ const GhostHaulConfig = {
         { id: 'conn-timeline', label: '7 Thefts Match 7 Tor Session Dates', from: 'gps-theft-correlation', to: 'iam-tor-sessions' }
     ],
 
-    scoring: { pinEvidence: 15, pinRedHerring: -5, recoverFile: 10, connection: 25, hintPenalty: -30, wrongAnswer: -50, correctAnswer: 200 },
+    // Flags server-side only (Firestore flag_registry/ows-01-ghost-haul)
+    flagConnections: {
+        'conn-phishing': 'vector',
+        'conn-tor': 'account',
+        'conn-bol': 'method'
+    },
 
-    answers: [ 't williams phishing', 'dispatch t williams credential theft', 'phishing tms credential theft', 'credential phishing tms', 't williams credential compromise' ],
-    answerKeywords: [ ['williams', 'phishing', 'credential'], ['tms', 'phish'] ],
-    nearMiss: [
-        { match: ['williams'], hint: 'Williams is the victim, not the attacker. Her credentials were stolen. What attack method was used?' },
-        { match: ['phishing', 'phish'], hint: 'Correct attack vector. Whose credentials were phished and what system did the attacker access?' },
-        { match: ['warehouse', 'insider'], hint: 'Warehouse staff have no access to TMS or BOL data. The breach is in the digital systems, not physical access.' },
-        { match: ['tor'], hint: 'The attacker used Tor for anonymity, but Tor is the tool, not the attack. How did they get the credentials to log in?' }
-    ],
+    scoring: { pinEvidence: 15, pinRedHerring: -5, recoverFile: 10, connection: 25, hintPenalty: -30, wrongAnswer: -50, correctAnswer: 200 },
 
     triggers: {
         threats: [

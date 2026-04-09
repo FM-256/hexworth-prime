@@ -31,14 +31,14 @@ const BlackBoxConfig = {
         { id: 'conn-s3', label: 'Cloud Access: 47 manifests downloaded via API key', from: 'nw-s3-manifests', to: 'api-manifest-access' },
         { id: 'conn-vuln', label: 'Root Cause: Unrotated API key enabled everything', from: 'api-github-key', to: 'nw-s3-manifests' }
     ],
+    // Flags server-side only (Firestore flag_registry/ows-03-black-box)
+    flagConnections: {
+        'conn-github': 'rootcause',
+        'conn-hos': 'targeting',
+        'conn-sprinter': 'vehicle'
+    },
+
     scoring: { pinEvidence: 15, pinRedHerring: -5, recoverFile: 10, connection: 25, hintPenalty: -30, wrongAnswer: -50, correctAnswer: 200 },
-    answers: [ 'api key github exposure hos break prediction', 'api key github', 'github api key', 'api key exposure', 'exposed api key hos prediction' ],
-    answerKeywords: [ ['api', 'key', 'github'], ['hos', 'break', 'prediction', 'telematics'] ],
-    nearMiss: [
-        { match: ['api', 'key'], hint: 'Correct root cause. But how did the attacker use the API to predict when trucks would stop?' },
-        { match: ['hos', 'break'], hint: 'Correct targeting method. But how did the attacker get access to the HOS data in the first place?' },
-        { match: ['insider', 'driver'], hint: 'Drivers were asleep during thefts. They are victims. The breach is in the digital platform, not the people.' }
-    ],
     triggers: {
         threats: [], tips: [
             { id: 'tip-1', minGameHours: 3, from: 'SYSTEM', text: 'Tip: Check the API access audit. Look for requests from unusual IP addresses.', condition: function(s) { return s.openedFiles.length >= 3; } }

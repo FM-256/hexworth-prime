@@ -67,24 +67,12 @@ const GlassHouseConfig = {
 
     scoring: { pinEvidence: 15, pinRedHerring: -5, recoverFile: 10, connection: 25, hintPenalty: -30, wrongAnswer: -50, correctAnswer: 200 },
 
-    answers: [
-        'acoustic side channel hvac',
-        'hvac fan modulation',
-        'hvac side channel',
-        'acoustic exfiltration hvac',
-        'fan speed side channel',
-        'facilities engineer hvac'
-    ],
-    answerKeywords: [
-        ['acoustic', 'hvac', 'fan', 'side channel', 'modulation'],
-        ['facilities', 'engineer', 'suspect b']
-    ],
-    nearMiss: [
-        { match: ['facilities', 'engineer'], hint: 'Right suspect. But what was the exfiltration METHOD? There was no network exfil \u2014 the data left through an unconventional channel.' },
-        { match: ['hvac', 'fan'], hint: 'You found the channel. Who set it up and who received the data on the other end?' },
-        { match: ['network', 'dns', 'usb'], hint: 'The network TAP shows zero exfiltration. The USB backups are clean. The data left through a physical medium \u2014 not digital.' },
-        { match: ['lab director', 'vasquez'], hint: 'Dr. Vasquez is clean. Late nights are legitimate research. Look at who has access to the building systems.' }
-    ],
+    // Flags server-side only (Firestore flag_registry/ow-03-glass-house)
+    flagConnections: {
+        'conn-anomaly': 'method',
+        'conn-physical': 'insider',
+        'conn-firmware': 'firmware'
+    },
 
     triggers: {
         threats: [

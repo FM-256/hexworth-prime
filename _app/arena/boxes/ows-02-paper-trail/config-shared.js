@@ -53,16 +53,14 @@ const PaperTrailConfig = {
         { id: 'conn-cashout', label: 'Rapid Cash-Out via Factoring', from: 'fn-factoring', to: 'fn-bank-account' }
     ],
 
-    scoring: { pinEvidence: 15, pinRedHerring: -5, recoverFile: 10, connection: 25, hintPenalty: -30, wrongAnswer: -50, correctAnswer: 200 },
+    // Flags server-side only (Firestore flag_registry/ows-02-paper-trail)
+    flagConnections: {
+        'conn-compromise': 'compromise',
+        'conn-phantom': 'phantom',
+        'conn-cashout': 'cashout'
+    },
 
-    answers: [ 'm reeves email compromise atlas express', 'reeves email compromise atlas express phantom carrier', 'email compromise atlas express', 'bec atlas express' ],
-    answerKeywords: [ ['reeves', 'email', 'compromise', 'bec'], ['atlas', 'express', 'phantom'] ],
-    nearMiss: [
-        { match: ['reeves'], hint: 'Right compromised account. But what was the phantom carrier identity used to pick up the loads?' },
-        { match: ['atlas'], hint: 'Right phantom carrier. But how did Atlas Express get the load details? What was the initial compromise?' },
-        { match: ['driver', 'shipper'], hint: 'Drivers and shippers are victims. The breach is in the broker email system. Look at the forwarding rules.' },
-        { match: ['loadboard', 'dat'], hint: 'Atlas Express never used the load board. All loads came via intercepted email. The compromise is upstream.' }
-    ],
+    scoring: { pinEvidence: 15, pinRedHerring: -5, recoverFile: 10, connection: 25, hintPenalty: -30, wrongAnswer: -50, correctAnswer: 200 },
 
     triggers: {
         threats: [],

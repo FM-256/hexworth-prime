@@ -60,24 +60,12 @@ const BurnedSourceConfig = {
 
     scoring: { pinEvidence: 15, pinRedHerring: -5, recoverFile: 10, connection: 25, hintPenalty: -30, wrongAnswer: -50, correctAnswer: 200 },
 
-    answers: [
-        'agent rodriguez marina',
-        'rodriguez marina',
-        'miguel rodriguez marina',
-        'agent rodriguez pier 7',
-        'rodriguez pier 7',
-        'agent rodriguez'
-    ],
-    answerKeywords: [
-        ['rodriguez'],
-        ['marina', 'pier']
-    ],
-    nearMiss: [
-        { match: ['rodriguez'], hint: 'Right person. But where was Elena last seen? The tips and her last message point to a specific location.' },
-        { match: ['marina', 'pier'], hint: 'Right location. Who did Elena go to meet there? Her article draft and Signal chats name the agent.' },
-        { match: ['cartel', 'vargas'], hint: 'The cartel is involved, but Elena\'s investigation was about the federal agent protecting them. Who is he?' },
-        { match: ['boyfriend', 'ex'], hint: 'The ex-boyfriend was in New York during the disappearance. He\'s not involved.' }
-    ],
+    // Flags server-side only (Firestore flag_registry/ow-04-burned-source)
+    flagConnections: {
+        'conn-target': 'agent',
+        'conn-disappearance': 'location',
+        'conn-encrypted': 'evidence'
+    },
 
     triggers: {
         threats: [

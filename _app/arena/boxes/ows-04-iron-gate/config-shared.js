@@ -32,14 +32,14 @@ const IronGateConfig = {
         { id: 'conn-3containers', label: 'Coordinated: 3 containers, same vessel, same night', from: 'tos-fake-appointments', to: 'tos-eir-signatures' },
         { id: 'conn-insider', label: 'Insider: Santos is the gate clerk who enabled everything', from: 'iam-remote-login', to: 'dr-pacific-dray' }
     ],
+    // Flags server-side only (Firestore flag_registry/ows-04-iron-gate)
+    flagConnections: {
+        'conn-insider': 'insider',
+        'conn-shell': 'shell',
+        'conn-fraud-appt': 'method'
+    },
+
     scoring: { pinEvidence: 15, pinRedHerring: -5, recoverFile: 10, connection: 25, hintPenalty: -30, wrongAnswer: -50, correctAnswer: 200 },
-    answers: [ 'r santos insider pacific dray', 'santos pacific dray shell company', 'r santos insider', 'gate clerk santos pacific dray' ],
-    answerKeywords: [ ['santos', 'insider', 'gate clerk'], ['pacific', 'dray', 'shell'] ],
-    nearMiss: [
-        { match: ['santos'], hint: 'Right insider. But what was the shell company used to pick up the containers?' },
-        { match: ['pacific', 'dray'], hint: 'Right shell company. But who inside the port enabled the fraudulent gate appointments?' },
-        { match: ['harbor', 'express'], hint: 'Harbor Express is the legitimate drayage company. They never dispatched trucks \u2014 they are victims.' }
-    ],
     triggers: {
         threats: [], tips: [
             { id: 'tip-1', minGameHours: 3, from: 'SYSTEM', text: 'Tip: Check the TOS gate appointment log. Who created the appointments and when?', condition: function(s) { return s.openedFiles.length >= 3; } }

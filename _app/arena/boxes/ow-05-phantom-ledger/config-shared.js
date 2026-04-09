@@ -59,23 +59,12 @@ const PhantomLedgerConfig = {
 
     scoring: { pinEvidence: 15, pinRedHerring: -5, recoverFile: 10, connection: 25, hintPenalty: -30, wrongAnswer: -50, correctAnswer: 200 },
 
-    answers: [
-        'trade based laundering vp morrison',
-        'vp morrison trade based laundering',
-        'morrison trade laundering',
-        'trade based money laundering morrison',
-        'vp morrison'
-    ],
-    answerKeywords: [
-        ['morrison'],
-        ['trade', 'laundering', 'structuring']
-    ],
-    nearMiss: [
-        { match: ['morrison'], hint: 'Right suspect. But what was the specific laundering technique? Look at how the money moved through the shell companies.' },
-        { match: ['trade', 'laundering'], hint: 'Correct method. Now who inside the bank facilitated it?' },
-        { match: ['karabas'], hint: 'Karabas is the beneficial owner of the shells, but the question is who INSIDE THE BANK enabled the scheme.' },
-        { match: ['structuring'], hint: 'Structuring was how cash entered the system. But how did it leave? The wire transfers tell the rest of the story.' }
-    ],
+    // Flags server-side only (Firestore flag_registry/ow-05-phantom-ledger)
+    flagConnections: {
+        'conn-laundering': 'method',
+        'conn-vp-complicity': 'insider',
+        'conn-sanctions': 'sanctions'
+    },
 
     triggers: {
         threats: [

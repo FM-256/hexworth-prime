@@ -35,15 +35,14 @@ const BlindSpotConfig = {
         { id: 'conn-notify', label: 'Notification Deleted: Real carrier never notified', from: 'dp-notify-deleted', to: 'em-typosquat' },
         { id: 'conn-pipeline', label: 'Full Pipeline: Intercept -> shell carrier -> factoring -> spouse', from: 'dp-thompson-shifts', to: 'fn-quickfund-owner' }
     ],
+    // Flags server-side only (Firestore flag_registry/ows-05-blind-spot)
+    flagConnections: {
+        'conn-single': 'insider',
+        'conn-shells': 'scheme',
+        'conn-ownership': 'cashout'
+    },
+
     scoring: { pinEvidence: 15, pinRedHerring: -5, recoverFile: 10, connection: 25, hintPenalty: -30, wrongAnswer: -50, correctAnswer: 200 },
-    answers: [ 'k thompson double brokering quickfund', 'thompson double brokering quickfund capital', 'k thompson double brokering', 'thompson double broker' ],
-    answerKeywords: [ ['thompson'], ['double', 'broker', 'brokering'] ],
-    nearMiss: [
-        { match: ['thompson'], hint: 'Right insider. But what specific fraud scheme was Thompson running? How did the money flow?' },
-        { match: ['double', 'broker'], hint: 'Correct scheme. But who inside NFP was doing it?' },
-        { match: ['quickfund'], hint: 'QuickFund is the cash-out mechanism. But who set it up and who was re-brokering the loads?' },
-        { match: ['carrier', 'subcontract'], hint: 'The legitimate carriers never received the loads. This is not unauthorized subcontracting \u2014 it is deliberate double brokering by an insider.' }
-    ],
     triggers: {
         threats: [], tips: [
             { id: 'tip-1', minGameHours: 3, from: 'SYSTEM', text: 'Tip: Check the dispatch board. Which dispatcher handled all 47 affected loads?', condition: function(s) { return s.openedFiles.length >= 3; } }

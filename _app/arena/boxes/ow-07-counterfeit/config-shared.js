@@ -55,16 +55,14 @@ const CounterfeitConfig = {
         { id: 'conn-goal', label: 'Election Interference Goal', from: 'nr-russian-artifacts', to: 'so-amplification' }
     ],
 
-    scoring: { pinEvidence: 15, pinRedHerring: -5, recoverFile: 10, connection: 25, hintPenalty: -30, wrongAnswer: -50, correctAnswer: 200 },
+    // Flags server-side only (Firestore flag_registry/ow-07-counterfeit)
+    flagConnections: {
+        'conn-attribution': 'actor',
+        'conn-financial': 'origin',
+        'conn-opsec': 'opsec'
+    },
 
-    answers: [ 'frost bear russia', 'frost bear', 'frost bear gru', 'russia frost bear', 'state sponsored russia' ],
-    answerKeywords: [ ['frost', 'bear'], ['russia', 'state', 'gru'] ],
-    nearMiss: [
-        { match: ['frost', 'bear'], hint: 'Correct threat actor. What nation-state sponsors FROST BEAR?' },
-        { match: ['russia'], hint: 'Correct origin. What is the specific threat actor group name? Check the TTP analysis.' },
-        { match: ['domestic', 'opposition'], hint: 'The infrastructure and funding are international, not domestic. Follow the money and the language artifacts.' },
-        { match: ['hacktivist', 'anonymous'], hint: 'The hacktivist claim was opportunistic. The real operation has state-level funding and infrastructure.' }
-    ],
+    scoring: { pinEvidence: 15, pinRedHerring: -5, recoverFile: 10, connection: 25, hintPenalty: -30, wrongAnswer: -50, correctAnswer: 200 },
 
     triggers: {
         threats: [],
