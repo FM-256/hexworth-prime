@@ -5479,6 +5479,7 @@ exports.discordInteraction = onRequest({ region: 'us-central1' }, async (req, re
                         color: 433476,
                         fields: [
                             { name: '/join', value: 'Get your Student role and welcome message', inline: true },
+                            { name: '/link <code>', value: 'Link Discord to Hexworth account', inline: true },
                             { name: '/house <name>', value: 'Join a House role', inline: true },
                             { name: '/standings', value: 'Tournament leaderboard', inline: true },
                             { name: '/team <name>', value: 'Look up a team', inline: true },
@@ -5487,6 +5488,7 @@ exports.discordInteraction = onRequest({ region: 'us-central1' }, async (req, re
                             { name: '/boxinfo <name>', value: 'Look up a CTF box', inline: true },
                             { name: '/profile', value: 'Your profile', inline: true },
                             { name: '/streak', value: 'Completion streak', inline: true },
+                            { name: '/optin', value: 'Toggle milestone announcements', inline: true },
                             { name: '/help', value: 'This message', inline: true }
                         ],
                         footer: { text: 'Hexworth Prime // The Wire' }
@@ -5606,26 +5608,61 @@ exports.discordInteraction = onRequest({ region: 'us-central1' }, async (req, re
             }
         }
 
-        // /profile
+        // /profile — show linked Hexworth stats
         if (command === 'profile') {
             const discordUserId = interaction.member?.user?.id || interaction.user?.id;
             const discordUsername = interaction.member?.user?.username || interaction.user?.username || 'Unknown';
 
-            return res.json({
-                type: 4,
-                data: {
-                    embeds: [{
-                        title: 'Profile: ' + discordUsername,
-                        description: 'Discord-to-Hexworth profile linking coming soon. For now, visit your dashboard at hexworth.com for full stats.',
-                        color: 433476,
-                        fields: [
-                            { name: 'Discord ID', value: discordUserId, inline: true },
-                            { name: 'Platform', value: '[Open Dashboard](https://hexworth.com/dashboard.html)', inline: true }
-                        ],
-                        footer: { text: 'Hexworth Prime // The Wire' }
-                    }]
+            try {
+                // Look up link
+                const linkDoc = await db.collection('discord_links').doc(discordUserId).get();
+                if (!linkDoc.exists) {
+                    return res.json({
+                        type: 4,
+                        data: {
+                            embeds: [{
+                                title: 'Profile: ' + discordUsername,
+                                description: 'Your Discord is not linked to a Hexworth account yet.\n\n**To link:**\n1. Go to [hexworth.com/dashboard](https://hexworth.com/dashboard.html)\n2. Open Settings > Link Discord\n3. Copy the 6-character code\n4. Type `/link <code>` here',
+                                color: 15844367,
+                                footer: { text: 'Hexworth Prime // Link Required' }
+                            }]
+                        }
+                    });
                 }
-            });
+
+                const linkData = linkDoc.data();
+                const userDoc = await db.doc(`users/${linkData.uid}`).get();
+                const userData = userDoc.exists ? userDoc.data() : {};
+
+                const xp = userData.xp || 0;
+                const level = userData.level || 1;
+                const modulesCompleted = userData.modulesCompleted || 0;
+                const quizzesPassed = userData.quizzesPassed || 0;
+                const flagsCaptured = userData.ctfFlagsCaptured || 0;
+
+                return res.json({
+                    type: 4,
+                    data: {
+                        embeds: [{
+                            title: 'Profile: ' + discordUsername,
+                            color: 433476,
+                            fields: [
+                                { name: 'Level', value: String(level), inline: true },
+                                { name: 'XP', value: String(xp).replace(/\B(?=(\d{3})+(?!\d))/g, ','), inline: true },
+                                { name: 'Modules', value: String(modulesCompleted), inline: true },
+                                { name: 'Quizzes Passed', value: String(quizzesPassed), inline: true },
+                                { name: 'Flags Captured', value: String(flagsCaptured), inline: true },
+                                { name: 'Email', value: linkData.email || 'N/A', inline: true }
+                            ],
+                            footer: { text: 'Hexworth Prime // Profile' },
+                            timestamp: new Date().toISOString()
+                        }]
+                    }
+                });
+            } catch (err) {
+                console.error('[Wire] /profile error:', err);
+                return res.json({ type: 4, data: { content: 'Error loading profile.' } });
+            }
         }
 
         // /house <name>
@@ -5676,6 +5713,71 @@ exports.discordInteraction = onRequest({ region: 'us-central1' }, async (req, re
             } catch (err) {
                 console.error('[Wire] /house error:', err);
                 return res.json({ type: 4, data: { content: 'Error assigning house role.' } });
+            }
+        }
+
+        // /link <code> — link Discord account to Hexworth
+        if (command === 'link') {
+            const code = (interaction.data.options?.[0]?.value || '').toUpperCase().trim();
+            const discordId = interaction.member?.user?.id;
+            const discordUsername = interaction.member?.user?.username || '';
+
+            if (!code || code.length !== 6) {
+                return res.json({ type: 4, data: { content: 'Invalid code. Enter the 6-character code from your Hexworth dashboard.' } });
+            }
+
+            try {
+                // Look up the code directly in Firestore
+                const codeDoc = await db.collection('discord_link_codes').doc(code).get();
+                if (!codeDoc.exists) {
+                    return res.json({ type: 4, data: { content: 'Code not found. Generate a new one from your Hexworth dashboard (Settings > Link Discord).' } });
+                }
+
+                const codeData = codeDoc.data();
+
+                if (codeData.used) {
+                    return res.json({ type: 4, data: { content: 'This code has already been used. Generate a new one.' } });
+                }
+
+                if (codeData.expiresAt && codeData.expiresAt.toDate() < new Date()) {
+                    return res.json({ type: 4, data: { content: 'Code expired. Generate a new one from the dashboard.' } });
+                }
+
+                // Mark used
+                await db.collection('discord_link_codes').doc(code).update({ used: true });
+
+                // Create link
+                await db.collection('discord_links').doc(discordId).set({
+                    uid: codeData.uid,
+                    email: codeData.email,
+                    discordUsername: discordUsername,
+                    linkedAt: FieldValue.serverTimestamp()
+                });
+
+                await db.doc(`users/${codeData.uid}`).set({
+                    discordId: discordId,
+                    discordUsername: discordUsername,
+                    discordLinkedAt: FieldValue.serverTimestamp()
+                }, { merge: true });
+
+                return res.json({
+                    type: 4,
+                    data: {
+                        embeds: [{
+                            title: 'Account Linked',
+                            description: 'Your Discord account is now connected to Hexworth Prime.\n\nUse `/profile` to see your stats and `/streak` to check your progress.',
+                            color: 3066993,
+                            fields: [
+                                { name: 'Hexworth Account', value: codeData.email || 'Linked', inline: true },
+                                { name: 'Discord', value: discordUsername, inline: true }
+                            ],
+                            footer: { text: 'Hexworth Prime // Account Linked' }
+                        }]
+                    }
+                });
+            } catch (err) {
+                console.error('[Wire] /link error:', err);
+                return res.json({ type: 4, data: { content: 'Error linking account. Try again.' } });
             }
         }
 
@@ -5764,6 +5866,40 @@ exports.discordInteraction = onRequest({ region: 'us-central1' }, async (req, re
             });
         }
 
+        // /optin — toggle milestone announcements
+        if (command === 'optin') {
+            const setting = interaction.data.options?.[0]?.value;
+            const discordId = interaction.member?.user?.id;
+            if (!discordId) {
+                return res.json({ type: 4, data: { content: 'Could not identify you.' } });
+            }
+            try {
+                const linkDoc = await db.collection('discord_links').doc(discordId).get();
+                if (!linkDoc.exists) {
+                    return res.json({ type: 4, data: { content: 'Link your account first with `/link <code>`.' } });
+                }
+                await db.collection('discord_links').doc(discordId).update({
+                    milestoneAnnouncements: setting === 'enable'
+                });
+                return res.json({
+                    type: 4,
+                    data: {
+                        embeds: [{
+                            title: 'Milestone Announcements ' + (setting === 'enable' ? 'Enabled' : 'Disabled'),
+                            description: setting === 'enable'
+                                ? 'When you pass a quiz with 90%+ or complete a course, it will be announced in #announcements.'
+                                : 'Your achievements will no longer be announced publicly.',
+                            color: setting === 'enable' ? 3066993 : 10038562,
+                            footer: { text: 'Hexworth Prime // Settings' }
+                        }]
+                    }
+                });
+            } catch (err) {
+                console.error('[Wire] /optin error:', err);
+                return res.json({ type: 4, data: { content: 'Error updating setting.' } });
+            }
+        }
+
         // /trivia — cybersecurity trivia
         if (command === 'trivia') {
             const questions = [
@@ -5839,23 +5975,106 @@ exports.discordInteraction = onRequest({ region: 'us-central1' }, async (req, re
             }
         }
 
-        // /streak — completion streak (placeholder until Discord-Hexworth linking)
+        // /streak — show completion streak and recent activity
         if (command === 'streak') {
+            const discordUserId = interaction.member?.user?.id || interaction.user?.id;
+
+            try {
+                const linkDoc = await db.collection('discord_links').doc(discordUserId).get();
+                if (!linkDoc.exists) {
+                    return res.json({
+                        type: 4,
+                        data: {
+                            embeds: [{
+                                title: 'Streak Tracker',
+                                description: 'Link your account first with `/link <code>` to track your streak.\n\nGet your code at [hexworth.com/dashboard](https://hexworth.com/dashboard.html) > Settings > Link Discord.',
+                                color: 15844367,
+                                footer: { text: 'Hexworth Prime // Link Required' }
+                            }]
+                        }
+                    });
+                }
+
+                const linkData = linkDoc.data();
+                const userDoc = await db.doc(`users/${linkData.uid}`).get();
+                const userData = userDoc.exists ? userDoc.data() : {};
+
+                const streak = userData.currentStreak || 0;
+                const longestStreak = userData.longestStreak || 0;
+                const lastActive = userData.lastActiveDate || 'Never';
+                const xp = userData.xp || 0;
+                const level = userData.level || 1;
+
+                const streakEmoji = streak >= 7 ? 'On fire!' : streak >= 3 ? 'Building momentum!' : streak > 0 ? 'Keep it going!' : 'Start a new streak today!';
+
+                return res.json({
+                    type: 4,
+                    data: {
+                        embeds: [{
+                            title: 'Streak: ' + streak + ' day' + (streak !== 1 ? 's' : ''),
+                            description: streakEmoji,
+                            color: streak >= 7 ? 16711680 : streak >= 3 ? 16766720 : 433476,
+                            fields: [
+                                { name: 'Current Streak', value: streak + ' days', inline: true },
+                                { name: 'Longest Streak', value: longestStreak + ' days', inline: true },
+                                { name: 'Level', value: String(level), inline: true },
+                                { name: 'Total XP', value: String(xp).replace(/\B(?=(\d{3})+(?!\d))/g, ','), inline: true },
+                                { name: 'Last Active', value: typeof lastActive === 'string' ? lastActive : new Date(lastActive).toLocaleDateString(), inline: true }
+                            ],
+                            footer: { text: 'Hexworth Prime // Streak Tracker' },
+                            timestamp: new Date().toISOString()
+                        }]
+                    }
+                });
+            } catch (err) {
+                console.error('[Wire] /streak error:', err);
+                return res.json({ type: 4, data: { content: 'Error loading streak data.' } });
+            }
+        }
+
+        // Unknown command
+        return res.json({ type: 4, data: { content: 'Unknown command.' } });
+    }
+
+    // MESSAGE COMPONENT INTERACTION (buttons, selects)
+    if (interaction.type === 3) {
+        const customId = interaction.data.custom_id;
+
+        if (customId === 'reroll_challenge') {
+            const challenges = [
+                { name: 'A1-Phantom Gate', type: 'CTF Box', diff: 'Beginner', desc: 'Your first breach.', url: 'https://hexworth.com/arena/index.html' },
+                { name: 'B3-Cipher Lock', type: 'CTF Box', diff: 'Intermediate', desc: 'Encrypted comms, hidden keys.', url: 'https://hexworth.com/arena/index.html' },
+                { name: 'C7-Veiled Logic', type: 'CTF Box', diff: 'Advanced', desc: 'Reverse the logic.', url: 'https://hexworth.com/arena/index.html' },
+                { name: 'D5-Breach Point', type: 'CTF Box', diff: 'Expert', desc: 'Full kill chain.', url: 'https://hexworth.com/arena/index.html' },
+                { name: 'Python-01 Grid Search', type: 'Operator', diff: 'Tier 3', desc: 'Loop sweep a 7x7 grid.', url: 'https://hexworth.com/operator/index.html' },
+                { name: 'PFI-OP-03 The Router', type: 'Operator', diff: 'Tier 3', desc: 'Multiple functions + gates.', url: 'https://hexworth.com/operator/missions/pfi-op-03.mission.html' },
+                { name: 'Green Belt Challenge', type: 'Dojo', diff: 'Intermediate', desc: 'SSRF exploitation.', url: 'https://hexworth.com/dojo/index.html' }
+            ];
+            const pick = challenges[Math.floor(Math.random() * challenges.length)];
             return res.json({
                 type: 4,
                 data: {
                     embeds: [{
-                        title: 'Streak Tracker',
-                        description: 'Discord-to-Hexworth account linking is coming soon. Once linked, this command will show your daily completion streak, XP earned this week, and current level.\n\nFor now, check your streak on the [Hexworth Dashboard](https://hexworth.com/dashboard.html).',
-                        color: 16766720,
-                        footer: { text: 'Hexworth Prime // Coming Soon' }
+                        title: 'Rerolled Challenge',
+                        color: 15844367,
+                        fields: [
+                            { name: pick.name, value: pick.desc, inline: false },
+                            { name: 'Type', value: pick.type, inline: true },
+                            { name: 'Difficulty', value: pick.diff, inline: true }
+                        ],
+                        footer: { text: 'Hexworth Prime // Rerolled' }
+                    }],
+                    components: [{
+                        type: 1,
+                        components: [
+                            { type: 2, style: 5, label: 'Launch Challenge', url: pick.url }
+                        ]
                     }]
                 }
             });
         }
 
-        // Unknown command
-        return res.json({ type: 4, data: { content: 'Unknown command.' } });
+        return res.json({ type: 4, data: { content: 'Unknown interaction.' } });
     }
 
     // Unknown interaction type
@@ -5869,7 +6088,7 @@ exports.discordInteraction = onRequest({ region: 'us-central1' }, async (req, re
 const DAILY_CHALLENGE_CHANNEL = '1494417032702066708';
 
 exports.dailyChallenge = onSchedule({
-    schedule: 'every day 13:00',
+    schedule: 'every day 08:00',
     region: 'us-central1',
     timeZone: 'America/New_York'
 }, async () => {
@@ -5907,11 +6126,17 @@ exports.dailyChallenge = onSchedule({
                     fields: [
                         { name: pick.name, value: pick.desc, inline: false },
                         { name: 'Type', value: pick.type, inline: true },
-                        { name: 'Difficulty', value: pick.diff, inline: true },
-                        { name: 'Link', value: '[Launch Challenge](' + pick.url + ')', inline: true }
+                        { name: 'Difficulty', value: pick.diff, inline: true }
                     ],
                     footer: { text: 'Hexworth Prime // The Wire // Daily Challenge' },
                     timestamp: new Date().toISOString()
+                }],
+                components: [{
+                    type: 1,
+                    components: [
+                        { type: 2, style: 5, label: 'Launch Challenge', url: pick.url },
+                        { type: 2, style: 2, label: 'Get a Different One', custom_id: 'reroll_challenge', disabled: false }
+                    ]
                 }]
             })
         });
@@ -5966,5 +6191,511 @@ exports.postPatchNote = onCall(cfOptions, async (request) => {
     } catch (err) {
         console.error('[Wire] Patch note failed:', err.message);
         throw new HttpsError('internal', 'Failed to post patch note.');
+    }
+});
+
+
+// ─── Discord Account Linking ─────────────────────────────────────
+
+/**
+ * generateDiscordLinkCode — Called from the Hexworth dashboard.
+ * Generates a 6-character code, stores it in Firestore with the user's UID,
+ * and returns it. Code expires in 10 minutes.
+ */
+exports.generateDiscordLinkCode = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+    const uid = request.auth.uid;
+    const email = request.auth.token.email || '';
+
+    // Generate a 6-char alphanumeric code
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I/O/0/1 to avoid confusion
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    // Store in Firestore with 10-minute expiry
+    await db.collection('discord_link_codes').doc(code).set({
+        uid: uid,
+        email: email,
+        createdAt: FieldValue.serverTimestamp(),
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        used: false
+    });
+
+    return { code: code };
+});
+
+/**
+ * verifyDiscordLinkCode — Called from the Discord bot /link command.
+ * Validates the code, links the Discord ID to the Hexworth UID,
+ * and stores the mapping in Firestore.
+ */
+exports.verifyDiscordLinkCode = onCall(cfOptions, async (request) => {
+    const { code, discordId, discordUsername } = request.data || {};
+    if (!code || !discordId) {
+        throw new HttpsError('invalid-argument', 'code and discordId are required.');
+    }
+
+    // Look up the code
+    const codeDoc = await db.collection('discord_link_codes').doc(code.toUpperCase()).get();
+    if (!codeDoc.exists) {
+        throw new HttpsError('not-found', 'Invalid link code.');
+    }
+
+    const codeData = codeDoc.data();
+
+    // Check expiry
+    if (codeData.expiresAt && codeData.expiresAt.toDate() < new Date()) {
+        throw new HttpsError('deadline-exceeded', 'Link code has expired. Generate a new one from the dashboard.');
+    }
+
+    // Check if already used
+    if (codeData.used) {
+        throw new HttpsError('already-exists', 'This code has already been used.');
+    }
+
+    // Mark code as used
+    await db.collection('discord_link_codes').doc(code.toUpperCase()).update({ used: true });
+
+    // Create the link mapping
+    await db.collection('discord_links').doc(discordId).set({
+        uid: codeData.uid,
+        email: codeData.email,
+        discordUsername: discordUsername || null,
+        linkedAt: FieldValue.serverTimestamp()
+    });
+
+    // Also store the Discord ID on the user's profile
+    await db.doc(`users/${codeData.uid}`).set({
+        discordId: discordId,
+        discordUsername: discordUsername || null,
+        discordLinkedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    return { success: true, uid: codeData.uid };
+});
+
+
+// ─── Weekly Leaderboard (Scheduled — Sunday 9pm EST) ─────────────
+const LEADERBOARD_CHANNEL = '1494411241534263458';
+
+exports.weeklyLeaderboard = onSchedule({
+    schedule: 'every sunday 21:00',
+    region: 'us-central1',
+    timeZone: 'America/New_York'
+}, async () => {
+    try {
+        // Get top 10 users by XP
+        const usersSnap = await db.collection('users')
+            .orderBy('xp', 'desc')
+            .limit(10)
+            .get();
+
+        if (usersSnap.empty) {
+            console.log('[Wire] Weekly leaderboard: no users with XP');
+            return;
+        }
+
+        let board = '';
+        let rank = 1;
+        usersSnap.forEach(doc => {
+            const u = doc.data();
+            const name = u.discordUsername || u.displayName || u.email || 'Operator';
+            const medal = rank === 1 ? '1st' : rank === 2 ? '2nd' : rank === 3 ? '3rd' : rank + 'th';
+            board += `**${medal}** — ${name} — Level ${u.level || 1} — ${(u.xp || 0).toLocaleString()} XP\n`;
+            rank++;
+        });
+
+        await fetch(`https://discord.com/api/v10/channels/${LEADERBOARD_CHANNEL}/messages`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bot ' + DISCORD_BOT_TOKEN, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                embeds: [{
+                    title: 'WEEKLY LEADERBOARD — Week of ' + new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+                    description: board,
+                    color: 15844367,
+                    footer: { text: 'Hexworth Prime // The Wire // Updated every Sunday at 9pm EST' },
+                    timestamp: new Date().toISOString()
+                }]
+            })
+        });
+        console.log('[Wire] Weekly leaderboard posted');
+    } catch (err) {
+        console.error('[Wire] Weekly leaderboard failed:', err.message);
+    }
+});
+
+
+// ─── Daily Challenge Follow-Up (12 hours after main post) ────────
+exports.dailyChallengeHints = onSchedule({
+    schedule: 'every day 20:00',
+    region: 'us-central1',
+    timeZone: 'America/New_York'
+}, async () => {
+    const hints = [
+        'Still working on today\'s challenge? Remember: enumeration is the first step. Run every scan before you try exploits.',
+        'Stuck? Check if you missed any open ports. Sometimes the answer is on a non-standard port.',
+        'Today\'s challenge tip: read the error messages carefully. They often tell you exactly what\'s wrong.',
+        'Halfway through the day. If you haven\'t started today\'s challenge, there\'s still time. Jump in.',
+        'Pro tip: document your approach as you go. The write-up is as valuable as the flag.',
+        'Need help? Ask in #ctf-discussion. Use ||spoiler tags|| for hints.',
+        'Remember: every failed attempt teaches you something. The box doesn\'t judge — it only validates.',
+        'If brute force isn\'t working, step back and think about what the box is trying to teach you.'
+    ];
+    const pick = hints[Math.floor(Math.random() * hints.length)];
+
+    try {
+        await fetch(`https://discord.com/api/v10/channels/${DAILY_CHALLENGE_CHANNEL}/messages`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bot ' + DISCORD_BOT_TOKEN, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                embeds: [{
+                    title: 'Challenge Check-In',
+                    description: pick,
+                    color: 433476,
+                    footer: { text: 'Hexworth Prime // Daily Challenge // Evening Check-In' }
+                }]
+            })
+        });
+    } catch (err) {
+        console.error('[Wire] Challenge hints failed:', err.message);
+    }
+});
+
+
+// ─── Milestone Announcements (callable from quiz/module completion) ──
+const ANNOUNCEMENTS_CHANNEL = '1494411237755453621';
+
+exports.announceMilestone = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const uid = request.auth.uid;
+    const { type, name, score } = request.data || {};
+    // type: 'quiz_ace' (90%+), 'course_complete', 'certification_ready'
+
+    if (!type || !name) return { announced: false };
+
+    // Check if user has a linked Discord account with announcements enabled
+    const userDoc = await db.doc(`users/${uid}`).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+    const discordId = userData.discordId;
+
+    if (!discordId) return { announced: false, reason: 'no_discord' };
+
+    const linkDoc = await db.collection('discord_links').doc(discordId).get();
+    if (!linkDoc.exists || !linkDoc.data().milestoneAnnouncements) {
+        return { announced: false, reason: 'opted_out' };
+    }
+
+    const discordUsername = linkDoc.data().discordUsername || 'An operator';
+
+    let embed;
+    if (type === 'quiz_ace') {
+        embed = {
+            title: 'Quiz Ace!',
+            description: `**${discordUsername}** scored **${score}%** on **${name}**`,
+            color: 16766720,
+            footer: { text: 'Hexworth Prime // Achievement' },
+            timestamp: new Date().toISOString()
+        };
+    } else if (type === 'course_complete') {
+        embed = {
+            title: 'Course Completed!',
+            description: `**${discordUsername}** has completed **${name}**`,
+            color: 3066993,
+            footer: { text: 'Hexworth Prime // Milestone' },
+            timestamp: new Date().toISOString()
+        };
+    } else if (type === 'certification_ready') {
+        embed = {
+            title: 'Certification Ready!',
+            description: `**${discordUsername}** has completed all objectives for **${name}**`,
+            color: 15844367,
+            footer: { text: 'Hexworth Prime // Certification Path' },
+            timestamp: new Date().toISOString()
+        };
+    } else {
+        return { announced: false, reason: 'unknown_type' };
+    }
+
+    try {
+        await fetch(`https://discord.com/api/v10/channels/${ANNOUNCEMENTS_CHANNEL}/messages`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bot ' + DISCORD_BOT_TOKEN, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ embeds: [embed] })
+        });
+        return { announced: true };
+    } catch (err) {
+        console.error('[Wire] Milestone announcement failed:', err.message);
+        return { announced: false, reason: 'discord_error' };
+    }
+});
+
+
+// ─── Auto-Role on Course Completion (callable) ──────────────────
+const COURSE_ROLES = {
+    'forge-ch12-hw-network-troubleshooting': { name: 'A+ Core 1 Graduate', color: 16753920 },
+    'forge-ch24-documentation': { name: 'A+ Core 2 Graduate', color: 16753920 },
+    'forge-md100-m11': { name: 'MD-100 Graduate', color: 3447003 },
+    'web-troubleshooting-quiz': { name: 'Network+ Graduate', color: 433476 },
+    'pfi-w4-final-exam': { name: 'Python Graduate', color: 1093465 }
+};
+
+exports.checkCourseCompletion = onCall(cfOptions, async (request) => {
+    if (!request.auth) return { role: null };
+
+    const uid = request.auth.uid;
+    const { moduleId } = request.data || {};
+    if (!moduleId || !COURSE_ROLES[moduleId]) return { role: null };
+
+    // Check if user has Discord linked
+    const userDoc = await db.doc(`users/${uid}`).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+    const discordId = userData.discordId;
+    if (!discordId) return { role: null, reason: 'no_discord' };
+
+    const roleInfo = COURSE_ROLES[moduleId];
+
+    try {
+        // Check if role exists, create if not
+        const rolesResp = await fetch(`https://discord.com/api/v10/guilds/${GUILD_ID}/roles`, {
+            headers: { 'Authorization': 'Bot ' + DISCORD_BOT_TOKEN }
+        });
+        const roles = await rolesResp.json();
+        let roleId = null;
+        for (const r of roles) {
+            if (r.name === roleInfo.name) { roleId = r.id; break; }
+        }
+
+        if (!roleId) {
+            // Create the role
+            const createResp = await fetch(`https://discord.com/api/v10/guilds/${GUILD_ID}/roles`, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bot ' + DISCORD_BOT_TOKEN, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: roleInfo.name, color: roleInfo.color, mentionable: true })
+            });
+            const newRole = await createResp.json();
+            roleId = newRole.id;
+        }
+
+        // Assign role to user
+        await fetch(`https://discord.com/api/v10/guilds/${GUILD_ID}/members/${discordId}/roles/${roleId}`, {
+            method: 'PUT',
+            headers: { 'Authorization': 'Bot ' + DISCORD_BOT_TOKEN }
+        });
+
+        return { role: roleInfo.name, assigned: true };
+    } catch (err) {
+        console.error('[Wire] Auto-role failed:', err.message);
+        return { role: null, reason: 'error' };
+    }
+});
+
+
+// ─── Tournament Team Channels (callable by tournament system) ────
+exports.createTournamentChannels = onCall(cfOptions, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
+
+    const email = request.auth.token.email || '';
+    if (!ADMIN_EMAILS.includes(email.toLowerCase())) {
+        throw new HttpsError('permission-denied', 'Admin only.');
+    }
+
+    const { tournamentId, teams } = request.data || {};
+    if (!tournamentId || !Array.isArray(teams) || teams.length === 0) {
+        throw new HttpsError('invalid-argument', 'tournamentId and teams[] required.');
+    }
+
+    try {
+        // Create a tournament category
+        const catResp = await fetch(`https://discord.com/api/v10/guilds/${GUILD_ID}/channels`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bot ' + DISCORD_BOT_TOKEN, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: 'TOURNAMENT: ' + tournamentId.toUpperCase(),
+                type: 4
+            })
+        });
+        const cat = await catResp.json();
+        const catId = cat.id;
+
+        const channels = [];
+        for (const team of teams) {
+            const chResp = await fetch(`https://discord.com/api/v10/guilds/${GUILD_ID}/channels`, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bot ' + DISCORD_BOT_TOKEN, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: 'team-' + team.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+                    type: 0,
+                    parent_id: catId,
+                    topic: 'Private channel for team ' + team.name
+                })
+            });
+            const ch = await chResp.json();
+            channels.push({ team: team.name, channelId: ch.id });
+        }
+
+        // Store mapping in Firestore
+        await db.doc(`tournaments/${tournamentId}`).set({
+            discordCategoryId: catId,
+            discordChannels: channels
+        }, { merge: true });
+
+        return { categoryId: catId, channels: channels };
+    } catch (err) {
+        console.error('[Wire] Tournament channels failed:', err.message);
+        throw new HttpsError('internal', 'Failed to create tournament channels.');
+    }
+});
+
+
+// ─── Cleanup Tournament Channels (callable) ─────────────────────
+exports.deleteTournamentChannels = onCall(cfOptions, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
+
+    const email = request.auth.token.email || '';
+    if (!ADMIN_EMAILS.includes(email.toLowerCase())) {
+        throw new HttpsError('permission-denied', 'Admin only.');
+    }
+
+    const { tournamentId } = request.data || {};
+    if (!tournamentId) throw new HttpsError('invalid-argument', 'tournamentId required.');
+
+    try {
+        const tournDoc = await db.doc(`tournaments/${tournamentId}`).get();
+        if (!tournDoc.exists) throw new HttpsError('not-found', 'Tournament not found.');
+
+        const data = tournDoc.data();
+        const channels = data.discordChannels || [];
+        const catId = data.discordCategoryId;
+
+        // Delete team channels
+        for (const ch of channels) {
+            await fetch(`https://discord.com/api/v10/channels/${ch.channelId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bot ' + DISCORD_BOT_TOKEN }
+            });
+        }
+
+        // Delete category
+        if (catId) {
+            await fetch(`https://discord.com/api/v10/channels/${catId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bot ' + DISCORD_BOT_TOKEN }
+            });
+        }
+
+        // Clean up Firestore
+        await db.doc(`tournaments/${tournamentId}`).update({
+            discordCategoryId: null,
+            discordChannels: null
+        });
+
+        return { deleted: true, channelsRemoved: channels.length };
+    } catch (err) {
+        console.error('[Wire] Tournament channel cleanup failed:', err.message);
+        throw new HttpsError('internal', 'Failed to delete tournament channels.');
+    }
+});
+
+
+// ─── New Content Announcement (callable when content is deployed) ──
+const NEW_CONTENT_CHANNEL = '1494417030109990922';
+
+exports.announceNewContent = onCall(cfOptions, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
+    const email = request.auth.token.email || '';
+    if (!ADMIN_EMAILS.includes(email.toLowerCase())) {
+        throw new HttpsError('permission-denied', 'Admin only.');
+    }
+
+    const { title, description, type, url } = request.data || {};
+    if (!title) throw new HttpsError('invalid-argument', 'title required.');
+
+    const typeColors = { 'ctf': 10038562, 'lab': 1093465, 'presentation': 433476, 'tool': 15844367, 'course': 3066993 };
+
+    try {
+        const msgResp = await fetch(`https://discord.com/api/v10/channels/${NEW_CONTENT_CHANNEL}/messages`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bot ' + DISCORD_BOT_TOKEN, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                embeds: [{
+                    title: 'NEW: ' + title,
+                    description: description || '',
+                    color: typeColors[type] || 433476,
+                    fields: url ? [{ name: 'Link', value: '[Open](' + url + ')', inline: true }] : [],
+                    footer: { text: 'Hexworth Prime // New Content' },
+                    timestamp: new Date().toISOString()
+                }]
+            })
+        });
+
+        // Auto-create a discussion thread on the post
+        const msg = await msgResp.json();
+        if (msg.id) {
+            await fetch(`https://discord.com/api/v10/channels/${NEW_CONTENT_CHANNEL}/messages/${msg.id}/threads`, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bot ' + DISCORD_BOT_TOKEN, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: 'Discuss: ' + title, auto_archive_duration: 1440 })
+            });
+        }
+
+        return { success: true };
+    } catch (err) {
+        console.error('[Wire] New content announcement failed:', err.message);
+        throw new HttpsError('internal', 'Failed to announce.');
+    }
+});
+
+
+// ─── Achievement Webhook (callable from AchievementSystem) ───────
+exports.announceAchievement = onCall(cfOptions, async (request) => {
+    if (!request.auth) return { announced: false };
+
+    const uid = request.auth.uid;
+    const { achievementName, achievementDesc, rarity } = request.data || {};
+    if (!achievementName) return { announced: false };
+
+    // Only announce rare achievements
+    if (rarity !== 'rare' && rarity !== 'epic' && rarity !== 'legendary') {
+        return { announced: false, reason: 'common_achievement' };
+    }
+
+    const userDoc = await db.doc(`users/${uid}`).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+    const discordId = userData.discordId;
+    if (!discordId) return { announced: false, reason: 'no_discord' };
+
+    const linkDoc = await db.collection('discord_links').doc(discordId).get();
+    if (!linkDoc.exists || !linkDoc.data().milestoneAnnouncements) {
+        return { announced: false, reason: 'opted_out' };
+    }
+
+    const rarityColors = { 'rare': 3447003, 'epic': 10038562, 'legendary': 16766720 };
+    const discordUsername = linkDoc.data().discordUsername || 'An operator';
+
+    try {
+        await fetch(`https://discord.com/api/v10/channels/${ANNOUNCEMENTS_CHANNEL}/messages`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bot ' + DISCORD_BOT_TOKEN, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                embeds: [{
+                    title: rarity.toUpperCase() + ' Achievement Unlocked!',
+                    description: '**' + discordUsername + '** earned **' + achievementName + '**\n' + (achievementDesc || ''),
+                    color: rarityColors[rarity] || 433476,
+                    footer: { text: 'Hexworth Prime // Achievement' },
+                    timestamp: new Date().toISOString()
+                }]
+            })
+        });
+        return { announced: true };
+    } catch (err) {
+        console.error('[Wire] Achievement announcement failed:', err.message);
+        return { announced: false };
     }
 });
